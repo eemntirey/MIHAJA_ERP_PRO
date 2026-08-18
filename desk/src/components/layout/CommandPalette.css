@@ -1,0 +1,113 @@
+/* src/components/layout/CommandPalette.css */
+
+.command-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 100;
+}
+
+.command-palette {
+  width: min(640px, 92vw);
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e6e6e1);
+  border-radius: 14px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.desktop-layout[data-theme='dark'] .command-palette {
+  background: var(--card-bg, #1e293b);
+  border-color: var(--border-color, #334155);
+}
+
+.command-palette__input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color, #e6e6e1);
+}
+
+.command-palette__input i {
+  color: var(--text-secondary, #77776f);
+  font-size: 18px;
+}
+
+.command-palette__input input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary, #111111);
+}
+
+.command-palette__input kbd {
+  font-size: 11px;
+  border: 1px solid var(--border-color, #e6e6e1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--text-secondary, #77776f);
+}
+
+.command-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.command-palette__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--text-primary, #111111);
+  font-size: 14px;
+}
+
+.command-palette__item i {
+  font-size: 18px;
+  color: var(--text-secondary, #77776f);
+}
+
+.command-palette__item.is-active {
+  background: var(--erp-gold, #d4af37);
+  color: #111111;
+}
+
+.command-palette__item.is-active i {
+  color: #111111;
+}
+
+.command-palette__label {
+  flex: 1;
+}
+
+.command-palette__hint {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #77776f);
+}
+
+.command-palette__item.is-active .command-palette__hint {
+  color: #111111;
+}
+
+.command-palette__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary, #77776f);
+  font-size: 14px;
+}

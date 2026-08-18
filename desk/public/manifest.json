@@ -1,0 +1,10 @@
+{
+  "short_name": "ERP Pro Desk",
+  "name": "ERP Pro Desktop",
+  "description": "ERP Pro - Interface desktop",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "icons": []
+}

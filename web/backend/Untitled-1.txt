@@ -1,0 +1,9 @@
+API error from mistral (model: mistral-vibe-cli-latest): LLM backend error [mistral]
+  status: 402 Payment Required
+  reason: Payment Required
+  request_id: N/A
+  endpoint: https://api.mistral.ai
+  model: mistral-vibe-cli-latest
+  provider_message: Check your subscription on https://admin.mistral.ai/subscription
+  body_excerpt: {"detail":"Check your subscription on https://admin.mistral.ai/subscription"}
+  payload_summary: {"model":"mistral-vibe-cli-latest","message_count":2,"approx_chars":13391,"temperature":1.0,"has_tools":true,"tool_choice":"auto"}

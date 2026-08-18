@@ -1,0 +1,327 @@
+/* src/pages/HR.css */
+
+/* ==================== HR TABS NAVIGATION ==================== */
+
+.hr-tabs {
+  display: flex;
+  gap: 1px;
+  background: var(--erp-line);
+  border: 1px solid var(--erp-line);
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.hr-tab {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--erp-white);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--erp-muted);
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+}
+
+.hr-tab:hover {
+  background: var(--erp-paper);
+  color: var(--erp-onyx);
+}
+
+.hr-tab.active {
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+  border-bottom-color: var(--erp-gold);
+}
+
+.hr-tab-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.hr-tab-label {
+  letter-spacing: -0.01em;
+}
+
+.hr-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--erp-paper);
+  color: var(--erp-muted);
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 0;
+}
+
+.hr-tab.active .hr-tab-count {
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+}
+
+/* ==================== HR SECTION HEADER ==================== */
+
+.hr-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.hr-section-head h2 {
+  font-family: var(--erp-heading-font);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--erp-onyx);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.hr-section-head p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--erp-muted);
+}
+
+.hr-section-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ==================== HR EMPLOYEE SUMMARY ==================== */
+
+.hr-emp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.hr-emp-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hr-info-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hr-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--erp-line);
+  font-size: 13px;
+}
+
+.hr-info-row:last-child {
+  border-bottom: none;
+}
+
+.hr-info-label {
+  color: var(--erp-muted);
+  font-weight: 600;
+}
+
+.hr-info-value {
+  color: var(--erp-onyx);
+  font-weight: 700;
+  text-align: right;
+}
+
+.hr-avatar {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+  border-radius: 0;
+  font-family: var(--erp-heading-font);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.hr-emp-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--erp-line);
+  margin-bottom: 6px;
+}
+
+.hr-emp-head .hr-emp-name {
+  font-family: var(--erp-heading-font);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--erp-onyx);
+  letter-spacing: -0.02em;
+}
+
+.hr-emp-head .hr-emp-sub {
+  font-size: 12px;
+  color: var(--erp-muted);
+  margin-top: 2px;
+}
+
+/* ==================== HR EMPLOYEE FORM SECTIONS ==================== */
+
+.hr-form-section {
+  background: var(--erp-paper);
+  border: 1px solid var(--erp-line);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.hr-form-section:last-child {
+  margin-bottom: 0;
+}
+
+.hr-form-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--erp-line);
+}
+
+.hr-form-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.hr-form-section-title {
+  font-family: var(--erp-heading-font);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--erp-onyx);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hr-required {
+  color: var(--erp-critical);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* ==================== HR PAYSLIP / PRIME META ==================== */
+
+.hr-money {
+  font-family: var(--erp-heading-font);
+  font-weight: 800;
+  color: var(--erp-onyx);
+  letter-spacing: -0.02em;
+}
+
+.hr-table-meta {
+  font-size: 11px;
+  color: var(--erp-subtle);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .hr-tabs {
+    flex-wrap: nowrap;
+  }
+
+  .hr-tab {
+    min-width: 120px;
+    padding: 14px 12px;
+  }
+
+  .hr-emp-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== DARK MODE ==================== */
+
+.main-layout[data-theme='dark'] .hr-tab {
+  background: var(--erp-white);
+  color: var(--erp-muted);
+}
+
+.main-layout[data-theme='dark'] .hr-tab:hover {
+  background: var(--erp-paper);
+  color: var(--erp-onyx);
+}
+
+.main-layout[data-theme='dark'] .hr-tab.active {
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+  border-bottom-color: var(--erp-gold);
+}
+
+.main-layout[data-theme='dark'] .hr-tab-count {
+  background: var(--erp-line-strong);
+  color: var(--erp-muted);
+}
+
+.main-layout[data-theme='dark'] .hr-tab.active .hr-tab-count {
+  background: var(--erp-gold);
+  color: var(--erp-onyx);
+}
+
+.main-layout[data-theme='dark'] .hr-avatar {
+  background: var(--erp-gold);
+  color: var(--erp-onyx);
+}
+
+.main-layout[data-theme='dark'] .hr-info-row {
+  border-color: var(--erp-line);
+}
+
+.main-layout[data-theme='dark'] .hr-emp-head {
+  border-color: var(--erp-line);
+}
+
+/* ==================== DARK MODE FORM SECTIONS ==================== */
+
+.main-layout[data-theme='dark'] .hr-form-section {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .hr-form-section-header {
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .hr-form-section-icon {
+  background: var(--erp-gold);
+  color: var(--erp-onyx);
+}
+
+.main-layout[data-theme='dark'] .hr-form-section-title {
+  color: #e2e8f0;
+}
