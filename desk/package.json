@@ -1,0 +1,73 @@
+{
+  "name": "erp-frontend-desk",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": ".",
+  "main": "electron/main.js",
+  "proxy": "http://127.0.0.1:5000",
+  "dependencies": {
+    "@hookform/resolvers": "^5.7.1",
+    "@tanstack/react-virtual": "^3.0.0",
+    "axios": "^1.19.0",
+    "framer-motion": "^13.0.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "^7.85.0",
+    "react-router-dom": "^7.18.2",
+    "react-scripts": "5.0.1",
+    "react-toastify": "^11.1.0",
+    "yup": "^1.7.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-is-dev": "^3.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron": "node electron/run.js",
+    "electron:dev": "concurrently -k -n WEB,ELECTRON \"cross-env BROWSER=none PORT=3001 react-scripts start\" \"wait-on http://localhost:3001 && node electron/run.js\"",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "release": "react-scripts build && electron-builder"
+  },
+  "build": {
+    "appId": "com.erppro.desk",
+    "productName": "ERP Pro Desktop",
+    "files": [
+      "build/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

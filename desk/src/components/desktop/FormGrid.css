@@ -1,0 +1,12 @@
+/* src/components/desktop/FormGrid.css */
+
+.form-grid-desktop {
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 1279px) {
+  .form-grid-desktop {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1,0 +1,57 @@
+/* src/components/layout/DarkModeToggle.css */
+
+.dark-mode-toggle {
+  position: fixed;
+  right: 24px;
+  bottom: 110px;
+  z-index: 210;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #D4AF37;
+}
+
+.dark-mode-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.dark-mode-label {
+  line-height: 1;
+}
+
+.main-layout[data-theme='dark'] .dark-mode-toggle {
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+.main-layout[data-theme='dark'] .dark-mode-toggle:hover {
+  border-color: #D4AF37;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 768px) {
+  .dark-mode-toggle {
+    right: 16px;
+    bottom: 100px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}

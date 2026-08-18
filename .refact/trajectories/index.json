@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-12T13:37:16.368091300+00:00",
+  "entries": [
+    {
+      "id": "832b7b7a-4228-4966-8244-46ff21dc8d06",
+      "file_name": "832b7b7a-4228-4966-8244-46ff21dc8d06.json",
+      "source": {
+        "kind": "normal"
+      },
+      "created_at": "2026-08-12T13:28:39.963850100+00:00",
+      "updated_at": "2026-08-12T13:36:43.658507800+00:00",
+      "title": "itre : Spécifications fonctionnelles pour l’évolution du sys...",
+      "model": "google_gemini/gemini-3.5-flash",
+      "mode": "agent",
+      "message_count": 24,
+      "root_chat_id": "832b7b7a-4228-4966-8244-46ff21dc8d06",
+      "is_title_generated": true,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "tasks_failed": 0,
+      "total_prompt_tokens": 41886,
+      "total_completion_tokens": 512,
+      "total_tokens": 106854,
+      "total_cache_read_tokens": 64456,
+      "total_cache_creation_tokens": 0,
+      "total_cost_usd": 0.07710539999999999,
+      "displayable_chat": true,
+      "waiting_for_card_ids": [],
+      "file_len": 173413,
+      "file_modified_unix_ms": 1786541803650
+    },
+    {
+      "id": "b6e6e0b2-25a5-4fdd-9ffb-677d5a0251fa",
+      "file_name": "b6e6e0b2-25a5-4fdd-9ffb-677d5a0251fa.json",
+      "source": {
+        "kind": "normal"
+      },
+      "created_at": "2026-08-12T13:30:21.044287600+00:00",
+      "updated_at": "2026-08-12T13:37:16.350929600+00:00",
+      "title": "salut",
+      "model": "google_gemini/gemini-3.5-flash",
+      "mode": "agent",
+      "message_count": 24,
+      "root_chat_id": "b6e6e0b2-25a5-4fdd-9ffb-677d5a0251fa",
+      "is_title_generated": true,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "tasks_total": 4,
+      "tasks_done": 0,
+      "tasks_failed": 0,
+      "total_prompt_tokens": 20506,
+      "total_completion_tokens": 608,
+      "total_tokens": 101027,
+      "total_cache_read_tokens": 79913,
+      "total_cache_creation_tokens": 0,
+      "total_cost_usd": 0.048217949999999996,
+      "displayable_chat": true,
+      "waiting_for_card_ids": [],
+      "file_len": 204226,
+      "file_modified_unix_ms": 1786541836352
+    }
+  ]
+}

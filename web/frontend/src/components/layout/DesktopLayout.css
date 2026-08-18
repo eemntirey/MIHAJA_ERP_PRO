@@ -1,0 +1,40 @@
+/* src/components/layout/DesktopLayout.css */
+
+.main-layout.desktop-layout {
+  --erp-sidebar-width: 260px;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  min-height: 100vh;
+}
+
+.main-layout.desktop-layout.is-collapsed {
+  --erp-sidebar-width: 76px;
+}
+
+.main-layout.desktop-layout .desktop-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 100vh;
+  transition: all 0.18s ease;
+}
+
+.main-layout.desktop-layout .main-content.desktop-content {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0;
+  overflow-x: auto;
+  padding: 16px;
+}
+
+.main-layout.desktop-layout[data-ai='true'] .main-content.desktop-content {
+  max-width: none;
+  padding: 0;
+}
+
+.main-layout.desktop-layout[data-theme='dark'] {
+  color-scheme: dark;
+}

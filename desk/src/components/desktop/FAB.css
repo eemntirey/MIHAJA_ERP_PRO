@@ -1,0 +1,77 @@
+/* src/components/desktop/FAB.css */
+
+.fab-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  box-shadow: 0 8px 24px -4px rgba(17, 17, 17, 0.12);
+  animation: fabIn 0.2s ease;
+}
+
+.fab-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  white-space: nowrap;
+  transition: all 180ms ease;
+}
+
+.fab-menu-item:hover {
+  background: var(--erp-paper);
+  border-color: var(--erp-line-strong);
+}
+
+.fab-menu-item i {
+  font-size: 16px;
+  color: var(--erp-muted);
+}
+
+.fab-main {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+  border: 1px solid var(--erp-onyx);
+  border-radius: 0;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -4px rgba(17, 17, 17, 0.3);
+  transition: all 180ms ease;
+}
+
+.fab-main:hover {
+  background: var(--erp-onyx-soft);
+  border-color: var(--erp-onyx-soft);
+  transform: scale(1.05);
+}
+
+@keyframes fabIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

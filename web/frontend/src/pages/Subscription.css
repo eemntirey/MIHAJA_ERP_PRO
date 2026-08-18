@@ -1,0 +1,205 @@
+/* src/pages/Subscription.css */
+
+.subscription-page {
+  animation: fadeIn 0.3s ease;
+}
+
+.subscription-status-card {
+  margin-bottom: 28px;
+  border-left: 4px solid var(--erp-line);
+}
+
+.subscription-status-card--actif {
+  border-left-color: var(--erp-success);
+}
+
+.subscription-status-card--en_attente {
+  border-left-color: #d4af37;
+}
+
+.subscription-status-card--expire {
+  border-left-color: var(--erp-critical);
+}
+
+.subscription-status-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.subscription-status-card__header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.subscription-plan-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--erp-muted);
+  background: var(--erp-paper);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.subscription-status-card__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.subscription-status-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--erp-line);
+}
+
+.subscription-plans-section {
+  margin-top: 8px;
+}
+
+.subscription-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.subscription-plan-card {
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+
+.subscription-plan-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.subscription-plan-card__header {
+  margin-bottom: 12px;
+}
+
+.subscription-plan-card__header h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.subscription-plan-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.subscription-plan-card__amount {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: var(--erp-heading-font);
+}
+
+.subscription-plan-card__period {
+  font-size: 13px;
+  color: var(--erp-muted);
+}
+
+.subscription-plan-card__limits {
+  font-size: 13px;
+  color: var(--erp-muted);
+  margin-bottom: 14px;
+}
+
+.subscription-plan-card__features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px 0;
+  flex: 1;
+}
+
+.subscription-plan-card__features li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--erp-onyx);
+  margin-bottom: 8px;
+}
+
+.subscription-plan-card__features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--erp-success);
+  font-weight: 700;
+}
+
+.subscription-plan-card__cta {
+  width: 100%;
+  color: var(--erp-white);
+  border: none;
+}
+
+.subscription-plan-card__cta:hover {
+  opacity: 0.92;
+}
+
+@media (max-width: 768px) {
+  .subscription-status-card__header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .subscription-plans-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== DARK MODE ==================== */
+.main-layout[data-theme='dark'] .subscription-status-card {
+  border-left-color: var(--erp-line);
+}
+
+.main-layout[data-theme='dark'] .subscription-status-card__actions {
+  border-top-color: var(--erp-line);
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-name {
+  color: var(--erp-muted);
+  background: var(--erp-paper);
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card__header h4 {
+  color: #e2e8f0;
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card__period,
+.main-layout[data-theme='dark'] .subscription-plan-card__limits {
+  color: #94a3b8;
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card__features li {
+  color: #e2e8f0;
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card__features li::before {
+  color: #6e9b79;
+}
+
+.main-layout[data-theme='dark'] .subscription-plan-card__cta {
+  color: #111111;
+}
+
+

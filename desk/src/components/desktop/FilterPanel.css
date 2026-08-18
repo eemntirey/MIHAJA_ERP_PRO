@@ -1,0 +1,103 @@
+/* src/components/desktop/FilterPanel.css */
+
+.filter-panel {
+  margin-bottom: 16px;
+}
+
+.filter-panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  transition: border-color 180ms ease;
+}
+
+.filter-panel-toggle:hover {
+  border-color: var(--erp-gold);
+}
+
+.filter-panel-count {
+  padding: 2px 8px;
+  background: var(--erp-gold);
+  color: var(--erp-onyx);
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 0;
+}
+
+.filter-panel-body {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-row select,
+.filter-row input {
+  padding: 8px 10px;
+  border: 1px solid var(--erp-line-strong);
+  border-radius: 0;
+  font-size: 13px;
+  font-family: var(--erp-body-font);
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+}
+
+.filter-row select {
+  min-width: 160px;
+}
+
+.filter-row input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.filter-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: var(--erp-muted);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.filter-remove-btn:hover {
+  background: var(--erp-paper);
+  border-color: var(--erp-critical);
+  color: var(--erp-critical);
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--erp-line);
+}
+
+.filter-actions-right {
+  display: flex;
+  gap: 8px;
+}

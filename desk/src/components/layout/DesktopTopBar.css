@@ -1,0 +1,164 @@
+/* src/components/layout/DesktopTopBar.css */
+
+.desktop-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--erp-white);
+  border-bottom: 1px solid var(--erp-line);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: 60px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.topbar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--erp-muted);
+}
+
+.topbar-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.topbar-crumb i {
+  font-size: 10px;
+  color: var(--erp-subtle);
+}
+
+.topbar-crumb strong {
+  color: var(--erp-onyx);
+  font-weight: 700;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topbar-pill {
+  padding: 4px 10px;
+  background: var(--erp-paper);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--erp-onyx);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.topbar-pill.danger { background: rgba(185, 110, 85, 0.08); color: var(--erp-critical); border-color: rgba(185, 110, 85, 0.25); }
+.topbar-pill.warning { background: rgba(212, 175, 55, 0.08); color: #8d6b18; border-color: rgba(212, 175, 55, 0.25); }
+.topbar-pill.success { background: rgba(110, 155, 121, 0.08); color: #3d6b4a; border-color: rgba(110, 155, 121, 0.25); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--erp-paper);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-size: 13px;
+  color: var(--erp-muted);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  transition: border-color 180ms ease;
+}
+
+.topbar-search-btn:hover {
+  border-color: var(--erp-gold);
+}
+
+.topbar-search-btn kbd {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-family: var(--erp-body-font);
+}
+
+.topbar-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: var(--erp-muted);
+  cursor: pointer;
+  transition: all 180ms ease;
+  font-size: 18px;
+}
+
+.topbar-icon-btn:hover {
+  background: var(--erp-paper);
+  border-color: var(--erp-line-strong);
+  color: var(--erp-onyx);
+}
+
+.topbar-notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--erp-critical);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+}
+
+.topbar-notifications {
+  position: relative;
+}
+
+@media (max-width: 1279px) {
+  .desktop-topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .topbar-search-btn {
+    display: none;
+  }
+
+  .topbar-center {
+    display: none;
+  }
+
+  .topbar-breadcrumb {
+    font-size: 12px;
+  }
+}

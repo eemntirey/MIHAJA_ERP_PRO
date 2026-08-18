@@ -1,0 +1,177 @@
+// src/App.js
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+// Composants d'authentification
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import RegisterUser from './components/auth/RegisterUser';
+import RegisterCompany from './components/auth/RegisterCompany';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
+
+// Layouts
+import MainLayout from './components/layout/MainLayout';
+
+// Contextes
+import { CartProvider } from './contexts/CartContext';
+
+// Pages
+import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import Clients from './pages/Clients';
+import Sales from './pages/Sales';
+import Inventory from './pages/Inventory';
+import Suppliers from './pages/Suppliers';
+import Invoices from './pages/Invoices';
+import Payments from './pages/Payments';
+import AI from './pages/AI';
+import Documentation from './pages/Documentation';
+import Checkout from './pages/Checkout';
+import OrderTracking from './pages/OrderTracking';
+import SuperAdmin from './pages/SuperAdmin';
+import SuperAdminProfile from './pages/SuperAdminProfile';
+import Cart from './pages/Cart';
+import ProductDetail from './pages/ProductDetail';
+import Subscription from './pages/Subscription';
+import Catalogue from './pages/Catalogue';
+import Suivi from './pages/Suivi';
+import Contact from './pages/Contact';
+import UserOrders from './pages/UserOrders';
+import Delivery from './pages/Delivery';
+import HR from './pages/HR';
+import Accounting from './pages/Accounting';
+import Documents from './pages/Documents';
+import Purchases from './pages/Purchases';
+
+// Composant de protection utilisant AuthContext
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading, user, subscription } = useAuth();
+  const location = useLocation();
+
+  const hasToken = !!localStorage.getItem('access_token');
+  const shouldAllow = isAuthenticated || hasToken;
+
+  console.log('ProtectedRoute check:', {
+    isAuthenticated,
+    loading,
+    hasToken,
+    shouldAllow,
+    role: user?.role,
+    subscriptionStatus: subscription?.statut,
+  });
+
+  if (loading) {
+    console.log('ProtectedRoute: Affichage chargement');
+    return <div>Chargement...</div>;
+  }
+
+  if (!shouldAllow) {
+    console.log('ProtectedRoute: REDIRECTION vers /login');
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (user?.role || '').toLowerCase();
+  if (role === 'user') {
+    console.log('ProtectedRoute: USER interdit -> /');
+    return <Navigate to="/" replace />;
+  }
+
+  // SUPER_ADMIN can access everything
+  if (role === 'super_admin') {
+    console.log('ProtectedRoute: SUPER_ADMIN ACCES AUTORISE');
+    return children;
+  }
+
+  const isSubscriptionPage = location.pathname === '/subscription';
+  const hasActiveSubscription = subscription && 
+    (subscription.statut === 'actif' || subscription.statut === 'ACTIF' || subscription.statut === 'ACTIVE');
+
+  if (!isSubscriptionPage && !hasActiveSubscription) {
+    console.log('ProtectedRoute: Pas d abonnement actif -> /subscription');
+    return <Navigate to="/subscription" replace />;
+  }
+
+  console.log('ProtectedRoute: ACCES AUTORISE');
+  return children;
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <BrowserRouter>
+          <div className="app">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/register/simple" element={<RegisterUser />} />
+              <Route path="/register/company" element={<RegisterCompany />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <MainLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="clients" element={<Clients />} />
+                <Route path="sales" element={<Sales />} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="suppliers" element={<Suppliers />} />
+                <Route path="invoices" element={<Invoices />} />
+                <Route path="payments" element={<Payments />} />
+                <Route path="ai" element={<AI />} />
+                <Route path="documentation" element={<Documentation />} />
+                <Route path="subscription" element={<Subscription />} />
+                <Route path="delivery" element={<Delivery />} />
+                <Route path="hr" element={<HR />} />
+                <Route path="accounting" element={<Accounting />} />
+                <Route path="documents" element={<Documents />} />
+                <Route path="purchases" element={<Purchases />} />
+                <Route path="super-admin" element={<SuperAdmin />} />
+                <Route path="super-admin/profile" element={<SuperAdminProfile />} />
+              </Route>
+
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-tracking/:ref" element={<OrderTracking />} />
+
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/produits/:id" element={<ProductDetail />} />
+
+              <Route path="/catalogue" element={<Catalogue />} />
+              <Route path="/suivi" element={<Suivi />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/mes-commandes" element={<UserOrders />} />
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
+          </div>
+        </BrowserRouter>
+      </CartProvider>
+    </AuthProvider>
+  );
+}
+
+export default App;

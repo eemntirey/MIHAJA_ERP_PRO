@@ -1,0 +1,175 @@
+/* src/components/desktop/DataTable.css */
+
+.data-table-wrapper {
+  border: 1px solid var(--erp-line);
+  background: var(--erp-white);
+  overflow: hidden;
+}
+
+.data-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--erp-line);
+  background: var(--erp-paper);
+}
+
+.data-table-column-menu {
+  position: relative;
+}
+
+.data-table-column-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  transition: border-color 180ms ease;
+}
+
+.data-table-column-toggle:hover {
+  border-color: var(--erp-gold);
+}
+
+.data-table-column-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px 0;
+  min-width: 180px;
+}
+
+.data-table-column-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--erp-onyx);
+  transition: background-color 180ms ease;
+}
+
+.data-table-column-option:hover {
+  background: var(--erp-paper);
+}
+
+.data-table-column-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--erp-gold);
+  cursor: pointer;
+}
+
+.data-table-scroll {
+  overflow-x: auto;
+}
+
+.desktop-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.desktop-data-table th {
+  background: var(--erp-paper);
+  padding: 12px 14px;
+  text-align: left;
+  font-family: var(--erp-heading-font);
+  font-weight: 700;
+  color: var(--erp-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--erp-line);
+  position: relative;
+  user-select: none;
+}
+
+.desktop-data-table th.sortable {
+  cursor: pointer;
+}
+
+.desktop-data-table th.sortable:hover {
+  color: var(--erp-onyx);
+  background: var(--erp-line);
+}
+
+.dt-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dt-sort-indicator {
+  font-size: 10px;
+  color: var(--erp-gold);
+  opacity: 0.8;
+}
+
+.dt-col-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 180ms ease;
+}
+
+.dt-col-resizer:hover,
+.dt-col-resizer:active {
+  background: var(--erp-gold);
+}
+
+.desktop-data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--erp-line);
+  vertical-align: middle;
+}
+
+.desktop-data-table tbody tr:hover {
+  background: var(--erp-paper);
+}
+
+.desktop-data-table tbody tr.clickable {
+  cursor: pointer;
+}
+
+.desktop-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dt-col {
+  position: relative;
+}
+
+.dt-col--check {
+  text-align: center;
+}
+
+.dt-col--check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--erp-gold);
+  cursor: pointer;
+}
+
+.dt-empty {
+  text-align: center;
+  padding: 32px 14px;
+  color: var(--erp-muted);
+  font-size: 13px;
+}

@@ -1,0 +1,100 @@
+/* src/components/layout/TitleBar.css */
+
+.app-titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--titlebar-height, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--erp-onyx, #111111);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+  z-index: 60;
+  user-select: none;
+}
+
+.app-titlebar__drag {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 14px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-titlebar__logo {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  background: var(--erp-gold, #d4af37);
+  color: var(--erp-onyx, #111111);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+  font-family: var(--erp-heading-font, 'Inter', sans-serif);
+}
+
+.app-titlebar__brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--erp-heading-font, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--erp-white, #ffffff);
+  white-space: nowrap;
+}
+
+.app-titlebar__brand-sub {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--erp-gold, #d4af37);
+}
+
+.app-titlebar__controls {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.app-titlebar__btn {
+  -webkit-app-region: no-drag;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.app-titlebar__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.app-titlebar__btn:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.app-titlebar__btn--close:hover {
+  background: #e02e2e;
+  color: #ffffff;
+}
+
+.app-titlebar__btn--close:active {
+  background: #c02424;
+}

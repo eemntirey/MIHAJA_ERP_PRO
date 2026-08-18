@@ -1,0 +1,22 @@
+/* src/components/layout/ResizablePanel.css */
+
+.resizable-panel {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.resizable-panel__handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resizable-panel.resizing {
+  user-select: none;
+}
