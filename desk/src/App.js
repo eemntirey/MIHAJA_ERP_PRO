@@ -1,9 +1,10 @@
 // src/App.js
-import React, { useState, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+import { useTheme } from './hooks/useTheme';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { DesktopProvider } from './contexts/DesktopContext';
@@ -124,22 +125,9 @@ const RequireRole = ({ children, role }) => {
 };
 
 const App = () => {
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem('dark_mode') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleDarkMode = (next) => {
-    setDarkMode(next);
-    try {
-      localStorage.setItem('dark_mode', String(next));
-    } catch {
-      // ignore
-    }
-  };
+  // Gestion centralisée du thème : synchronise la classe `.dark` sur <html>,
+  // persiste dans localStorage et met à jour le meta theme-color.
+  const [darkMode, toggleDarkMode] = useTheme();
 
   const handleLogout = () => {
     try {
@@ -234,7 +222,7 @@ const App = () => {
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme="light"
+            theme={darkMode ? "dark" : "light"}
           />
         </CartProvider>
       </DesktopProvider>

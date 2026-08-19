@@ -301,16 +301,16 @@ class SalaireService:
                 func.extract('month', Prime.date_octroi) == mois,
                 func.extract('year', Prime.date_octroi) == annee
             ).all()
-            total_primes = sum(float(p.montant) for p in primes_mois)
+            total_primes = sum(Decimal(str(p.montant)) for p in primes_mois)
             salaire = Salaire(
                 employe_id=employe.id,
                 mois=mois,
                 annee=annee,
-                salaire_base=employe.salaire_base or 0,
+                salaire_base=Decimal(str(employe.salaire_base or 0)),
                 primes=total_primes,
-                indemnites=0,
-                deductions=0,
-                avances=0,
+                indemnites=Decimal('0'),
+                deductions=Decimal('0'),
+                avances=Decimal('0'),
                 tenant_id=tenant_id,
             )
             salaire.calculer_salaire()

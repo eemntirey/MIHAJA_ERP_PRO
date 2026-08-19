@@ -1,33 +1,14 @@
 // src/components/layout/DesktopTopBar.jsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDesktop } from '../../contexts/DesktopContext';
+import Breadcrumbs from './Breadcrumbs';
 import NotificationDropdown from './NotificationDropdown';
-import DarkModeToggle from './DarkModeToggle';
+import ThemeToggle from './ThemeToggle';
 import './DesktopTopBar.css';
 
-const BREADCRUMB_MAP = {
-  '/dashboard': ['Tableau de bord'],
-  '/products': ['Produits'],
-  '/clients': ['Piloter', 'Clients'],
-  '/sales': ['Piloter', 'Ventes'],
-  '/invoices': ['Piloter', 'Factures'],
-  '/payments': ['Piloter', 'Paiements'],
-  '/inventory': ['Opérations', 'Stock'],
-  '/suppliers': ['Opérations', 'Fournisseurs'],
-  '/purchases': ['Opérations', 'Achats'],
-  '/delivery': ['Opérations', 'Livraisons'],
-  '/hr': ['Gestion', 'Ressources Humaines'],
-  '/accounting': ['Gestion', 'Comptabilité'],
-  '/documents': ['Gestion', 'Documents'],
-  '/ai': ['Gestion', 'Assistant IA'],
-  '/subscription': ['Compte', 'Abonnement'],
-  '/super-admin': ['Admin', 'Administration'],
-};
-
 const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, onLogout }) => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const { setCommandPaletteOpen, notifications, unreadCount } = useDesktop();
@@ -42,12 +23,6 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
-
-  const path = location.pathname;
-  const crumbs = useMemo(() => {
-    const base = BREADCRUMB_MAP[path] || ['Page'];
-    return base;
-  }, [path]);
 
   const indicators = useMemo(() => [
     { key: 'stock', label: 'Stock critique', value: counters.stock, icon: 'ti-alert-triangle', to: '/inventory', tone: 'critical' },
@@ -74,14 +49,7 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
             <i className="ti ti-menu-2" aria-hidden="true" />
           </button>
         )}
-        <nav className="topbar-breadcrumb" aria-label="Fil d'Ariane">
-          {crumbs.map((crumb, i) => (
-            <span key={i} className="topbar-crumb">
-              {i > 0 && <i className="ti ti-chevron-right" aria-hidden="true" />}
-              {i === crumbs.length - 1 ? <strong>{crumb}</strong> : <span>{crumb}</span>}
-            </span>
-          ))}
-        </nav>
+          <Breadcrumbs />
       </div>
 
       <div className="topbar-center">
@@ -121,7 +89,7 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
           </button>
         )}
 
-        <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+                <ThemeToggle enabled={darkMode} onChange={onToggleDarkMode} />
 
         {onLogout && (
           <button type="button" className="topbar-icon-btn" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">

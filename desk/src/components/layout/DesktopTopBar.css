@@ -14,11 +14,28 @@
   min-height: 60px;
 }
 
-.topbar-left {
+.desktop-topbar__left {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
+}
+
+.desktop-topbar__toggle {
+  background: transparent;
+  border: none;
+  color: var(--erp-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.desktop-topbar__toggle:hover {
+  background: var(--erp-paper);
+  color: var(--erp-onyx);
 }
 
 .topbar-breadcrumb {
@@ -66,8 +83,8 @@
 }
 
 .topbar-pill.danger { background: rgba(185, 110, 85, 0.08); color: var(--erp-critical); border-color: rgba(185, 110, 85, 0.25); }
-.topbar-pill.warning { background: rgba(212, 175, 55, 0.08); color: #8d6b18; border-color: rgba(212, 175, 55, 0.25); }
-.topbar-pill.success { background: rgba(110, 155, 121, 0.08); color: #3d6b4a; border-color: rgba(110, 155, 121, 0.25); }
+.topbar-pill.warning { background: rgba(212, 175, 55, 0.08); color: var(--erp-gold-dark); border-color: rgba(212, 175, 55, 0.25); }
+.topbar-pill.success { background: rgba(110, 155, 121, 0.08); color: var(--erp-success); border-color: rgba(110, 155, 121, 0.25); }
 
 .topbar-right {
   display: flex;
@@ -132,7 +149,7 @@
   width: 16px;
   height: 16px;
   background: var(--erp-critical);
-  color: #fff;
+  color: var(--on-critical);
   font-size: 9px;
   font-weight: 800;
   display: grid;

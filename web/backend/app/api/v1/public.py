@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 from flask_restx import Namespace, Resource
 from app.models.produit import Produit
 from app.models.tenant import Tenant
@@ -66,7 +66,7 @@ class PublicProduitDetail(Resource):
             return {'message': 'Produit non trouve'}, 404
         data = produit.to_dict()
         if produit.tenant_id and produit.tenant_id in active_tenant_ids:
-            tenant = Tenant.query.get(produit.tenant_id)
+            tenant = db.session.get(Tenant, produit.tenant_id)
             if tenant:
                 data['tenant_nom'] = tenant.nom
         else:

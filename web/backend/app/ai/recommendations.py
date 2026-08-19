@@ -27,7 +27,7 @@ def suggest_reorders(tenant_id=None):
             is_critique = stock_actuel <= seuil_critique or stock_actuel == 0
             score = (seuil_alerte - stock_actuel) / max(seuil_alerte, 1) if seuil_alerte > 0 else 1.0
 
-            fournisseur = Fournisseur.query.get(p.fournisseur_id) if getattr(p, 'fournisseur_id', None) else None
+            fournisseur = db.session.get(Fournisseur, p.fournisseur_id) if getattr(p, 'fournisseur_id', None) else None
 
             recommendations.append({
                 'produit_id': p.id,

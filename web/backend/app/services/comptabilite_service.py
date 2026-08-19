@@ -157,9 +157,26 @@ class EcritureComptableService:
         delta = (montant_debit - montant_credit) * sens
         if delta != 0:
             ecriture.compte.solde = (ecriture.compte.solde or Decimal('0')) + delta
+        
+        # Determine tresorerie type based on account type and entry direction
+        # Inferred cash flow from single-entry recording:
+        # - PRODUIT (revenue): credit = money in (ENTREE)
+        # - CHARGE (expense): debit = money out (SORTIE)
+        # - ACTIF (asset): debit = money in (ENTREE), credit = money out (SORTIE)
+        # - PASSIF (liability): credit = money in (ENTREE), debit = money out (SORTIE)
+        compte_type = ecriture.compte.type_compte
+        if compte_type == TypeCompte.PRODUIT:
+            type_op = TypeTresorerie.ENTREE if montant_credit > 0 else TypeTresorerie.SORTIE
+        elif compte_type == TypeCompte.CHARGE:
+            type_op = TypeTresorerie.SORTIE if montant_debit > 0 else TypeTresorerie.ENTREE
+        elif compte_type == TypeCompte.ACTIF:
+            type_op = TypeTresorerie.ENTREE if montant_debit > montant_credit else TypeTresorerie.SORTIE
+        else:  # PASSIF
+            type_op = TypeTresorerie.ENTREE if montant_credit > montant_debit else TypeTresorerie.SORTIE
+        
         tres = Tresorerie(
             date=ecriture.date,
-            type_operation=TypeTresorerie.ENTREE if montant_debit > montant_credit else TypeTresorerie.SORTIE,
+            type_operation=type_op,
             montant=abs(montant_debit - montant_credit),
             mode_paiement='espece',
             libelle=ecriture.libelle,

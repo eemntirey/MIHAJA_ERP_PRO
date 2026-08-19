@@ -5,8 +5,54 @@ from app.models.utilisateur import Utilisateur, Role
 from app import db
 from sqlalchemy import event
 import logging
+from app.security.roles import is_super_admin, is_admin, is_manager
 
 logger = logging.getLogger(__name__)
+
+# Global flag to track if the tenant filter event is registered
+_tenant_filter_registered = False
+
+
+def register_tenant_filter_event():
+    """Register the global SQLAlchemy event listener for tenant filtering.
+    This should be called once during app initialization.
+    """
+    global _tenant_filter_registered
+    if _tenant_filter_registered:
+        return
+    
+    @event.listens_for(db.session, 'do_orm_execute')
+    def _do_orm_execute(orm_execute_state):
+        # Skip if not a select statement
+        if not orm_execute_state.is_select:
+            return
+        
+        # Skip if execution options indicate no tenant filtering
+        if orm_execute_state.execution_options.get('_skip_tenant_filter'):
+            return
+        
+        # Get current tenant from Flask g
+        from flask import has_request_context
+        if not has_request_context():
+            return
+        
+        tenant = getattr(g, 'current_tenant', None)
+        if tenant is None:
+            # No tenant filtering for SUPER_ADMIN (g.current_tenant is None)
+            return
+        
+        tenant_id = tenant.id
+        
+        # Apply tenant filter to all entities in the query that have tenant_id
+        if hasattr(orm_execute_state.statement, 'column_descriptions'):
+            for desc in orm_execute_state.statement.column_descriptions:
+                entity = desc.get('entity')
+                if entity and hasattr(entity, 'tenant_id'):
+                    orm_execute_state.statement = orm_execute_state.statement.where(
+                        entity.tenant_id == tenant_id
+                    )
+    
+    _tenant_filter_registered = True
 
 
 def get_current_tenant():
@@ -24,23 +70,6 @@ def set_tenant_filter(query, model_class):
         if hasattr(model_class, 'tenant_id'):
             query = query.filter(model_class.tenant_id == tenant_id)
     return query
-
-
-def _apply_tenant_filter_before_execute(tenant_id):
-    from app.models.base import BaseModel
-    
-    @event.listens_for(db.session, 'do_orm_execute')
-    def _do_orm_execute(orm_execute_state):
-        if tenant_id is None:
-            return
-        if orm_execute_state.is_select:
-            if hasattr(orm_execute_state.statement, 'column_descriptions'):
-                for desc in orm_execute_state.statement.column_descriptions:
-                    entity = desc.get('entity')
-                    if entity and hasattr(entity, 'tenant_id'):
-                        orm_execute_state.statement = orm_execute_state.statement.where(
-                            entity.tenant_id == tenant_id
-                        )
 
 
 def tenant_required(fn):
@@ -71,9 +100,9 @@ def tenant_required(fn):
         if isinstance(user_id, str) and user_id.isdigit():
             user_id = int(user_id)
 
-        utilisateur = Utilisateur.query.get(user_id)
+        utilisateur = db.session.get(Utilisateur, user_id)
         
-        if utilisateur and utilisateur.role == Role.SUPER_ADMIN:
+        if utilisateur and is_super_admin(utilisateur.role):
             g.current_tenant = None
             g.current_user = utilisateur
             return fn(*args, **kwargs)
@@ -88,7 +117,7 @@ def tenant_required(fn):
         if not tenant_id:
             return {'message': 'Aucun tenant associe a ce compte'}, 401
 
-        tenant = Tenant.query.get(tenant_id)
+        tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Tenant introuvable'}, 401
         if not tenant.is_active:
@@ -158,14 +187,14 @@ def tenant_filtered_get(model_class, obj_id, allow_super_admin=True):
 
     Pour SUPER_ADMIN, le filtre tenant n'est pas appliqué (accès global).
     """
-    from app.models.utilisateur import Role
     from flask_jwt_extended import get_jwt
+    from app.security.roles import is_super_admin
 
     claims = get_jwt() or {}
     role = claims.get('role')
 
     query = model_class.query.filter_by(id=obj_id, is_active=True)
-    if not (allow_super_admin and role == Role.SUPER_ADMIN.value):
+    if not (allow_super_admin and is_super_admin(role)):
         tenant_id = get_current_tenant_id_or_none()
         if tenant_id is not None and hasattr(model_class, 'tenant_id'):
             query = query.filter_by(tenant_id=tenant_id)
@@ -212,11 +241,11 @@ def subscription_required(fn):
         if isinstance(user_id, str) and user_id.isdigit():
             user_id = int(user_id)
 
-        utilisateur = Utilisateur.query.get(user_id)
+        utilisateur = db.session.get(Utilisateur, user_id)
         if not utilisateur:
             return {'message': 'Utilisateur introuvable'}, 401
 
-        if utilisateur.role in [Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER]:
+        if is_admin(utilisateur.role) or is_manager(utilisateur.role):
             return fn(*args, **kwargs)
 
         tenant_id = utilisateur.tenant_id
@@ -235,7 +264,7 @@ def subscription_required(fn):
         ).first()
 
         if not abonnement_actif:
-            tenant = Tenant.query.get(tenant_id)
+            tenant = db.session.get(Tenant, tenant_id)
             if tenant and tenant.statut == StatutTenant.EN_ESSAI:
                 return fn(*args, **kwargs)
             return {'message': 'Abonnement requis'}, 403

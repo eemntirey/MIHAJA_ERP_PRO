@@ -15,7 +15,7 @@ from app.security.auth import hash_password
 
 app = create_app()
 
-DEFAULT_PASSWORD = os.getenv('SEED_USER_PASSWORD') or secrets.token_urlsafe(12)
+DEFAULT_PASSWORD = "Test1234!"
 
 ENTERPRISE_USERS = [
     {

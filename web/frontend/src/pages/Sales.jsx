@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
 import './Pages.css';
@@ -43,6 +46,284 @@ const getModePaiementLabel = (mode) => {
   return map[mode] || mode || 'N/A';
 };
 
+const saleLineSchema = yup.object().shape({
+  produit_id: yup.number().required('Produit requis'),
+  quantite: yup.number().required('Quantité requise').min(1, 'Quantité minimum 1'),
+  prix_unitaire: yup.number().required('Prix requis').min(0, 'Prix invalide'),
+  taux_tva: yup.number().min(0).default(20),
+});
+
+const saleSchema = yup.object().shape({
+  client_id: yup.number().required('Client requis'),
+  date: yup.string().required('Date requise'),
+  statut: yup.string().oneOf(['en_attente', 'payee', 'annulee', 'partielle']).default('en_attente'),
+  mode_paiement: yup.string().oneOf(['espece', 'virement', 'cheque', 'orange_money', 'airtel_money']).default('espece'),
+  remarque: yup.string().nullable(),
+  lignes: yup.array().of(saleLineSchema).min(1, 'Au moins une ligne requise'),
+});
+
+const getProductDefaults = (products, produitId) => {
+  const product = products.find(p => p.id === Number(produitId));
+  if (!product) return { prix_unitaire: 0, taux_tva: 20 };
+  return {
+    prix_unitaire: product.prix_vente_ht || 0,
+    taux_tva: product.taux_tva || 20,
+  };
+};
+
+const calculateLineTotal = (quantite, prix_unitaire, taux_tva) => {
+  const q = Number(quantite) || 0;
+  const p = Number(prix_unitaire) || 0;
+  const t = Number(taux_tva) || 0;
+  return q * p * (1 + t / 100);
+};
+
+const calculateTotals = (items) => {
+  const totalHt = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0), 0);
+  const totalTva = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0) * ((Number(item.taux_tva) || 0) / 100), 0);
+  const totalTtc = totalHt + totalTva;
+  return { totalHt, totalTva, totalTtc };
+};
+
+const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
+  const defaultValues = {
+    client_id: '',
+    date: new Date().toISOString().split('T')[0],
+    statut: 'en_attente',
+    mode_paiement: 'espece',
+    remarque: '',
+    lignes: [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
+  };
+
+  const editValues = initialData ? {
+    client_id: initialData.client_id || '',
+    date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
+    statut: initialData.statut || 'en_attente',
+    mode_paiement: initialData.mode_paiement || 'espece',
+    remarque: initialData.remarque || '',
+    lignes: initialData.lignes?.map(l => ({
+      produit_id: l.produit_id ?? '',
+      quantite: l.quantite || 1,
+      prix_unitaire: l.prix_unitaire || 0,
+      taux_tva: l.taux_tva || 20,
+    })) || [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
+  } : defaultValues;
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    control,
+    formState: { errors, isSubmitting },
+    setValue,
+    getValues,
+  } = useForm({
+    resolver: yupResolver(saleSchema),
+    defaultValues: isEdit ? editValues : defaultValues,
+    mode: 'onChange',
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'lignes' });
+
+  const watchedLines = watch('lignes');
+  const totals = calculateTotals(watchedLines);
+
+  const handleProduitChange = (index, produitId) => {
+    const defaults = getProductDefaults(products, produitId);
+    setValue(`lignes.${index}.prix_unitaire`, defaults.prix_unitaire, { shouldValidate: true });
+    setValue(`lignes.${index}.taux_tva`, defaults.taux_tva, { shouldValidate: true });
+  };
+
+  const onSubmit = async (data) => {
+    try {
+      const payload = {
+        client_id: Number(data.client_id),
+        date: data.date,
+        statut: data.statut,
+        mode_paiement: data.mode_paiement,
+        remarque: data.remarque,
+        lignes: data.lignes.map(l => ({
+          produit_id: Number(l.produit_id),
+          quantite: Number(l.quantite),
+          prix_unitaire: Number(l.prix_unitaire),
+          taux_tva: Number(l.taux_tva),
+        })),
+      };
+
+      if (isEdit) {
+        await saleService.update(initialData.id, payload);
+        toast.success('Vente modifiée avec succès');
+      } else {
+        await saleService.create(payload);
+        toast.success('Vente créée avec succès');
+      }
+      onSuccess();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde de la vente';
+      toast.error(msg);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{isEdit ? `Modifier la vente #${initialData?.id}` : 'Nouvelle vente'}</h2>
+          <button onClick={onClose} className="btn-close">×</button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Client *</label>
+              <select {...register('client_id')} required>
+                <option value="">Sélectionner un client</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
+              </select>
+              {errors.client_id && <span className="field-error">{errors.client_id.message}</span>}
+            </div>
+            <div className="form-group">
+              <label>Date *</label>
+              <input type="date" {...register('date')} required />
+              {errors.date && <span className="field-error">{errors.date.message}</span>}
+            </div>
+            <div className="form-group">
+              <label>Statut</label>
+              <select {...register('statut')}>
+                <option value="en_attente">En attente</option>
+                <option value="payee">Payée</option>
+                <option value="partielle">Partielle</option>
+                <option value="annulee">Annulée</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Mode de paiement</label>
+              <select {...register('mode_paiement')}>
+                <option value="espece">Espèce</option>
+                <option value="virement">Virement</option>
+                <option value="cheque">Chèque</option>
+                <option value="orange_money">Orange Money</option>
+                <option value="airtel_money">Airtel Money</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h3>Lignes de vente</h3>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Produit *</th>
+                    <th>Quantité *</th>
+                    <th>Prix HT *</th>
+                    <th>TVA %</th>
+                    <th>Total TTC</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field, index) => (
+                    <tr key={field.id}>
+                      <td>
+                        <select
+                          {...register(`lignes.${index}.produit_id`)}
+                          onChange={(e) => handleProduitChange(index, e.target.value)}
+                          required
+                        >
+                          <option value="">Produit</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.nom} ({formatCurrency(p.prix_vente_ht)})</option>)}
+                        </select>
+                        {errors.lignes?.[index]?.produit_id && <span className="field-error">{errors.lignes[index].produit_id.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          {...register(`lignes.${index}.quantite`, { valueAsNumber: true })}
+                          required
+                        />
+                        {errors.lignes?.[index]?.quantite && <span className="field-error">{errors.lignes[index].quantite.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          {...register(`lignes.${index}.prix_unitaire`, { valueAsNumber: true })}
+                          required
+                        />
+                        {errors.lignes?.[index]?.prix_unitaire && <span className="field-error">{errors.lignes[index].prix_unitaire.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          {...register(`lignes.${index}.taux_tva`, { valueAsNumber: true })}
+                        />
+                      </td>
+                      <td>
+                        {watchedLines[index] && formatCurrency(calculateLineTotal(
+                          watchedLines[index].quantite,
+                          watchedLines[index].prix_unitaire,
+                          watchedLines[index].taux_tva
+                        ))}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-small btn-danger"
+                          onClick={() => remove(index)}
+                          disabled={fields.length <= 1}
+                        >
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className="btn-secondary" onClick={() => append({ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 })}>
+              + Ajouter ligne
+            </button>
+          </div>
+
+          <div className="totals-display">
+            <div className="total-row">
+              <span>Total HT :</span>
+              <span>{formatCurrency(totals.totalHt)}</span>
+            </div>
+            <div className="total-row">
+              <span>Total TVA :</span>
+              <span>{formatCurrency(totals.totalTva)}</span>
+            </div>
+            <div className="total-row total-ttc">
+              <span>Total TTC :</span>
+              <span>{formatCurrency(totals.totalTtc)}</span>
+            </div>
+          </div>
+
+          <div className="form-group full-width">
+            <label>Remarque</label>
+            <textarea {...register('remarque')} rows="2" />
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn-secondary" disabled={isSubmitting}>
+              Annuler
+            </button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Enregistrement...' : (isEdit ? 'Mettre à jour' : 'Créer')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const Sales = () => {
   const [tab, setTab] = useState('ventes');
   const [sales, setSales] = useState([]);
@@ -61,10 +342,8 @@ const Sales = () => {
   const [viewAvoir, setViewAvoir] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
-  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
   const [saleActionLoading, setSaleActionLoading] = useState(false);
 
-  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
   const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
   const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
@@ -102,84 +381,6 @@ const Sales = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  const handleAddItem = () => {
-    setFormData(prev => ({ ...prev, items: [...prev.items, { produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }] }));
-  };
-
-  const handleRemoveItem = (index) => {
-    setFormData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
-  };
-
-  const handleItemChange = (index, field, value) => {
-    setFormData(prev => {
-      const items = [...prev.items];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, items };
-    });
-  };
-
-  const handleCreateSale = async (e) => {
-    e.preventDefault();
-    setSaleActionLoading(true);
-    try {
-      const data = {
-        client_id: Number(formData.client_id),
-        date: formData.date,
-        statut: formData.statut,
-        mode_paiement: formData.mode_paiement,
-        remarque: formData.remarque,
-        lignes: formData.items.map(it => ({
-          produit_id: Number(it.produit_id),
-          quantite: it.quantite ? Number(it.quantite) : 0,
-          prix_unitaire: it.prix_unitaire ? Number(it.prix_unitaire) : 0,
-          taux_tva: it.taux_tva ? Number(it.taux_tva) : 0
-        })),
-      };
-      await saleService.create(data);
-      toast.success('Vente créée avec succès');
-      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
-      fetchData();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Erreur lors de la création de la vente';
-      toast.error(msg);
-    } finally {
-      setSaleActionLoading(false);
-    }
-  };
-
-  const handleCreateDevis = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...devisForm, client_id: Number(devisForm.client_id), total_ht: Number(devisForm.total_ht), total_ttc: Number(devisForm.total_ttc) };
-      await devisService.create(data);
-      toast.success('Devis créé');
-      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleCreateBl = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
-      await bonLivraisonService.create(data);
-      toast.success('Bon de livraison créé');
-      setBlForm({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleCreateAvoir = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...avoirForm, vente_id: avoirForm.vente_id ? Number(avoirForm.vente_id) : null, facture_id: avoirForm.facture_id ? Number(avoirForm.facture_id) : null, client_id: Number(avoirForm.client_id), montant_ht: Number(avoirForm.montant_ht), montant_ttc: Number(avoirForm.montant_ttc) };
-      await avoirService.create(data);
-      toast.success('Avoir créé');
-      setAvoirForm({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
 
   const handleConvertDevis = async (id) => {
     try {
@@ -229,46 +430,40 @@ const Sales = () => {
 
   const handleEditSale = (sale) => {
     setEditingSale(sale);
-    setEditFormData({
-      client_id: sale.client_id || '',
-      items: sale.lignes?.map(l => ({ produit_id: l.produit_id ?? '', quantite: l.quantite || 1, prix_unitaire: l.prix_unitaire || 0, taux_tva: l.taux_tva || 20 })) || [],
-      date: sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0],
-      statut: sale.statut || 'en_attente',
-      mode_paiement: sale.mode_paiement || 'espece',
-      remarque: sale.remarque || ''
-    });
     setShowEditModal(true);
   };
 
-  const handleUpdateSale = async (e) => {
+  const handleCreateDevis = async (e) => {
     e.preventDefault();
-    if (!editingSale) return;
     try {
-      setSaleActionLoading(true);
-      const data = {
-        client_id: Number(editFormData.client_id),
-        date: editFormData.date,
-        statut: editFormData.statut,
-        mode_paiement: editFormData.mode_paiement,
-        remarque: editFormData.remarque,
-        lignes: editFormData.items.map(it => ({
-          produit_id: Number(it.produit_id),
-          quantite: it.quantite ? Number(it.quantite) : 0,
-          prix_unitaire: it.prix_unitaire ? Number(it.prix_unitaire) : 0,
-          taux_tva: it.taux_tva ? Number(it.taux_tva) : 0
-        })),
-      };
-      await saleService.update(editingSale.id, data);
-      toast.success('Vente modifiée');
-      setShowEditModal(false);
-      setEditingSale(null);
+      const data = { ...devisForm, client_id: Number(devisForm.client_id), total_ht: Number(devisForm.total_ht), total_ttc: Number(devisForm.total_ttc) };
+      await devisService.create(data);
+      toast.success('Devis créé');
+      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
       fetchData();
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la modification';
-      toast.error(msg);
-    } finally {
-      setSaleActionLoading(false);
-    }
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const handleCreateBl = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
+      await bonLivraisonService.create(data);
+      toast.success('Bon de livraison créé');
+      setBlForm({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const handleCreateAvoir = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...avoirForm, vente_id: avoirForm.vente_id ? Number(avoirForm.vente_id) : null, facture_id: avoirForm.facture_id ? Number(avoirForm.facture_id) : null, client_id: Number(avoirForm.client_id), montant_ht: Number(avoirForm.montant_ht), montant_ttc: Number(avoirForm.montant_ttc) };
+      await avoirService.create(data);
+      toast.success('Avoir créé');
+      setAvoirForm({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
   };
 
   const handleSort = (key) => {
@@ -343,7 +538,9 @@ const Sales = () => {
         <h1>Ventes</h1>
         <div className="tabs">
           {['ventes', 'devis', 'bons-livraison', 'avoirs'].map(t => (
-            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}</button>
+            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+              {t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}
+            </button>
           ))}
         </div>
       </div>
@@ -410,98 +607,16 @@ const Sales = () => {
               </tbody>
             </table>
           </div>
+
           {showModal && (
-            <div className="modal-overlay">
-              <div className="modal large" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Nouvelle vente</h2>
-                  <button onClick={() => setShowModal(false)} className="btn-close">×</button>
-                </div>
-                <form onSubmit={handleCreateSale} className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Client *</label>
-                      <select value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} required>
-                        <option value="">Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Date</label>
-                      <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Statut</label>
-                      <select value={formData.statut} onChange={e => setFormData({...formData, statut: e.target.value})}>
-                        <option value="en_attente">En attente</option>
-                        <option value="payee">Payée</option>
-                        <option value="annulee">Annulée</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Mode de paiement</label>
-                      <select value={formData.mode_paiement} onChange={e => setFormData({...formData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="form-section">
-                    <h3>Lignes de vente</h3>
-                    <div className="form-grid">
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Produit</label>
-                          <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
-                            <option value="">Produit</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Quantité</label>
-                          <input type="number" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Prix HT</label>
-                          <input type="number" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>TVA %</label>
-                          <input type="number" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Action</label>
-                          <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Remarque</label>
-                    <textarea value={formData.remarque} onChange={e => setFormData({...formData, remarque: e.target.value})} />
-                  </div>
-                  <div className="modal-footer">
-                    <button type="submit" className="btn-primary" disabled={saleActionLoading}>
-                      {saleActionLoading ? 'Création...' : 'Créer'}
-                    </button>
-                    <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
-                  </div>
-                </form>
-              </div>
-            </div>
+            <SaleModal
+              products={products}
+              clients={clients}
+              onClose={() => setShowModal(false)}
+              onSuccess={() => { fetchData(); setShowModal(false); }}
+            />
           )}
+
           {viewSale && (
             <div className="modal-overlay" onClick={() => setViewSale(null)}>
               <div className="modal large" onClick={e => e.stopPropagation()}>
@@ -545,96 +660,16 @@ const Sales = () => {
               </div>
             </div>
           )}
-          {showEditModal && (
-            <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-              <div className="modal large" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Modifier la vente #{editingSale?.id}</h2>
-                  <button onClick={() => setShowEditModal(false)} className="btn-close">×</button>
-                </div>
-                <form onSubmit={handleUpdateSale} className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Client *</label>
-                      <select value={editFormData.client_id} onChange={e => setEditFormData({...editFormData, client_id: e.target.value})} required>
-                        <option value="">Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Date</label>
-                      <input type="date" value={editFormData.date} onChange={e => setEditFormData({...editFormData, date: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Statut</label>
-                      <select value={editFormData.statut} onChange={e => setEditFormData({...editFormData, statut: e.target.value})}>
-                        <option value="en_attente">En attente</option>
-                        <option value="payee">Payée</option>
-                        <option value="partielle">Partielle</option>
-                        <option value="annulee">Annulée</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Mode de paiement</label>
-                      <select value={editFormData.mode_paiement} onChange={e => setEditFormData({...editFormData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="form-section">
-                    <h3>Lignes de vente</h3>
-                    <div className="form-grid">
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Produit</label>
-                          <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
-                            <option value="">Produit</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Quantité</label>
-                          <input type="number" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Prix HT</label>
-                          <input type="number" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>TVA %</label>
-                          <input type="number" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Action</label>
-                          <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Remarque</label>
-                    <textarea value={editFormData.remarque} onChange={e => setEditFormData({...editFormData, remarque: e.target.value})} />
-                  </div>
-                  <div className="modal-footer">
-                    <button type="submit" className="btn-primary">Enregistrer</button>
-                    <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Fermer</button>
-                  </div>
-                </form>
-              </div>
-            </div>
+
+          {showEditModal && editingSale && (
+            <SaleModal
+              products={products}
+              clients={clients}
+              onClose={() => { setShowEditModal(false); setEditingSale(null); }}
+              onSuccess={() => { fetchData(); setShowEditModal(false); setEditingSale(null); }}
+              isEdit
+              initialData={editingSale}
+            />
           )}
         </div>
       )}

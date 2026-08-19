@@ -31,7 +31,7 @@ api.interceptors.request.use(
             config.method?.toUpperCase(),
             config.url,
             'Token:',
-            token ? 'prÃƒÂ©sent' : 'absent'
+            token ? 'présent' : 'absent'
         );
 
         if (token) {
@@ -55,10 +55,10 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // Pas de rÃƒÂ©ponse du serveur
+        // Pas de réponse du serveur
         if (!error.response) {
             console.error(
-                'Erreur rÃƒÂ©seau:',
+                'Erreur réseau:',
                 error.message
             );
             toast.error('Erreur de connexion au serveur');
@@ -154,7 +154,7 @@ api.interceptors.response.use(
                     `Bearer ${newAccessToken}`;
 
                 console.log(
-                    'Token renouvelÃƒÂ© avec succÃƒÂ¨s',
+                    'Token renouvelé avec succès',
                     originalRequest.headers.Authorization || originalRequest.headers['Authorization']
                 );
 
@@ -162,7 +162,7 @@ api.interceptors.response.use(
 
             } catch (refreshError) {
                 console.error(
-                    'Ãƒâ€°chec du renouvellement:',
+                    'Échec du renouvellement:',
                     refreshError
                 );
 

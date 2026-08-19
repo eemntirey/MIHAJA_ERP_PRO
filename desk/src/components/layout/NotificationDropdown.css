@@ -8,7 +8,7 @@
   background: var(--erp-white);
   border: 1px solid var(--erp-line);
   border-radius: 0;
-  box-shadow: 0 12px 32px -8px rgba(17, 17, 17, 0.18);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.18);
   z-index: 200;
   overflow: hidden;
 }
@@ -53,7 +53,7 @@
 }
 
 .notif-dropdown-item.unread {
-  background: rgba(212, 175, 55, 0.04);
+  background: var(--notif-unread-bg);
 }
 
 .notif-dropdown-item-icon {
