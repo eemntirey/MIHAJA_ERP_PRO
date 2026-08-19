@@ -130,6 +130,11 @@ class DocumentGenereService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
-        db.session.delete(instance)
-        db.session.commit()
+        instance.delete()
         return True
+
+    @classmethod
+    def get_by_entite(cls, entite_type, entite_id):
+        query = cls.model.query.filter_by(entite_type=entite_type, entite_id=entite_id, is_active=True)
+        query = cls._get_tenant_filter(query)
+        return query.all()

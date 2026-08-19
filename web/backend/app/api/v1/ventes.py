@@ -1,8 +1,26 @@
-from flask_restx import Namespace, Resource
+from flask_restx import Namespace, Resource, fields
 from app.security.tenant import tenant_required
 from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats
+from flask import request
+from app import db
 
 ns = Namespace('ventes', description='Gestion des ventes')
+
+ligne_vente_model = ns.model('LigneVente', {
+    'produit_id': fields.Integer(required=True, description='ID produit'),
+    'quantite': fields.Float(required=True, description='Quantité vendue'),
+    'prix_unitaire': fields.Float(required=True, description='Prix unitaire HT'),
+    'taux_tva': fields.Float(description='Taux TVA', default=20),
+})
+
+vente_model = ns.model('Vente', {
+    'client_id': fields.Integer(required=True, description='ID client'),
+    'date': fields.String(description='Date de la vente'),
+    'statut': fields.String(description='Statut de la vente', default='en_attente'),
+    'mode_paiement': fields.String(description='Mode de paiement', default='espece'),
+    'remarque': fields.String(description='Remarque'),
+    'lignes': fields.List(fields.Nested(ligne_vente_model), required=True, description='Lignes de vente'),
+})
 
 @ns.route('/')
 class VenteList(Resource):
@@ -27,13 +45,22 @@ class VenteList(Resource):
         except Exception as e:
             return {'ventes': [], 'message': str(e)}, 500
 
+    @ns.doc('create_vente')
     @tenant_required
+    @ns.expect(vente_model)
     def post(self):
         """Creation de vente"""
         from flask import request
         data = request.get_json()
-        vente = create_with_lignes(data)
-        return vente.to_dict(), 201
+        try:
+            vente = create_with_lignes(data)
+            return vente.to_dict(), 201
+        except ValueError as e:
+            db.session.rollback()
+            return {'message': str(e)}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f"Erreur lors de la création de la vente: {str(e)}"}, 400
 
 @ns.route('/<int:id>')
 class VenteResource(Resource):

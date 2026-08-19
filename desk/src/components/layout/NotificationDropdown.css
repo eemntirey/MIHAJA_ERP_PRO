@@ -98,6 +98,45 @@
   font-size: 13px;
 }
 
+.notif-dropdown-error {
+  color: var(--erp-critical, #b96e55);
+}
+
+.notif-dropdown-item {
+  position: relative;
+}
+
+.notif-dropdown-item-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--erp-subtle);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.notif-dropdown-item:hover .notif-dropdown-item-remove {
+  opacity: 1;
+}
+
+.notif-dropdown-item-remove:hover {
+  color: var(--erp-critical, #b96e55);
+}
+
+.notif-dropdown-footer .notif-dropdown-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .notif-dropdown-footer {
   border-top: 1px solid var(--erp-line);
   padding: 10px 16px;

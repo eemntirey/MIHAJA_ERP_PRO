@@ -1,11 +1,13 @@
 from app import db
 from app.models.employe import Employe
 from app.models.presence import Presence
-from app.models.salaire import Salaire
+from app.models.salaire import Salaire, StatutPaiementSalaire
 from app.models.prime import Prime
 from app.security.tenant import get_current_tenant_id
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import date, datetime
+from decimal import Decimal
+from sqlalchemy import func
 
 class EmployeService:
     model = Employe
@@ -166,6 +168,59 @@ class PresenceService:
         db.session.commit()
         return True
 
+    @classmethod
+    def get_registre(cls, mois=None, annee=None):
+        """Registre des présences pour un mois donné (ou le mois courant)."""
+        if not mois or not annee:
+            today = date.today()
+            mois = today.month
+            annee = today.year
+        query = cls.model.query.filter_by(is_active=True)
+        query = cls._get_tenant_filter(query)
+        query = query.filter(db.extract('month', cls.model.date) == mois,
+                             db.extract('year', cls.model.date) == annee)
+        presences = query.order_by(cls.model.employe_id, cls.model.date).all()
+        result = []
+        for p in presences:
+            d = p.to_dict()
+            if (not d.get('heures_travaillees') or float(d.get('heures_travaillees') or 0) == 0) \
+                    and p.heure_arrivee and p.heure_depart:
+                delta = (p.heure_depart - p.heure_arrivee)
+                pause = Decimal('0')
+                if p.heure_pause_debut and p.heure_pause_fin:
+                    pause = p.heure_pause_fin - p.heure_pause_debut
+                heures = (delta.total_seconds() - pause.total_seconds()) / 3600.0
+                p.heures_travaillees = Decimal(str(round(heures, 2)))
+                db.session.commit()
+                d['heures_travaillees'] = float(p.heures_travaillees)
+            result.append(d)
+        return result
+
+    @classmethod
+    def get_registre_export(cls, mois=None, annee=None):
+        """Produit un export CSV du registre de présence."""
+        presences = cls.get_registre(mois, annee)
+        import csv as _csv
+        import io
+        buf = io.StringIO()
+        writer = _csv.writer(buf)
+        writer.writerow(['date', 'employe_id', 'employe_nom', 'heure_arrivee', 'heure_depart',
+                         'heures_travaillees', 'heures_supplementaires', 'statut', 'remarque'])
+        for p in presences:
+            writer.writerow([
+                (p.get('date') or '')[:10],
+                p.get('employe_id', '') or '',
+                p.get('employe_nom', '') or '',
+                p.get('heure_arrivee', '') or '',
+                p.get('heure_depart', '') or '',
+                p.get('heures_travaillees', '') or '',
+                p.get('heures_supplementaires', '') or '',
+                p.get('statut', '') or '',
+                p.get('remarque', '') or '',
+            ])
+        return buf.getvalue()
+
+
 class SalaireService:
     model = Salaire
 
@@ -232,6 +287,79 @@ class SalaireService:
         db.session.delete(instance)
         db.session.commit()
         return True
+
+    @classmethod
+    def generate_salaries(cls, mois, annee):
+        tenant_id = get_current_tenant_id()
+        employes = Employe.query.filter_by(is_active=True, statut='actif').filter_by(tenant_id=tenant_id).all() if tenant_id else Employe.query.filter_by(is_active=True, statut='actif').all()
+        results = []
+        for employe in employes:
+            existing = Salaire.query.filter_by(employe_id=employe.id, mois=mois, annee=annee, is_active=True).first()
+            if existing:
+                continue
+            primes_mois = Prime.query.filter_by(employe_id=employe.id, is_active=True).filter(
+                func.extract('month', Prime.date_octroi) == mois,
+                func.extract('year', Prime.date_octroi) == annee
+            ).all()
+            total_primes = sum(float(p.montant) for p in primes_mois)
+            salaire = Salaire(
+                employe_id=employe.id,
+                mois=mois,
+                annee=annee,
+                salaire_base=employe.salaire_base or 0,
+                primes=total_primes,
+                indemnites=0,
+                deductions=0,
+                avances=0,
+                tenant_id=tenant_id,
+            )
+            salaire.calculer_salaire()
+            db.session.add(salaire)
+            results.append(salaire)
+        db.session.commit()
+        return results
+
+    @classmethod
+    def marquer_paye(cls, id, statut_paiement=None, mode_paiement=None, reference_paiement=None, date_paiement=None):
+        """Marque un bulletin de salaire comme payé (ou modifie le statut de paiement)."""
+        instance = cls.get_by_id(id)
+        if not instance:
+            return None
+        if statut_paiement is not None:
+            instance.statut_paiement = statut_paiement if not hasattr(statut_paiement, 'value') else statut_paiement.value
+        if mode_paiement is not None:
+            instance.mode_paiement = mode_paiement
+        if reference_paiement is not None:
+            instance.reference_paiement = reference_paiement
+        if statut_paiement in ('paye', StatutPaiementSalaire.PAYE, 'PAYE') and instance.date_paiement is None:
+            instance.date_paiement = date_paiement or date.today()
+        instance.calculer_salaire()
+        db.session.commit()
+        db.session.refresh(instance)
+        return instance
+
+    @classmethod
+    def get_by_employe(cls, employe_id, mois=None, annee=None):
+        query = cls.model.query.filter_by(is_active=True)
+        query = cls._get_tenant_filter(query)
+        if employe_id:
+            query = query.filter_by(employe_id=employe_id)
+        if mois:
+            query = query.filter_by(mois=mois)
+        if annee:
+            query = query.filter_by(annee=annee)
+        return query.order_by(cls.model.annee.desc(), cls.model.mois.desc()).all()
+
+    @classmethod
+    def export_csv(cls, records, headers):
+        import csv
+        import io
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        for row in records:
+            writer.writerow([row.get(h, '') for h in headers])
+        return output.getvalue()
 
 class PrimeService:
     model = Prime

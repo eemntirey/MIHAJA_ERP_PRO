@@ -942,3 +942,135 @@
   .auth-login__layout { grid-template-columns: 1fr; }
   .auth-login__context { display: none; }
 }
+
+/* Dark mode - auth-login layout */
+.auth-login[data-theme='dark'] {
+  background: var(--erp-paper);
+}
+
+.auth-login[data-theme='dark'] .auth-login__context {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.auth-login[data-theme='dark'] .auth-login__form-panel {
+  background: var(--erp-white);
+}
+
+.auth-login[data-theme='dark'] .auth-login__brand {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__brand-meta {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__context-content h1 {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__context-copy {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__eyebrow {
+  color: var(--erp-gold-dark);
+}
+
+.auth-login[data-theme='dark'] .auth-login__feature {
+  background: var(--erp-white);
+}
+
+.auth-login[data-theme='dark'] .auth-login__feature strong {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__feature span {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__form-intro h2 {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__form-intro p {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__field label {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__register-prompt {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__register-prompt a {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__back-link {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__back-link:hover {
+  color: var(--erp-gold-dark);
+}
+
+.auth-login[data-theme='dark'] .auth-login__context-footer {
+  color: var(--erp-muted);
+}
+
+.auth-login[data-theme='dark'] .auth-login__watermark {
+  color: var(--erp-onyx);
+}
+
+.auth-login[data-theme='dark'] .auth-login__status span {
+  background: var(--erp-success);
+}
+
+/* Dark mode - auth-container layout (forgot / reset) */
+.auth-container[data-theme='dark'] {
+  background: linear-gradient(135deg, #D4AF37 0%, #CDA233 100%);
+}
+
+.auth-container[data-theme='dark'] .auth-card {
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .auth-logo h1 {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .auth-subtitle {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .auth-footer {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .form-group label {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .remember-me label {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .auth-divider span {
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .auth-security {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .success-message h3 {
+  color: var(--erp-onyx);
+}
+
+.auth-container[data-theme='dark'] .success-message p {
+  color: var(--erp-onyx);
+}

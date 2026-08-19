@@ -3,6 +3,7 @@ from .roles import has_permission, admin_required
 from .permissions import permission_required
 from .encryption import encrypt_text, decrypt_text
 from .tenant import tenant_required, tenant_admin_required, get_current_tenant, get_current_tenant_id
+from .plan_limits import check_plan_limits
 
 __all__ = [
     'hash_password',
@@ -17,4 +18,5 @@ __all__ = [
     'tenant_admin_required',
     'get_current_tenant',
     'get_current_tenant_id',
+    'check_plan_limits',
 ]

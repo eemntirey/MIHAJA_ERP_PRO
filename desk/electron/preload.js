@@ -3,6 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
+  // === Contrôles de fenêtre ===
   minimize: () => ipcRenderer.send('window:minimize'),
   maximize: () => ipcRenderer.send('window:maximize'),
   unmaximize: () => ipcRenderer.send('window:unmaximize'),
@@ -12,4 +13,19 @@ contextBridge.exposeInMainWorld('electron', {
   onMaximizeChanged: (callback) => {
     ipcRenderer.on('window:maximize-changed', (_event, isMaximized) => callback(isMaximized));
   },
+
+  // === Impression ===
+  print: (options) => ipcRenderer.invoke('print', options),
+
+  // === Notifications système ===
+  notify: (title, body) => ipcRenderer.invoke('notify', { title, body }),
+
+  // === Dialogs fichiers ===
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
+  saveFileDialog: (options) => ipcRenderer.invoke('save-file-dialog', options),
+
+  // === Utilitaires ===
+  relaunch: () => ipcRenderer.invoke('relaunch'),
+  setBadge: (count) => ipcRenderer.invoke('set-badge', count),
 });
+

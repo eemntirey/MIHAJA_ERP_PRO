@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (role === 'user') {
-            return '/';
+            return '/catalogue';
         }
 
         return '/dashboard';

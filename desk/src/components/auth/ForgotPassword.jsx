@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authService } from '../../services/api';
+import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
 const forgotSchema = yup.object().shape({
@@ -16,7 +17,7 @@ const forgotSchema = yup.object().shape({
     .required('Email requis'),
 });
 
-const ForgotPassword = () => {
+const ForgotPassword = ({ darkMode, onToggleDarkMode }) => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -42,7 +43,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" data-theme={darkMode ? 'dark' : undefined}>
       <div className="auth-wrapper">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -51,9 +52,12 @@ const ForgotPassword = () => {
           className="auth-card"
         >
           <div className="auth-header">
-            <div className="auth-logo">
-              <span className="logo-icon"></span>
-              <h1>Mot de passe oublié</h1>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="auth-logo">
+                <span className="logo-icon"></span>
+                <h1>Mot de passe oublié</h1>
+              </div>
+              <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
             </div>
             <p className="auth-subtitle">
               {sent
