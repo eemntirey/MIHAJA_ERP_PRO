@@ -11,10 +11,40 @@ export const notificationService = {
 };
 
 export const favoriteService = {
-  getAll: () => api.get('/favorites'),
-  add: (item) => api.post('/favorites', item),
-  remove: (id) => api.delete(`/favorites/${id}`),
+  getAll: () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('desk_favorites') || '[]');
+      return Promise.resolve({ data: Array.isArray(stored) ? stored : [] });
+    } catch {
+      return Promise.resolve({ data: [] });
+    }
+  },
+  add: (item) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('desk_favorites') || '[]');
+      const list = Array.isArray(stored) ? stored : [];
+      const exists = list.some((f) => f.path === item.path);
+      if (!exists) {
+        list.push({ ...item, id: item.id || item.path });
+        localStorage.setItem('desk_favorites', JSON.stringify(list));
+      }
+      return Promise.resolve({ data: list });
+    } catch {
+      return Promise.resolve({ data: [] });
+    }
+  },
+  remove: (id) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('desk_favorites') || '[]');
+      const list = Array.isArray(stored) ? stored.filter((f) => f.id !== id && f.path !== id) : [];
+      localStorage.setItem('desk_favorites', JSON.stringify(list));
+      return Promise.resolve({ data: list });
+    } catch {
+      return Promise.resolve({ data: [] });
+    }
+  },
 };
+
 
 const CONFIG_VERSION = 1;
 

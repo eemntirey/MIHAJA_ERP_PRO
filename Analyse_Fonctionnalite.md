@@ -1,5 +1,5 @@
 # Analyse des Fonctionnalités du Projet ERP
-**Dernière mise à jour : 17 août 2026**
+**Dernière mise à jour : 19 août 2026**
 
 > Ce document reflète l'état réel du projet après intégration du multi-tenant, des abonnements, du Super Admin privé, de la marketplace publique et des modules avancés (Livraison, RH, Comptabilité, Documents, Achats/Devis).
 
@@ -70,7 +70,7 @@ ERP_PRO/
 - Un tenant sans abonnement actif ne peut pas publier de produits ni accéder aux modules opérationnels.
 - Les produits publics ne sont retournés que pour les tenants avec abonnement actif.
 - Le Super Admin voit l'historique des abonnements de chaque entreprise.
-- Les limites de plan (`max_produits`, `max_clients`, `max_utilisateurs`) sont définies mais leur vérification automatique peut être renforcée.
+- Les limites de plan (`max_produits`, `max_clients`, `max_utilisateurs`) sont **partiellement appliquées** via le décorateur `check_plan_limits` à la création de produits, clients et utilisateurs ; il reste à étendre la vérification aux autres entités.
 
 ---
 
@@ -137,7 +137,7 @@ ERP_PRO/
 
 ### ⚠️ Points d'attention connus
 - Certains endpoints ou champs frontend/backend peuvent encore présenter des incohérences mineures.
-- Les limites de plan (`max_produits`, `max_clients`, `max_utilisateurs`) sont définies mais leur vérification automatique peut être renforcée.
+- Les limites de plan (`max_produits`, `max_clients`, `max_utilisateurs`) sont **partiellement appliquées** via `check_plan_limits` (produits, clients, utilisateurs) ; étendre aux autres entités.
 - Le module IA est entièrement en mode placeholder.
 
 ---
@@ -156,7 +156,7 @@ ERP_PRO/
 - Services API complets pour tous les modules (22 namespaces)
 
 ### ⚠️ Points d'attention
-- `ForgotPassword`/`ResetPassword` : endpoints backend à implémenter
+- `ForgotPassword`/`ResetPassword` : endpoints backend **déjà implémentés** (`POST /auth/forgot-password`, `POST /auth/reset-password` + modèle `PasswordResetToken`) — le flux frontend est fonctionnel
 - Certains modules avancés (Livraison, RH, Comptabilité, Documents) sont présents dans le frontend mais la logique métier backend est basique
 - Le module Documents (génération PDF) est partiellement implémenté
 - Certaines pages utilisent des données simulées au lieu des APIs réelles
@@ -195,22 +195,67 @@ ERP_PRO/
 
 ---
 
-## 11. ROADMAP COURT TERME
+## 11. BUGS DÉTECTÉS DANS LE DOSSIER `web` (INVENTAIRE)
+
+> Section ajoutée le 19 août 2026 après audit du code (backend Flask + frontend React).
+> Les tests backend passent (`pytest` : 23 passed) ; les points ci-dessous sont des anomalies à corriger.
+
+### 🔴 Critiques (impact fonctionnel / erreurs masquées)
+
+1. **`NameError` sur `current_app` non importé — `web/backend/app/api/v1/public.py` (ligne 118)**
+   - Le `except Exception:` du `POST /public/commandes` appelle `current_app.logger.exception(...)` mais `current_app` n'est **pas importé** (`from flask import request` en tête de fichier).
+   - Conséquence : dès que `CommandeService.create_commande()` lève une exception non-`ValueError`, le handler masque l'erreur par une `NameError` au lieu de renvoyer un message 500 propre.
+   - Correction : ajouter `current_app` à l'import Flask.
+
+2. **Encodage corrompu (mojibake double-UTF-8) — `web/frontend/src/services/api.js`**
+   - Lignes 34, 58, 61, 157, 165 : `prÃƒÂ©sent`, `rÃƒÂ©seau`, `rÃƒÂ©ponse`, `renouvelÃƒÂ©`, `succÃƒÂ¨s`, `Ãƒâ€°chec` → messages de log/toast illisibles dans la console navigateur.
+   - Le script `web/fix_encoding.ps1` ne corrige que les fichiers `backend/app/*.py`, il **ne couvre pas** les `.js` du frontend → à étendre ou corriger ce fichier à la main.
+
+### 🟠 Importantes
+
+3. **Message de limite de plan générique — `web/backend/app/security/plan_limits.py` (ligne 104)**
+   - Le décorateur renvoie toujours `'Limite de clients atteinte...'` quelle que soit la feature (produits, clients, utilisateurs). Si la limite de **produits** est atteinte, le message affiché est erroné.
+   - Correction : utiliser une libellé dynamique selon `model_name`/`feature`.
+
+4. **Namespace `/test/` exposé en production — `web/backend/app/api/v1/test.py`**
+   - Endpoint de développement `GET /api/v1/test/` enregistré dans l'API Swagger (artefact à retirer de l'enregistrement en prod).
+
+### 🟡 Améliorations & dette technique
+
+5. **Dépréciations SQLAlchemy `Query.get()`** — 49 warnings à l'exécution et en test (`security/tenant.py`, `security/plan_limits.py`, `security/roles.py`, `auth.py`, `users.py`). Migrer vers `db.session.get()`. Non bloquant, mais à prévoir pour SQLAlchemy 2.0.
+
+6. **QR code dépendant d'un service tiers — `web/frontend/src/pages/Checkout.jsx` (ligne 94)**
+   - Génération via `https://api.qrserver.com/...` sans fallback ni serveur interne → fragilité réseau/région et fuite d'URL hors de l'application.
+
+7. **Vérifications de rôle/casse en partie incohérentes**
+   - Le backend renvoie des rôles en lowercase (`super_admin`) ; certains contrôles frontend/back comparent encore à `SUPER_ADMIN`/`ACTIF`. La plupart sont normalisés (`hasRole`, `ProtectedRoute`) mais quelques comparaisons restent fragiles.
+
+8. **Corrélation panier/produits par index — `web/frontend/src/pages/Checkout.jsx`**
+   - `orderTotal` associe `products[idx]` ↔ `cart[idx]` ; si un produit échoue à charger, le total peut être inexact. Préférer un fetch/calcul par `produit_id`.
+
+### ✅ Non-bugs à noter (écart doc/code)
+- `ForgotPassword`/`ResetPassword` **sont implémentés** côté backend (contrairement à l'ancienne mention du doc) : endpoints + modèle `PasswordResetToken`.
+- Les limites de plan **sont partiellement appliquées** (produits, clients, utilisateurs) via `check_plan_limits`.
+
+---
+
+## 12. ROADMAP COURT TERME
 
 1. Fiabiliser la synchronisation des champs frontend ↔ backend sur tous les modules
-2. Ajouter la vérification des limites de plan dans les services métier
-3. Implémenter les endpoints de réinitialisation de mot de passe
+2. Étendre la vérification des limites de plan (`check_plan_limits`) aux autres entités (ventes, fournisseurs, etc.)
+3. ❌ Réinitialisation de mot de passe : **déjà implémentée** (`/auth/forgot-password`, `/auth/reset-password` + `PasswordResetToken`) — retirer de la roadmap
 4. Finaliser le module Documents (PDF, Devis, Contrats)
 5. Ajouter le module Livraison complet (chauffeurs, véhicules, itinéraires, suivi)
 6. Développer les modules RH (employés, présences, salaires, primes)
 7. Développer le module Comptabilité (plan comptable, écritures, trésorerie)
-8. Implémenter les modules IA (prévisions, anomalies, recommandations, assistant)
+8. Implémenter les modules IA (prévisions, anomalies, recommandations, assistant) — les endpoints existent, mais restent en mode placeholder
 9. Implémenter les tâches planifiées (backups, emails, rapports)
 10. Finaliser l'application Desktop selon le `Plan_Desktop.md`
+11. Corriger les bugs du dossier `web` listés en section 11 (NameError `current_app`, mojibake `api.js`, etc.)
 
 ---
 
-## 12. DÉMARRAGE RAPIDE
+## 13. DÉMARRAGE RAPIDE
 
 ### Backend
 
@@ -252,7 +297,7 @@ pytest
 
 ---
 
-## 13. MODULES & ENDPOINTS API
+## 14. MODULES & ENDPOINTS API
 
 ### API Core
 - `POST /api/v1/auth/login` - Connexion

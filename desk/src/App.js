@@ -151,8 +151,10 @@ const App = () => {
     } catch {
       // ignore
     }
-    window.location.href = '/login';
+    // HashRouter : naviguer via hash évite le rechargement complet en Electron (file://)
+    window.location.hash = '/login';
   };
+
 
   return (
     <AuthProvider>
