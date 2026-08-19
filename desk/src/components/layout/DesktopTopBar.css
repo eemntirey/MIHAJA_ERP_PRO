@@ -38,53 +38,12 @@
   color: var(--erp-onyx);
 }
 
-.topbar-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--erp-muted);
-}
-
-.topbar-crumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.topbar-crumb i {
-  font-size: 10px;
-  color: var(--erp-subtle);
-}
-
-.topbar-crumb strong {
-  color: var(--erp-onyx);
-  font-weight: 700;
-}
-
 .topbar-center {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
-
-.topbar-pill {
-  padding: 4px 10px;
-  background: var(--erp-paper);
-  border: 1px solid var(--erp-line);
-  border-radius: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--erp-onyx);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.topbar-pill.danger { background: rgba(185, 110, 85, 0.08); color: var(--erp-critical); border-color: rgba(185, 110, 85, 0.25); }
-.topbar-pill.warning { background: rgba(212, 175, 55, 0.08); color: var(--erp-gold-dark); border-color: rgba(212, 175, 55, 0.25); }
-.topbar-pill.success { background: rgba(110, 155, 121, 0.08); color: var(--erp-success); border-color: rgba(110, 155, 121, 0.25); }
 
 .topbar-right {
   display: flex;
@@ -173,9 +132,5 @@
 
   .topbar-center {
     display: none;
-  }
-
-  .topbar-breadcrumb {
-    font-size: 12px;
   }
 }
