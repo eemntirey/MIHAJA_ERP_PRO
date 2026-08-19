@@ -6,6 +6,7 @@ from app.models.role_permission import RoleModel
 from app import db
 from app.security.auth import hash_password
 from app.security.plan_limits import check_plan_limits
+from app.security.roles import is_admin, is_super_admin
 
 ns = Namespace('users', description='Gestion des utilisateurs')
 
@@ -14,10 +15,10 @@ _ALLOWED_USER_FIELDS = {'username', 'email', 'nom', 'prenom', 'telephone', 'mobi
 
 def _ensure_admin():
     user_id = get_jwt_identity()
-    user = Utilisateur.query.get(user_id)
+    user = db.session.get(Utilisateur, user_id)
     if not user:
         return {'message': 'Utilisateur non trouve'}, 401
-    if not (user.is_super_admin or user.is_admin):
+    if not (is_super_admin(user.role) or is_admin(user.role)):
         return {'message': 'Acces administrateur requis'}, 403
     return None
 
@@ -115,7 +116,7 @@ class UserResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
         if not user:
             return {'message': 'Utilisateur non trouve'}, 404
         return user.to_dict(), 200
@@ -125,7 +126,7 @@ class UserResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
         if not user:
             return {'message': 'Utilisateur non trouve'}, 404
         data = request.get_json() or {}
@@ -148,7 +149,7 @@ class UserResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
         if not user:
             return {'message': 'Utilisateur non trouve'}, 404
         if user.is_super_admin:

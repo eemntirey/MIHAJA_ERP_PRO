@@ -132,7 +132,7 @@ def get_stats():
         if statut not in by_status:
             by_status[statut] = {'count': 0, 'total': 0}
         by_status[statut]['count'] += 1
-        by_status[statut]['total'] += float(v.total_ttc)
+        by_status[statut]['total'] += float(vente.total_ttc)
     return {
         'total': total,
         'count': count,

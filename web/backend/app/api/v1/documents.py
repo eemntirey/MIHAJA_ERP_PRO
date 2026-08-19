@@ -130,7 +130,7 @@ class GenererDocument(Resource):
             claims = get_jwt() or {}
             tenant_id = claims.get('tenant_id')
             if tenant_id:
-                tenant_obj = Tenant.query.get(tenant_id)
+                tenant_obj = db.session.get(Tenant, tenant_id)
                 if tenant_obj:
                     tenant = tenant_obj.to_dict()
 

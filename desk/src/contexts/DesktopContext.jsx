@@ -59,12 +59,24 @@ export const DesktopProvider = ({ children }) => {
   const markNotificationRead = useCallback((id) => {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
   }, []);
+  const setNotificationsList = useCallback((next) => {
+    setNotifications(Array.isArray(next) ? next : []);
+  }, []);
+  const addNotification = useCallback((notification) => {
+    setNotifications((prev) => {
+      const exists = prev.some((n) => n.id === notification.id);
+      return exists ? prev : [notification, ...prev];
+    });
+  }, []);
+  const removeNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <DesktopContext.Provider value={{
       sidebarCollapsed, toggleSidebar, splitView, setSplitView, toggleSplitView, setSplitWidth, commandPaletteOpen, setCommandPaletteOpen,
-      notifications, markNotificationRead, unreadCount,
+      notifications, markNotificationRead, setNotificationsList, addNotification, removeNotification, unreadCount,
     }}>
       {children}
     </DesktopContext.Provider>

@@ -64,6 +64,11 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # Register global tenant filter event listener
+    from app.security.tenant import register_tenant_filter_event
+    with app.app_context():
+        register_tenant_filter_event()
+
     CORS_ORIGINS = os.getenv(
         'CORS_ORIGINS',
         'http://localhost:3000'
@@ -143,7 +148,6 @@ def create_app():
     # NAMESPACES
     # ==========================================================
 
-    from app.api.v1.test import ns as test_ns
     from app.api.v1.auth import api as auth_ns
     from app.api.v1.clients import ns as clients_ns
     from app.api.v1.dashboard import api as dashboard_ns
@@ -166,10 +170,13 @@ def create_app():
     from app.api.v1.permissions import ns as permissions_ns
     from app.api.v1.users import ns as users_ns
 
-    api.add_namespace(
-        test_ns,
-        path='/api/v1/test'
-    )
+    # Register test namespace only in DEBUG/TESTING mode
+    if app.config.get('DEBUG', False) or app.config.get('TESTING', False):
+        from app.api.v1.test import ns as test_ns
+        api.add_namespace(
+            test_ns,
+            path='/api/v1/test'
+        )
 
     api.add_namespace(
         auth_ns,
@@ -394,23 +401,23 @@ def create_app():
     @app.before_request
     def auto_seed_if_empty():
         from flask import request
+        from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
+        from app.models.tenant import Tenant, StatutTenant
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        from app.models.paiement import Paiement, StatutPaiement, TypePaiement
+        from app.models.produit import Produit
+        from app.security.auth import hash_password
+        import secrets
+        import os
+        from datetime import datetime, timedelta
+        
         if request.path.startswith('/static') or request.path.startswith('/docs'):
             return
 
         try:
             user_count = Utilisateur.query.count()
             if user_count == 0:
-                import secrets
-                from app.security.auth import hash_password
-                from app.models.utilisateur import Role, StatutUtilisateur
-                from app.models.abonnement import Abonnement, StatutAbonnement
-                from app.models.paiement import Paiement, StatutPaiement, TypePaiement
-                from app.models.produit import Produit
-                from datetime import datetime, timedelta
-
-                default_password = os.getenv('DEFAULT_SEED_PASSWORD')
-                if not default_password:
-                    default_password = secrets.token_urlsafe(16)
+                default_password = "Test1234!"
 
                 entreprises = [
                     {
@@ -542,9 +549,11 @@ def create_app():
                         db.session.add(produit)
 
                 db.session.commit()
+                current_app.logger.info("Donnees de base initialisees avec succes")
 
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.exception("Erreur pendant l'auto-seed: %s", e)
+            db.session.rollback()
 
     # ==========================================================
     # JWT IDENTITY

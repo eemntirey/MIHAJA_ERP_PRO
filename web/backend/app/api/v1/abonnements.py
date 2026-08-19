@@ -3,10 +3,11 @@ from flask_restx import Namespace, Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models.utilisateur import Role
 from app.models.abonnement import Abonnement, StatutAbonnement
-from app.models.paiement import Paiement, StatutPaiement
+from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.services.abonnement_service import AbonnementService
 from app import db
 from datetime import datetime
+from app.security.roles import is_super_admin
 
 ns = Namespace('abonnements', description='Gestion des abonnements')
 
@@ -71,7 +72,7 @@ class MonHistorique(Resource):
 class PayerAbonnement(Resource):
     @jwt_required()
     def post(self, id):
-        abonnement = Abonnement.query.get(id)
+        abonnement = db.session.get(Abonnement, id)
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 
@@ -108,7 +109,7 @@ class PayerAbonnement(Resource):
 class RenouvelerAbonnement(Resource):
     @jwt_required()
     def post(self, id):
-        abonnement = Abonnement.query.get(id)
+        abonnement = db.session.get(Abonnement, id)
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 
@@ -134,8 +135,8 @@ class AbonnementList(Resource):
     def get(self):
         from app.models.utilisateur import Utilisateur
         user_id = get_jwt_identity()
-        utilisateur = Utilisateur.query.get(user_id)
-        if not utilisateur or utilisateur.role != Role.SUPER_ADMIN:
+        utilisateur = db.session.get(Utilisateur, user_id)
+        if not utilisateur or not is_super_admin(utilisateur.role):
             return {'message': 'Acces super administrateur requis'}, 403
 
         page = request.args.get('page', 1, type=int)
@@ -155,8 +156,8 @@ class HistoriqueTenant(Resource):
     def get(self, tenant_id):
         from app.models.utilisateur import Utilisateur
         user_id = get_jwt_identity()
-        utilisateur = Utilisateur.query.get(user_id)
-        if not utilisateur or utilisateur.role != Role.SUPER_ADMIN:
+        utilisateur = db.session.get(Utilisateur, user_id)
+        if not utilisateur or not is_super_admin(utilisateur.role):
             return {'message': 'Acces super administrateur requis'}, 403
 
         page = request.args.get('page', 1, type=int)

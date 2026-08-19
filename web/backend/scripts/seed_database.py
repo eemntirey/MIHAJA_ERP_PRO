@@ -65,7 +65,7 @@ def seed_tenant(tenant_data, admin_data):
 
 def seed_default_tenant():
     """Crée le tenant par défaut"""
-    default_password = os.getenv('SEED_USER_PASSWORD') or secrets.token_urlsafe(12)
+    default_password = "Test1234!"
     tenant_data = {
         'nom': 'ERP Démonstration',
         'slug': 'demo',

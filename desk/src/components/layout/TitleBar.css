@@ -1,5 +1,25 @@
 /* src/components/layout/TitleBar.css */
 
+:root {
+  --titlebar-bg: #111111;
+  --titlebar-border: rgba(212, 175, 55, 0.35);
+  --titlebar-text: rgba(255, 255, 255, 0.82);
+  --titlebar-hover-bg: rgba(255, 255, 255, 0.1);
+  --titlebar-hover-text: #ffffff;
+  --titlebar-close-hover: #e02e2e;
+  --titlebar-close-active: #c02424;
+}
+
+.dark {
+  --titlebar-bg: #020617;
+  --titlebar-border: rgba(212, 175, 55, 0.25);
+  --titlebar-text: rgba(226, 232, 240, 0.82);
+  --titlebar-hover-bg: rgba(226, 232, 240, 0.1);
+  --titlebar-hover-text: #e2e8f0;
+  --titlebar-close-hover: #e02e2e;
+  --titlebar-close-active: #c02424;
+}
+
 .app-titlebar {
   position: fixed;
   top: 0;
@@ -9,8 +29,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--erp-onyx, #111111);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+  background: var(--titlebar-bg);
+  border-bottom: 1px solid var(--titlebar-border);
   z-index: 60;
   user-select: none;
 }
@@ -32,8 +52,8 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  background: var(--erp-gold, #d4af37);
-  color: var(--erp-onyx, #111111);
+  background: var(--erp-gold);
+  color: var(--on-primary);
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -49,7 +69,7 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.06em;
-  color: var(--erp-white, #ffffff);
+  color: var(--titlebar-text);
   white-space: nowrap;
 }
 
@@ -58,7 +78,7 @@
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--erp-gold, #d4af37);
+  color: var(--erp-gold);
 }
 
 .app-titlebar__controls {
@@ -76,25 +96,25 @@
   height: 100%;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--titlebar-text);
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
 
 .app-titlebar__btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--titlebar-hover-bg);
+  color: var(--titlebar-hover-text);
 }
 
 .app-titlebar__btn:active {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--titlebar-hover-bg);
 }
 
 .app-titlebar__btn--close:hover {
-  background: #e02e2e;
-  color: #ffffff;
+  background: var(--titlebar-close-hover);
+  color: var(--titlebar-hover-text);
 }
 
 .app-titlebar__btn--close:active {
-  background: #c02424;
+  background: var(--titlebar-close-active);
 }

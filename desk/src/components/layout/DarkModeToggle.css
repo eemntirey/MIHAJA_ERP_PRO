@@ -1,34 +1,28 @@
 /* src/components/layout/DarkModeToggle.css */
 
 .dark-mode-toggle {
-  position: fixed;
-  right: 24px;
-  bottom: 110px;
-  z-index: 210;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  color: #1a1a1a;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  font-family: var(--erp-body-font);
+  transition: all 180ms ease;
+  white-space: nowrap;
 }
 
 .dark-mode-toggle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border-color: #D4AF37;
+  background: var(--border-color);
 }
 
 .dark-mode-icon {
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -36,19 +30,35 @@
   line-height: 1;
 }
 
-.main-layout[data-theme='dark'] .dark-mode-toggle {
-  background: rgba(30, 41, 59, 0.85);
-  color: #e2e8f0;
-  border-color: rgba(212, 175, 55, 0.35);
+/* Fixed floating variant (kept for any remaining usage) */
+.dark-mode-toggle--floating {
+  position: fixed;
+  right: 24px;
+  bottom: 110px;
+  z-index: 210;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  font-size: 14px;
 }
 
-.main-layout[data-theme='dark'] .dark-mode-toggle:hover {
-  border-color: #D4AF37;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+.dark .dark-mode-toggle--floating {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(212, 175, 55, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.dark-mode-toggle--floating:hover {
+  border-color: var(--erp-gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
-  .dark-mode-toggle {
+  .dark-mode-toggle--floating {
     right: 16px;
     bottom: 100px;
     padding: 8px 12px;

@@ -35,6 +35,12 @@
   padding: 0;
 }
 
-.main-layout.desktop-layout[data-theme='dark'] {
+/* Le thème (claire / sombre) est contrôlé par la classe racine `.dark`
+   sur <html> (appliquée par useTheme). Aucun sélecteur redondant ici. */
+.main-layout.desktop-layout {
+  color-scheme: light;
+}
+
+.dark .main-layout.desktop-layout {
   color-scheme: dark;
 }

@@ -148,9 +148,11 @@ const Login = ({ darkMode, onToggleDarkMode }) => {
             <span>Accès sécurisé</span>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
               <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
-              <Link to="/login" className="auth-login__back-link">
-                Retour à la connexion
-              </Link>
+              {location.pathname !== '/login' && (
+                <Link to="/login" className="auth-login__back-link">
+                  Retour à la connexion
+                </Link>
+              )}
             </div>
           </div>
 
@@ -277,6 +279,15 @@ const Login = ({ darkMode, onToggleDarkMode }) => {
               <i className="ti ti-shield-check" aria-hidden="true" />
               Connexion protégée par JWT &amp; SSL
             </p>
+
+            <button
+              type="button"
+              className="auth-login__quit"
+              onClick={() => window.electron?.quit?.()}
+            >
+              <i className="ti ti-logout" aria-hidden="true" />
+              Quitter l'application
+            </button>
           </div>
         </section>
       </main>

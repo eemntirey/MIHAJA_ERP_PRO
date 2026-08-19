@@ -21,26 +21,25 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
-  const { sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
+  const { commandPaletteOpen, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
 
   const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
   const showSplit = !isAIView && SPLIT_MODULES.includes(moduleKey) && !!splitView[moduleKey]?.enabled;
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('desktop_sidebar_collapsed') === 'true';
+      return localStorage.getItem('desk_sidebar_collapsed') === 'true';
     } catch {
       return false;
     }
   });
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('desktop_sidebar_collapsed', String(next));
+        localStorage.setItem('desk_sidebar_collapsed', String(next));
       } catch {
         // ignore storage errors
       }
@@ -50,6 +49,13 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
 
   // Raccourcis clavier globaux (CMD+K, CMD+B, CMD+1-9)
   useKeyboardShortcuts({ onToggleSidebar: toggleCollapsed });
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', darkMode ? '#0f172a' : '#f8fafc');
+    }
+  }, [darkMode]);
 
 
   useEffect(() => {
@@ -97,10 +103,9 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     };
   }, []);
 
-  return (
+    return (
     <div
       className={`main-layout desktop-layout${collapsed ? ' is-collapsed' : ''}`}
-      data-theme={darkMode ? 'dark' : undefined}
       data-ai={isAIView ? 'true' : undefined}
     >
       {IS_ELECTRON && <TitleBar />}
@@ -108,7 +113,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
         collapsed={collapsed}
         counters={counters}
         onToggleCollapse={toggleCollapsed}
-        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenPalette={() => setCommandPaletteOpen(true)}
         onLogout={onLogout}
         darkMode={darkMode}
         onToggleDarkMode={onToggleDarkMode}
@@ -119,7 +124,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
           darkMode={darkMode}
           onToggleDarkMode={onToggleDarkMode}
           counters={counters}
-          onOpenPalette={() => setPaletteOpen(true)}
+          onOpenPalette={() => setCommandPaletteOpen(true)}
           onToggleSidebar={toggleCollapsed}
           collapsed={collapsed}
           onLogout={onLogout}
@@ -147,7 +152,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
 
       {!isAIView && <FAB />}
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   );
 };

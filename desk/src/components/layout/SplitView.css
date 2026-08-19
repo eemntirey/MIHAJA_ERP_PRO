@@ -51,23 +51,3 @@
   font-size: 28px;
   color: var(--erp-subtle);
 }
-
-/* ResizablePanel */
-.resizable-panel {
-  position: relative;
-  min-width: 0;
-}
-
-.resizable-panel__handle {
-  position: absolute;
-  top: 0;
-  right: -4px;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resizable-panel.resizing {
-  user-select: none;
-}

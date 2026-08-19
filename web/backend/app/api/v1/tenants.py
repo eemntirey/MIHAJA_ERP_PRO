@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.tenant import Tenant, StatutTenant
 from app.models.utilisateur import Utilisateur, Role
 from app import db
+from app.security.roles import is_super_admin
 
 ns = Namespace('tenants', description='Gestion des tenants (SUPER_ADMIN)')
 
@@ -15,8 +16,8 @@ _ALLOWED_TENANT_FIELDS = {
 
 def _ensure_super_admin():
     user_id = get_jwt_identity()
-    user = Utilisateur.query.get(user_id)
-    if not user or user.role != Role.SUPER_ADMIN:
+    user = db.session.get(Utilisateur, user_id)
+    if not user or not is_super_admin(user.role):
         return {'message': 'Acces super administrateur requis'}, 403
     return None
 
@@ -74,7 +75,7 @@ class TenantResource(Resource):
         err = _ensure_super_admin()
         if err:
             return err
-        tenant = Tenant.query.get(tenant_id)
+        tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Tenant non trouve'}, 404
         return tenant.to_dict(), 200
@@ -84,7 +85,7 @@ class TenantResource(Resource):
         err = _ensure_super_admin()
         if err:
             return err
-        tenant = Tenant.query.get(tenant_id)
+        tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Tenant non trouve'}, 404
         data = request.get_json() or {}
@@ -106,7 +107,7 @@ class TenantSuspend(Resource):
         err = _ensure_super_admin()
         if err:
             return err
-        tenant = Tenant.query.get(tenant_id)
+        tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Tenant non trouve'}, 404
         tenant.statut = StatutTenant.INACTIF

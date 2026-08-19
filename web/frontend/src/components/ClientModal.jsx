@@ -75,6 +75,8 @@ const ClientModal = ({ client, onClose, onSuccess }) => {
       onSuccess();
     } catch (err) {
       console.error('Error saving client:', err);
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Erreur lors de la sauvegarde du client';
+      toast.error(msg);
     }
   };
 
