@@ -2,14 +2,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import DesktopSidebar from './DesktopSidebar';
-import TopBar from './TopBar';
+import DesktopTopBar from './DesktopTopBar';
 import TitleBar from './TitleBar';
 import CommandPalette from './CommandPalette';
-import DarkModeToggle from './DarkModeToggle';
-import ChatInput from './ChatInput';
 import SplitView from './SplitView';
 import FAB from '../desktop/FAB';
 import { useDesktop } from '../../contexts/DesktopContext';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
@@ -22,7 +21,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
-  const { sidebarCollapsed, toggleSidebar, notifications, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
+  const { sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
 
   const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
   const showSplit = !isAIView && SPLIT_MODULES.includes(moduleKey) && !!splitView[moduleKey]?.enabled;
@@ -49,16 +48,9 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     });
   }, []);
 
-  useEffect(() => {
-    const onKey = (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Raccourcis clavier globaux (CMD+K, CMD+B, CMD+1-9)
+  useKeyboardShortcuts({ onToggleSidebar: toggleCollapsed });
+
 
   useEffect(() => {
     let active = true;
@@ -123,14 +115,13 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
       />
 
       <div className="desktop-main">
-        <TopBar
+        <DesktopTopBar
+          darkMode={darkMode}
+          onToggleDarkMode={onToggleDarkMode}
           counters={counters}
-          notifications={notifications}
           onOpenPalette={() => setPaletteOpen(true)}
           onToggleSidebar={toggleCollapsed}
           collapsed={collapsed}
-          darkMode={darkMode}
-          onToggleDarkMode={onToggleDarkMode}
           onLogout={onLogout}
         />
 
@@ -154,13 +145,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
         </main>
       </div>
 
-      {!isAIView && (
-        <>
-          <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
-          <ChatInput />
-          <FAB />
-        </>
-      )}
+      {!isAIView && <FAB />}
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
