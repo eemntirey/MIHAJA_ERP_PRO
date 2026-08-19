@@ -1,6 +1,4 @@
-// src/contexts/CartContext.jsx
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
@@ -18,7 +16,6 @@ const getItemKey = (produit) => produit.id || produit.reference || produit._id;
 
 export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);
-    const { user } = useAuth();
 
     useEffect(() => {
         try {

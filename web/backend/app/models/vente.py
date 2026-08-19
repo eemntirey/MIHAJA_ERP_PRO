@@ -14,6 +14,7 @@ class Vente(BaseModel):
     total_ht = db.Column(Numeric(10, 2), nullable=False, default=0.00)
     total_ttc = db.Column(Numeric(10, 2), nullable=False, default=0.00)
     mode_paiement = db.Column(db.String(50))
+    type_vente = db.Column(db.String(20), default='detail')  # gros / detail
     remarque = db.Column(db.Text)
     statut = db.Column(db.String(50), default='en_attente')  # devis, en_attente, payee, annulee
     

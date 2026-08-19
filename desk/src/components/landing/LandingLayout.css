@@ -1,0 +1,527 @@
+/* src/components/landing/LandingLayout.css */
+
+.landing-root {
+  min-height: 100vh;
+  background: var(--erp-paper);
+  color: var(--erp-onyx);
+  font-family: var(--erp-body-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.landing-root *,
+.landing-root *::before,
+.landing-root *::after {
+  box-sizing: border-box;
+}
+
+.landing-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (min-width: 640px) {
+  .landing-container {
+    padding: 0 32px;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-container {
+    padding: 0 48px;
+  }
+}
+
+/* Header */
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.landing-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.landing-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--erp-onyx);
+}
+
+.landing-logo-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--erp-gold);
+  color: var(--erp-gold);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.landing-logo-text {
+  font-family: var(--erp-heading-font);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.landing-nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.landing-nav-link {
+  text-decoration: none;
+  color: var(--erp-onyx-soft);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+
+.landing-nav-link:hover {
+  color: var(--erp-gold);
+  border-color: rgba(212, 175, 55, 0.25);
+}
+
+.landing-nav-link:focus-visible {
+  outline: 2px solid var(--erp-gold);
+  outline-offset: 2px;
+}
+
+/* User menu */
+.landing-user-menu {
+  position: relative;
+}
+
+.landing-user-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--erp-white);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--erp-onyx-soft);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.landing-user-menu-trigger:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.landing-user-menu-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.landing-user-menu-greeting {
+  white-space: nowrap;
+}
+
+.landing-user-menu-chevron {
+  font-size: 11px;
+  color: var(--erp-muted);
+}
+
+.landing-user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  background: var(--erp-white);
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  overflow: hidden;
+  animation: landingFadeIn 0.15s ease;
+}
+
+.landing-user-menu-header {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.landing-user-menu-avatar-large {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--erp-onyx);
+  color: var(--erp-white);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.landing-user-menu-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.landing-user-menu-meta strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--erp-onyx);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.landing-user-menu-meta span {
+  font-size: 12px;
+  color: var(--erp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.landing-user-menu-actions {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.landing-user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--erp-onyx-soft);
+  text-decoration: none;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.landing-user-menu-item:hover {
+  background: var(--erp-paper);
+  color: var(--erp-onyx);
+}
+
+.landing-user-menu-item--logout {
+  color: #b96e55;
+  margin-top: 4px;
+}
+
+.landing-user-menu-item--logout:hover {
+  background: #fff5f2;
+  color: #b96e55;
+}
+
+/* Burger */
+.landing-burger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: var(--erp-white);
+  cursor: pointer;
+  color: var(--erp-onyx);
+}
+
+.landing-burger:focus-visible {
+  outline: 2px solid var(--erp-gold);
+  outline-offset: 2px;
+}
+
+@media (min-width: 960px) {
+  .landing-nav {
+    display: flex;
+  }
+
+  .landing-user-menu {
+    display: block;
+  }
+
+  .landing-burger {
+    display: none;
+  }
+}
+
+@media (max-width: 959px) {
+  .landing-user-menu {
+    display: none;
+  }
+}
+
+/* Footer */
+.landing-footer {
+  background: var(--erp-onyx);
+  color: rgba(255, 255, 255, 0.70);
+  padding: 48px 0 24px;
+  margin-top: 48px;
+}
+
+.landing-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  margin-bottom: 40px;
+}
+
+.landing-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--erp-white);
+  margin-bottom: 12px;
+}
+
+.landing-footer-brand-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--erp-gold);
+  color: var(--erp-gold);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.landing-footer-brand-text {
+  font-family: var(--erp-heading-font);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.landing-footer-desc {
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: 320px;
+}
+
+.landing-footer h4 {
+  color: var(--erp-white);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+.landing-footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.landing-footer-links a {
+  color: rgba(255, 255, 255, 0.70);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 180ms ease;
+}
+
+.landing-footer-links a:hover {
+  color: var(--erp-gold);
+}
+
+.landing-footer-contact {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.landing-footer-contact li {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+  font-size: 12px;
+}
+
+@media (min-width: 640px) {
+  .landing-footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-footer-grid {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+  }
+
+  .landing-footer-bottom {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+/* Utilities */
+.landing-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@keyframes landingFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dark mode */
+.landing-root[data-theme='dark'] {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-header {
+  background: rgba(15, 23, 42, 0.82);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.landing-root[data-theme='dark'] .landing-logo {
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-logo-mark {
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+.landing-root[data-theme='dark'] .landing-logo-text {
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-nav-link {
+  color: #94a3b8;
+}
+
+.landing-root[data-theme='dark'] .landing-nav-link:hover {
+  color: #d4af37;
+  border-color: rgba(212, 175, 55, 0.25);
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-trigger {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-dropdown {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-avatar {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-meta strong {
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-meta span {
+  color: #94a3b8;
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-item {
+  color: #94a3b8;
+}
+
+.landing-root[data-theme='dark'] .landing-user-menu-item:hover {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-burger {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.landing-root[data-theme='dark'] .landing-footer {
+  background: #0f172a;
+}
+
+.landing-root[data-theme='dark'] .landing-footer-brand-text {
+  color: #e2e8f0;
+}
+
+.landing-root[data-theme='dark'] .landing-footer-desc {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.landing-root[data-theme='dark'] .landing-footer-links a {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.landing-root[data-theme='dark'] .landing-footer-contact li {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.landing-root[data-theme='dark'] .landing-footer-bottom {
+  border-top-color: rgba(255, 255, 255, 0.10);
+}

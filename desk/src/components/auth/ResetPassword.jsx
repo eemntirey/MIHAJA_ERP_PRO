@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authService } from '../../services/api';
+import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
 const resetSchema = yup.object().shape({
@@ -23,7 +24,7 @@ const resetSchema = yup.object().shape({
     .oneOf([yup.ref('password'), null], 'Les mots de passe doivent correspondre'),
 });
 
-const ResetPassword = () => {
+const ResetPassword = ({ darkMode, onToggleDarkMode }) => {
   const { token } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -55,7 +56,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" data-theme={darkMode ? 'dark' : undefined}>
       <div className="auth-wrapper">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -64,9 +65,12 @@ const ResetPassword = () => {
           className="auth-card"
         >
           <div className="auth-header">
-            <div className="auth-logo">
-              <span className="logo-icon"></span>
-              <h1>Nouveau mot de passe</h1>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="auth-logo">
+                <span className="logo-icon"></span>
+                <h1>Nouveau mot de passe</h1>
+              </div>
+              <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
             </div>
             <p className="auth-subtitle">
               {resetSuccess

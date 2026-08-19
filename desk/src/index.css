@@ -46,7 +46,17 @@ body {
   min-height: 100vh;
 }
 
-/* Dark mode via data-theme attribute */
+/* Dark mode via data-theme attribute (document root + layout) */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] #root {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
 .main-layout[data-theme='dark'] {
   color-scheme: dark;
   --erp-onyx: #e2e8f0;
@@ -151,4 +161,24 @@ body {
 ::selection {
   background: var(--erp-gold);
   color: var(--erp-onyx);
+}
+
+/* Lazy fallbacks */
+.auth-loading,
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 16px;
+  color: var(--erp-onyx);
+  background: var(--erp-white);
+}
+
+:root[data-theme='dark'] .auth-loading,
+:root[data-theme='dark'] .page-loading,
+.main-layout[data-theme='dark'] .auth-loading,
+.main-layout[data-theme='dark'] .page-loading {
+  background: #0f172a;
+  color: #e2e8f0;
 }

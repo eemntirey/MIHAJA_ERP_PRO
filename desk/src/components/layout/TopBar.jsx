@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { buildBreadcrumb, findNavItem } from './navConfig';
+import { findNavItem } from './navConfig';
+import Breadcrumbs from './Breadcrumbs';
+import NotificationDropdown from './NotificationDropdown';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDesktop } from '../../contexts/DesktopContext';
 import './TopBar.css';
 
 const CONTEXT_ACTIONS = {
@@ -18,25 +21,24 @@ const CONTEXT_ACTIONS = {
   '/delivery': { label: 'Nouvelle livraison', icon: 'ti-truck-delivery', to: '/delivery' },
 };
 
-const describeNotification = (n) => {
-  if (!n) return { title: 'Notification', detail: '' };
-  return {
-    title: n.titre || n.title || n.message || n.type || 'Alerte',
-    detail: n.detail || n.description || n.montant || '',
-  };
-};
+// Modules éligibles à la vue séparée (Plan §3.1).
+const SPLIT_MODULES = ['/products', '/clients', '/sales', '/invoices', '/inventory'];
 
 const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, collapsed, darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  const breadcrumb = buildBreadcrumb(location.pathname);
+  const { splitView, toggleSplitView } = useDesktop();
+
   const current = findNavItem(location.pathname);
   const action = current ? CONTEXT_ACTIONS[current.path] : null;
 
+  const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
+  const splitEnabled = !!splitView[moduleKey]?.enabled;
+  const splitSupported = SPLIT_MODULES.includes(moduleKey);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     const onClick = (e) => {
@@ -45,25 +47,6 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
-
-  const handleScrollDrag = (e) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const startX = e.pageX - container.offsetLeft;
-    const scrollLeft = container.scrollLeft;
-    const handleMouseMove = (ev) => {
-      const x = ev.pageX - container.offsetLeft;
-      container.scrollLeft = scrollLeft - (x - startX);
-    };
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      container.style.cursor = 'grab';
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    container.style.cursor = 'grabbing';
-  };
 
   const indicators = [
     { key: 'stock', label: 'Stock critique', value: counters.stock, icon: 'ti-alert-triangle', to: '/inventory', tone: 'critical' },
@@ -84,21 +67,10 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
           <i className="ti ti-menu-2" aria-hidden="true" />
         </button>
 
-        <nav className="desktop-breadcrumb" aria-label="Fil d'Ariane">
-          {breadcrumb.map((crumb, idx) => (
-            <span className="desktop-breadcrumb__item" key={idx}>
-              {crumb.to && idx < breadcrumb.length - 1 ? (
-                <Link to={crumb.to}>{crumb.label}</Link>
-              ) : (
-                <span className="desktop-breadcrumb__current">{crumb.label}</span>
-              )}
-              {idx < breadcrumb.length - 1 && <i className="ti ti-chevron-right" aria-hidden="true" />}
-            </span>
-          ))}
-        </nav>
+        <Breadcrumbs />
       </div>
 
-      <div className="desktop-topbar__scroll" ref={scrollRef} onMouseDown={handleScrollDrag}>
+      <div className="desktop-topbar__scroll">
         <button type="button" className="topbar-icon" onClick={onOpenPalette} title="Recherche globale (⌘K)" aria-label="Recherche">
           <i className="ti ti-search" aria-hidden="true" />
         </button>
@@ -117,45 +89,18 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
           </button>
         ))}
 
-        <div className="desktop-topbar__notif" ref={notifRef}>
+        {splitSupported && (
           <button
             type="button"
-            className="topbar-icon"
-            onClick={() => setNotifOpen((o) => !o)}
-            title="Notifications"
-            aria-label="Notifications"
+            className={`topbar-icon ${splitEnabled ? 'topbar-icon--active' : ''}`}
+            onClick={() => toggleSplitView(moduleKey)}
+            title={splitEnabled ? 'Désactiver la vue séparée' : 'Vue séparée (liste + détail)'}
+            aria-label="Vue séparée"
+            aria-pressed={splitEnabled}
           >
-            <i className="ti ti-bell" aria-hidden="true" />
-            {notifications.length > 0 && <span className="topbar-icon__badge">{notifications.length}</span>}
+            <i className="ti ti-layout-columns" aria-hidden="true" />
           </button>
-
-          {notifOpen && (
-            <div className="desktop-topbar__dropdown" role="menu">
-              <div className="desktop-topbar__dropdown-head">
-                <strong>Notifications</strong>
-                <span>{notifications.length} récente(s)</span>
-              </div>
-              {notifications.length === 0 ? (
-                <div className="desktop-topbar__dropdown-empty">Aucune notification</div>
-              ) : (
-                <ul className="desktop-topbar__notif-list">
-                  {notifications.map((n, i) => {
-                    const { title, detail } = describeNotification(n);
-                    return (
-                      <li key={i} className="desktop-topbar__notif-item">
-                        <i className="ti ti-alert-circle" aria-hidden="true" />
-                        <span>
-                          <strong>{title}</strong>
-                          {detail && <small>{detail}</small>}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+        )}
 
         {hasRole('super_admin') && (
           <button type="button" className="topbar-icon" onClick={() => navigate('/super-admin/profile')} title="Profil utilisateur" aria-label="Profil utilisateur">
@@ -182,6 +127,21 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
         <button type="button" className="topbar-icon" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">
           <i className="ti ti-logout" aria-hidden="true" />
         </button>
+      </div>
+
+      <div className="desktop-topbar__notif" ref={notifRef}>
+        <button
+          type="button"
+          className="topbar-icon"
+          onClick={() => setNotifOpen((o) => !o)}
+          title="Notifications"
+          aria-label="Notifications"
+        >
+          <i className="ti ti-bell" aria-hidden="true" />
+          {notifications.length > 0 && <span className="topbar-icon__badge">{notifications.length}</span>}
+        </button>
+
+        {notifOpen && <NotificationDropdown onClose={() => setNotifOpen(false)} />}
       </div>
     </header>
   );

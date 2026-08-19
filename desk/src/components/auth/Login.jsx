@@ -6,6 +6,7 @@ import * as yup from 'yup';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
 const loginSchema = yup.object().shape({
@@ -19,7 +20,7 @@ const loginSchema = yup.object().shape({
     .min(6, 'Minimum 6 caractères'),
 });
 
-const Login = () => {
+const Login = ({ darkMode, onToggleDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading: authLoading } = useAuth();
@@ -67,6 +68,7 @@ const Login = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="auth-login"
+      data-theme={darkMode ? 'dark' : undefined}
     >
       <main className="auth-login__layout">
         <section
@@ -79,7 +81,7 @@ const Login = () => {
 
           <div className="auth-login__context-inner">
             <div className="auth-login__brand-row">
-              <Link to="/" className="auth-login__brand" aria-label="ERP Pro accueil">
+              <Link to="/login" className="auth-login__brand" aria-label="ERP Pro accueil">
                 <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
                 <span className="auth-login__brand-name">ERP Pro</span>
               </Link>
@@ -142,12 +144,15 @@ const Login = () => {
           aria-labelledby="auth-login-form-title"
         >
           <div className="auth-login__form-container">
-            <div className="auth-login__form-header">
-              <span>Accès sécurisé</span>
-              <Link to="/" className="auth-login__back-link">
-                Retour à l'accueil
+          <div className="auth-login__form-header">
+            <span>Accès sécurisé</span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+              <Link to="/login" className="auth-login__back-link">
+                Retour à la connexion
               </Link>
             </div>
+          </div>
 
             <div className="auth-login__form-intro">
               <p className="auth-login__eyebrow auth-login__eyebrow--light">

@@ -6,8 +6,8 @@ from flask_jwt_extended import (
     get_jwt_identity,
     create_access_token,
     create_refresh_token,
-    get_jwt,
 )
+from datetime import datetime, timedelta
 from app import db
 from app.security.auth import authenticate_user, hash_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
@@ -324,10 +324,41 @@ class AuthForgotPassword(Resource):
         email = data.get('email')
         if not email:
             return {'message': 'Email requis'}, 400
+
         user = Utilisateur.query.filter_by(email=email, is_active=True).first()
+
         if user:
-            return {'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'}, 200
-        return {'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'}, 200
+            from app.models.password_reset_token import PasswordResetToken
+
+            PasswordResetToken.query.filter_by(
+                user_id=user.id,
+                used=False
+            ).update({'used': True})
+            db.session.commit()
+
+            raw_token = PasswordResetToken.generate_token()
+            token = PasswordResetToken(
+                user_id=user.id,
+                token=raw_token,
+                expires_at=datetime.utcnow() + timedelta(hours=1),
+                ip_address=request.remote_addr,
+            )
+            db.session.add(token)
+            db.session.commit()
+
+            reset_link = (
+                f"{request.host_url.rstrip('/')}"
+                f"/reset-password/{raw_token}"
+            )
+            current_app.logger.info(
+                'Simulated password reset email sent to %s: %s',
+                user.email,
+                reset_link,
+            )
+
+        return {
+            'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'
+        }, 200
 
 
 @api.route('/reset-password')
@@ -340,25 +371,25 @@ class AuthResetPassword(Resource):
         if not token or not new_password:
             return {'message': 'Token et nouveau mot de passe requis'}, 400
 
+        from app.models.password_reset_token import PasswordResetToken
         from app.security.auth import hash_password
-        from app.models.utilisateur import Utilisateur
-        from datetime import datetime
-        from flask_jwt_extended import decode_token
 
-        try:
-            decoded = decode_token(token)
-            user_id = decoded.get('sub')
-            if not user_id:
-                return {'message': 'Token invalide'}, 400
-        except Exception:
+        reset_token = PasswordResetToken.query.filter_by(
+            token=token,
+            used=False
+        ).first()
+
+        if not reset_token or reset_token.is_expired:
             return {'message': 'Token invalide ou expiré'}, 400
 
-        user = Utilisateur.query.get(user_id)
+        user = Utilisateur.query.get(reset_token.user_id)
         if not user or not user.is_active:
             return {'message': 'Utilisateur non trouvé'}, 404
 
         user.password_hash = hash_password(new_password)
+        reset_token.used = True
         db.session.commit()
+
         return {'message': 'Mot de passe réinitialisé avec succès'}, 200
 
 

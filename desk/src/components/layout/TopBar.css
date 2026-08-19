@@ -154,6 +154,18 @@
   background: var(--erp-success, #6e9b79);
 }
 
+.topbar-icon--active {
+  background: var(--erp-gold, #d4af37);
+  border-color: var(--erp-gold, #d4af37);
+  color: var(--erp-white, #ffffff);
+}
+
+.topbar-icon--active:hover {
+  background: var(--erp-gold-dark, #cda233);
+  border-color: var(--erp-gold-dark, #cda233);
+  color: var(--erp-white, #ffffff);
+}
+
 /* Notification dropdown */
 .desktop-topbar__notif {
   position: relative;

@@ -782,6 +782,13 @@
   color: var(--erp-subtle);
 }
 
+.field-error {
+  font-size: 11px;
+  color: var(--erp-critical);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -2188,6 +2195,10 @@
 
 .main-layout[data-theme='dark'] .modal-footer {
   border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .field-error {
+  color: #e2e8f0;
 }
 
 .main-layout[data-theme='dark'] .form-section {

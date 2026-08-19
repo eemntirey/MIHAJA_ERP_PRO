@@ -3,6 +3,12 @@ from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAcha
 from app.models.ligne_achat import LigneAchat
 from app.security.tenant import get_current_tenant_id
 from typing import Optional, Dict, Any, List, Tuple
+import datetime
+
+def _gen_reference(prefix, id_val=None):
+    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    suffix = f'-{id_val}' if id_val else ''
+    return f'{prefix}-{ts}{suffix}'
 
 class CommandeAchatService:
     model = CommandeAchat
@@ -38,6 +44,8 @@ class CommandeAchatService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             data['tenant_id'] = tenant_id
+        if not data.get('reference'):
+            data['reference'] = _gen_reference('ACH')
         lignes_data = data.pop('lignes', [])
         instance = cls.model(**data)
         db.session.add(instance)
@@ -123,6 +131,8 @@ class ReceptionAchatService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             data['tenant_id'] = tenant_id
+        if not data.get('reference'):
+            data['reference'] = _gen_reference('REC')
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()

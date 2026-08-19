@@ -1,6 +1,7 @@
 from flask_restx import Namespace, Resource
 from app.services.produit_service import ProduitService
 from app.security.tenant import tenant_required
+from app.security.plan_limits import check_plan_limits
 
 ns = Namespace('produits', description='Gestion des produits')
 
@@ -18,6 +19,7 @@ class ProduitListResource(Resource):
     
     @ns.doc('create_produit')
     @tenant_required
+    @check_plan_limits('produits')
     def post(self):
         """Cree un nouveau produit"""
         from flask import request

@@ -9,9 +9,16 @@ export default function Accounting() {
     const [ecritures, setEcritures] = useState([]);
     const [tresoreries, setTresoreries] = useState([]);
     const [solde, setSolde] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
+
+    const STATUT_ECRITURES = {
+      brouillon: { label: 'Brouillon', class: 'warning' },
+      valide: { label: 'Validé', class: 'success' },
+      annule: { label: 'Annulé', class: 'danger' },
+    };
 
     const [compteForm, setCompteForm] = useState({ numero: '', nom: '', type_compte: 'actif', sous_compte_id: '' });
     const [ecritureForm, setEcritureForm] = useState({ date: '', compte_id: '', montant_debit: '', montant_credit: '', libelle: '', reference_externe: '', entite_type: '', entite_id: '', piece_joint: '' });
@@ -21,19 +28,32 @@ export default function Accounting() {
     const [editingType, setEditingType] = useState(null);
     const [importFile, setImportFile] = useState(null);
     const [importPreview, setImportPreview] = useState([]);
+    const [journal, setJournal] = useState(null);
 
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [c, e, t] = await Promise.all([compteService.getAll(), ecritureService.getAll(), tresorerieService.getAll()]);
-            setComptes(c.data.comptes || []);
-            setEcritures(e.data.ecritures || []);
-            setTresoreries(t.data.tresoreries || []);
+            const [c, e, t] = await Promise.allSettled([compteService.getAll(), ecritureService.getAll(), tresorerieService.getAll()]);
+            const failed = [c, e, t].filter(r => r.status === 'rejected');
+            if (failed.length > 0) {
+              const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
+              toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
+            }
+            setComptes((c.status === 'fulfilled' ? c.value?.data?.comptes || c.value?.data || [] : []));
+            setEcritures((e.status === 'fulfilled' ? e.value?.data?.ecritures || e.value?.data || [] : []));
+            setTresoreries((t.status === 'fulfilled' ? t.value?.data?.tresoreries || t.value?.data || [] : []));
         } catch (err) { toast.error('Erreur chargement'); }
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchAll(); }, []);
+    const fetchJournal = async () => {
+        try {
+            const res = await ecritureService.getJournal();
+            setJournal(res.data);
+        } catch (e) { toast.error('Erreur journal'); }
+    };
+
+    useEffect(() => { fetchAll(); fetchSolde(); fetchJournal(); }, []);
 
     const fetchSolde = async () => {
         try { const res = await tresorerieService.getSolde(); setSolde(res.data.solde); }
@@ -42,6 +62,7 @@ export default function Accounting() {
 
     const handleSubmit = async (e, type) => {
         e.preventDefault();
+        setSubmitting(true);
         try {
             let data;
             if (type === 'compte') data = { ...compteForm, sous_compte_id: compteForm.sous_compte_id ? Number(compteForm.sous_compte_id) : null };
@@ -52,6 +73,7 @@ export default function Accounting() {
             else { await svc.create(data); toast.success('Créé'); }
             resetForm(type); fetchAll();
         } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
+        finally { setSubmitting(false); }
     };
 
     const handleDelete = async (type, id) => {
@@ -118,10 +140,27 @@ export default function Accounting() {
     };
 
     const handleValider = async (id) => {
-        await ecritureService.valider(id); toast.success('Écriture validée'); fetchAll();
+        await ecritureService.valider(id); toast.success('Écriture validée'); fetchAll(); fetchSolde(); fetchJournal();
     };
     const handleAnnuler = async (id) => {
-        await ecritureService.annuler(id); toast.success('Écriture annulée'); fetchAll();
+        await ecritureService.annuler(id); toast.success('Écriture annulée'); fetchAll(); fetchSolde(); fetchJournal();
+    };
+
+    const handleExport = async (type) => {
+        try {
+            const svc = type === 'compte' ? compteService : type === 'ecriture' ? ecritureService : tresorerieService;
+            const res = await svc.export();
+            const blob = new Blob([res.data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${type === 'compte' ? 'comptes' : type === 'ecriture' ? 'ecritures' : 'tresorerie'}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Export CSV téléchargé');
+        } catch (e) { toast.error('Erreur export'); }
     };
 
     return (
@@ -129,11 +168,14 @@ export default function Accounting() {
             <div className="page-header">
                 <h1>Comptabilité</h1>
                 <div className="tabs">
-                    {['comptes', 'ecritures', 'tresorerie'].map(t => (
+                    {['comptes', 'ecritures', 'tresorerie', 'journal'].map(t => (
                         <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setEditingId(null); setImportFile(null); setImportResult(null); }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
                     ))}
                 </div>
                 {tab === 'tresorerie' && <button className="btn-primary" onClick={fetchSolde}>Voir solde</button>}
+                {tab === 'journal' && <button className="btn-secondary" onClick={fetchJournal}>Actualiser le journal</button>}
+                <button className="btn-secondary" onClick={() => handleExport(tab === 'comptes' ? 'compte' : tab === 'ecritures' ? 'ecriture' : 'tresorerie')}>Exporter CSV</button>
+                {tab === 'journal' && <button className="btn-secondary" onClick={() => handleExport('ecriture')}>Exporter journal CSV</button>}
             </div>
 
             {solde !== null && <div className="stats-row"><div className="stat-card"><h3>Solde trésorerie</h3><p className="stat-value">{solde.toFixed(2)} MGA</p></div></div>}
@@ -179,9 +221,9 @@ export default function Accounting() {
                             </select>
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">{editingType === 'compte' ? 'Modifier' : 'Créer'}</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'compte' ? 'Modifier' : 'Créer')}</button>
                         </div>
-                        {editingType === 'compte' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('compte')}>Annuler</button></div>}
+                        {editingType === 'compte' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('compte')} disabled={submitting}>Annuler</button></div>}
                     </form>
 
                     <div className="import-section">
@@ -243,9 +285,9 @@ export default function Accounting() {
                             <input type="number" value={ecritureForm.entite_id} onChange={e => setEcritureForm({...ecritureForm, entite_id: e.target.value})} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">{editingType === 'ecriture' ? 'Modifier' : 'Créer'}</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'ecriture' ? 'Modifier' : 'Créer')}</button>
                         </div>
-                        {editingType === 'ecriture' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('ecriture')}>Annuler</button></div>}
+                        {editingType === 'ecriture' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('ecriture')} disabled={submitting}>Annuler</button></div>}
                     </form>
 
                     <div className="import-section">
@@ -262,7 +304,7 @@ export default function Accounting() {
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Date</th><th>Compte</th><th>Débit</th><th>Crédit</th><th>Libellé</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>{ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${ec.statut}`}>{ec.statut}</span></td><td><button className="btn-small btn-primary" onClick={() => handleValider(ec.id)}>Valider</button> <button className="btn-small btn-secondary" onClick={() => handleAnnuler(ec.id)}>Annuler</button> <button className="btn-small btn-delete" onClick={() => handleDelete('ecriture', ec.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td><td><button className="btn-small btn-primary" onClick={() => handleValider(ec.id)}>Valider</button> <button className="btn-small btn-secondary" onClick={() => handleAnnuler(ec.id)}>Annuler</button> <button className="btn-small btn-delete" onClick={() => handleDelete('ecriture', ec.id)}>Supprimer</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -308,7 +350,7 @@ export default function Accounting() {
                             <input value={tresForm.reference} onChange={e => setTresForm({...tresForm, reference: e.target.value})} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">Créer</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Créer'}</button>
                         </div>
                     </form>
 
@@ -328,6 +370,50 @@ export default function Accounting() {
                         <table className="data-table"><thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Mode</th><th>Libellé</th><th>Actions</th></tr></thead>
                         <tbody>{tresoreries.map(t => <tr key={t.id}><td>{t.date}</td><td>{t.type_operation}</td><td>{t.montant}</td><td>{t.mode_paiement}</td><td>{t.libelle}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(t, 'tresorerie')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('tresorerie', t.id)}>Supprimer</button></td></tr>)}</tbody></table>
                     </div>
+                </div>
+            )}
+
+            {tab === 'journal' && (
+                <div className="card">
+                    <h3>Journal des écritures (solde courant)</h3>
+                    {journal ? (
+                        <>
+                            <div className="stats-row">
+                                <div className="stat-card"><h4>Total débit</h4><p className="stat-value">{journal.total_debit.toFixed(2)}</p></div>
+                                <div className="stat-card"><h4>Total crédit</h4><p className="stat-value">{journal.total_credit.toFixed(2)}</p></div>
+                            </div>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>Date</th><th>Compte</th><th>N° compte</th><th>Débit</th><th>Crédit</th><th>Libellé</th><th>Statut</th><th>Solde courant</th></tr></thead>
+                                <tbody>{journal.ecritures.map(ec => (
+                                    <tr key={ec.id}>
+                                        <td>{ec.date?.slice(0, 10)}</td>
+                                        <td>{ec.compte_nom}</td>
+                                        <td>{ec.compte_numero}</td>
+                                        <td>{ec.montant_debit}</td>
+                                        <td>{ec.montant_credit}</td>
+                                        <td>{ec.libelle}</td>
+                                        <td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td>
+                                        <td>{ec.solde_courant}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                            <h4 style={{marginTop: 16}}>Solde par compte</h4>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>Numéro</th><th>Nom</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr></thead>
+                                <tbody>{journal.comptes_resume.map(c => (
+                                    <tr key={c.compte_id}>
+                                        <td>{c.numero}</td>
+                                        <td>{c.nom}</td>
+                                        <td>{c.debit.toFixed(2)}</td>
+                                        <td>{c.credit.toFixed(2)}</td>
+                                        <td>{c.solde.toFixed(2)}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-muted">Chargement du journal…</p>
+                    )}
                 </div>
             )}
         </div>

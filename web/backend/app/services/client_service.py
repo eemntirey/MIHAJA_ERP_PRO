@@ -59,23 +59,23 @@ class ClientService(BaseService):
         """Crée un nouveau client"""
         tenant_id = get_current_tenant_id()
         
-        # Vérifier le code unique dans le tenant
-        q = cls.model.query.filter_by(code=data['code'])
-        if tenant_id:
-            q = q.filter_by(tenant_id=tenant_id)
+        if not tenant_id:
+            raise ValueError("Aucun tenant associe a ce compte")
+        
+        if 'code' not in data or not data['code']:
+            raise ValueError("Le code client est requis")
+        
+        data['tenant_id'] = tenant_id
+        
+        q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
         if q.first():
             raise ValueError(f"Le code {data['code']} existe déjà")
         
-        # Vérifier l'email unique dans le tenant
         if data.get('email'):
-            q = cls.model.query.filter_by(email=data['email'])
-            if tenant_id:
-                q = q.filter_by(tenant_id=tenant_id)
+            q = cls.model.query.filter_by(email=data['email'], tenant_id=tenant_id)
             if q.first():
                 raise ValueError(f"L'email {data['email']} existe déjà")
         
-        if tenant_id:
-            data['tenant_id'] = tenant_id
         client = cls.model(**data)
         client.save()
         return client

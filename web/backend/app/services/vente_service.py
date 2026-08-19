@@ -1,8 +1,11 @@
+from datetime import datetime
 from app import db
 from app.models.vente import Vente
 from app.models.ligne_vente import LigneVente
 from app.models.produit import Produit
 from app.security.tenant import get_current_tenant_id
+import random
+import string
 
 
 def get_sales_summary():
@@ -46,14 +49,27 @@ def create_with_lignes(data):
     if tenant_id:
         data['tenant_id'] = tenant_id
 
+    if not data.get('reference'):
+        prefix = 'VENT'
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        random_part = ''.join(random.choices(string.digits, k=4))
+        data['reference'] = f"{prefix}-{timestamp}-{random_part}"
+        while Vente.query.filter_by(reference=data['reference']).first():
+            random_part = ''.join(random.choices(string.digits, k=4))
+            data['reference'] = f"{prefix}-{timestamp}-{random_part}"
+
+    if not data.get('client_id'):
+        raise ValueError("Le client est requis")
+
     total_ht = 0
     total_ttc = 0
+    stock_errors = []
     for ligne in lignes_data:
         quantite = float(ligne.get('quantite', 0))
-        prix_unitaire_ht = float(ligne.get('prix_unitaire', 0))
+        prix_unitaire = float(ligne.get('prix_unitaire', 0))
         taux_tva = float(ligne.get('taux_tva', 20))
-        total_ht += quantite * prix_unitaire_ht
-        total_ttc += quantite * prix_unitaire_ht * (1 + taux_tva / 100)
+        total_ht += quantite * prix_unitaire
+        total_ttc += quantite * prix_unitaire * (1 + taux_tva / 100)
 
     data['total_ht'] = total_ht
     data['total_ttc'] = total_ttc
@@ -63,9 +79,15 @@ def create_with_lignes(data):
     for ligne in lignes_data:
         produit_id = ligne.get('produit_id')
         quantite = ligne.get('quantite')
-        ligne['vente_id'] = sale.id
-        ligne['tenant_id'] = sale.tenant_id
-        ligne_vente = LigneVente(**ligne)
+        mapped_ligne = {
+            'vente_id': sale.id,
+            'tenant_id': sale.tenant_id,
+            'produit_id': produit_id,
+            'quantite': quantite,
+            'prix_unitaire_ht': ligne.get('prix_unitaire'),
+            'taux_tva': ligne.get('taux_tva'),
+        }
+        ligne_vente = LigneVente(**mapped_ligne)
         db.session.add(ligne_vente)
         if produit_id and quantite is not None:
             qty = float(quantite)
@@ -76,7 +98,13 @@ def create_with_lignes(data):
                     produit_query = produit_query.filter_by(tenant_id=tenant_id)
                 produit = produit_query.first()
                 if produit:
-                    produit.retirer_stock(qty)
+                    try:
+                        produit.retirer_stock(qty)
+                    except ValueError as e:
+                        stock_errors.append(str(e))
+    if stock_errors:
+        db.session.rollback()
+        raise ValueError("; ".join(stock_errors))
     db.session.commit()
     return sale
 

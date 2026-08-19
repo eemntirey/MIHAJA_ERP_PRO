@@ -5,7 +5,8 @@ from sqlalchemy import Numeric
 class LigneAchat(BaseModel):
     __tablename__ = 'lignes_achat'
     
-    commande_fournisseur_id = db.Column(db.Integer, db.ForeignKey('commandes_fournisseur.id'), nullable=False, index=True)
+    commande_fournisseur_id = db.Column(db.Integer, db.ForeignKey('commandes_fournisseur.id'), index=True)
+    commande_achat_id = db.Column(db.Integer, db.ForeignKey('commandes_achat.id'), nullable=False, index=True)
     produit_id = db.Column(db.Integer, db.ForeignKey('produits.id'), nullable=False, index=True)
     quantite = db.Column(Numeric(10, 2), nullable=False)
     prix_unitaire_ht = db.Column(Numeric(10, 2), nullable=False)
@@ -14,6 +15,7 @@ class LigneAchat(BaseModel):
     
     # Relations
     commande_fournisseur = db.relationship('CommandeFournisseur', back_populates='lignes_achat')
+    commande_achat = db.relationship('CommandeAchat', back_populates='lignes_achat')
     produit = db.relationship('Produit', back_populates='lignes_achat')
     
     def __init__(self, **kwargs):

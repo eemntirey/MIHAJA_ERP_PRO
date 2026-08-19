@@ -5,6 +5,7 @@ from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.role_permission import RoleModel
 from app import db
 from app.security.auth import hash_password
+from app.security.plan_limits import check_plan_limits
 
 ns = Namespace('users', description='Gestion des utilisateurs')
 
@@ -76,6 +77,7 @@ class UserList(Resource):
         return {'users': [u.to_dict() for u in users]}, 200
 
     @jwt_required()
+    @check_plan_limits('utilisateurs')
     def post(self):
         err = _ensure_admin()
         if err:
