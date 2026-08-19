@@ -31,7 +31,7 @@ api.interceptors.request.use(
             config.method?.toUpperCase(),
             config.url,
             'Token:',
-            token ? 'présent' : 'absent'
+            token ? 'prÃƒÂ©sent' : 'absent'
         );
 
         if (token) {
@@ -55,10 +55,10 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // Pas de réponse du serveur
+        // Pas de rÃƒÂ©ponse du serveur
         if (!error.response) {
             console.error(
-                'Erreur réseau:',
+                'Erreur rÃƒÂ©seau:',
                 error.message
             );
             toast.error('Erreur de connexion au serveur');
@@ -154,7 +154,7 @@ api.interceptors.response.use(
                     `Bearer ${newAccessToken}`;
 
                 console.log(
-                    'Token renouvelé avec succès',
+                    'Token renouvelÃƒÂ© avec succÃƒÂ¨s',
                     originalRequest.headers.Authorization || originalRequest.headers['Authorization']
                 );
 
@@ -162,7 +162,7 @@ api.interceptors.response.use(
 
             } catch (refreshError) {
                 console.error(
-                    'Échec du renouvellement:',
+                    'Ãƒâ€°chec du renouvellement:',
                     refreshError
                 );
 
@@ -574,6 +574,10 @@ export const livraisonService = {
     delete: (id) => api.delete(`/livraisons/${id}`),
     addSuivi: (id, data) => api.post(`/livraisons/${id}/suivi`, data),
     getSuivis: (id) => api.get(`/livraisons/${id}/suivis`),
+    assigner: (id, data) => api.post(`/livraisons/${id}/assigner`, data),
+    passerAuStatut: (id, data) => api.post(`/livraisons/${id}/statut`, data),
+    avancer: (id) => api.post(`/livraisons/${id}/avancer`),
+    getStats: () => api.get('/livraisons/stats'),
 };
 
 // ======================================================
@@ -594,6 +598,8 @@ export const presenceService = {
     create: (data) => api.post('/presences', data),
     update: (id, data) => api.put(`/presences/${id}`, data),
     delete: (id) => api.delete(`/presences/${id}`),
+    getRegistre: (params) => api.get('/presences/registre', { params }),
+    export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
 };
 
 export const salaireService = {
@@ -602,6 +608,9 @@ export const salaireService = {
     create: (data) => api.post('/salaires', data),
     update: (id, data) => api.put(`/salaires/${id}`, data),
     delete: (id) => api.delete(`/salaires/${id}`),
+    generer: (data) => api.post('/salaires/generer', data),
+    payer: (id, data) => api.post(`/salaires/${id}/payer`, data),
+    export: () => api.get('/salaires/export', { responseType: 'blob' }),
 };
 
 export const primeService = {
@@ -629,6 +638,7 @@ export const compteService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    export: () => api.get('/comptes/export', { responseType: 'blob' }),
 };
 
 export const ecritureService = {
@@ -646,6 +656,8 @@ export const ecritureService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    getJournal: (params) => api.get('/ecritures/journal', { params }),
+    export: () => api.get('/ecritures/export', { responseType: 'blob' }),
 };
 
 export const tresorerieService = {
@@ -662,6 +674,8 @@ export const tresorerieService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    getMouvements: (params) => api.get('/tresorerie/mouvements', { params }),
+    export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
 };
 
 // ======================================================

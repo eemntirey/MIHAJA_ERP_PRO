@@ -1,0 +1,43 @@
+/* src/components/layout/Breadcrumbs.css */
+
+.desktop-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--text-secondary, #77776f);
+  margin-left: 8px;
+  min-width: 0;
+}
+
+.desktop-breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.desktop-breadcrumb__item a {
+  color: var(--text-secondary, #77776f);
+  text-decoration: none;
+}
+
+.desktop-breadcrumb__item a:hover {
+  color: var(--erp-gold, #d4af37);
+}
+
+.desktop-breadcrumb__current {
+  color: var(--text-primary, #111111);
+  font-weight: 600;
+}
+
+.desktop-breadcrumb__item .ti {
+  font-size: 14px;
+  color: var(--text-secondary, #77776f);
+}
+
+@media (max-width: 1280px) {
+  .desktop-breadcrumb {
+    font-size: 12px;
+  }
+}

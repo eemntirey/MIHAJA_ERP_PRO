@@ -7,17 +7,25 @@ import TitleBar from './TitleBar';
 import CommandPalette from './CommandPalette';
 import DarkModeToggle from './DarkModeToggle';
 import ChatInput from './ChatInput';
+import SplitView from './SplitView';
+import FAB from '../desktop/FAB';
 import { useDesktop } from '../../contexts/DesktopContext';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
 const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron;
 
+// Modules éligibles à la vue séparée (Plan §3.1).
+const SPLIT_MODULES = ['/products', '/clients', '/sales', '/invoices', '/inventory'];
+
 const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
-  const { sidebarCollapsed, toggleSidebar, notifications, setCommandPaletteOpen } = useDesktop();
+  const { sidebarCollapsed, toggleSidebar, notifications, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
+
+  const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
+  const showSplit = !isAIView && SPLIT_MODULES.includes(moduleKey) && !!splitView[moduleKey]?.enabled;
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -127,7 +135,22 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
         />
 
         <main className="main-content desktop-content">
-          <Outlet />
+          {showSplit ? (
+            <SplitView
+              module={moduleKey}
+              leftWidth={splitView[moduleKey].leftWidth}
+              onResizeWidth={(w) => setSplitWidth(moduleKey, w)}
+              left={<Outlet />}
+              right={
+                <div className="split-view__right-empty">
+                  <i className="ti ti-layout-sidebar" aria-hidden="true" />
+                  <span>Sélectionnez un élément pour afficher le détail</span>
+                </div>
+              }
+            />
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 
@@ -135,6 +158,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
         <>
           <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
           <ChatInput />
+          <FAB />
         </>
       )}
 

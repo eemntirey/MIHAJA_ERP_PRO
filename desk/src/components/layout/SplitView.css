@@ -34,6 +34,24 @@
   padding: 20px;
 }
 
+.split-view__right-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 240px;
+  text-align: center;
+  color: var(--erp-muted);
+  font-size: 13px;
+}
+
+.split-view__right-empty i {
+  font-size: 28px;
+  color: var(--erp-subtle);
+}
+
 /* ResizablePanel */
 .resizable-panel {
   position: relative;

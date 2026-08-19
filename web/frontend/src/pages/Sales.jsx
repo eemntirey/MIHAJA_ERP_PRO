@@ -121,10 +121,14 @@ const Sales = () => {
 
   const handleCreateSale = async (e) => {
     e.preventDefault();
+    setSaleActionLoading(true);
     try {
       const data = {
-        ...formData,
         client_id: Number(formData.client_id),
+        date: formData.date,
+        statut: formData.statut,
+        mode_paiement: formData.mode_paiement,
+        remarque: formData.remarque,
         lignes: formData.items.map(it => ({
           produit_id: Number(it.produit_id),
           quantite: it.quantite ? Number(it.quantite) : 0,
@@ -133,10 +137,15 @@ const Sales = () => {
         })),
       };
       await saleService.create(data);
-      toast.success('Vente créée');
+      toast.success('Vente créée avec succès');
       setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
       fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erreur lors de la création de la vente';
+      toast.error(msg);
+    } finally {
+      setSaleActionLoading(false);
+    }
   };
 
   const handleCreateDevis = async (e) => {
@@ -237,8 +246,11 @@ const Sales = () => {
     try {
       setSaleActionLoading(true);
       const data = {
-        ...editFormData,
         client_id: Number(editFormData.client_id),
+        date: editFormData.date,
+        statut: editFormData.statut,
+        mode_paiement: editFormData.mode_paiement,
+        remarque: editFormData.remarque,
         lignes: editFormData.items.map(it => ({
           produit_id: Number(it.produit_id),
           quantite: it.quantite ? Number(it.quantite) : 0,
@@ -481,7 +493,9 @@ const Sales = () => {
                     <textarea value={formData.remarque} onChange={e => setFormData({...formData, remarque: e.target.value})} />
                   </div>
                   <div className="modal-footer">
-                    <button type="submit" className="btn-primary">Créer</button>
+                    <button type="submit" className="btn-primary" disabled={saleActionLoading}>
+                      {saleActionLoading ? 'Création...' : 'Créer'}
+                    </button>
                     <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
                   </div>
                 </form>

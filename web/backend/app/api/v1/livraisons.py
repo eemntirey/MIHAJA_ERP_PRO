@@ -169,13 +169,16 @@ class LivraisonSuivi(Resource):
     def post(self, id):
         from flask import request
         data = request.get_json()
-        suivi = LivraisonService.add_suivi(
-            id,
-            data.get('statut'),
-            data.get('commentaire', ''),
-            data.get('localisation_lat'),
-            data.get('localisation_lng'),
-        )
+        try:
+            suivi = LivraisonService.add_suivi(
+                id,
+                data.get('statut'),
+                data.get('commentaire', ''),
+                data.get('localisation_lat'),
+                data.get('localisation_lng'),
+            )
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not suivi:
             return {'message': 'Livraison non trouvee'}, 404
         return suivi.to_dict(), 201
@@ -192,3 +195,61 @@ class LivraisonSuivis(Resource):
             query = query.filter_by(tenant_id=tenant_id)
         suivis = query.order_by(SuiviLivraison.date_mise_a_jour.desc()).all()
         return {'suivis': [s.to_dict() for s in suivis]}, 200
+
+
+@ns_livraisons.route('/<int:id>/assigner')
+class LivraisonAssigner(Resource):
+    @tenant_required
+    def post(self, id):
+        from flask import request
+        data = request.get_json() or {}
+        try:
+            livraison = LivraisonService.assigner(
+                id,
+                data.get('livreur_id'),
+                data.get('vehicule_id'),
+            )
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        if not livraison:
+            return {'message': 'Livraison non trouvee'}, 404
+        return livraison.to_dict(), 200
+
+
+@ns_livraisons.route('/<int:id>/statut')
+class LivraisonStatut(Resource):
+    @tenant_required
+    def post(self, id):
+        from flask import request
+        data = request.get_json() or {}
+        try:
+            suivi = LivraisonService.passer_au_statut(
+                id,
+                data.get('statut'),
+                data.get('commentaire', ''),
+                data.get('localisation_lat'),
+                data.get('localisation_lng'),
+            )
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        if not suivi:
+            return {'message': 'Livraison non trouvee'}, 404
+        return suivi.to_dict(), 201
+
+
+@ns_livraisons.route('/stats')
+class LivraisonStats(Resource):
+    @tenant_required
+    def get(self):
+        stats = LivraisonService.get_stats()
+        return stats, 200
+
+
+@ns_livraisons.route('/<int:id>/avancer')
+class LivraisonAvancer(Resource):
+    @tenant_required
+    def post(self, id):
+        livraison = LivraisonService.avancer_statut(id)
+        if not livraison:
+            return {'message': 'Livraison non trouvee'}, 404
+        return livraison.to_dict(), 200

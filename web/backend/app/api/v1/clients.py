@@ -1,8 +1,56 @@
-from flask_restx import Namespace, Resource
+from flask_restx import Namespace, Resource, fields
 from app.services.client_service import ClientService
 from app.security.tenant import tenant_required
+from app.security.plan_limits import check_plan_limits
+from app.security.permissions import permission_required
+from sqlalchemy.exc import IntegrityError
+from flask import request
+from app import db
 
 ns = Namespace('clients', description='Gestion des clients')
+
+client_model = ns.model('Client', {
+    'code': fields.String(required=True, description='Code client unique'),
+    'raison_sociale': fields.String(description='Raison sociale'),
+    'nom': fields.String(description='Nom'),
+    'prenom': fields.String(description='Prénom'),
+    'type': fields.String(description='Type de client (particulier, professionnel, association, collectivite, grossiste, distributeur, centrale_achat)', default='particulier'),
+    'secteur': fields.String(description='Secteur d\'activité', default='autre'),
+    'siret': fields.String(description='SIRET'),
+    'numero_tva': fields.String(description='Numéro TVA'),
+    'numero_rcs': fields.String(description='Numéro RCS'),
+    'email': fields.String(description='Email'),
+    'email_secondaire': fields.String(description='Email secondaire'),
+    'telephone': fields.String(description='Téléphone'),
+    'telephone_secondaire': fields.String(description='Téléphone secondaire'),
+    'mobile': fields.String(description='Mobile'),
+    'fax': fields.String(description='Fax'),
+    'site_web': fields.String(description='Site web'),
+    'adresse_facturation': fields.String(description='Adresse de facturation'),
+    'complement_facturation': fields.String(description='Complément adresse facturation'),
+    'code_postal_facturation': fields.String(description='Code postal facturation'),
+    'ville_facturation': fields.String(description='Ville facturation'),
+    'pays_facturation': fields.String(description='Pays facturation', default='Madagascar'),
+    'adresse_livraison': fields.String(description='Adresse de livraison'),
+    'complement_livraison': fields.String(description='Complément adresse livraison'),
+    'code_postal_livraison': fields.String(description='Code postal livraison'),
+    'ville_livraison': fields.String(description='Ville livraison'),
+    'pays_livraison': fields.String(description='Pays livraison', default='Madagascar'),
+    'contact_nom': fields.String(description='Nom du contact principal'),
+    'contact_prenom': fields.String(description='Prénom du contact principal'),
+    'contact_fonction': fields.String(description='Fonction du contact'),
+    'contact_email': fields.String(description='Email du contact'),
+    'contact_telephone': fields.String(description='Téléphone du contact'),
+    'conditions_paiement': fields.String(description='Conditions de paiement', default='30 jours'),
+    'remise_standard': fields.Float(description='Remise standard', default=0),
+    'plafond_credit': fields.Float(description='Plafond de crédit'),
+    'echeance_credit': fields.Integer(description='Échéance crédit en jours', default=30),
+    'commercial_id': fields.Integer(description='ID du commercial'),
+    'est_favori': fields.Boolean(description='Client favori', default=False),
+    'est_actif': fields.Boolean(description='Client actif', default=True),
+    'est_bloque': fields.Boolean(description='Client bloqué', default=False),
+    'note': fields.Integer(description='Note 1-5'),
+})
 
 @ns.route('/')
 class ClientListResource(Resource):
@@ -18,12 +66,33 @@ class ClientListResource(Resource):
     
     @ns.doc('create_client')
     @tenant_required
+    @check_plan_limits('clients')
+    @permission_required('client.create')
+    @ns.expect(client_model)
     def post(self):
         """Crée un nouveau client"""
-        from flask import request
         data = request.get_json()
-        client = ClientService.create(data)
-        return client.to_dict(), 201
+        if not data:
+            return {'message': 'Données JSON requises'}, 400
+        
+        if not data.get('code'):
+            return {'message': 'Le code client est requis'}, 400
+        
+        try:
+            client = ClientService.create(data)
+            return client.to_dict(), 201
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        except IntegrityError as e:
+            db.session.rollback()
+            error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+            if 'email' in error_msg.lower():
+                return {'message': f"L'adresse email '{data.get('email')}' existe déjà" }, 400
+            if 'code' in error_msg.lower():
+                return {'message': f"Le code client '{data.get('code')}' existe déjà" }, 400
+            return {'message': 'Contrainte de base de données violée'}, 400
+        except Exception as e:
+            return {'message': f"Erreur lors de la création du client: {str(e)}"}, 400
 
 @ns.route('/<int:client_id>')
 class ClientResource(Resource):

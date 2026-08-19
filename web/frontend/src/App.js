@@ -1,5 +1,5 @@
 // src/App.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -101,6 +101,16 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
+
+  useEffect(() => {
+    const handler = (e) => {
+      setPlanLimitModal({ open: true, message: e.detail?.message || 'Limite du plan atteinte' });
+    };
+    window.addEventListener('plan-limit-reached', handler);
+    return () => window.removeEventListener('plan-limit-reached', handler);
+  }, []);
+
   return (
     <AuthProvider>
       <CartProvider>
@@ -167,6 +177,36 @@ function App() {
               pauseOnHover
               theme="light"
             />
+
+            {planLimitModal.open && (
+              <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>Limite du plan atteinte</h2>
+                    <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
+                  </div>
+                  <div className="modal-body">
+                    <p>{planLimitModal.message}</p>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.href = '/subscription'; }}
+                      className="btn-primary"
+                    >
+                      Modifier mon abonnement
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPlanLimitModal({ open: false, message: '' })}
+                      className="btn-secondary"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </BrowserRouter>
       </CartProvider>

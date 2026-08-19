@@ -4,7 +4,6 @@
   position: relative;
   min-width: 0;
   height: 100%;
-  overflow: hidden;
 }
 
 .resizable-panel__handle {

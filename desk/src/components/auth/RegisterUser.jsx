@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
+import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
 const registerSchema = yup.object().shape({
@@ -24,7 +25,7 @@ const registerSchema = yup.object().shape({
   acceptTerms: yup.boolean().oneOf([true], 'Vous devez accepter les conditions'),
 });
 
-const RegisterUser = () => {
+const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
   const navigate = useNavigate();
   const { register: registerAuth, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -74,7 +75,7 @@ const RegisterUser = () => {
     const result = await registerAuth(payload);
 
     if (result && result.success) {
-      navigate('/');
+      navigate(result.redirectPath || '/catalogue');
     }
   };
 
@@ -86,6 +87,7 @@ const RegisterUser = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="auth-login"
+      data-theme={darkMode ? 'dark' : undefined}
     >
       <main className="auth-login__layout">
         <section
@@ -98,7 +100,7 @@ const RegisterUser = () => {
 
           <div className="auth-login__context-inner">
             <div className="auth-login__brand-row">
-              <Link to="/" className="auth-login__brand" aria-label="ERP Pro accueil">
+              <Link to="/login" className="auth-login__brand" aria-label="ERP Pro accueil">
                 <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
                 <span className="auth-login__brand-name">ERP Pro</span>
               </Link>
@@ -135,9 +137,12 @@ const RegisterUser = () => {
           <div className="auth-login__form-container">
             <div className="auth-login__form-header">
               <span>Compte simple</span>
-              <Link to="/register" className="auth-login__back-link">
-                ← Changer de type
-              </Link>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+                <Link to="/register" className="auth-login__back-link">
+                  ← Changer de type
+                </Link>
+              </div>
             </div>
 
             <div className="auth-login__form-intro">

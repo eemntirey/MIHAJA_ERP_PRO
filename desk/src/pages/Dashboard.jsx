@@ -531,7 +531,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
 
   const [isEditingName, setIsEditingName] = useState(false);
