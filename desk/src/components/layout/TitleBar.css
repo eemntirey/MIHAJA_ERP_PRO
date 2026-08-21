@@ -1,3 +1,5 @@
+@import '../../styles/tokens.css';
+
 /* src/components/layout/TitleBar.css */
 
 :root {
@@ -52,20 +54,20 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  background: var(--erp-gold);
+  background: var(--color-primary);
   color: var(--on-primary);
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.04em;
   border-radius: 4px;
-  font-family: var(--erp-heading-font, 'Inter', sans-serif);
+  font-family: var(--font-heading, 'Inter', sans-serif);
 }
 
 .app-titlebar__brand {
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-  font-family: var(--erp-heading-font, 'Inter', sans-serif);
+  font-family: var(--font-heading, 'Inter', sans-serif);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.06em;
@@ -78,7 +80,7 @@
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--erp-gold);
+  color: var(--color-primary);
 }
 
 .app-titlebar__controls {

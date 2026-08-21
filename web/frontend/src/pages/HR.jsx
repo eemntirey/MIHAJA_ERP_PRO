@@ -297,28 +297,28 @@ export default function HR() {
 
       <div className="stats-grid mini">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.total}</span>
             <span className="stat-label">Employés ({summary.actifs} actifs)</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-gold-dark)' }}><i className="ti ti-clock" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-primary-hover)' }}><i className="ti ti-clock" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.presencesMois}</span>
             <span className="stat-label">Présences ce mois</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-success)' }}><i className="ti ti-cash" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-success)' }}><i className="ti ti-cash" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{fmtMoney(summary.masseSalariale)}</span>
             <span className="stat-label">Masse salariale</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-critical)' }}><i className="ti ti-trophy" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-danger)' }}><i className="ti ti-trophy" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{fmtMoney(summary.totalPrimes)}</span>
             <span className="stat-label">Total primes</span>
