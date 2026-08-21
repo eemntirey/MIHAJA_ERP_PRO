@@ -32,6 +32,17 @@ export default function Purchases() {
 
     useEffect(() => { fetchAll(); }, []);
 
+    if (loading && commandes.length === 0 && receptions.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des achats...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleSubmitCmd = async (e) => {
         e.preventDefault();
         setSubmitting(true);

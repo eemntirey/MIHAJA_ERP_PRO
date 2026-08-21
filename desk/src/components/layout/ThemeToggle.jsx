@@ -17,6 +17,7 @@ import './ThemeToggle.css';
  * @param {boolean} [props.compact=false]   — variante icône uniquement.
  * @param {boolean} [props.menuItem=false]  — style adapté aux menus contextuels.
  * @param {string}  [props.className]       — classes additionnelles.
+ * @param {function} [props.onClick]        — callback additionnel (ex: fermer un menu).
  */
 const ThemeToggle = ({
   enabled,
@@ -25,12 +26,16 @@ const ThemeToggle = ({
   compact = false,
   menuItem = false,
   className = '',
+  onClick,
 }) => {
   const dark = Boolean(enabled);
 
-  const handleClick = () => {
+  const handleClick = (e) => {
     if (typeof onChange === 'function') {
       onChange(!dark);
+    }
+    if (typeof onClick === 'function') {
+      onClick(e);
     }
   };
 

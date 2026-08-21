@@ -2,6 +2,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { productService } from '../services/api';
 import { toast } from 'react-toastify';
+import { UNITS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
 import FilterPanel from '../components/desktop/FilterPanel';
 import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
@@ -20,6 +21,7 @@ const EMPTY_FORM = {
   categorie: '',
   code_barre: '',
   seuil_alerte: 0,
+  unite: 'piece',
 };
 
 const NUMERIC_FIELDS = ['prix_achat_ht', 'prix_vente_ht', 'quantite_stock', 'seuil_alerte'];
@@ -101,6 +103,7 @@ const Products = () => {
             categorie: product.categorie || '',
             code_barre: product.code_barre || '',
             seuil_alerte: product.seuil_alerte || 0,
+            unite: product.unite || 'piece',
           }
         : { ...EMPTY_FORM }
     );
@@ -509,6 +512,13 @@ const Products = () => {
                     onChange={handleChange}
                     min="0"
                   />
+                </FormField>
+                <FormField label="Unité" htmlFor="produit-unite">
+                  <select id="produit-unite" name="unite" value={formData.unite} onChange={handleChange}>
+                    {UNITS.map(u => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </select>
                 </FormField>
                 <FormField label="Description courte" span="full" htmlFor="produit-description">
                   <textarea

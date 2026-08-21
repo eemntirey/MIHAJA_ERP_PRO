@@ -85,7 +85,7 @@ const ProductDetail = () => {
         )}
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
+      <div className="card product-detail-grid">
         <div>
           <div style={{
             width: '100%', height: '0', paddingTop: '60%', background: 'var(--erp-paper)',

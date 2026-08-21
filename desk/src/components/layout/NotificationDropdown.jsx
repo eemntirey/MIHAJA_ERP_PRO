@@ -32,8 +32,9 @@ const NotificationDropdown = ({ onClose }) => {
         const data = res?.data;
         const list = Array.isArray(data) ? data : data?.notifications || data?.data || [];
         if (Array.isArray(list) && list.length) {
-          setNotificationsList(
-            list.map((n) => ({
+          setNotificationsList((prev) => {
+            const prevIds = new Set(prev.map((n) => n.id));
+            const incoming = list.map((n) => ({
               id: n.id,
               title: n.titre || n.title || 'Notification',
               message: n.message || n.contenu || n.detail || n.description || '',
@@ -41,8 +42,10 @@ const NotificationDropdown = ({ onClose }) => {
                 ? n.time
                 : formatTime(n.created_at || n.date || n.time),
               read: !!(n.lu || n.read),
-            }))
-          );
+            }));
+            const merged = [...incoming.filter((n) => !prevIds.has(n.id)), ...prev];
+            return merged.length ? merged : prev;
+          });
         }
       })
       .catch(() => {

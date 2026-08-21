@@ -87,6 +87,9 @@ DEFAULT_ROLES = [
             'report.view',
             'sale.view',
             'client.view',
+            'compte.view', 'compte.create', 'compte.update', 'compte.delete',
+            'ecriture.view', 'ecriture.create', 'ecriture.update', 'ecriture.delete',
+            'tresorerie.view', 'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
         ]
     },
     {

@@ -250,7 +250,7 @@ export const salaireSchema = yup.object({
       return isNaN(n) ? undefined : n;
     })
     .default(0),
-  mode_paiement: yup.string().oneOf(['virement', 'especes', 'cheque'], 'Mode invalide').default('virement'),
+  mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money'], 'Mode invalide').default('especes'),
   reference_paiement: yup.string().nullable(),
   notes: yup.string().nullable(),
   statut_paiement: yup.string().oneOf(['non_paye', 'partiel', 'paye'], 'Statut invalide').default('non_paye'),
@@ -353,7 +353,7 @@ export const tresorerieSchema = yup.object({
     })
     .required('Le montant est requis')
     .min(0, 'Le montant doit être positif'),
-  mode_paiement: yup.string().oneOf(['espece', 'virement', 'cheque', 'mobile_money'], 'Mode invalide').default('espece'),
+  mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money'], 'Mode invalide').default('especes'),
   libelle: yup.string().required('Le libellé est requis'),
   compte_bancaire: yup.string().nullable(),
   reference: yup.string().nullable(),

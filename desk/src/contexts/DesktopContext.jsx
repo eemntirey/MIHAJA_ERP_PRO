@@ -1,5 +1,7 @@
 ﻿// src/contexts/DesktopContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { notificationService } from '../services/desktopApi';
+import { NOTIFICATION_EVENTS } from '../utils/notify';
 
 const DesktopContext = createContext();
 
@@ -25,11 +27,27 @@ export const DesktopProvider = ({ children }) => {
     catch { return {}; }
   });
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Nouvelle commande', message: 'Commande #1042 reçue', time: '2 min', read: false },
-    { id: 2, title: 'Stock critique', message: 'Produit XYZ sous le seuil', time: '15 min', read: false },
-    { id: 3, title: 'Paiement reçu', message: 'Facture #89 payée', time: '1h', read: true },
-  ]);
+  const [notifications, setNotificationsState] = useState(() => {
+    try {
+      return notificationService.readAll();
+    } catch {
+      return [];
+    }
+  });
+
+  // Persistance notifications en localStorage + synchronisation du badge Electron
+  useEffect(() => {
+    notificationService.save(notifications).catch(() => {});
+    const unread = notifications.filter((n) => !n.read).length;
+    notificationService.setBadge(unread).catch(() => {});
+  }, [notifications]);
+
+  // Réagir aux notifications ajoutées depuis l'extérieur (utilitaire notify.js)
+  useEffect(() => {
+    const handler = () => setNotificationsState(notificationService.readAll());
+    window.addEventListener(NOTIFICATION_EVENTS.UPDATED, handler);
+    return () => window.removeEventListener(NOTIFICATION_EVENTS.UPDATED, handler);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(LS_KEYS.sidebarCollapsed, String(sidebarCollapsed)); }
@@ -57,19 +75,35 @@ export const DesktopProvider = ({ children }) => {
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
   const markNotificationRead = useCallback((id) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    setNotificationsState((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
   }, []);
   const setNotificationsList = useCallback((next) => {
-    setNotifications(Array.isArray(next) ? next : []);
-  }, []);
-  const addNotification = useCallback((notification) => {
-    setNotifications((prev) => {
-      const exists = prev.some((n) => n.id === notification.id);
-      return exists ? prev : [notification, ...prev];
+    setNotificationsState((prev) => {
+      if (typeof next === 'function') {
+        const result = next(prev);
+        return Array.isArray(result) ? result : [];
+      }
+      return Array.isArray(next) ? next : prev;
     });
   }, []);
+  const addNotification = useCallback((notification) => {
+    const id = notification.id || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const formatted = {
+      id,
+      title: notification.title || 'Notification',
+      message: notification.message || '',
+      time: notification.time || '',
+      read: false,
+    };
+    setNotificationsState((prev) => {
+      const exists = prev.some((n) => n.id === id);
+      if (exists) return prev;
+      return [formatted, ...prev];
+    });
+    notificationService.triggerNative(formatted.title, formatted.message).catch(() => {});
+  }, []);
   const removeNotification = useCallback((id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setNotificationsState((prev) => prev.filter((n) => n.id !== id));
   }, []);
   const unreadCount = notifications.filter((n) => !n.read).length;
 

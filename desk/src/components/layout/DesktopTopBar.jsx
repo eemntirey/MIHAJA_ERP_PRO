@@ -3,12 +3,13 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDesktop } from '../../contexts/DesktopContext';
+import { notificationService } from '../../services/desktopApi';
 import Breadcrumbs from './Breadcrumbs';
 import NotificationDropdown from './NotificationDropdown';
 import ThemeToggle from './ThemeToggle';
 import './DesktopTopBar.css';
 
-const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, onLogout }) => {
+const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, isMobile, onLogout }) => {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const { setCommandPaletteOpen, notifications, unreadCount } = useDesktop();
@@ -23,6 +24,11 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
+
+  // Synchronisation du badge du dock Electron
+  useEffect(() => {
+    notificationService.setBadge(unreadCount).catch(() => {});
+  }, [unreadCount]);
 
   const indicators = useMemo(() => [
     { key: 'stock', label: 'Stock critique', value: counters.stock, icon: 'ti-alert-triangle', to: '/inventory', tone: 'critical' },
@@ -43,10 +49,10 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
             type="button"
             className="desktop-topbar__toggle"
             onClick={onToggleSidebar}
-            title={collapsed ? 'Déplier la barre' : 'Réduire la barre'}
-            aria-label="Basculer la barre latérale"
+            title={isMobile ? 'Menu' : (collapsed ? 'Déplier la barre' : 'Réduire la barre')}
+            aria-label={isMobile ? 'Menu' : 'Basculer la barre latérale'}
           >
-            <i className="ti ti-menu-2" aria-hidden="true" />
+            <i className={`ti ${isMobile ? 'ti-menu' : 'ti-menu-2'}`} aria-hidden="true" />
           </button>
         )}
           <Breadcrumbs />

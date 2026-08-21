@@ -32,7 +32,7 @@ class StockList(Resource):
         )
         if not result:
             return {'message': 'Produit non trouve'}, 404
-        return result, 201
+        return result.to_dict(), 201
 
 @ns.route('/<int:id>')
 class StockResource(Resource):
@@ -82,9 +82,10 @@ class StockMouvementList(Resource):
             )
             if not result:
                 return {'message': 'Produit non trouve'}, 404
-            return result, 201
-        except Exception as e:
-            return {'message': str(e)}, 400
+            return result.to_dict(), 201
+        except Exception:
+            current_app.logger.exception('Erreur lors de la mise a jour du stock')
+            return {'message': 'Erreur lors de la mise a jour du stock'}, 400
 
 @ns.route('/stats')
 class StockStats(Resource):

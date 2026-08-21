@@ -1,7 +1,7 @@
 
 # backend/app/__init__.py
 
-from flask import Flask
+from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -27,10 +27,9 @@ def create_app():
     # CONFIGURATION
     # ==========================================================
 
-    app.config['SECRET_KEY'] = os.getenv(
-        'SECRET_KEY',
-        'dev-key'
-    )
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    if not app.config['SECRET_KEY']:
+        raise ValueError("SECRET_KEY environment variable is required")
 
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
         'DATABASE_URL',
@@ -73,6 +72,12 @@ def create_app():
         'CORS_ORIGINS',
         'http://localhost:3000'
     ).split(',')
+
+    if '*' in CORS_ORIGINS:
+        raise ValueError(
+            "CORS_ORIGINS cannot contain '*' when supports_credentials=True. "
+            "Specify explicit allowed origins."
+        )
 
     CORS(
         app,
@@ -169,6 +174,8 @@ def create_app():
     from app.api.v1.roles import ns as roles_ns
     from app.api.v1.permissions import ns as permissions_ns
     from app.api.v1.users import ns as users_ns
+    from app.api.v1.papi import ns as papi_ns
+    from app.api.v1.notifications import ns as notifications_ns
 
     # Register test namespace only in DEBUG/TESTING mode
     if app.config.get('DEBUG', False) or app.config.get('TESTING', False):
@@ -348,6 +355,16 @@ def create_app():
         path='/api/v1/users'
     )
 
+    api.add_namespace(
+        papi_ns,
+        path='/api/v1/papi'
+    )
+
+    api.add_namespace(
+        notifications_ns,
+        path='/api/v1/notifications'
+    )
+
     # ==========================================================
     # ROUTES PRINCIPALES
     # ==========================================================
@@ -395,165 +412,167 @@ def create_app():
             pass
 
     # ==========================================================
-    # AUTO-SEEDING: Si aucun compte n'existe, créer des données de test
+    # AUTO-SEEDING: Desactive en production. A appeler explicitement
+    # via le endpoint ou une commande CLI.
     # ==========================================================
 
-    @app.before_request
-    def auto_seed_if_empty():
-        from flask import request
-        from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
-        from app.models.tenant import Tenant, StatutTenant
-        from app.models.abonnement import Abonnement, StatutAbonnement
-        from app.models.paiement import Paiement, StatutPaiement, TypePaiement
-        from app.models.produit import Produit
-        from app.security.auth import hash_password
-        import secrets
-        import os
-        from datetime import datetime, timedelta
-        
-        if request.path.startswith('/static') or request.path.startswith('/docs'):
-            return
-
+    def _seed_initial_data(app):
         try:
-            user_count = Utilisateur.query.count()
-            if user_count == 0:
-                default_password = "Test1234!"
+            with app.app_context():
+                from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
+                from app.models.tenant import Tenant, StatutTenant
+                from app.models.abonnement import Abonnement, StatutAbonnement
+                from app.models.paiement import Paiement, StatutPaiement, TypePaiement
+                from app.models.produit import Produit
+                from app.security.auth import hash_password
+                from datetime import datetime, timedelta
 
-                entreprises = [
-                    {
-                        'tenant': {
-                            'nom': 'Tech Solutions SARL',
-                            'slug': 'tech-solutions',
-                            'domaine': 'tech.local',
-                            'email_contact': 'contact@tech-solutions.com',
-                            'telephone': '+261 34 12 345 67',
-                            'adresse': '12 Rue de la Tech',
-                            'ville': 'Antananarivo',
-                            'code_postal': '101',
-                            'pays': 'Madagascar',
-                            'statut': StatutTenant.ACTIF,
-                            'plan': 'pro',
-                            'date_abonnement': datetime.utcnow(),
-                        },
-                        'user': {
-                            'username': 'tech',
-                            'email': 'tech@erp.com',
-                            'password': default_password,
-                            'nom': 'Ramos',
-                            'prenom': 'Thomas',
-                            'telephone': '+261 34 12 345 67',
-                            'role': Role.ADMIN,
-                            'statut': StatutUtilisateur.ACTIF,
-                        },
-                        'abonnement': {
-                            'montant': 79.0,
-                            'plan': 'pro',
-                            'date_debut': datetime.utcnow(),
-                            'date_fin': datetime.utcnow() + timedelta(days=30),
-                            'statut': StatutAbonnement.ACTIF,
-                            'methode_paiement': 'carte',
-                            'reference_paiement': 'SUB-TECH-001',
-                        },
-                        'produits': [
-                            {'nom': 'Produit Tech #1', 'prix_vente_ht': 25.0, 'quantite_stock': 50},
-                            {'nom': 'Produit Tech #2', 'prix_vente_ht': 45.0, 'quantite_stock': 30},
-                        ],
-                    },
-                    {
-                        'tenant': {
-                            'nom': 'Green Import',
-                            'slug': 'green-import',
-                            'domaine': 'green.local',
-                            'email_contact': 'contact@green-import.com',
-                            'telephone': '+261 34 98 765 32',
-                            'adresse': '45 Avenue des Importateurs',
-                            'ville': 'Toamasina',
-                            'code_postal': '601',
-                            'pays': 'Madagascar',
-                            'statut': StatutTenant.ACTIF,
-                            'plan': 'enterprise',
-                            'date_abonnement': datetime.utcnow(),
-                        },
-                        'user': {
-                            'username': 'green',
-                            'email': 'green@erp.com',
-                            'password': default_password,
-                            'nom': 'Razafindramanana',
-                            'prenom': 'Sophie',
-                            'telephone': '+261 34 98 765 32',
-                            'role': Role.MANAGER,
-                            'statut': StatutUtilisateur.ACTIF,
-                        },
-                        'abonnement': {
-                            'montant': 199.0,
-                            'plan': 'enterprise',
-                            'date_debut': datetime.utcnow(),
-                            'date_fin': datetime.utcnow() + timedelta(days=30),
-                            'statut': StatutAbonnement.ACTIF,
-                            'methode_paiement': 'virement',
-                            'reference_paiement': 'SUB-GREEN-001',
-                        },
-                        'produits': [
-                            {'nom': 'Produit Green #1', 'prix_vente_ht': 35.0, 'quantite_stock': 40},
-                            {'nom': 'Produit Green #2', 'prix_vente_ht': 55.0, 'quantite_stock': 25},
-                        ],
-                    },
-                ]
+                user_count = Utilisateur.query.count()
 
-                for item in entreprises:
-                    tenant = Tenant(**item['tenant'])
-                    db.session.add(tenant)
-                    db.session.flush()
+                if user_count == 0:
+                    default_password = "Test1234!"
 
-                    user_data = item['user']
-                    user_data['tenant_id'] = tenant.id
-                    password = user_data.pop('password')
-                    user_data['password_hash'] = hash_password(password)
-                    user = Utilisateur(**user_data)
-                    db.session.add(user)
-                    db.session.flush()
+                    entreprises = [
+                        {
+                            'tenant': {
+                                'nom': 'Mada Distribution SARL',
+                                'slug': 'mada-distribution',
+                                'domaine': 'mada.local',
+                                'email_contact': 'contact@mada-distribution.com',
+                                'telephone': '+261 34 12 345 67',
+                                'adresse': 'Zone industrielle Andraisoro',
+                                'ville': 'Antananarivo',
+                                'code_postal': '101',
+                                'pays': 'Madagascar',
+                                'statut': StatutTenant.ACTIF,
+                                'plan': 'pro',
+                                'date_abonnement': datetime.utcnow(),
+                            },
+                            'user': {
+                                'username': 'mada',
+                                'email': 'mada@erp.com',
+                                'password': default_password,
+                                'nom': 'Rakotondrainibe',
+                                'prenom': 'Hery',
+                                'telephone': '+261 34 12 345 67',
+                                'role': Role.ADMIN,
+                                'statut': StatutUtilisateur.ACTIF,
+                            },
+                            'abonnement': {
+                                'montant': 79.0,
+                                'plan': 'pro',
+                                'date_debut': datetime.utcnow(),
+                                'date_fin': datetime.utcnow() + timedelta(days=30),
+                                'statut': StatutAbonnement.ACTIF,
+                                'methode_paiement': 'especes',
+                                'reference_paiement': 'SUB-TECH-001',
+                            },
+                            'produits': [
+                                {'nom': 'Riz blanc (sac 50 kg) #1', 'prix_vente_ht': 136000.0, 'quantite_stock': 86},
+                                {'nom': 'Huile de tournesol (carton 6 x 1 L) #2', 'prix_vente_ht': 174000.0, 'quantite_stock': 24},
+                            ],
+                        },
+                        {
+                            'tenant': {
+                                'nom': 'Tana Import & Distribution',
+                                'slug': 'tana-import',
+                                'domaine': 'tana.local',
+                                'email_contact': 'contact@tana-import.com',
+                                'telephone': '+261 34 98 765 32',
+                                'adresse': 'Quai de la Gare maritime',
+                                'ville': 'Toamasina',
+                                'code_postal': '601',
+                                'pays': 'Madagascar',
+                                'statut': StatutTenant.ACTIF,
+                                'plan': 'enterprise',
+                                'date_abonnement': datetime.utcnow(),
+                            },
+                            'user': {
+                                'username': 'tana',
+                                'email': 'tana@erp.com',
+                                'password': default_password,
+                                'nom': 'Razafindramanana',
+                                'prenom': 'Voahangy',
+                                'telephone': '+261 34 98 765 32',
+                                'role': Role.MANAGER,
+                                'statut': StatutUtilisateur.ACTIF,
+                            },
+                            'abonnement': {
+                                'montant': 199.0,
+                                'plan': 'enterprise',
+                                'date_debut': datetime.utcnow(),
+                                'date_fin': datetime.utcnow() + timedelta(days=30),
+                                'statut': StatutAbonnement.ACTIF,
+                                'methode_paiement': 'virement',
+                                'reference_paiement': 'SUB-GREEN-001',
+                            },
+                            'produits': [
+                                {'nom': 'Sucre blanc (sac 25 kg) #1', 'prix_vente_ht': 112000.0, 'quantite_stock': 45},
+                                {'nom': 'Eau minérale (pack 6 x 1,5 L) #2', 'prix_vente_ht': 9600.0, 'quantite_stock': 360},
+                            ],
+                        },
+                    ]
 
-                    abonnement_data = item['abonnement']
-                    abonnement_data['tenant_id'] = tenant.id
-                    abonnement = Abonnement(**abonnement_data)
-                    db.session.add(abonnement)
-                    db.session.flush()
+                    for item in entreprises:
+                        tenant = Tenant(item['tenant'])
+                        db.session.add(tenant)
+                        db.session.flush()
 
-                    paiement = Paiement(
-                        tenant_id=tenant.id,
-                        montant=abonnement.montant,
-                        devise='MGA',
-                        statut=StatutPaiement.CONFIRME,
-                        type=TypePaiement.ABONNEMENT,
-                        reference=abonnement.reference_paiement,
-                        notes=f"Paiement initial - {item['tenant']['nom']}",
-                        date_paiement=datetime.utcnow(),
-                    )
-                    db.session.add(paiement)
-                    db.session.flush()
+                        user_data = item['user']
+                        user_data['tenant_id'] = tenant.id
+                        password = user_data.pop('password')
+                        user_data['password_hash'] = hash_password(password)
+                        user = Utilisateur(user_data)
+                        db.session.add(user)
+                        db.session.flush()
 
-                    for prod in item.get('produits', []):
-                        produit = Produit(
+                        abonnement_data = item['abonnement']
+                        abonnement_data['tenant_id'] = tenant.id
+                        abonnement = Abonnement(abonnement_data)
+                        db.session.add(abonnement)
+                        db.session.flush()
+
+                        paiement = Paiement(
                             tenant_id=tenant.id,
-                            reference=f"{tenant.slug}-{prod['nom'].split('#')[1].strip()}",
-                            code_barre=f"{tenant.id}-{prod['nom'].split('#')[1].strip()}",
-                            nom=prod['nom'],
-                            description_courte=f"Description du produit pour {tenant.nom}",
-                            prix_achat_ht=float(prod['prix_vente_ht']) * 0.6,
-                            prix_vente_ht=float(prod['prix_vente_ht']),
-                            quantite_stock=prod['quantite_stock'],
-                            seuil_alerte=5,
-                            created_by=user.id,
-                            updated_by=user.id,
+                            montant=abonnement.montant,
+                            devise='MGA',
+                            statut=StatutPaiement.CONFIRME,
+                            type=TypePaiement.ABONNEMENT,
+                            reference=abonnement.reference_paiement,
+                            notes=f"Paiement initial - {item['tenant']['nom']}",
+                            date_paiement=datetime.utcnow(),
                         )
-                        db.session.add(produit)
+                        db.session.add(paiement)
+                        db.session.flush()
 
-                db.session.commit()
-                current_app.logger.info("Donnees de base initialisees avec succes")
+                        for prod in item.get('produits', []):
+                            produit = Produit(
+                                tenant_id=tenant.id,
+                                reference=f"{tenant.slug}-{prod['nom'].split('#')[1].strip()}",
+                                code_barre=f"{tenant.id}-{prod['nom'].split('#')[1].strip()}",
+                                nom=prod['nom'],
+                                description_courte=f"Description du produit pour {tenant.nom}",
+                                prix_achat_ht=float(prod['prix_vente_ht']) * 0.6,
+                                prix_vente_ht=float(prod['prix_vente_ht']),
+                                quantite_stock=prod['quantite_stock'],
+                                seuil_alerte=5,
+                                created_by=user.id,
+                                updated_by=user.id,
+                            )
+                            db.session.add(produit)
+
+                    db.session.commit()
+                    current_app.logger.info("Donnees de base initialisees avec succes")
 
         except Exception as e:
-            current_app.logger.exception("Erreur pendant l'auto-seed: %s", e)
-            db.session.rollback()
+            app.logger.exception("Erreur pendant l'auto-seed: %s", e)
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+    if os.getenv('FLASK_ENV') in ('development', 'testing'):
+        _seed_initial_data(app)
 
     # ==========================================================
     # JWT IDENTITY

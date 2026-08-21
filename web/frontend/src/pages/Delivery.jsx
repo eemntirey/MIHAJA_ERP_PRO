@@ -77,7 +77,18 @@ export default function Delivery() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+    useEffect(() => { fetchAll(); }, []);
+
+    if (loading && livreurs.length === 0 && vehicules.length === 0 && itineraires.length === 0 && livraisons.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des livraisons...</p>
+                </div>
+            </div>
+        );
+    }
 
   const handleSubmit = async (e, type) => {
     e.preventDefault();
@@ -237,8 +248,6 @@ export default function Delivery() {
           </button>
         ))}
       </div>
-
-      {loading && <p className="text-muted">Chargement…</p>}
 
       {tab === 'livreurs' && (
         <div className="card">

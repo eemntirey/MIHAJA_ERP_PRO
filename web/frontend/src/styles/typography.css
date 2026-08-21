@@ -1,0 +1,473 @@
+/* ==========================================================================
+   MIHAJA ERP PRO — TYPOGRAPHY
+   Complete type scale, hierarchy, and text utilities.
+   ========================================================================== */
+
+/* ==========================================================================
+   DISPLAY / HERO TYPOGRAPHY
+   ========================================================================== */
+
+.text-display-xl {
+  font-size: var(--text-display-xl);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+}
+
+.text-display {
+  font-size: var(--text-display);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+}
+
+/* ==========================================================================
+   HEADINGS
+   ========================================================================== */
+
+.text-h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+}
+
+.text-h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+}
+
+.text-h3 {
+  font-size: var(--text-h3);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+  font-family: var(--font-family-heading);
+}
+
+.text-h4 {
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+  font-family: var(--font-family-heading);
+}
+
+/* ==========================================================================
+   BODY TEXT
+   ========================================================================== */
+
+.text-body-lg {
+  font-size: var(--text-body-lg);
+  line-height: var(--leading-relaxed);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-body {
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-body-sm {
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+/* ==========================================================================
+   SMALL TEXT / CAPTIONS / LABELS
+   ========================================================================== */
+
+.text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-tertiary);
+}
+
+.text-label {
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.text-micro {
+  font-size: var(--text-micro);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   KPI / NUMERIC DISPLAY
+   ========================================================================== */
+
+.text-kpi-sm {
+  font-size: var(--text-kpi-sm);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+  tabular-nums: 1;
+}
+
+.text-kpi {
+  font-size: var(--text-kpi);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+  tabular-nums: 1;
+}
+
+.text-kpi-lg {
+  font-size: var(--text-kpi-lg);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+  tabular-nums: 1;
+}
+
+.text-kpi-xl {
+  font-size: var(--text-kpi-xl);
+  font-weight: var(--weight-extrabold);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-family-heading);
+  tabular-nums: 1;
+}
+
+/* ==========================================================================
+   TABLE TEXT
+   ========================================================================== */
+
+.text-table {
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
+}
+
+.text-table-header {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   TEXT COLOR UTILITIES
+   ========================================================================== */
+
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
+.text-inverse { color: var(--color-text-inverse); }
+.text-disabled { color: var(--color-text-disabled); }
+
+.text-success { color: var(--color-success-text); }
+.text-warning { color: var(--color-warning-text); }
+.text-danger { color: var(--color-danger-text); }
+.text-info { color: var(--color-info-text); }
+.text-primary-brand { color: var(--color-primary-text); }
+
+/* ==========================================================================
+   TEXT WEIGHT UTILITIES
+   ========================================================================== */
+
+.font-normal { font-weight: var(--weight-normal); }
+.font-medium { font-weight: var(--weight-medium); }
+.font-semibold { font-weight: var(--weight-semibold); }
+.font-bold { font-weight: var(--weight-bold); }
+.font-extrabold { font-weight: var(--weight-extrabold); }
+
+/* ==========================================================================
+   TEXT ALIGNMENT
+   ========================================================================== */
+
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-justify { text-align: justify; }
+
+/* ==========================================================================
+   TEXT TRANSFORM
+   ========================================================================== */
+
+.text-uppercase { text-transform: uppercase; }
+.text-lowercase { text-transform: lowercase; }
+.text-capitalize { text-transform: capitalize; }
+.text-normal-case { text-transform: none; }
+
+/* ==========================================================================
+   TEXT DECORATION
+   ========================================================================== */
+
+.text-underline { text-decoration: underline; }
+.text-no-underline { text-decoration: none; }
+.text-strikethrough { text-decoration: line-through; }
+
+/* ==========================================================================
+   TEXT OVERFLOW
+   ========================================================================== */
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-wrap { white-space: normal; }
+.text-nowrap { white-space: nowrap; }
+
+/* ==========================================================================
+   TEXT WRAP BALANCE (modern browsers)
+   ========================================================================== */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ==========================================================================
+   LEADING (LINE HEIGHT) UTILITIES
+   ========================================================================== */
+
+.leading-none { line-height: var(--leading-none); }
+.leading-tight { line-height: var(--leading-tight); }
+.leading-snug { line-height: var(--leading-snug); }
+.leading-normal { line-height: var(--leading-normal); }
+.leading-relaxed { line-height: var(--leading-relaxed); }
+.leading-loose { line-height: var(--leading-loose); }
+
+/* ==========================================================================
+   TRACKING (LETTER SPACING) UTILITIES
+   ========================================================================== */
+
+.tracking-tight { letter-spacing: var(--tracking-tight); }
+.tracking-normal { letter-spacing: var(--tracking-normal); }
+.tracking-wide { letter-spacing: var(--tracking-wide); }
+.tracking-wider { letter-spacing: var(--tracking-wider); }
+.tracking-widest { letter-spacing: var(--tracking-widest); }
+
+/* ==========================================================================
+   SEMANTIC TEXT COMPONENTS
+   ========================================================================== */
+
+/* Page Title — Main heading of a page */
+.page-title {
+  @extend .text-display;
+  color: var(--color-text-primary);
+}
+
+/* Page Subtitle — Description under page title */
+.page-subtitle {
+  @extend .text-body;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+}
+
+/* Section Title — Major section within a page */
+.section-title {
+  @extend .text-h2;
+  color: var(--color-text-primary);
+}
+
+/* Section Subtitle — Description under section title */
+.section-subtitle {
+  @extend .text-body-sm;
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* Card Title — Title inside a card */
+.card-title {
+  @extend .text-h4;
+  color: var(--color-text-primary);
+}
+
+/* Card Subtitle — Subtitle inside a card */
+.card-subtitle {
+  @extend .text-caption;
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* Stat Label — Label for a KPI/stat */
+.stat-label {
+  @extend .text-label;
+  color: var(--color-text-tertiary);
+}
+
+/* Stat Value — The actual KPI number */
+.stat-value {
+  @extend .text-kpi;
+  color: var(--color-text-primary);
+}
+
+.stat-value-sm {
+  @extend .text-kpi-sm;
+  color: var(--color-text-primary);
+}
+
+.stat-value-lg {
+  @extend .text-kpi-lg;
+  color: var(--color-text-primary);
+}
+
+/* Badge Text */
+.badge-text {
+  @extend .text-label;
+  font-weight: var(--weight-bold);
+}
+
+/* Table Header */
+.table-header {
+  @extend .text-table-header;
+}
+
+/* Table Cell */
+.table-cell {
+  @extend .text-table;
+  color: var(--color-text-secondary);
+}
+
+/* Form Label */
+.form-label {
+  @extend .text-label;
+  color: var(--color-text-tertiary);
+}
+
+/* Form Helper Text */
+.form-helper {
+  @extend .text-caption;
+  color: var(--color-text-tertiary);
+}
+
+/* Form Error */
+.form-error {
+  @extend .text-caption;
+  color: var(--color-danger-text);
+  font-weight: var(--weight-medium);
+}
+
+/* Toast/Notification Text */
+.toast-title {
+  @extend .text-body-sm;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.toast-message {
+  @extend .text-body-sm;
+  color: var(--color-text-secondary);
+}
+
+/* Dropdown/Menu Item */
+.dropdown-item {
+  @extend .text-body-sm;
+  color: var(--color-text-primary);
+}
+
+/* Breadcrumb */
+.breadcrumb-item {
+  @extend .text-body-sm;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumb-current {
+  @extend .text-body-sm;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* Tab Label */
+.tab-label {
+  @extend .text-label;
+  font-weight: var(--weight-semibold);
+}
+
+/* Modal Title */
+.modal-title {
+  @extend .text-h3;
+  color: var(--color-text-primary);
+}
+
+/* Modal Description */
+.modal-description {
+  @extend .text-body-sm;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Empty State */
+.empty-state-title {
+  @extend .text-h4;
+  color: var(--color-text-primary);
+  margin-top: var(--space-4);
+}
+
+.empty-state-message {
+  @extend .text-body;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+  max-width: 320px;
+}
+
+/* Error State */
+.error-state-title {
+  @extend .text-h4;
+  color: var(--color-danger-text);
+  margin-top: var(--space-4);
+}
+
+.error-state-message {
+  @extend .text-body;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+  max-width: 320px;
+}
+
+/* Loading Text */
+.loading-text {
+  @extend .text-body;
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   RESPONSIVE TYPOGRAPHY
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --text-display: clamp(28px, 6vw, 36px);
+    --text-h1: 24px;
+    --text-h2: 20px;
+    --text-h3: 16px;
+    --text-kpi: 24px;
+    --text-kpi-lg: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --text-display: clamp(24px, 7vw, 30px);
+    --text-h1: 22px;
+    --text-h2: 18px;
+    --text-h3: 15px;
+    --text-body: 14px;
+    --text-body-sm: 13px;
+    --text-kpi: 22px;
+    --text-kpi-lg: 28px;
+  }
+}

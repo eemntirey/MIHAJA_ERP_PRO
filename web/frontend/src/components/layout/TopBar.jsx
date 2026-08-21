@@ -26,7 +26,7 @@ const describeNotification = (n) => {
   };
 };
 
-const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, collapsed, darkMode, onToggleDarkMode, onLogout }) => {
+const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead, onOpenPalette, onToggleSidebar, collapsed, darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
@@ -36,7 +36,9 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
+  const notifButtonRef = useRef(null);
   const scrollRef = useRef(null);
+  const notifPosition = useRef({ top: 0, left: 0 });
 
   useEffect(() => {
     const onClick = (e) => {
@@ -63,6 +65,10 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     container.style.cursor = 'grabbing';
+  };
+
+  const handleScroll = () => {
+    if (notifOpen) setNotifOpen(false);
   };
 
   const indicators = [
@@ -98,7 +104,7 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
         </nav>
       </div>
 
-      <div className="desktop-topbar__scroll" ref={scrollRef} onMouseDown={handleScrollDrag}>
+      <div className="desktop-topbar__scroll" ref={scrollRef} onMouseDown={handleScrollDrag} onScroll={handleScroll}>
         <button type="button" className="topbar-icon" onClick={onOpenPalette} title="Recherche globale (⌘K)" aria-label="Recherche">
           <i className="ti ti-search" aria-hidden="true" />
         </button>
@@ -119,21 +125,47 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
 
         <div className="desktop-topbar__notif" ref={notifRef}>
           <button
+            ref={notifButtonRef}
             type="button"
             className="topbar-icon"
-            onClick={() => setNotifOpen((o) => !o)}
+            onClick={() => {
+              if (!notifOpen && notifButtonRef.current) {
+                const rect = notifButtonRef.current.getBoundingClientRect();
+                const dropdownWidth = 300;
+                let left = rect.left;
+                if (left + dropdownWidth > window.innerWidth - 8) {
+                  left = window.innerWidth - dropdownWidth - 8;
+                }
+                left = Math.max(8, left);
+                notifPosition.current = {
+                  top: rect.bottom + 10,
+                  left,
+                };
+              }
+              setNotifOpen((o) => !o);
+            }}
             title="Notifications"
             aria-label="Notifications"
           >
             <i className="ti ti-bell" aria-hidden="true" />
-            {notifications.length > 0 && <span className="topbar-icon__badge">{notifications.length}</span>}
+            {unreadCount > 0 && <span className="topbar-icon__badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
           </button>
 
           {notifOpen && (
-            <div className="desktop-topbar__dropdown" role="menu">
+            <div className="desktop-topbar__dropdown" role="menu" style={{ position: 'fixed', top: notifPosition.current.top, left: notifPosition.current.left }}>
               <div className="desktop-topbar__dropdown-head">
                 <strong>Notifications</strong>
-                <span>{notifications.length} récente(s)</span>
+                <div className="desktop-topbar__dropdown-actions">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      className="desktop-topbar__dropdown-action"
+                      onClick={(e) => { e.stopPropagation(); onMarkAllAsRead(); }}
+                    >
+                      Tout marquer comme lu
+                    </button>
+                  )}
+                </div>
               </div>
               {notifications.length === 0 ? (
                 <div className="desktop-topbar__dropdown-empty">Aucune notification</div>
@@ -142,12 +174,17 @@ const TopBar = ({ counters, notifications, onOpenPalette, onToggleSidebar, colla
                   {notifications.map((n, i) => {
                     const { title, detail } = describeNotification(n);
                     return (
-                      <li key={i} className="desktop-topbar__notif-item">
+                      <li
+                        key={n.id || i}
+                        className={`desktop-topbar__notif-item${!n.read ? ' is-unread' : ''}`}
+                        onClick={() => onMarkAsRead(n.id)}
+                      >
                         <i className="ti ti-alert-circle" aria-hidden="true" />
                         <span>
                           <strong>{title}</strong>
                           {detail && <small>{detail}</small>}
                         </span>
+                        {!n.read && <span className="desktop-topbar__notif-dot" />}
                       </li>
                     );
                   })}

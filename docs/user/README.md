@@ -13,8 +13,8 @@ End-user guidance for the ERP project.
 ### First Login
 
 If no users exist, the backend will automatically seed test data:
-- **Tech Solutions SARL** - Username: `tech`, Password: generated and shown in logs
-- **Green Import** - Username: `green`, Password: generated and shown in logs
+- **Mada Distribution SARL** - Username: `mada`, Password par défaut : `Test1234!`
+- **Tana Import & Distribution** - Username: `tana`, Password par défaut : `Test1234!`
 
 ### Navigation
 

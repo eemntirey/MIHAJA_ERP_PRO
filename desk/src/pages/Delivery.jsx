@@ -49,6 +49,7 @@ export default function Delivery() {
 
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -59,10 +60,11 @@ export default function Delivery() {
         itineraireService.getAll(),
         livraisonService.getAll(),
       ]);
-      setLivreurs((lRes.status === 'fulfilled' ? lRes.value?.data?.livreurs : undefined) || []);
-      setVehicules((vRes.status === 'fulfilled' ? vRes.value?.data?.vehicules : undefined) || []);
-      setItineraires((iRes.status === 'fulfilled' ? iRes.value?.data?.itineraires : undefined) || []);
-      setLivraisons((liRes.status === 'fulfilled' ? liRes.value?.data?.livraisons : undefined) || []);
+      setLivreurs((lRes.status === 'fulfilled' ? lRes.value?.data?.livreurs || lRes.value?.data || [] : []));
+      setVehicules((vRes.status === 'fulfilled' ? vRes.value?.data?.vehicules || vRes.value?.data || [] : []));
+      setItineraires((iRes.status === 'fulfilled' ? iRes.value?.data?.itineraires || iRes.value?.data || [] : []));
+      setLivraisons((liRes.status === 'fulfilled' ? liRes.value?.data?.livraisons || liRes.value?.data || [] : []));
+
       const failed = [lRes, vRes, iRes, liRes].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
@@ -75,10 +77,22 @@ export default function Delivery() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+    useEffect(() => { fetchAll(); }, []);
+
+    if (loading && livreurs.length === 0 && vehicules.length === 0 && itineraires.length === 0 && livraisons.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des livraisons...</p>
+                </div>
+            </div>
+        );
+    }
 
   const handleSubmit = async (e, type) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       let data;
       if (type === 'livreur') data = { ...livreurForm };
@@ -97,6 +111,8 @@ export default function Delivery() {
       fetchAll();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Erreur');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -143,6 +159,7 @@ export default function Delivery() {
 
   const submitSuivi = async (e, livraisonId) => {
     e.preventDefault();
+    setSubmitting(true);
     if (!livraisonId) return;
     try {
       await livraisonService.addSuivi(livraisonId, {
@@ -154,6 +171,15 @@ export default function Delivery() {
       setSuiviForm({ statut: '', commentaire: '', localisation_lat: '', localisation_lng: '' });
       const res = await livraisonService.getSuivis(livraisonId);
       setSuivis(prev => ({ ...prev, [livraisonId]: res.data.suivis || [] }));
+      fetchAll();
+    } catch (e) { toast.error('Erreur'); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleAvancer = async (id) => {
+    try {
+      await livraisonService.avancer(id);
+      toast.success('Statut avancé');
       fetchAll();
     } catch (e) { toast.error('Erreur'); }
   };
@@ -260,9 +286,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'livreur' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'livreur' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'livreur' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livreur')}>Annuler</button></div>}
+            {editingType === 'livreur' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livreur')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -331,9 +357,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'vehicule' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'vehicule' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'vehicule' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('vehicule')}>Annuler</button></div>}
+            {editingType === 'vehicule' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('vehicule')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -408,9 +434,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'itineraire' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'itineraire' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'itineraire' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('itineraire')}>Annuler</button></div>}
+            {editingType === 'itineraire' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('itineraire')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -506,9 +532,9 @@ export default function Delivery() {
               <textarea value={livraisonForm.notes} onChange={e => setLivraisonForm({...livraisonForm, notes: e.target.value})} />
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'livraison' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'livraison' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'livraison' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livraison')}>Annuler</button></div>}
+            {editingType === 'livraison' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livraison')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -523,6 +549,9 @@ export default function Delivery() {
                       <span className="delivery-actions">
                         <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(l, 'livraison')}><i className="ti ti-edit" /></button>
                         <button className="btn-small btn-view" title="Suivis" onClick={() => viewSuivis(l.id)}><i className="ti ti-map-pin" /></button>
+                        {(l.statut === 'en_attente' || l.statut === 'chargee' || l.statut === 'en_route') && (
+                          <button className="btn-small btn-primary" title="Avancer statut" onClick={() => handleAvancer(l.id)}><i className="ti ti-arrow-forward" /></button>
+                        )}
                         <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('livraison', l.id)}><i className="ti ti-trash" /></button>
                       </span>
                     </td>
@@ -605,7 +634,7 @@ export default function Delivery() {
                         <input value={suiviForm.commentaire} onChange={e => setSuiviForm({...suiviForm, commentaire: e.target.value})} />
                       </div>
                       <div className="form-group">
-                        <button type="submit" className="btn-small btn-primary"><i className="ti ti-plus" /> Ajouter</button>
+                        <button type="submit" className="btn-small btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : <><i className="ti ti-plus" /> Ajouter</>}</button>
                       </div>
                     </div>
                   </form>

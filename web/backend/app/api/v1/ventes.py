@@ -17,7 +17,7 @@ vente_model = ns.model('Vente', {
     'client_id': fields.Integer(required=True, description='ID client'),
     'date': fields.String(description='Date de la vente'),
     'statut': fields.String(description='Statut de la vente', default='en_attente'),
-    'mode_paiement': fields.String(description='Mode de paiement', default='espece'),
+    'mode_paiement': fields.String(description='Mode de paiement', default='especes'),
     'remarque': fields.String(description='Remarque'),
     'lignes': fields.List(fields.Nested(ligne_vente_model), required=True, description='Lignes de vente'),
 })
@@ -42,8 +42,9 @@ class VenteList(Resource):
                     d['commercial_nom'] = None
                 result.append(d)
             return {'ventes': result}, 200
-        except Exception as e:
-            return {'ventes': [], 'message': str(e)}, 500
+        except Exception:
+            current_app.logger.exception('Erreur lors de la liste des ventes')
+            return {'ventes': []}, 500
 
     @ns.doc('create_vente')
     @tenant_required
@@ -60,7 +61,8 @@ class VenteList(Resource):
             return {'message': str(e)}, 400
         except Exception as e:
             db.session.rollback()
-            return {'message': f"Erreur lors de la création de la vente: {str(e)}"}, 400
+            current_app.logger.exception('Erreur lors de la création de la vente')
+            return {'message': 'Erreur lors de la création de la vente'}, 400
 
 @ns.route('/<int:id>')
 class VenteResource(Resource):
@@ -97,15 +99,19 @@ class VenteResource(Resource):
             return {'message': 'Vente non trouvee'}, 404
         data = request.get_json()
         try:
+            if 'date' in data and isinstance(data['date'], str):
+                from datetime import datetime
+                data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
             for key, value in data.items():
                 if key not in ['id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id']:
                     setattr(vente, key, value)
             from app import db
             db.session.commit()
             return vente.to_dict(), 200
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            return {'message': str(e)}, 400
+            current_app.logger.exception('Erreur lors de la mise a jour de la vente')
+            return {'message': 'Erreur lors de la mise a jour de la vente'}, 400
 
     @tenant_required
     def delete(self, id):
@@ -122,9 +128,10 @@ class VenteResource(Resource):
             from app import db
             db.session.commit()
             return {'message': 'Vente supprimee'}, 200
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            return {'message': str(e)}, 400
+            current_app.logger.exception('Erreur lors de la suppression de la vente')
+            return {'message': 'Erreur lors de la suppression de la vente'}, 400
 
 
 @ns.route('/summary')

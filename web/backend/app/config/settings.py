@@ -61,6 +61,19 @@ class Config:
     DEFAULT_TENANT_DOMAIN = 'localhost'
     DEFAULT_TENANT_NAME = 'Tenant Par Défaut'
 
+    # Currency & Localization (Madagascar)
+    CURRENCY_CODE = 'MGA'
+    CURRENCY_SYMBOL = 'Ar'
+    CURRENCY_LOCALE = 'mg-MG'
+    DEFAULT_COUNTRY = 'Madagascar'
+
+    # Papi Payment Gateway
+    PAPI_API_URL = os.getenv('PAPI_API_URL', 'https://app.papi.mg/dashboard/api/payment-links')
+    PAPI_API_KEY = os.getenv('PAPI_API_KEY')
+    PAPI_ENVIRONMENT = os.getenv('PAPI_ENVIRONMENT', 'sandbox')
+    PAPI_WEBHOOK_SECRET = os.getenv('PAPI_WEBHOOK_SECRET')
+    PAPI_CALLBACK_URL = os.getenv('PAPI_CALLBACK_URL')
+
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True

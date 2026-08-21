@@ -432,7 +432,7 @@ const Home = () => {
                       </p>
                     )}
                     {isUser && isAuthenticated ? (
-                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px' }}>
+                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <Link
                           to={`/produits/${product.id}`}
                           className="btn-secondary"

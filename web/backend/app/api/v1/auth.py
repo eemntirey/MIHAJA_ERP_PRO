@@ -21,6 +21,16 @@ api = Namespace(
 )
 
 
+def _validate_password(password):
+    if not password or len(password) < 8:
+        return 'Le mot de passe doit contenir au moins 8 caracteres'
+    if not any(c.isalpha() for c in password):
+        return 'Le mot de passe doit contenir au moins une lettre'
+    if not any(c.isdigit() for c in password):
+        return 'Le mot de passe doit contenir au moins un chiffre'
+    return None
+
+
 @api.route('/login')
 class AuthLogin(Resource):
 
@@ -135,6 +145,10 @@ class AuthRegister(Resource):
             return {
                 'message': 'Email, username et mot de passe requis'
             }, 400
+
+        pwd_error = _validate_password(password)
+        if pwd_error:
+            return {'message': pwd_error}, 400
 
         if Utilisateur.query.filter(
             (Utilisateur.email == email) | (Utilisateur.username == username)
@@ -338,9 +352,10 @@ class AuthForgotPassword(Resource):
             db.session.commit()
 
             raw_token = PasswordResetToken.generate_token()
+            hashed_token = PasswordResetToken.hash_token(raw_token)
             token = PasswordResetToken(
                 user_id=user.id,
-                token=raw_token,
+                token=hashed_token,
                 expires_at=datetime.utcnow() + timedelta(hours=1),
                 ip_address=request.remote_addr,
             )
@@ -352,9 +367,9 @@ class AuthForgotPassword(Resource):
                 f"/reset-password/{raw_token}"
             )
             current_app.logger.info(
-                'Simulated password reset email sent to %s: %s',
+                'Password reset requested for %s from IP %s',
                 user.email,
-                reset_link,
+                request.remote_addr,
             )
 
         return {
@@ -375,10 +390,15 @@ class AuthResetPassword(Resource):
         from app.models.password_reset_token import PasswordResetToken
         from app.security.auth import hash_password
 
-        reset_token = PasswordResetToken.query.filter_by(
-            token=token,
+        reset_tokens = PasswordResetToken.query.filter_by(
             used=False
-        ).first()
+        ).all()
+
+        reset_token = None
+        for t in reset_tokens:
+            if PasswordResetToken.verify_token(token, t.token):
+                reset_token = t
+                break
 
         if not reset_token or reset_token.is_expired:
             return {'message': 'Token invalide ou expiré'}, 400

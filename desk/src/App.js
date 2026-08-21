@@ -15,6 +15,7 @@ import DesktopLayout from './components/layout/DesktopLayout';
 import LandingLayout from './components/landing/LandingLayout';
 
 // Pages publiques
+const Home = React.lazy(() => import('./pages/Home'));
 const Catalogue = React.lazy(() => import('./pages/Catalogue'));
 const Suivi = React.lazy(() => import('./pages/Suivi'));
 const Contact = React.lazy(() => import('./pages/Contact'));
@@ -118,7 +119,9 @@ const ProtectedRoute = ({ children }) => {
 
 const RequireRole = ({ children, role }) => {
   const { hasRole } = useAuth();
-  if (!hasRole(role)) {
+  const requiredRoles = Array.isArray(role) ? role : [role];
+  const allowed = requiredRoles.some((r) => hasRole(r));
+  if (!allowed) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -149,17 +152,15 @@ const App = () => {
       <DesktopProvider>
         <CartProvider>
           <Routes>
-            {/* Point d'entrée par défaut : authentification (aucune page d'accueil) */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
-            {/* Pages publiques (vitrine) avec LandingLayout */}
-            <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
-              <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
-              <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
-              <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
-              <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
-              <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
-            </Route>
+             {/* Pages publiques (vitrine) avec LandingLayout */}
+             <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
+               <Route path="/" element={<PageSuspense><Home /></PageSuspense>} />
+               <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
+               <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
+               <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
+               <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
+               <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
+             </Route>
 
             {/* Authentification */}
             <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
@@ -198,9 +199,9 @@ const App = () => {
               <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
               <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
               <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
-              <Route path="roles" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Roles /></PageSuspense></RequireRole>} />
-              <Route path="permissions" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
-              <Route path="users" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Users /></PageSuspense></RequireRole>} />
+              <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
+              <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
+              <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
 
               {/* Boutique connectée (utilisateurs simples + autres rôles) */}
               <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />

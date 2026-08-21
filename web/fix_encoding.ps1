@@ -2,6 +2,7 @@
 Write-Host "Correction de l'encodage des fichiers Python..." -ForegroundColor Green
 
 $files = Get-ChildItem -Path "backend\app" -Recurse -Include "*.py"
+$files += Get-ChildItem -Path "frontend\src" -Recurse -Include "*.js"
 
 foreach ($file in $files) {
     Write-Host "Correction: $($file.Name)" -ForegroundColor Yellow

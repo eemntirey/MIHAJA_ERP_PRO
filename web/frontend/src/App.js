@@ -18,6 +18,7 @@ import MainLayout from './components/layout/MainLayout';
 
 // Contextes
 import { CartProvider } from './contexts/CartContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Pages
 import Home from './pages/Home';
@@ -47,6 +48,9 @@ import HR from './pages/HR';
 import Accounting from './pages/Accounting';
 import Documents from './pages/Documents';
 import Purchases from './pages/Purchases';
+import Users from './pages/Users';
+import Roles from './pages/Roles';
+import Permissions from './pages/Permissions';
 
 // Composant de protection utilisant AuthContext
 const ProtectedRoute = ({ children }) => {
@@ -56,34 +60,21 @@ const ProtectedRoute = ({ children }) => {
   const hasToken = !!localStorage.getItem('access_token');
   const shouldAllow = isAuthenticated || hasToken;
 
-  console.log('ProtectedRoute check:', {
-    isAuthenticated,
-    loading,
-    hasToken,
-    shouldAllow,
-    role: user?.role,
-    subscriptionStatus: subscription?.statut,
-  });
-
   if (loading) {
-    console.log('ProtectedRoute: Affichage chargement');
     return <div>Chargement...</div>;
   }
 
   if (!shouldAllow) {
-    console.log('ProtectedRoute: REDIRECTION vers /login');
     return <Navigate to="/login" replace />;
   }
 
   const role = (user?.role || '').toLowerCase();
   if (role === 'user') {
-    console.log('ProtectedRoute: USER interdit -> /');
     return <Navigate to="/" replace />;
   }
 
   // SUPER_ADMIN can access everything
   if (role === 'super_admin') {
-    console.log('ProtectedRoute: SUPER_ADMIN ACCES AUTORISE');
     return children;
   }
 
@@ -92,11 +83,9 @@ const ProtectedRoute = ({ children }) => {
     (subscription.statut === 'actif' || subscription.statut === 'ACTIF' || subscription.statut === 'ACTIVE');
 
   if (!isSubscriptionPage && !hasActiveSubscription) {
-    console.log('ProtectedRoute: Pas d abonnement actif -> /subscription');
     return <Navigate to="/subscription" replace />;
   }
 
-  console.log('ProtectedRoute: ACCES AUTORISE');
   return children;
 };
 
@@ -113,9 +102,10 @@ function App() {
 
   return (
     <AuthProvider>
-      <CartProvider>
-        <BrowserRouter>
-          <div className="app">
+      <NotificationProvider>
+        <CartProvider>
+          <BrowserRouter>
+            <div className="app">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -150,6 +140,9 @@ function App() {
                 <Route path="purchases" element={<Purchases />} />
                 <Route path="super-admin" element={<SuperAdmin />} />
                 <Route path="super-admin/profile" element={<SuperAdminProfile />} />
+                <Route path="users" element={<Users />} />
+                <Route path="roles" element={<Roles />} />
+                <Route path="permissions" element={<Permissions />} />
               </Route>
 
               <Route path="/checkout" element={<Checkout />} />
@@ -210,6 +203,7 @@ function App() {
           </div>
         </BrowserRouter>
       </CartProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

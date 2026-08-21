@@ -41,13 +41,22 @@ def register_tenant_filter_event():
             # No tenant filtering for SUPER_ADMIN (g.current_tenant is None)
             return
         
-        tenant_id = tenant.id
+        tenant_id = getattr(g, 'current_tenant_id', None)
+        if tenant_id is None:
+            try:
+                tenant_id = tenant.id
+            except Exception:
+                return
         
         # Apply tenant filter to all entities in the query that have tenant_id
         if hasattr(orm_execute_state.statement, 'column_descriptions'):
             for desc in orm_execute_state.statement.column_descriptions:
                 entity = desc.get('entity')
-                if entity and hasattr(entity, 'tenant_id'):
+                if entity is None:
+                    continue
+                if entity.__name__ == 'Tenant':
+                    continue
+                if hasattr(entity, 'tenant_id'):
                     orm_execute_state.statement = orm_execute_state.statement.where(
                         entity.tenant_id == tenant_id
                     )
@@ -60,8 +69,7 @@ def get_current_tenant():
 
 
 def get_current_tenant_id():
-    tenant = get_current_tenant()
-    return tenant.id if tenant else None
+    return getattr(g, 'current_tenant_id', None)
 
 
 def set_tenant_filter(query, model_class):
@@ -128,7 +136,7 @@ def tenant_required(fn):
         if utilisateur.tenant_id != tenant_id:
             return {'message': 'Acces refuse a ce tenant'}, 403
         
-        if utilisateur.role not in [Role.SUPER_ADMIN, Role.USER]:
+        if utilisateur.role not in [Role.SUPER_ADMIN, Role.USER, Role.ACCOUNTANT]:
             from app.models.abonnement import Abonnement, StatutAbonnement
             from datetime import datetime
             now = datetime.utcnow()
@@ -143,6 +151,7 @@ def tenant_required(fn):
                     return {'message': 'Abonnement requis'}, 403
         
         g.current_tenant = tenant
+        g.current_tenant_id = tenant_id
         g.current_user = utilisateur
         
         return fn(*args, **kwargs)

@@ -84,7 +84,7 @@ const Cart = () => {
                       value={qty}
                       onChange={(e) => updateQuantity(item, Math.max(1, parseInt(e.target.value, 10) || 1))}
                       className="qty-input"
-                      style={{ width: '60px', textAlign: 'center' }}
+                      style={{ width: '100%', maxWidth: '80px', textAlign: 'center' }}
                       aria-label={`Quantité de ${item.nom}`}
                     />
                   </td>

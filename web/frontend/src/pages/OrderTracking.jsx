@@ -144,7 +144,7 @@ const OrderTracking = () => {
                 {ref}
               </p>
             </div>
-            <div style={{ flex: 1, minWidth: '200px' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--erp-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Code barre texte
               </p>
