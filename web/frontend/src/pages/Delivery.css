@@ -258,7 +258,7 @@
   box-shadow: 0 0 0 1px var(--color-border-strong);
 }
 
-.delivery-event__dot.tone-success { background: var(--erp-success); }
+.delivery-event__dot.tone-success { background: var(--color-success); }
 .delivery-event__dot.tone-danger { background: var(--color-danger); }
 .delivery-event__dot.tone-warning { background: var(--color-primary); }
 .delivery-event__dot.tone-info { background: #4299e1; }

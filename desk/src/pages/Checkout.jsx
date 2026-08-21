@@ -151,15 +151,15 @@ const Checkout = () => {
                       <p style={{ fontWeight: 700, fontSize: '15px' }}>{product.nom}</p>
                       <p className="public-card__subtitle">Quantité: {qty}</p>
                     </div>
-                    <p style={{ fontFamily: 'var(--erp-heading-font)', fontWeight: 800, fontSize: '18px' }}>
+                    <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '18px' }}>
                       {(price * qty).toFixed(2)} Ar
                     </p>
                   </div>
                 );
               })}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid var(--erp-border)', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
                 <p style={{ fontWeight: 700, fontSize: '15px' }}>Total</p>
-                <p style={{ fontFamily: 'var(--erp-heading-font)', fontWeight: 800, fontSize: '20px', color: 'var(--erp-primary)' }}>
+                <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '20px', color: 'var(--color-primary)' }}>
                   {orderTotal.toFixed(2)} Ar
                 </p>
               </div>
@@ -219,7 +219,7 @@ const Checkout = () => {
         </div>
       ) : (
         <div className="public-card" style={{ textAlign: 'center', padding: '32px' }}>
-          <h2 style={{ color: 'var(--erp-success)' }}>Commande confirmée !</h2>
+          <h2 style={{ color: 'var(--color-success)' }}>Commande confirmée !</h2>
           <p>Référence: <strong>{orderRef}</strong></p>
           {qrUrl && <img src={qrUrl} alt="QR Code" style={{ margin: '16px auto' }} />}
           <p style={{ marginTop: '12px' }}>Utilisez ce QR code pour suivre votre commande.</p>
