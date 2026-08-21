@@ -38,6 +38,8 @@ const DesktopSidebar = ({
   const location = useLocation();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
 
+  const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
+
   const [favorites, setFavorites] = useState(readFavorites);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -73,27 +75,31 @@ const DesktopSidebar = ({
     if (item.badge === 'sales') return counters.sales;
     if (item.badge === 'stock') return counters.stock;
     if (item.badge === 'invoices') return counters.invoices;
+    if (item.badge === 'products') return counters.products;
     return null;
   };
 
   const favoriteItems = NAV_ITEMS.filter((item) => favorites.includes(item.path));
   const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g && (g !== 'Admin' || isSuperAdmin))
+    NAV_ITEMS.some((i) => i.group === g)
   );
 
   const renderNavItem = (item) => {
+    if (item.path === '/accounting' && !hasAccountingAccess) return null;
+    if ((item.path === '/super-admin' || item.path === '/users' || item.path === '/roles' || item.path === '/permissions') && !isSuperAdmin) return null;
     const badge = badgeValue(item);
     const isFav = favorites.includes(item.path);
     return (
       <div className="desktop-sidebar__row" key={item.path}>
-        <NavLink
-          to={item.path}
-          end={item.path === '/dashboard'}
-          className={({ isActive }) =>
-            `desktop-sidebar__item${isActive ? ' is-active' : ''}`
-          }
-          title={collapsed ? item.label : undefined}
-        >
+          <NavLink
+            to={item.path}
+            end={item.path === '/dashboard'}
+            className={({ isActive }) =>
+              `desktop-sidebar__item${isActive ? ' is-active' : ''}`
+            }
+            title={collapsed ? item.label : undefined}
+            data-label={item.label}
+          >
           <i className={`ti ${item.icon}`} aria-hidden="true" />
           {!collapsed && <span className="desktop-sidebar__label">{item.label}</span>}
           {!collapsed && badge > 0 && <span className="desktop-sidebar__badge">{badge}</span>}
@@ -157,7 +163,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group && (group !== 'Admin' || isSuperAdmin)
+                (item) => item.group === group
               ).map(renderNavItem)}
             </div>
           </div>

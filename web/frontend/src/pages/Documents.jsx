@@ -33,6 +33,17 @@ export default function Documents() {
 
     useEffect(() => { fetchAll(); }, []);
 
+    if (loading && modeles.length === 0 && documents.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des documents...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleSubmitModele = async (e) => {
         e.preventDefault();
         setSubmitting(true);
@@ -224,7 +235,7 @@ export default function Documents() {
                             <input placeholder="Entité ID" type="number" value={docForm.entite_id} onChange={e => setDocForm({...docForm, entite_id: e.target.value})} />
                         </div>
                         <div className="form-group full-width">
-                            <textarea placeholder='Données JSON (ex: {"client_nom":"Dupont","total_ttc":"1500","items":[{"produit_nom":"Produit A","quantite":2,"prix_unitaire":500,"taux_tva":20,"total_ht":1000}]})' value={docForm.donnees} onChange={e => setDocForm({...docForm, donnees: e.target.value})} rows={3} required />
+                            <textarea placeholder='Données JSON (ex: {"client_nom":"Boutique Soa","total_ttc":"326400","items":[{"produit_nom":"Riz blanc (sac 50 kg)","quantite":2,"prix_unitaire":136000,"taux_tva":20,"total_ht":272000}]})' value={docForm.donnees} onChange={e => setDocForm({...docForm, donnees: e.target.value})} rows={3} required />
                         </div>
                         <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Générer le PDF'}</button>
                     </form>

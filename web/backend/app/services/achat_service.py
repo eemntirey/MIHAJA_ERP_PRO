@@ -1,12 +1,11 @@
+from datetime import datetime
 from app import db
-from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat
+from app.models.commande_achat import CommandeAchat, ReceptionAchat
 from app.models.ligne_achat import LigneAchat
 from app.security.tenant import get_current_tenant_id
-from typing import Optional, Dict, Any, List, Tuple
-import datetime
 
 def _gen_reference(prefix, id_val=None):
-    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    ts = datetime.utcnow().strftime('%Y%m%d%H%M%S')
     suffix = f'-{id_val}' if id_val else ''
     return f'{prefix}-{ts}{suffix}'
 
@@ -46,6 +45,14 @@ class CommandeAchatService:
             data['tenant_id'] = tenant_id
         if not data.get('reference'):
             data['reference'] = _gen_reference('ACH')
+        
+        for date_field in ('date_livraison_prevue', 'date_reception', 'date_commande'):
+            if date_field in data and isinstance(data[date_field], str):
+                try:
+                    data[date_field] = datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    pass
+        
         lignes_data = data.pop('lignes', [])
         instance = cls.model(**data)
         db.session.add(instance)

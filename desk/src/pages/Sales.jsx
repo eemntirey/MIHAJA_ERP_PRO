@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
 import FilterPanel from '../components/desktop/FilterPanel';
 import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
@@ -39,14 +40,7 @@ const getStatutBadge = (statut) => {
 };
 
 const getModePaiementLabel = (mode) => {
-  const map = {
-    espece: 'Espèce',
-    virement: 'Virement',
-    cheque: 'Chèque',
-    orange_money: 'Orange Money',
-    airtel_money: 'Airtel Money',
-  };
-  return map[mode] || mode || 'N/A';
+  return PAYMENT_METHOD_LABELS[mode] || mode || 'N/A';
 };
 
 const computeLineTotal = (item) => {
@@ -78,10 +72,10 @@ const Sales = () => {
   const [viewAvoir, setViewAvoir] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
-  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [saleActionLoading, setSaleActionLoading] = useState(false);
 
-  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
   const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
@@ -172,7 +166,7 @@ const Sales = () => {
       await saleService.create(data);
       toast.success('Vente créée');
       createDraft.clear();
-      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
   };
@@ -263,7 +257,7 @@ const Sales = () => {
       items: sale.lignes?.map(l => ({ produit_id: l.produit_id ?? '', quantite: l.quantite || 1, prix_unitaire: l.prix_unitaire || 0, taux_tva: l.taux_tva || 20 })) || [],
       date: sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0],
       statut: sale.statut || 'en_attente',
-      mode_paiement: sale.mode_paiement || 'espece',
+      mode_paiement: sale.mode_paiement || 'especes',
       remarque: sale.remarque || ''
     });
     setShowEditModal(true);
@@ -440,13 +434,7 @@ const Sales = () => {
       key: 'mode_paiement',
       label: 'Mode de paiement',
       type: 'select',
-      options: [
-        { value: 'espece', label: 'Espèce' },
-        { value: 'virement', label: 'Virement' },
-        { value: 'cheque', label: 'Chèque' },
-        { value: 'orange_money', label: 'Orange Money' },
-        { value: 'airtel_money', label: 'Airtel Money' },
-      ],
+      options: PAYMENT_METHODS.map(m => ({ value: m.value, label: m.label })),
     },
   ], [clientOptions]);
 
@@ -709,11 +697,9 @@ const Sales = () => {
                     </FormField>
                     <FormField label="Mode de paiement" htmlFor="vente-mode">
                       <select id="vente-mode" value={formData.mode_paiement} onChange={e => setFormData({...formData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
+                        {PAYMENT_METHODS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
                       </select>
                     </FormField>
                     <FormField label="Remarque" span="full" htmlFor="vente-remarque">
@@ -845,11 +831,9 @@ const Sales = () => {
                     </FormField>
                     <FormField label="Mode de paiement" htmlFor="vente-edit-mode">
                       <select id="vente-edit-mode" value={editFormData.mode_paiement} onChange={e => setEditFormData({...editFormData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
+                        {PAYMENT_METHODS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
                       </select>
                     </FormField>
                     <FormField label="Remarque" span="full" htmlFor="vente-edit-remarque">

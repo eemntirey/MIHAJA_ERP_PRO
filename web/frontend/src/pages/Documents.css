@@ -1,3 +1,5 @@
+@import '../styles/tokens.css';
+
 /* src/pages/Documents.css */
 
 .documents-toolbar {
@@ -9,24 +11,24 @@
 }
 
 .documents-toolbar h4 {
-    font-family: var(--erp-heading-font);
+    font-family: var(--font-heading);
     font-size: 13px;
     font-weight: 800;
-    color: var(--erp-onyx);
+    color: var(--color-onyx);
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
 .documents-count {
     font-size: 12px;
-    color: var(--erp-muted);
+    color: var(--color-text-secondary);
     font-weight: 600;
 }
 
 .doc-ref {
-    font-family: var(--erp-heading-font);
+    font-family: var(--font-heading);
     font-weight: 700;
-    color: var(--erp-onyx);
+    color: var(--color-onyx);
     letter-spacing: -0.01em;
 }
 
@@ -38,7 +40,7 @@
 
 .documents-empty {
     text-align: center;
-    color: var(--erp-muted);
+    color: var(--color-text-secondary);
     font-style: italic;
     padding: 24px;
 }
@@ -46,7 +48,7 @@
 /* PDF Preview Modal */
 .pdf-preview-container {
     padding: 0;
-    background: var(--erp-onyx-soft);
+    background: var(--color-onyx-soft);
     display: flex;
     flex-direction: column;
     height: 70vh;
@@ -56,7 +58,7 @@
     width: 100%;
     height: 100%;
     border: none;
-    background: var(--erp-white);
+    background: var(--color-surface);
     flex: 1;
 }
 
@@ -73,7 +75,7 @@
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    color: var(--erp-onyx);
+    color: var(--color-onyx);
     font-weight: 500;
     user-select: none;
 }
@@ -81,7 +83,7 @@
 .filter-checkbox input[type="checkbox"] {
     width: 16px;
     height: 16px;
-    accent-color: var(--erp-gold);
+    accent-color: var(--color-primary);
     cursor: pointer;
 }
 

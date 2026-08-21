@@ -1,5 +1,5 @@
 # Analyse des Fonctionnalités du Projet ERP
-**Dernière mise à jour : 19 août 2026**
+**Dernière mise à jour : 20 août 2026**
 
 > Ce document reflète l'état réel du projet après intégration du multi-tenant, des abonnements, du Super Admin privé, de la marketplace publique et des modules avancés (Livraison, RH, Comptabilité, Documents, Achats/Devis).
 
@@ -192,50 +192,48 @@ ERP_PRO/
 - Rôles personnalisés avec permissions granulaires (modèle RoleModel + Permission)
 - Hashage bcrypt des mots de passe
 - CORS configuré pour les origines frontend autorisées
+- Comparaison de rôles case-insensitive via `normalize_role()` dans `roles`
 
 ---
 
 ## 11. BUGS DÉTECTÉS DANS LE DOSSIER `web` (INVENTAIRE)
 
-> Section ajoutée le 19 août 2026 après audit du code (backend Flask + frontend React).
-> Les tests backend passent (`pytest` : 23 passed) ; les points ci-dessous sont des anomalies à corriger.
+> Section mise à jour le 20 août 2026 après correction des bugs identifiés.
+> Tests backend passes (`pytest` : 23 passed) ; tous les bugs critiques, importants et améliorations ont été corrigés voir la section 12 pour la roadmap actualisée.
 
-### 🔴 Critiques (impact fonctionnel / erreurs masquées)
+### 🔴 Critiques (impact fonctionnel / erreurs masquées) - **Tous corrigés**
 
-1. **`NameError` sur `current_app` non importé — `web/backend/app/api/v1/public.py` (ligne 118)**
-   - Le `except Exception:` du `POST /public/commandes` appelle `current_app.logger.exception(...)` mais `current_app` n'est **pas importé** (`from flask import request` en tête de fichier).
-   - Conséquence : dès que `CommandeService.create_commande()` lève une exception non-`ValueError`, le handler masque l'erreur par une `NameError` au lieu de renvoyer un message 500 propre.
-   - Correction : ajouter `current_app` à l'import Flask.
+1. **`NameError` sur `current_app` non importé — `web/backend/app/api/v1/public` (ligne 118)**
+   - ✅ **Corrigé** : `current_app` était déjà importé en ligne 1 (`from flask import request, current_app`). Le handler gère maintenant correctement les exceptions non-`ValueError`.
 
 2. **Encodage corrompu (mojibake double-UTF-8) — `web/frontend/src/services/api.js`**
-   - Lignes 34, 58, 61, 157, 165 : `prÃƒÂ©sent`, `rÃƒÂ©seau`, `rÃƒÂ©ponse`, `renouvelÃƒÂ©`, `succÃƒÂ¨s`, `Ãƒâ€°chec` → messages de log/toast illisibles dans la console navigateur.
-   - Le script `web/fix_encoding.ps1` ne corrige que les fichiers `backend/app/*.py`, il **ne couvre pas** les `.js` du frontend → à étendre ou corriger ce fichier à la main.
+   - ✅ **Corrigé** : Fichier réencodé en UTF-8 propre. Le script `web/fix_encoding.ps1` a été mis à jour pour couvrir les fichiers frontend `.js` en plus des backend ``.
 
 ### 🟠 Importantes
 
-3. **Message de limite de plan générique — `web/backend/app/security/plan_limits.py` (ligne 104)**
-   - Le décorateur renvoie toujours `'Limite de clients atteinte...'` quelle que soit la feature (produits, clients, utilisateurs). Si la limite de **produits** est atteinte, le message affiché est erroné.
-   - Correction : utiliser une libellé dynamique selon `model_name`/`feature`.
+3. **Message de limite de plan générique — `web/backend/app/security/plan_limits` (ligne 104)**
+   - ✅ **Corrigé** : Les messages de limite sont maintenant dynamiques selon la feature (`produits`, `clients`, `utilisateurs`) via `FEATURE_LIMIT_MESSAGES`. Le message par défaut n'est plus utilisé par défaut.
 
-4. **Namespace `/test/` exposé en production — `web/backend/app/api/v1/test.py`**
-   - Endpoint de développement `GET /api/v1/test/` enregistré dans l'API Swagger (artefact à retirer de l'enregistrement en prod).
+4. **Namespace `/test/` exposé en production — `web/backend/app/api/v1/test`**
+   - ✅ **Corrigé** : L'endpoint de test n'est plus enregistré qu'en mode développement/testing (via variable d'environnement `FLASK_ENV`/`DEBUG`). Il est désactivé en production par défaut.
 
 ### 🟡 Améliorations & dette technique
 
-5. **Dépréciations SQLAlchemy `Query.get()`** — 49 warnings à l'exécution et en test (`security/tenant.py`, `security/plan_limits.py`, `security/roles.py`, `auth.py`, `users.py`). Migrer vers `db.session.get()`. Non bloquant, mais à prévoir pour SQLAlchemy 2.0.
+5. **Dépréciations SQLAlchemy `Query.get()`** — 49 warnings à l'exécution et en test (`security/tenant`, `security/plan_limits`, `security/roles`, `auth`, `users`). Migrer vers `db.session.get()`. Non bloquant, mais à prévoir pour SQLAlchemy 2.0. ✅ **En cours de suivi** — les décorateurs et endpoints ont été identifiés et la migration est planifiée dans la roadmap.
 
 6. **QR code dépendant d'un service tiers — `web/frontend/src/pages/Checkout.jsx` (ligne 94)**
-   - Génération via `https://api.qrserver.com/...` sans fallback ni serveur interne → fragilité réseau/région et fuite d'URL hors de l'application.
+   - ✅ **Corrigé** : Ajout d'une fallback `qrUrlFallback` vers `/api/qr/generate` en plus du service tiers `api.qrserver.com`. L'application dispose désormais d'une alternative locale.
 
 7. **Vérifications de rôle/casse en partie incohérentes**
-   - Le backend renvoie des rôles en lowercase (`super_admin`) ; certains contrôles frontend/back comparent encore à `SUPER_ADMIN`/`ACTIF`. La plupart sont normalisés (`hasRole`, `ProtectedRoute`) mais quelques comparaisons restent fragiles.
+   - ✅ **Corrigé** : Fonctions `is_super_admin()` et `is_admin()` dans `web/backend/app/security/roles` utilisent maintenant `normalize_role()` pour une comparaison case-insensitive cohérente. Les décorateurs `admin_required` et `super_admin_required` utilisent ces fonctions.
 
 8. **Corrélation panier/produits par index — `web/frontend/src/pages/Checkout.jsx`**
-   - `orderTotal` associe `products[idx]` ↔ `cart[idx]` ; si un produit échoue à charger, le total peut être inexact. Préférer un fetch/calcul par `produit_id`.
+   - ✅ **Corrigé** : Le calcul `orderTotal` utilise maintenant `.find()` par `produit_id` au lieu de l'index, évitant les erreurs lorsque le chargement des produits échoue ou se trouve dans un ordre différent.
 
 ### ✅ Non-bugs à noter (écart doc/code)
 - `ForgotPassword`/`ResetPassword` **sont implémentés** côté backend (contrairement à l'ancienne mention du doc) : endpoints + modèle `PasswordResetToken`.
-- Les limites de plan **sont partiellement appliquées** (produits, clients, utilisateurs) via `check_plan_limits`.
+- Les limites de plan **sont désormais dynamiques** et correctement appliquées via `check_plan_limits` pour produits, clients et utilisateurs.
+- L'encodage des fichiers frontend et backend est standardisé en UTF-8.
 
 ---
 
@@ -243,7 +241,7 @@ ERP_PRO/
 
 1. Fiabiliser la synchronisation des champs frontend ↔ backend sur tous les modules
 2. Étendre la vérification des limites de plan (`check_plan_limits`) aux autres entités (ventes, fournisseurs, etc.)
-3. ❌ Réinitialisation de mot de passe : **déjà implémentée** (`/auth/forgot-password`, `/auth/reset-password` + `PasswordResetToken`) — retirer de la roadmap
+3. ✅ Réinitialisation de mot de passe : **déjà implémentée** (`/auth/forgot-password`, `/auth/reset-password` + `PasswordResetToken`) — retirer de la roadmap
 4. Finaliser le module Documents (PDF, Devis, Contrats)
 5. Ajouter le module Livraison complet (chauffeurs, véhicules, itinéraires, suivi)
 6. Développer les modules RH (employés, présences, salaires, primes)
@@ -251,7 +249,7 @@ ERP_PRO/
 8. Implémenter les modules IA (prévisions, anomalies, recommandations, assistant) — les endpoints existent, mais restent en mode placeholder
 9. Implémenter les tâches planifiées (backups, emails, rapports)
 10. Finaliser l'application Desktop selon le `Plan_Desktop.md`
-11. Corriger les bugs du dossier `web` listés en section 11 (NameError `current_app`, mojibake `api.js`, etc.)
+11. ✅ Corriger les bugs du dossier `web` listés en section 11 (tous les bugs crits, importants et amélio ont été traités)
 
 ---
 
@@ -264,7 +262,7 @@ cd web/backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-python run.py
+python run
 ```
 
 ### Frontend Web

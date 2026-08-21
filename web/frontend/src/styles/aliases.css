@@ -1,0 +1,121 @@
+/* =========================================================================
+   MIHAJA ERP PRO — ALIASES / BRIDGE
+   Fait le pont entre le vocabulaire de classes utilisé dans les composants
+   (--color-text, --color-accent, --font-body, --text-2xl, --btn-primary-bg,
+   --color-sidebar, etc. + les --color-* issus de la migration --erp-*) et le
+   système de tokens généré (--color-text-primary, --color-primary, ...).
+  Importé APRÈS tokens.css / themes.css / globals.css.
+   ========================================================================= */
+
+:root {
+  /* ---- Couleurs de base (mappées sur le système généré) --------------- */
+  --color-text:            var(--color-text-primary);
+  --color-text-muted:      var(--color-text-tertiary);
+  --color-accent:          var(--color-primary);
+  --color-accent-hover:    var(--color-primary-hover);
+  --color-accent-active:   var(--color-primary-active);
+  --color-accent-soft:     var(--color-primary-soft);
+  --color-accent-border:   var(--color-primary-border);
+  --color-accent-ring:     var(--color-primary-ring);
+  --color-text-on-accent:  var(--color-neutral-950);
+  --color-ink:             var(--color-neutral-950);
+  --color-ink-hover:       var(--color-neutral-800);
+  --color-ink-soft:        var(--color-neutral-700);
+
+  /* ---- Migration --erp-* → --color-* (rétro-compat) ------------------- */
+  --color-onyx:            var(--color-text-primary);
+  --color-onyx-soft:       var(--color-text-secondary);
+  --color-white:           var(--color-surface);
+  --color-paper:           var(--color-background);
+  --color-line:            var(--color-border);
+  --color-line-strong:     var(--color-border-strong);
+  --color-muted:           var(--color-text-tertiary);
+  --color-subtle:          var(--color-text-tertiary);
+  --color-critical:        var(--color-danger);
+  --color-gold:            var(--color-primary);
+  --color-gold-dark:       var(--color-primary-hover);
+  --color-heading-font:    var(--font-family-heading);
+  --color-body-font:       var(--font-family-body);
+
+  /* ---- Typographie (familles + échelle) ------------------------------- */
+  --font-sans:             var(--font-family-body);
+  --font-display:          var(--font-family-heading);
+  --font-heading:          var(--font-family-heading);
+  --font-body:             var(--font-family-body);
+
+  --text-xs:   var(--text-label);
+  --text-sm:   var(--text-body-sm);
+  --text-base: var(--text-body);
+  --text-md:   var(--text-body);
+  --text-lg:   var(--text-h4);
+  --text-xl:   var(--text-h2);
+  --text-2xl:  var(--text-h1);
+  --text-3xl:  var(--text-display);
+
+  --tracking-snug: -0.01em;
+  --tracking-caps: var(--tracking-wider);
+
+  /* ---- Espacement (compléments) --------------------------------------- */
+  --space-9: var(--space-12);
+
+  /* ---- Élévation (compléments) ---------------------------------------- */
+  --shadow-focus: 0 0 0 3px var(--color-primary-ring);
+  --shadow-overlay: var(--shadow-xl);
+
+  /* ---- Mouvement ------------------------------------------------------ */
+  --dur-fast: var(--duration-fast);
+  --dur-base: var(--duration-normal);
+  --dur-slow: var(--duration-slow);
+  --ease-standard: var(--ease-out);
+
+  /* ---- Couches (alignées sur le système généré) ----------------------- */
+  --z-sidebar: var(--z-sticky);
+  --z-topbar: 60;
+  --z-sticky: var(--z-sticky);
+  --z-overlay: var(--z-overlay);
+  --z-modal:  var(--z-modal);
+  --z-toast:  var(--z-toast);
+  --z-dropdown: var(--z-tooltip);
+
+  /* ---- Mise en page (alias) ------------------------------------------- */
+  --content-max: var(--content-max-width);
+
+  /* ---- Boutons (basculent en dark mode) ------------------------------ */
+  --btn-primary-bg:       var(--color-neutral-950);
+  --btn-primary-fg:       var(--color-neutral-0);
+  --btn-primary-hover:    var(--color-neutral-800);
+  --btn-primary-border:   var(--color-neutral-950);
+
+  --btn-secondary-bg:       var(--color-surface);
+  --btn-secondary-fg:       var(--color-text-primary);
+  --btn-secondary-border:   var(--color-border-strong);
+  --btn-secondary-hover-bg: var(--color-primary-soft);
+
+  --btn-danger-bg:       var(--color-danger);
+  --btn-danger-fg:       var(--color-neutral-0);
+  --btn-danger-hover:    var(--color-danger-700);
+  --btn-danger-border:   var(--color-danger);
+
+  /* ---- Sidebar desktop (sombre, constante) --------------------------- */
+  --color-sidebar:            var(--color-neutral-950);
+  --color-sidebar-surface:    var(--color-neutral-900);
+  --color-sidebar-hover:      var(--color-neutral-800);
+  --color-sidebar-active:     rgba(212, 175, 55, 0.16);
+  --color-sidebar-text:       var(--color-neutral-300);
+  --color-sidebar-text-muted: var(--color-neutral-500);
+  --color-sidebar-text-active: var(--color-neutral-0);
+  --color-topbar:             var(--color-surface);
+  --color-header:             var(--color-surface);
+}
+
+/* Dark mode : bascule des boutons (fond clair / texte sombre) */
+[data-theme='dark'] {
+  --btn-primary-bg:       var(--color-neutral-100);
+  --btn-primary-fg:       var(--color-neutral-950);
+  --btn-primary-hover:    var(--color-neutral-200);
+  --btn-primary-border:   var(--color-neutral-100);
+
+  --btn-secondary-fg:     var(--color-text-primary);
+
+  --btn-danger-fg:        var(--color-neutral-0);
+}

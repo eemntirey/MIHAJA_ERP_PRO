@@ -57,21 +57,24 @@ class Utilisateur(BaseModel):
     
     @property
     def is_admin(self):
+        from app.security.roles import is_admin as _is_admin
         if self.custom_role_id:
             return any(p.code == 'admin.access' for p in (self.custom_role.permissions or []))
-        return self.role == Role.ADMIN
+        return _is_admin(self.role)
     
     @property
     def is_super_admin(self):
+        from app.security.roles import is_super_admin as _is_super_admin
         if self.custom_role_id:
             return any(p.code == 'super_admin.access' for p in (self.custom_role.permissions or []))
-        return self.role == Role.SUPER_ADMIN
+        return _is_super_admin(self.role)
     
     @property
     def is_manager(self):
+        from app.security.roles import is_manager as _is_manager
         if self.custom_role_id:
             return any(p.code in ['manager.access', 'admin.access', 'super_admin.access'] for p in (self.custom_role.permissions or []))
-        return self.role in [Role.ADMIN, Role.MANAGER]
+        return _is_manager(self.role)
     
     def get_permissions(self):
         if self.custom_role_id and self.custom_role and self.custom_role.permissions:

@@ -82,34 +82,6 @@ class LivreurService:
         instance.delete()
         return True
 
-    @classmethod
-    def search(cls, query, fields):
-        if not query:
-            return []
-        conditions = []
-        for field in fields:
-            if hasattr(cls.model, field):
-                conditions.append(getattr(cls.model, field).ilike(f'%{query}%'))
-        if conditions:
-            from sqlalchemy import or_
-            query_obj = cls.model.query.filter(
-                cls.model.is_active == True,
-                or_(*conditions)
-            )
-            query_obj = cls._get_tenant_filter(query_obj)
-            return query_obj.limit(20).all()
-        return []
-
-    @classmethod
-    def count(cls, filters=None):
-        query = cls.model.query.filter_by(is_active=True)
-        query = cls._get_tenant_filter(query)
-        if filters:
-            for key, value in filters.items():
-                if value is not None and hasattr(cls.model, key):
-                    query = query.filter_by(**{key: value})
-        return query.count()
-
 class VehiculeService:
     model = Vehicule
 

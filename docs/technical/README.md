@@ -100,23 +100,23 @@ All services inherit from `BaseService` providing:
 
 ### Core Services
 
-- `auth_service.py`: Authentication logic
-- `produit_service.py`: Product management
-- `client_service.py`: Client management
-- `vente_service.py`: Sales management
-- `stock_service.py`: Inventory management
-- `facturation_service.py`: Invoice management
-- `paiement_service.py`: Payment management
-- `dashboard_service.py`: Dashboard KPIs
+- `auth_service`: Authentication logic
+- `produit_service`: Product management
+- `client_service`: Client management
+- `vente_service`: Sales management
+- `stock_service`: Inventory management
+- `facturation_service`: Invoice management
+- `paiement_service`: Payment management
+- `dashboard_service`: Dashboard KPIs
 
 ### Advanced Services
 
-- `livraison_service.py`: Delivery management
-- `rh_service.py`: HR management
-- `comptabilite_service.py`: Accounting management
-- `document_service.py`: Document generation
-- `achat_service.py`: Purchase management
-- `devis_avoir_service.py`: Quotes and credit notes
+- `livraison_service`: Delivery management
+- `rh_service`: HR management
+- `comptabilite_service`: Accounting management
+- `document_service`: Document generation
+- `achat_service`: Purchase management
+- `devis_avoir_service`: Quotes and credit notes
 
 ## Security
 

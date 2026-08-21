@@ -385,6 +385,18 @@
   color: var(--erp-subtle);
 }
 
+@media (max-width: 480px) {
+  .search-icon {
+    font-size: 16px;
+    left: 8px;
+  }
+
+  .search-box input {
+    padding-left: 30px;
+    font-size: 14px;
+  }
+}
+
 .form-select {
   padding: 9px 12px;
   border: 1px solid var(--erp-line-strong);
@@ -810,6 +822,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.product-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 768px) {
+  .product-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Form Sections */

@@ -87,41 +87,7 @@ class BaseService:
         instance.hard_delete()
         return True
     
-    @classmethod
-    def search(cls, query: str, fields: List[str]) -> List[Any]:
-        """Recherche dans les champs spécifiés"""
-        if not query:
-            return []
-        
-        conditions = []
-        for field in fields:
-            if hasattr(cls.model, field):
-                conditions.append(
-                    getattr(cls.model, field).ilike(f'%{query}%')
-                )
-        
-        if conditions:
-            from sqlalchemy import or_
-            query_obj = cls.model.query.filter(
-                cls.model.is_active == True,
-                or_(*conditions)
-            )
-            query_obj = cls._get_tenant_filter(query_obj)
-            return query_obj.limit(20).all()
-        return []
-    
-    @classmethod
-    def count(cls, filters: Optional[Dict] = None) -> int:
-        """Compte les entités avec filtres optionnels"""
-        query = cls.model.query.filter_by(is_active=True)
-        query = cls._get_tenant_filter(query)
-        if filters:
-            for key, value in filters.items():
-                if value is not None:
-                    if hasattr(cls.model, key):
-                        query = query.filter_by(**{key: value})
-        return query.count()
-    
+
     @classmethod
     def exists(cls, **kwargs) -> bool:
         """Vérifie si une entité existe avec les critères donnés"""

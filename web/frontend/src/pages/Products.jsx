@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { productService } from '../services/api';
 import { toast } from 'react-toastify';
+import { UNITS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Products = () => {
@@ -21,6 +22,7 @@ const Products = () => {
     categorie: '',
     code_barre: '',
     seuil_alerte: 0,
+    unite: 'piece',
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +70,7 @@ const Products = () => {
       categorie: product.categorie || '',
       code_barre: product.code_barre || '',
       seuil_alerte: product.seuil_alerte || 0,
+      unite: product.unite || 'piece',
     } : {
       nom: '',
       reference: '',
@@ -78,6 +81,7 @@ const Products = () => {
       categorie: '',
       code_barre: '',
       seuil_alerte: 0,
+      unite: 'piece',
     });
     setShowModal(true);
   };
@@ -401,6 +405,14 @@ const Products = () => {
                     onChange={handleChange}
                     min="0"
                   />
+                </div>
+                <div className="form-group">
+                  <label>Unité</label>
+                  <select name="unite" value={formData.unite} onChange={handleChange}>
+                    {UNITS.map(u => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="modal-footer">

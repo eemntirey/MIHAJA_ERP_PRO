@@ -13,7 +13,7 @@ class Tresorerie(BaseModel):
     date = db.Column(db.Date, nullable=False)
     type_operation = db.Column(db.Enum(TypeTresorerie, name='type_tresorerie', values_callable=lambda e: [x.value for x in e]), nullable=False)
     montant = db.Column(Numeric(12, 2), nullable=False)
-    mode_paiement = db.Column(db.String(20))  # espece/virement/cheque/mobile_money
+    mode_paiement = db.Column(db.String(20))  # especes/virement/cheque/mvola/orange_money/airtel_money
     libelle = db.Column(db.String(200), nullable=False)
     compte_bancaire = db.Column(db.String(100))
     reference = db.Column(db.String(50))

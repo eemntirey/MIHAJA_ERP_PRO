@@ -147,6 +147,118 @@
   opacity: 0.92;
 }
 
+/* ==================== MODAL DE PAIEMENT ==================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--erp-white);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--erp-line);
+}
+
+.modal-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--erp-muted);
+}
+
+.modal-body {
+  padding: 22px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--erp-line);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group > label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.payment-method-card {
+  padding: 12px;
+  border: 2px solid var(--erp-line);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  background: var(--erp-white);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.payment-method-card:hover {
+  border-color: #3b82f6;
+}
+
+.payment-method-card--selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.payment-method-card__icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.payment-method-card__name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--erp-onyx);
+}
+
+.payment-methods-hint {
+  font-size: 12px;
+  color: var(--erp-muted);
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .subscription-status-card__header {
     flex-direction: column;
@@ -154,6 +266,16 @@
   }
 
   .subscription-plans-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-methods-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -200,6 +322,44 @@
 
 .main-layout[data-theme='dark'] .subscription-plan-card__cta {
   color: #111111;
+}
+
+/* ==================== BULLETIN PAIEMENT HORS LIGNE ==================== */
+
+.offline-bulletin {
+  background: var(--erp-paper, #f8f9fa);
+  border: 1px dashed var(--erp-line, #cbd5e1);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.offline-bulletin__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--erp-line, #e5e7eb);
+  font-size: 14px;
+}
+
+.offline-bulletin__ref {
+  font-family: var(--erp-heading-font, monospace);
+  letter-spacing: 0.5px;
+  color: #3b82f6;
+}
+
+.offline-bulletin__instructions {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  color: var(--erp-onyx, #1f2937);
+  line-height: 1.5;
+}
+
+.offline-bulletin__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--erp-muted, #6b7280);
+  line-height: 1.5;
 }
 
 

@@ -17,6 +17,9 @@ export const NAV_ITEMS = [
   { path: '/documents', label: 'Documents', icon: 'ti-file-description', group: 'Gestion' },
   { path: '/ai', label: 'Assistant IA', icon: 'ti-robot', group: 'Gestion' },
   { path: '/super-admin', label: 'Administration', icon: 'ti-settings', group: 'Admin' },
+  { path: '/users', label: 'Utilisateurs', icon: 'ti-users', group: 'Admin' },
+  { path: '/roles', label: 'Rôles', icon: 'ti-user-cog', group: 'Admin' },
+  { path: '/permissions', label: 'Permissions', icon: 'ti-key', group: 'Admin' },
 ];
 
 export const NAV_GROUPS = ['Piloter', 'Opérations', 'Gestion', 'Admin'];

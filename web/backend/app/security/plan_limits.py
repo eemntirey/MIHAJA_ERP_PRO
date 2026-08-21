@@ -7,13 +7,21 @@ from flask_jwt_extended.exceptions import (
     RevokedTokenError,
     JWTDecodeError,
 )
+from app import db
 from app.models.tenant import Tenant
 from app.models.utilisateur import Role, Utilisateur
+from app.security.roles import is_super_admin
 
 FEATURE_LIMIT_MAP = {
     'produits': ('max_produits', 'produit'),
     'clients': ('max_clients', 'client'),
     'utilisateurs': ('max_utilisateurs', 'utilisateur'),
+}
+
+FEATURE_LIMIT_MESSAGES = {
+    'produits': 'Limite de produits atteinte pour votre abonnement actuel.',
+    'clients': 'Limite de clients atteinte pour votre abonnement actuel.',
+    'utilisateurs': 'Limite d\'utilisateurs atteinte pour votre abonnement actuel.',
 }
 
 
@@ -68,9 +76,9 @@ def check_plan_limits(feature):
             if isinstance(user_id, str) and user_id.isdigit():
                 user_id = int(user_id)
 
-            utilisateur = Utilisateur.query.get(user_id)
+            utilisateur = db.session.get(Utilisateur, user_id)
 
-            if utilisateur and utilisateur.role == Role.SUPER_ADMIN:
+            if utilisateur and is_super_admin(utilisateur.role):
                 return fn(*args, **kwargs)
 
             tenant = getattr(g, 'current_tenant', None)
@@ -82,7 +90,7 @@ def check_plan_limits(feature):
                     tenant_id = utilisateur.tenant_id
                 if not tenant_id:
                     return {'message': 'Aucun tenant associe a ce compte'}, 401
-                tenant = Tenant.query.get(tenant_id)
+                tenant = db.session.get(Tenant, tenant_id)
                 if not tenant:
                     return {'message': 'Tenant introuvable'}, 401
 
@@ -101,7 +109,7 @@ def check_plan_limits(feature):
 
             if current_count >= limit:
                 return {
-                    'message': 'Limite de clients atteinte pour votre abonnement actuel.'
+                    'message': FEATURE_LIMIT_MESSAGES.get(feature, 'Limite atteinte pour votre abonnement actuel.')
                 }, 403
 
             return fn(*args, **kwargs)

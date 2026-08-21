@@ -14,7 +14,7 @@ client_model = ns.model('Client', {
     'raison_sociale': fields.String(description='Raison sociale'),
     'nom': fields.String(description='Nom'),
     'prenom': fields.String(description='Prénom'),
-    'type': fields.String(description='Type de client (particulier, professionnel, association, collectivite, grossiste, distributeur, centrale_achat)', default='particulier'),
+    'type': fields.String(description='Type de client (boutique, epicerie, revendeur, semi_grossiste, grossiste, supermarche, restaurant, hotel, entreprise, institution, particulier)', default='particulier'),
     'secteur': fields.String(description='Secteur d\'activité', default='autre'),
     'siret': fields.String(description='SIRET'),
     'numero_tva': fields.String(description='Numéro TVA'),
@@ -61,8 +61,9 @@ class ClientListResource(Resource):
         try:
             clients, total = ClientService.get_all()
             return {'clients': [c.to_dict() for c in clients], 'total': total}, 200
-        except Exception as e:
-            return {'clients': [], 'total': 0, 'message': str(e)}, 500
+        except Exception:
+            current_app.logger.exception('Erreur lors de la liste des clients')
+            return {'clients': [], 'total': 0}, 500
     
     @ns.doc('create_client')
     @tenant_required
@@ -83,16 +84,12 @@ class ClientListResource(Resource):
             return client.to_dict(), 201
         except ValueError as e:
             return {'message': str(e)}, 400
-        except IntegrityError as e:
+        except IntegrityError:
             db.session.rollback()
-            error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
-            if 'email' in error_msg.lower():
-                return {'message': f"L'adresse email '{data.get('email')}' existe déjà" }, 400
-            if 'code' in error_msg.lower():
-                return {'message': f"Le code client '{data.get('code')}' existe déjà" }, 400
             return {'message': 'Contrainte de base de données violée'}, 400
-        except Exception as e:
-            return {'message': f"Erreur lors de la création du client: {str(e)}"}, 400
+        except Exception:
+            current_app.logger.exception('Erreur lors de la création du client')
+            return {'message': 'Erreur lors de la création du client'}, 400
 
 @ns.route('/<int:client_id>')
 class ClientResource(Resource):

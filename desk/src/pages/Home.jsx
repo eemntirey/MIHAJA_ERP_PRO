@@ -1,8 +1,9 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/publicApi';
+import { authService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Icon } from '../components/common/Icon';
@@ -16,13 +17,17 @@ const getNotifKind = (notif) => {
 };
 
 const Home = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, setUser, logout } = useAuth();
   const { addItem } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showUserCartouche, setShowUserCartouche] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameForm, setNameForm] = useState({ prenom: '', nom: '' });
+  const userMenuRef = useRef(null);
 
   const isUser = user?.role === 'USER' || user?.role === 'user';
 
@@ -31,6 +36,17 @@ const Home = () => {
     if (isUser && isAuthenticated) {
       fetchNotifications();
     }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserCartouche(false);
+        setEditingName(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchProducts = async () => {
@@ -57,6 +73,45 @@ const Home = () => {
     } catch (err) {
       console.error('Error fetching notifications:', err);
     }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchNotifications(searchQuery || undefined);
+  };
+
+  const openUserMenu = () => {
+    setShowUserCartouche(true);
+    setEditingName(false);
+    setNameForm({
+      prenom: user?.prenom || '',
+      nom: user?.nom || '',
+    });
+  };
+
+  const startEditName = () => {
+    setEditingName(true);
+  };
+
+  const saveName = async () => {
+    try {
+      await authService.updateMe({ prenom: nameForm.prenom, nom: nameForm.nom });
+      setUser((prev) => ({
+        ...prev,
+        prenom: nameForm.prenom,
+        nom: nameForm.nom,
+      }));
+      setEditingName(false);
+      toast.success('Profil mis à jour');
+    } catch (err) {
+      toast.error('Erreur lors de la mise à jour');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setShowUserCartouche(false);
+    setEditingName(false);
   };
 
   const filteredProducts = useMemo(() => {
@@ -98,9 +153,9 @@ const Home = () => {
 
             <div className="home-profiles-grid">
               <Link to="/register/simple" className="home-profile-card">
-                <div className="home-profile-icon">
-                  <Icon name="user" />
-                </div>
+                  <div className="home-profile-icon">
+                    <Icon name="user" />
+                  </div>
                 <h3>Utilisateur Simple</h3>
                 <p>
                   Inscription rapide. Accédez au catalogue public, consultez les fiches
@@ -113,9 +168,9 @@ const Home = () => {
               </Link>
 
               <Link to="/register/company" className="home-profile-card">
-                <div className="home-profile-icon">
-                  <Icon name="building" />
-                </div>
+                  <div className="home-profile-icon">
+                    <Icon name="building" />
+                  </div>
                 <h3>Grossiste / Entreprise</h3>
                 <p>
                   Accédez au tableau de bord, à la gestion des stocks, aux ventes,
@@ -147,7 +202,7 @@ const Home = () => {
               )}
             </div>
 
-            <div className="orders-track">
+            <form onSubmit={handleSearch} className="orders-track">
               <div className="orders-track__field">
                 <Icon name="search" className="orders-track__icon" />
                 <input
@@ -157,7 +212,11 @@ const Home = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            </div>
+              <button type="submit" className="btn-primary orders-track__btn">
+                <Icon name="search" />
+                Rechercher
+              </button>
+            </form>
 
             {notifications.length === 0 ? (
               <div className="orders-empty">
@@ -198,6 +257,89 @@ const Home = () => {
               </ul>
             )}
           </section>
+        )}
+
+        {isAuthenticated && isUser && (
+          <div className="user-cartouche-wrapper" ref={userMenuRef}>
+            <button
+              type="button"
+              className="user-cartouche-trigger"
+              onClick={openUserMenu}
+              aria-haspopup="true"
+              aria-expanded={showUserCartouche}
+            >
+              <span className="user-cartouche-avatar">
+                {(user?.prenom?.[0] || 'U').toUpperCase()}
+              </span>
+              <span className="user-cartouche-greeting">
+                Bienvenue, {user?.prenom || 'Utilisateur'}
+              </span>
+              <span className="user-cartouche-chevron" aria-hidden="true">
+                ▾
+              </span>
+            </button>
+
+            {showUserCartouche && (
+              <div className="user-cartouche">
+                <div className="user-cartouche-header">
+                  <div className="user-cartouche-avatar-large">
+                    {(user?.prenom?.[0] || 'U').toUpperCase()}
+                  </div>
+                  <div className="user-cartouche-meta">
+                    {editingName ? (
+                      <div className="user-cartouche-edit-form">
+                        <input
+                          type="text"
+                          value={nameForm.prenom}
+                          onChange={(e) => setNameForm((prev) => ({ ...prev, prenom: e.target.value }))}
+                          placeholder="Prénom"
+                          className="user-cartouche-input"
+                        />
+                        <input
+                          type="text"
+                          value={nameForm.nom}
+                          onChange={(e) => setNameForm((prev) => ({ ...prev, nom: e.target.value }))}
+                          placeholder="Nom"
+                          className="user-cartouche-input"
+                        />
+                        <button
+                          type="button"
+                          className="user-cartouche-save"
+                          onClick={saveName}
+                        >
+                          Enregistrer
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <strong>{user?.prenom} {user?.nom}</strong>
+                        <span>{user?.email}</span>
+                        <button
+                          type="button"
+                          className="user-cartouche-edit"
+                          onClick={startEditName}
+                        >
+                          Modifier mon nom
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="user-cartouche-footer">
+                  <Link to="/mes-commandes" className="user-cartouche-orders">
+                    Mes commandes
+                  </Link>
+                  <button
+                    type="button"
+                    className="user-cartouche-logout"
+                    onClick={handleLogout}
+                  >
+                    Se déconnecter
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         <section id="catalogue">
@@ -257,7 +399,7 @@ const Home = () => {
                       <span className="badge success">En stock</span>
                     </div>
                     {product.tenant_nom && (
-                      <p style={{ fontSize: '12px', color: 'var(--erp-muted)', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
                         Vendu par <strong>{product.tenant_nom}</strong>
                       </p>
                     )}
@@ -266,7 +408,7 @@ const Home = () => {
                       Stock: {product.quantite_stock ?? product.stock ?? 0}
                     </p>
                     {product.description_courte && (
-                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--erp-muted)' }}>
+                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
                         {product.description_courte}
                       </p>
                     )}
