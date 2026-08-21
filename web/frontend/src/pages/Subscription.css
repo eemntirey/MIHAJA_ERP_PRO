@@ -156,6 +156,18 @@
   .subscription-plans-grid {
     grid-template-columns: 1fr;
   }
+
+  .payment-methods-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== PAYMENT METHODS ==================== */
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
 }
 
 /* ==================== DARK MODE ==================== */
@@ -200,6 +212,44 @@
 
 .main-layout[data-theme='dark'] .subscription-plan-card__cta {
   color: #fffafa;
+}
+
+/* ==================== BULLETIN PAIEMENT HORS LIGNE ==================== */
+
+.offline-bulletin {
+  background: var(--erp-paper, #f8f9fa);
+  border: 1px dashed var(--erp-line, #cbd5e1);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.offline-bulletin__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--erp-line, #e5e7eb);
+  font-size: 14px;
+}
+
+.offline-bulletin__ref {
+  font-family: var(--erp-heading-font, monospace);
+  letter-spacing: 0.5px;
+  color: #3b82f6;
+}
+
+.offline-bulletin__instructions {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  color: var(--erp-onyx, #1f2937);
+  line-height: 1.5;
+}
+
+.offline-bulletin__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--erp-muted, #6b7280);
+  line-height: 1.5;
 }
 
 

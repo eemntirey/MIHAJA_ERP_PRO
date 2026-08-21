@@ -42,7 +42,7 @@ def tenant(app):
         date_debut=datetime.utcnow(),
         date_fin=datetime.utcnow() + timedelta(days=30),
         statut=StatutAbonnement.ACTIF,
-        methode_paiement='carte',
+        methode_paiement='especes',
         reference_paiement='SUB-TEST-001',
         is_active=True
     )
@@ -213,7 +213,7 @@ class TestClientAPI:
                 date_debut=datetime.utcnow(),
                 date_fin=datetime.utcnow() + timedelta(days=30),
                 statut=StatutAbonnement.ACTIF,
-                methode_paiement='carte',
+                methode_paiement='especes',
                 reference_paiement='SUB-AUTRE-001',
                 is_active=True
             )

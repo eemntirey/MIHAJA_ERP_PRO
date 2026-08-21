@@ -154,7 +154,7 @@ Ces composants existent dans `desk/src/components/` mais **aucune import n'exist
 
 ## 5. Code mort — Services desktopApi (4)
 
-`desk/src/services/desktopApi.js` définit 4 services référençant des **endpoints backend qui n'existent pas** (confirmé par absence de namespace dans `web/backend/app/api/v1/__init__.py`):
+`desk/src/services/desktopApi.js` définit 4 services référençant des **endpoints backend qui n'existent pas** (confirmé par absence de namespace dans `web/backend/app/api/v1/__init__`):
 
 | Service | Endpoint | Namespace backend | Existe? |
 |---|---|---|---|
@@ -163,7 +163,7 @@ Ces composants existent dans `desk/src/components/` mais **aucune import n'exist
 | `columnConfigService` | `/desk/columns/{module}` | ❌ `/desk` n'existe pas | Non |
 | `filterPresetService` | `/desk/filters/{module}` | ❌ `/desk` n'existe pas | Non |
 
-**Services backend existants** (`web/backend/app/api/v1/__init__.py`) :
+**Services backend existants** (`web/backend/app/api/v1/__init__`) :
 `auth, clients, produits, ventes, stocks, factures, paiements, dashboard, ai, public, tenants, abonnements, documents, livraisons, rh, achats_devis, comptabilite, roles, permissions, users` (20 namespaces).
 
 ---
@@ -254,9 +254,9 @@ Menu.setApplicationMenu(null);  // Menu complètement désactivé
 
 **3a. Notification service → backend**
 ```
-[ ] web/backend/app/api/v1/notifications.py — Créer namespace /notifications
+[ ] web/backend/app/api/v1/notifications — Créer namespace /notifications
      (GET liste, POST marquer lue, DELETE)
-[ ] Registrer dans __init__.py (ligne 18)
+[ ] Registrer dans __init__ (ligne 18)
 ```
 
 **3b. Favorites → localStorage (front-only)**
@@ -401,8 +401,8 @@ Menu.setApplicationMenu(null);  // Menu complètement désactivé
 | `web/frontend/src/components/landing/` | Catalog, Header, Footer, Hero, OrderTracking, Testimonials, TrustBar |
 | `web/frontend/src/styles/landing.css` | Styles marketing |
 | `web/frontend/src/services/api.js` | API patterns (publicCatalogueService, etc.) |
-| `web/backend/app/api/v1/__init__.py` | Namespace registration (ligne 1-22) |
-| `web/backend/app/api/v1/notifications.py` | **À créer** (n'existe pas) |
+| `web/backend/app/api/v1/__init__` | Namespace registration (ligne 1-22) |
+| `web/backend/app/api/v1/notifications` | **À créer** (n'existe pas) |
 
 ---
 

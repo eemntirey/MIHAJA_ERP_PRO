@@ -30,6 +30,8 @@ from app.models.document_genere import DocumentGenere
 from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat, StatutCommandeAchat
 from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir, StatutAvoir
 from app.models.password_reset_token import PasswordResetToken
+from app.models.payment_event import PaymentEvent
+from app.models.notification import Notification
 from app import db
 from app.models.tenant import Tenant, StatutTenant
 
@@ -94,4 +96,6 @@ __all__ = [
     'Abonnement',
     'StatutAbonnement',
     'PasswordResetToken',
+    'PaymentEvent',
+    'Notification',
 ]

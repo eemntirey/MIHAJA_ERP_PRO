@@ -193,7 +193,7 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
                   <input
                     id="register-company-name"
                     type="text"
-                    placeholder="Tech Solutions SARL"
+                    placeholder="Mada Distribution SARL"
                     {...register('nom_entreprise')}
                     className={errors.nom_entreprise ? 'error' : ''}
                     aria-invalid={Boolean(errors.nom_entreprise)}
@@ -206,7 +206,7 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
                 )}
               </div>
 
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-row">
                 <div className="auth-login__field">
                   <label htmlFor="register-company-prenom">Prénom du responsable *</label>
                   <div className="auth-login__input-wrap auth-login__input-wrap--plain">
@@ -311,7 +311,7 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
                 )}
               </div>
 
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-row">
                 <div className="auth-login__field">
                   <label htmlFor="register-company-ville">Ville *</label>
                   <div className="auth-login__input-wrap auth-login__input-wrap--plain">

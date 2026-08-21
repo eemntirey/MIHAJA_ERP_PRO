@@ -1,37 +1,39 @@
 /* src/components/layout/DesktopSidebar.css */
 
+@import '../../styles/tokens.css';
+
 .dark .desktop-sidebar,
 .desktop-sidebar {
-  --sidebar-bg: var(--erp-white);
-  --sidebar-text: var(--text-primary);
-  --sidebar-text-secondary: var(--text-secondary);
-  --sidebar-border: var(--border-color);
-  --sidebar-hover: var(--bg-secondary);
-  --sidebar-active-bg: var(--erp-gold);
-  --sidebar-active-text: var(--on-primary);
-  --sidebar-badge-bg: var(--erp-critical);
-  --sidebar-badge-text: var(--on-critical);
-  --sidebar-menu-bg: var(--card-bg);
+  --sidebar-bg: var(--color-surface);
+  --sidebar-text: var(--color-text);
+  --sidebar-text-secondary: var(--color-text-secondary);
+  --sidebar-border: var(--color-border);
+  --sidebar-hover: var(--color-background);
+  --sidebar-active-bg: var(--color-primary);
+  --sidebar-active-text: var(--color-onyx);
+  --sidebar-badge-bg: var(--color-danger);
+  --sidebar-badge-text: #ffffff;
+  --sidebar-menu-bg: var(--color-surface-elevated);
 }
 
 .dark .desktop-sidebar {
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #e2e8f0;
-  --sidebar-text-secondary: #94a3b8;
-  --sidebar-border: #334155;
-  --sidebar-hover: #1e293b;
-  --sidebar-active-bg: var(--erp-gold);
-  --sidebar-active-text: #e2e8f0;
-  --sidebar-badge-bg: var(--erp-critical);
-  --sidebar-badge-text: var(--on-critical);
-  --sidebar-menu-bg: #1e293b;
+  --sidebar-bg: var(--color-surface);
+  --sidebar-text: var(--color-text);
+  --sidebar-text-secondary: var(--color-text-secondary);
+  --sidebar-border: var(--color-border);
+  --sidebar-hover: var(--color-background);
+  --sidebar-active-bg: var(--color-primary);
+  --sidebar-active-text: var(--color-text);
+  --sidebar-badge-bg: var(--color-danger);
+  --sidebar-badge-text: #ffffff;
+  --sidebar-menu-bg: var(--color-surface-elevated);
 }
 
 .desktop-sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
-  width: var(--erp-sidebar-width);
+  width: var(--sidebar-width);
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   display: flex;
@@ -42,30 +44,62 @@
   flex-shrink: 0;
 }
 
+/* Mobile drawer */
+@media (max-width: 767px) {
+  .desktop-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 100;
+    box-shadow: none;
+  }
+
+  .desktop-sidebar.is-mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .desktop-layout.is-collapsed .desktop-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .desktop-sidebar.collapsed .desktop-sidebar__menu {
+    left: 10px;
+    right: 10px;
+    bottom: auto;
+    top: auto;
+  }
+}
+
 /* Header marque + collapse */
 .desktop-sidebar__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 14px;
-  gap: 8px;
+  padding: var(--space-4) var(--space-3);
+  gap: var(--space-2);
 }
 
 .desktop-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   text-decoration: none;
   color: var(--sidebar-text);
 }
 
 .desktop-sidebar__brand-mark {
-  background: var(--erp-gold);
+  background: var(--color-primary);
   color: var(--sidebar-active-text);
   font-weight: 800;
   font-size: 13px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   letter-spacing: 0.04em;
 }
 
@@ -80,9 +114,10 @@
   border: none;
   color: var(--sidebar-text-secondary);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
   display: inline-flex;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .desktop-sidebar__collapse:hover {
@@ -92,23 +127,24 @@
 
 /* Recherche globale */
 .desktop-sidebar__search {
-  margin: 0 14px 10px;
+  margin: 0 var(--space-3) var(--space-2);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: calc(100% - 28px);
-  padding: 9px 10px;
+  padding: var(--space-2) var(--space-2);
   background: var(--sidebar-hover);
   border: 1px solid var(--sidebar-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--sidebar-text-secondary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-family: inherit;
+  transition: border-color var(--transition-fast);
 }
 
 .desktop-sidebar__search:hover {
-  border-color: var(--erp-gold);
+  border-color: var(--color-primary);
 }
 
 .desktop-sidebar__search span {
@@ -120,7 +156,7 @@
   font-size: 11px;
   background: var(--sidebar-bg);
   border: 1px solid var(--sidebar-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
   color: var(--sidebar-text-secondary);
 }
@@ -129,7 +165,7 @@
 .desktop-sidebar__scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 10px 12px;
+  padding: var(--space-1) var(--space-2) var(--space-3);
 }
 
 .desktop-sidebar__scroll::-webkit-scrollbar {
@@ -156,18 +192,18 @@
 
 /* Groupes */
 .desktop-sidebar__group {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 
 .desktop-sidebar__group-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: var(--space-1);
+  font-size: var(--text-caption);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-widest);
   color: var(--sidebar-text-secondary);
-  padding: 0 8px 6px;
+  padding: 0 var(--space-2) var(--space-1);
 }
 
 .desktop-sidebar__items {
@@ -186,12 +222,12 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: 8px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-md);
   color: var(--sidebar-text-secondary);
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -229,7 +265,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -253,7 +289,7 @@
   color: var(--sidebar-text-secondary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   opacity: 0;
   transition: opacity 0.12s ease;
 }
@@ -264,25 +300,25 @@
 
 .desktop-sidebar__star.is-active {
   opacity: 1;
-  color: var(--erp-gold);
+  color: var(--color-primary);
 }
 
 /* Footer profil */
 .desktop-sidebar__footer {
   position: relative;
   border-top: 1px solid var(--sidebar-border);
-  padding: 10px;
+  padding: var(--space-2);
 }
 
 .desktop-sidebar__profile {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--sidebar-text);
   font-family: inherit;
@@ -296,7 +332,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--erp-onyx-soft);
+  background: var(--color-onyx-soft);
   color: var(--sidebar-active-text);
   display: inline-flex;
   align-items: center;
@@ -331,13 +367,13 @@
 .desktop-sidebar__menu {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 10px;
-  right: 10px;
+  left: var(--space-2);
+  right: var(--space-2);
   background: var(--sidebar-menu-bg);
   border: 1px solid var(--sidebar-border);
-  border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
-  padding: 6px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
   z-index: 50;
 }
 
@@ -349,14 +385,14 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--sidebar-text);
-  font-size: 13px;
+  font-size: var(--text-body);
   font-family: inherit;
   text-decoration: none;
   text-align: left;
@@ -367,7 +403,7 @@
 }
 
 .desktop-sidebar__menu-item--danger {
-  color: var(--erp-critical);
+  color: var(--color-danger-text);
 }
 
 /* Sidebar repliée (icônes seules) */

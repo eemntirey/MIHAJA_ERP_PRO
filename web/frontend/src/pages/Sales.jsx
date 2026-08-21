@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -36,14 +37,7 @@ const getStatutBadge = (statut) => {
 };
 
 const getModePaiementLabel = (mode) => {
-  const map = {
-    espece: 'Espèce',
-    virement: 'Virement',
-    cheque: 'Chèque',
-    orange_money: 'Orange Money',
-    airtel_money: 'Airtel Money',
-  };
-  return map[mode] || mode || 'N/A';
+  return PAYMENT_METHOD_LABELS[mode] || mode || 'N/A';
 };
 
 const saleLineSchema = yup.object().shape({
@@ -57,7 +51,7 @@ const saleSchema = yup.object().shape({
   client_id: yup.number().required('Client requis'),
   date: yup.string().required('Date requise'),
   statut: yup.string().oneOf(['en_attente', 'payee', 'annulee', 'partielle']).default('en_attente'),
-  mode_paiement: yup.string().oneOf(['espece', 'virement', 'cheque', 'orange_money', 'airtel_money']).default('espece'),
+  mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money']).default('especes'),
   remarque: yup.string().nullable(),
   lignes: yup.array().of(saleLineSchema).min(1, 'Au moins une ligne requise'),
 });
@@ -90,7 +84,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
     client_id: '',
     date: new Date().toISOString().split('T')[0],
     statut: 'en_attente',
-    mode_paiement: 'espece',
+    mode_paiement: 'especes',
     remarque: '',
     lignes: [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
   };
@@ -99,7 +93,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
     client_id: initialData.client_id || '',
     date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
     statut: initialData.statut || 'en_attente',
-    mode_paiement: initialData.mode_paiement || 'espece',
+    mode_paiement: initialData.mode_paiement || 'especes',
     remarque: initialData.remarque || '',
     lignes: initialData.lignes?.map(l => ({
       produit_id: l.produit_id ?? '',
@@ -198,11 +192,9 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
             <div className="form-group">
               <label>Mode de paiement</label>
               <select {...register('mode_paiement')}>
-                <option value="espece">Espèce</option>
-                <option value="virement">Virement</option>
-                <option value="cheque">Chèque</option>
-                <option value="orange_money">Orange Money</option>
-                <option value="airtel_money">Airtel Money</option>
+                {PAYMENT_METHODS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
               </select>
             </div>
           </div>

@@ -20,7 +20,7 @@ Backend Python Flask application for the ERP project.
 ```
 web/backend/
 ├── app/
-│   ├── __init__.py          # Flask app factory
+│   ├── __init__             # Flask app factory
 │   ├── api/v1/              # 22 API namespaces
 │   ├── models/              # 35+ SQLAlchemy models
 │   ├── services/            # 20+ business services
@@ -33,8 +33,7 @@ web/backend/
 ├── logs/                    # Application logs
 ├── scripts/                 # Utility scripts
 ├── tests/                   # Test suite
-├── requirements.txt         # Python dependencies
-└── run.py                   # Application entry point
+└── requirements.txt         # Python dependencies
 ```
 
 ## Installation
@@ -73,7 +72,7 @@ web/backend/
 
 6. Start the application:
    ```bash
-   python run.py
+   flask run
    ```
 
 The server will start at `http://localhost:5000`.
@@ -99,10 +98,10 @@ http://localhost:5000/docs/
 
 ## Scripts
 
-- `python scripts/init_db.py` - Initialize database
-- `python scripts/seed_database.py` - Seed test data
-- `python scripts/migrate_tenant.py` - Migrate to multi-tenant
-- `python scripts/train_ai.py` - Train AI models
+- `scripts/init_db` - Initialize database
+- `scripts/seed_database` - Seed test data
+- `scripts/migrate_tenant` - Migrate to multi-tenant
+- `scripts/train_ai` - Train AI models
 
 ## Testing
 

@@ -1,0 +1,447 @@
+/* ==========================================================================
+   MIHAJA ERP PRO — DESIGN TOKENS
+   Single source of truth for all visual design decisions.
+   Used by both Web (React) and Desktop (Electron + React).
+   ========================================================================== */
+
+:root {
+  /* =========================================================================
+     COLOR — PRIMITIVE PALETTE
+     Raw color values. Do not use directly; use semantic aliases below.
+     ========================================================================= */
+
+  /* Primary — Gold brand */
+  --color-gold-50:  #fefce8;
+  --color-gold-100: #fef3c7;
+  --color-gold-200: #fde68a;
+  --color-gold-300: #fcd34d;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #d4af37;  /* Brand primary */
+  --color-gold-600: #cda233;
+  --color-gold-700: #b48c2a;
+  --color-gold-800: #926e22;
+  --color-gold-900: #78571e;
+
+  /* Neutral — Slate/Stone */
+  --color-neutral-0:    #ffffff;
+  --color-neutral-50:   #fafafa;
+  --color-neutral-100:  #f5f5f4;
+  --color-neutral-200:  #e7e5e4;
+  --color-neutral-300:  #d6d3d1;
+  --color-neutral-400:  #a8a29e;
+  --color-neutral-500:  #78716c;
+  --color-neutral-600:  #57534e;
+  --color-neutral-700:  #44403c;
+  --color-neutral-800:  #292524;
+  --color-neutral-900:  #1c1917;
+  --color-neutral-950:  #0c0a09;
+
+  /* Semantic — Success (Green) */
+  --color-success-50:  #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  /* Semantic — Warning (Amber) */
+  --color-warning-50:  #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  /* Semantic — Danger (Red) */
+  --color-danger-50:  #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+
+  /* Semantic — Info (Blue) */
+  --color-info-50:  #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-300: #93c5fd;
+  --color-info-400: #60a5fa;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  --color-info-900: #1e3a8a;
+
+  /* =========================================================================
+     COLOR — SEMANTIC ALIASES (Light Mode)
+     Use these everywhere. They switch automatically in dark mode.
+     ========================================================================= */
+
+  /* Brand */
+  --color-primary:           var(--color-gold-500);
+  --color-primary-hover:     var(--color-gold-600);
+  --color-primary-active:    var(--color-gold-700);
+  --color-primary-soft:      var(--color-gold-100);
+  --color-primary-text:      var(--color-gold-800);
+  --color-primary-border:    var(--color-gold-300);
+  --color-primary-ring:      rgba(212, 175, 55, 0.35);
+
+  /* Surface */
+  --color-background:        var(--color-neutral-50);
+  --color-surface:           var(--color-neutral-0);
+  --color-surface-elevated:  var(--color-neutral-0);
+  --color-surface-hover:     var(--color-neutral-50);
+  --color-surface-active:    var(--color-neutral-100);
+
+  /* Text */
+  --color-text-primary:      var(--color-neutral-950);
+  --color-text-secondary:    var(--color-neutral-600);
+  --color-text-tertiary:     var(--color-neutral-500);
+  --color-text-inverse:      var(--color-neutral-0);
+  --color-text-disabled:     var(--color-neutral-400);
+  --color-text-on-primary:   var(--color-neutral-950);
+
+  /* Border */
+  --color-border:            var(--color-neutral-200);
+  --color-border-strong:     var(--color-neutral-300);
+  --color-border-subtle:     var(--color-neutral-100);
+  --color-border-focus:      var(--color-primary);
+  --color-border-error:      var(--color-danger-500);
+
+  /* Status — Success */
+  --color-success:           var(--color-success-600);
+  --color-success-hover:     var(--color-success-700);
+  --color-success-soft:      var(--color-success-100);
+  --color-success-text:      var(--color-success-800);
+  --color-success-border:    var(--color-success-300);
+
+  /* Status — Warning */
+  --color-warning:           var(--color-warning-600);
+  --color-warning-hover:     var(--color-warning-700);
+  --color-warning-soft:      var(--color-warning-100);
+  --color-warning-text:      var(--color-warning-800);
+  --color-warning-border:    var(--color-warning-300);
+
+  /* Status — Danger */
+  --color-danger:            var(--color-danger-600);
+  --color-danger-hover:      var(--color-danger-700);
+  --color-danger-soft:       var(--color-danger-100);
+  --color-danger-text:       var(--color-danger-800);
+  --color-danger-border:     var(--color-danger-300);
+
+  /* Status — Info */
+  --color-info:              var(--color-info-600);
+  --color-info-hover:        var(--color-info-700);
+  --color-info-soft:         var(--color-info-100);
+  --color-info-text:         var(--color-info-800);
+  --color-info-border:       var(--color-info-300);
+
+  /* =========================================================================
+     TYPOGRAPHY
+     ========================================================================= */
+
+  /* Font Families */
+  --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-body:    'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono:    'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace;
+
+  /* Font Sizes — Fluid scale using clamp() */
+  --text-display-xl: clamp(40px, 5vw, 56px);  /* Marketing hero */
+  --text-display:    clamp(32px, 4vw, 42px);  /* Page titles */
+  --text-h1:         28px;                     /* Major section */
+  --text-h2:         22px;                     /* Section */
+  --text-h3:         18px;                     /* Sub-section */
+  --text-h4:         16px;                     /* Card title */
+  --text-body-lg:    16px;                     /* Large body */
+  --text-body:       14px;                     /* Default body */
+  --text-body-sm:    13px;                     /* Dense body */
+  --text-caption:    12px;                     /* Labels, hints */
+  --text-label:      11px;                     /* Form labels, badges */
+  --text-micro:      10px;                     /* Table headers, timestamps */
+
+  /* KPI / Numbers */
+  --text-kpi-sm:     20px;
+  --text-kpi:        28px;
+  --text-kpi-lg:     36px;
+  --text-kpi-xl:     clamp(42px, 5vw, 56px);
+
+  /* Line Heights */
+  --leading-none:      1;
+  --leading-tight:     1.15;
+  --leading-snug:      1.35;
+  --leading-normal:    1.5;
+  --leading-relaxed:   1.65;
+  --leading-loose:     1.8;
+
+  /* Letter Spacing */
+  --tracking-tight:    -0.04em;
+  --tracking-normal:   -0.02em;
+  --tracking-wide:     0.02em;
+  --tracking-wider:    0.06em;
+  --tracking-widest:   0.12em;
+
+  /* Font Weights */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-extrabold: 800;
+
+  /* =========================================================================
+     SPACING — 4px Base Scale
+     Use spacing tokens for ALL margins, padding, gaps.
+     ========================================================================= */
+
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   28px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+
+  /* Semantic spacing aliases */
+  --space-xs:   var(--space-1);
+  --space-sm:   var(--space-2);
+  --space-md:   var(--space-4);
+  --space-lg:   var(--space-6);
+  --space-xl:   var(--space-8);
+  --space-2xl:  var(--space-10);
+  --space-3xl:  var(--space-12);
+
+  /* =========================================================================
+     BORDER RADIUS
+     ========================================================================= */
+
+  --radius-none:   0;
+  --radius-xs:     4px;
+  --radius-sm:     6px;
+  --radius-md:     8px;
+  --radius-lg:     12px;
+  --radius-xl:     16px;
+  --radius-2xl:    20px;
+  --radius-pill:   999px;
+  --radius-circle: 50%;
+
+  /* Semantic aliases */
+  --radius-input:  var(--radius-md);
+  --radius-btn:    var(--radius-md);
+  --radius-card:   var(--radius-lg);
+  --radius-modal:  var(--radius-xl);
+  --radius-badge:  var(--radius-pill);
+
+  /* =========================================================================
+     SHADOWS / ELEVATION
+     Layered system: sm (resting) → md (hover) → lg (modal/dropdown)
+     ========================================================================= */
+
+  --shadow-xs:   0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-sm:   0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md:   0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:   0 12px 32px rgba(15, 23, 42, 0.10), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-xl:   0 20px 48px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.08);
+  --shadow-2xl:  0 24px 64px rgba(15, 23, 42, 0.15);
+
+  /* Colored shadows for primary actions */
+  --shadow-primary-sm: 0 2px 8px rgba(212, 175, 55, 0.25);
+  --shadow-primary-md: 0 8px 24px rgba(212, 175, 55, 0.3);
+  --shadow-primary-lg: 0 16px 40px rgba(212, 175, 55, 0.35);
+
+  /* Semantic aliases */
+  --shadow-card:     var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-dropdown: var(--shadow-lg);
+  --shadow-modal:    var(--shadow-xl);
+  --shadow-toast:    var(--shadow-lg);
+
+  /* =========================================================================
+     TRANSITIONS
+     ========================================================================= */
+
+  --duration-fast:    120ms;
+  --duration-normal:  180ms;
+  --duration-slow:    240ms;
+  --duration-slower:  320ms;
+
+  --ease-in:      cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --transition-fast:    var(--duration-fast) var(--ease-out);
+  --transition-normal:  var(--duration-normal) var(--ease-out);
+  --transition-slow:    var(--duration-slow) var(--ease-in-out);
+  --transition-spring:  var(--duration-slower) var(--ease-spring);
+
+  /* =========================================================================
+     Z-INDEX
+     ========================================================================= */
+
+  --z-base:       0;
+  --z-dropdown:   40;
+  --z-sticky:     50;
+  --z-overlay:    100;
+  --z-modal:      200;
+  --z-popover:    300;
+  --z-tooltip:    400;
+  --z-toast:      500;
+
+  /* =========================================================================
+     LAYOUT
+     ========================================================================= */
+
+  --sidebar-width:           260px;
+  --sidebar-collapsed-width: 76px;
+  --topbar-height:           60px;
+  --content-max-width:       1440px;
+  --page-padding:            var(--space-8);
+  --page-padding-sm:         var(--space-6);
+  --page-padding-lg:         var(--space-10);
+
+  /* =========================================================================
+     BREAKPOINTS
+     ========================================================================= */
+
+  --bp-xs:   360px;
+  --bp-sm:   480px;
+  --bp-md:   768px;
+  --bp-lg:   1024px;
+  --bp-xl:   1280px;
+  --bp-2xl:  1440px;
+  --bp-3xl:  1920px;
+}
+
+/* ==========================================================================
+   DARK MODE — Semantic token overrides
+   All semantic colors automatically adapt. Primitives stay the same.
+   ========================================================================== */
+
+[data-theme='dark'],
+.dark {
+  /* Brand — Gold stays the same, softer backgrounds */
+  --color-primary:           var(--color-gold-400);
+  --color-primary-hover:     var(--color-gold-300);
+  --color-primary-active:    var(--color-gold-500);
+  --color-primary-soft:      rgba(212, 175, 55, 0.14);
+  --color-primary-text:      var(--color-gold-200);
+  --color-primary-border:    var(--color-gold-700);
+  --color-primary-ring:      rgba(212, 175, 55, 0.45);
+
+  /* Surface */
+  --color-background:        var(--color-neutral-950);
+  --color-surface:           var(--color-neutral-900);
+  --color-surface-elevated:  var(--color-neutral-800);
+  --color-surface-hover:     var(--color-neutral-800);
+  --color-surface-active:    var(--color-neutral-700);
+
+  /* Text */
+  --color-text-primary:      var(--color-neutral-50);
+  --color-text-secondary:    var(--color-neutral-400);
+  --color-text-tertiary:     var(--color-neutral-500);
+  --color-text-inverse:      var(--color-neutral-950);
+  --color-text-disabled:     var(--color-neutral-600);
+  --color-text-on-primary:   var(--color-neutral-950);
+
+  /* Border */
+  --color-border:            var(--color-neutral-700);
+  --color-border-strong:     var(--color-neutral-600);
+  --color-border-subtle:     var(--color-neutral-800);
+  --color-border-focus:      var(--color-primary);
+  --color-border-error:      var(--color-danger-400);
+
+  /* Status — Success */
+  --color-success:           var(--color-success-500);
+  --color-success-hover:     var(--color-success-400);
+  --color-success-soft:      rgba(34, 197, 94, 0.14);
+  --color-success-text:      var(--color-success-300);
+  --color-success-border:    var(--color-success-700);
+
+  /* Status — Warning */
+  --color-warning:           var(--color-warning-500);
+  --color-warning-hover:     var(--color-warning-400);
+  --color-warning-soft:      rgba(245, 158, 11, 0.14);
+  --color-warning-text:      var(--color-warning-300);
+  --color-warning-border:    var(--color-warning-700);
+
+  /* Status — Danger */
+  --color-danger:            var(--color-danger-500);
+  --color-danger-hover:      var(--color-danger-400);
+  --color-danger-soft:       rgba(239, 68, 68, 0.14);
+  --color-danger-text:       var(--color-danger-300);
+  --color-danger-border:     var(--color-danger-700);
+
+  /* Status — Info */
+  --color-info:              var(--color-info-500);
+  --color-info-hover:        var(--color-info-400);
+  --color-info-soft:         rgba(59, 130, 246, 0.14);
+  --color-info-text:         var(--color-info-300);
+  --color-info-border:       var(--color-info-700);
+
+  /* Shadows — darker, more contrast */
+  --shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-lg:   0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-xl:   0 20px 48px rgba(0, 0, 0, 0.45), 0 8px 16px rgba(0, 0, 0, 0.3);
+  --shadow-2xl:  0 24px 64px rgba(0, 0, 0, 0.5);
+
+  --shadow-primary-sm: 0 2px 8px rgba(212, 175, 55, 0.2);
+  --shadow-primary-md: 0 8px 24px rgba(212, 175, 55, 0.25);
+  --shadow-primary-lg: 0 16px 40px rgba(212, 175, 55, 0.3);
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: var(--color-neutral-700);
+  --scrollbar-thumb-hover: var(--color-neutral-600);
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE SUPPORT
+   ========================================================================== */
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: var(--color-neutral-400);
+    --color-border-strong: var(--color-neutral-600);
+    --color-text-secondary: var(--color-neutral-700);
+    --color-text-tertiary: var(--color-neutral-600);
+  }
+  [data-theme='dark'] {
+    --color-border: var(--color-neutral-500);
+    --color-border-strong: var(--color-neutral-400);
+    --color-text-secondary: var(--color-neutral-300);
+    --color-text-tertiary: var(--color-neutral-400);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast:    0.01ms;
+    --duration-normal:  0.01ms;
+    --duration-slow:    0.01ms;
+    --duration-slower:  0.01ms;
+  }
+}

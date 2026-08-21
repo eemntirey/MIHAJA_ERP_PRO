@@ -178,7 +178,7 @@ class EcritureComptableService:
             date=ecriture.date,
             type_operation=type_op,
             montant=abs(montant_debit - montant_credit),
-            mode_paiement='espece',
+            mode_paiement='especes',
             libelle=ecriture.libelle,
             reference=ecriture.reference_externe,
             compte_id=ecriture.compte_id,

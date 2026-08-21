@@ -160,6 +160,6 @@ class PublicNotifications(Resource):
     def post(self):
         data = request.get_json() or {}
         return {
-            'message': 'Notification non supportée pour l\'instant',
+            'message': 'Notification non supportée pour l\'instant. Utilisez /api/v1/notifications pour créer des notifications.',
             'data': data
         }, 501

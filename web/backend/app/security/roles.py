@@ -85,7 +85,12 @@ PERMISSIONS = {
         'product.view',
         'invoice.view', 'invoice.create', 'invoice.update',
         'payment.view', 'payment.create',
-        'report.view'
+        'report.view',
+        'sale.view',
+        'client.view',
+        'compte.view', 'compte.create', 'compte.update', 'compte.delete',
+        'ecriture.view', 'ecriture.create', 'ecriture.update', 'ecriture.delete',
+        'tresorerie.view', 'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
     ],
     'user': [
         'product.view',
@@ -117,7 +122,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         user_id = get_jwt_identity()
         user = db.session.get(Utilisateur, user_id)
-        if not user or user.role not in [Role.ADMIN, Role.SUPER_ADMIN]:
+        if not user or not is_super_admin(user.role) and not is_admin(user.role):
             return jsonify({'message': 'Acces administrateur requis'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -127,7 +132,7 @@ def super_admin_required(f):
     def decorated_function(*args, **kwargs):
         user_id = get_jwt_identity()
         user = db.session.get(Utilisateur, user_id)
-        if not user or user.role != Role.SUPER_ADMIN:
+        if not user or not is_super_admin(user.role):
             return jsonify({'message': 'Acces super administrateur requis'}), 403
         return f(*args, **kwargs)
     return jwt_required()(decorated_function)

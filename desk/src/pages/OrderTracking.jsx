@@ -87,7 +87,7 @@ const OrderTracking = () => {
             <button onClick={fetchNotifications} className="btn-secondary" disabled={notifLoading}>
               {notifLoading ? 'Actualisation...' : 'Actualiser les notifications'}
             </button>
-            <Link to="/catalogue" className="btn-primary">Retour au catalogue</Link>
+             <Link to="/" className="btn-primary">Retour à l'accueil</Link>
           </div>
         </div>
       </div>

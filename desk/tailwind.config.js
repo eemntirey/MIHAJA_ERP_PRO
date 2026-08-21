@@ -7,33 +7,33 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: 'var(--bg-primary)',
-        foreground: 'var(--text-primary)',
-        card: 'var(--card-bg)',
-        'card-foreground': 'var(--text-primary)',
+        background: 'var(--color-background)',
+        foreground: 'var(--color-text)',
+        card: 'var(--color-surface)',
+        'card-foreground': 'var(--color-text)',
         primary: {
-          DEFAULT: 'var(--erp-gold)',
-          foreground: 'var(--erp-onyx)',
+          DEFAULT: 'var(--color-primary)',
+          foreground: 'var(--color-onyx)',
         },
         secondary: {
-          DEFAULT: 'var(--bg-secondary)',
-          foreground: 'var(--text-primary)',
+          DEFAULT: 'var(--color-background)',
+          foreground: 'var(--color-text)',
         },
         muted: {
-          DEFAULT: 'var(--erp-muted)',
-          foreground: 'var(--text-secondary)',
+          DEFAULT: 'var(--color-text-muted)',
+          foreground: 'var(--color-text-secondary)',
         },
         accent: {
-          DEFAULT: 'var(--erp-gold)',
-          foreground: 'var(--erp-onyx)',
+          DEFAULT: 'var(--color-primary)',
+          foreground: 'var(--color-onyx)',
         },
         destructive: {
-          DEFAULT: 'var(--erp-critical)',
+          DEFAULT: 'var(--color-danger)',
           foreground: '#ffffff',
         },
-        border: 'var(--border-color)',
-        input: 'var(--border-color)',
-        ring: 'var(--erp-gold)',
+        border: 'var(--color-border)',
+        input: 'var(--color-border)',
+        ring: 'var(--color-primary)',
         slate: {
           50: '#f8fafc',
           100: '#f1f5f9',
@@ -49,13 +49,13 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['var(--erp-body-font)', 'sans-serif'],
-        heading: ['var(--erp-heading-font)', 'sans-serif'],
+        sans: ['var(--font-body)', 'sans-serif'],
+        heading: ['var(--font-heading)', 'sans-serif'],
       },
       borderRadius: {
-        lg: '0.5rem',
-        md: 'calc(0.5rem - 2px)',
-        sm: 'calc(0.5rem - 4px)',
+        lg: 'var(--radius-lg)',
+        md: 'var(--radius-md)',
+        sm: 'var(--radius-sm)',
       },
     },
   },

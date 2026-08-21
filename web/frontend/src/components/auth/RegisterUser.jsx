@@ -182,7 +182,7 @@ const RegisterUser = () => {
                   <input
                     id="register-user-nom"
                     type="text"
-                    placeholder="Dupont"
+                    placeholder="Rakoto"
                     autoComplete="family-name"
                     {...register('nom')}
                     className={errors.nom ? 'error' : ''}
@@ -203,7 +203,7 @@ const RegisterUser = () => {
                   <input
                     id="register-user-email"
                     type="email"
-                    placeholder="jean.dupont@email.com"
+                    placeholder="jean.rakoto@email.com"
                     autoComplete="email"
                     {...register('email')}
                     className={errors.email ? 'error' : ''}

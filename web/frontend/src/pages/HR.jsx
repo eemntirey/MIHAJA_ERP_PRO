@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { employeService, presenceService, salaireService, primeService } from '../services/api';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 import './HR.css';
 
@@ -26,11 +27,7 @@ const PAIEMENT_STATUTS = {
   partiel: { label: 'Partiel', class: 'info' },
 };
 
-const MODES_PAIEMENT = {
-  virement: 'Virement',
-  especes: 'Espèces',
-  cheque: 'Chèque',
-};
+const MODES_PAIEMENT = PAYMENT_METHODS.reduce((acc, m) => ({ ...acc, [m.value]: m.label }), {});
 
 const TYPES_PRIME = {
   performance: 'Performance',
@@ -612,7 +609,7 @@ export default function HR() {
                       <div className="form-group"><label>Lieu de naissance</label><input name="lieu_naissance" value={forms.employe.lieu_naissance} onChange={handleChange('employe')} placeholder="Ville" /></div>
                       <div className="form-group full-width"><label>Adresse</label><input name="adresse" value={forms.employe.adresse} onChange={handleChange('employe')} placeholder="Adresse" /></div>
                       <div className="form-group"><label>Email</label><input type="email" name="email" value={forms.employe.email} onChange={handleChange('employe')} placeholder="email@exemple.com" /></div>
-                      <div className="form-group"><label>Téléphone</label><input name="telephone" value={forms.employe.telephone} onChange={handleChange('employe')} placeholder="0600000000" /></div>
+                      <div className="form-group"><label>Téléphone</label><input name="telephone" value={forms.employe.telephone} onChange={handleChange('employe')} placeholder="+261 34 00 000 00" /></div>
                     </div>
                   </div>
 
@@ -680,7 +677,7 @@ export default function HR() {
                     <div className="form-group"><label>Indemnités</label><input type="number" name="indemnites" value={forms.salaire.indemnites} onChange={handleChange('salaire')} placeholder="0" /></div>
                     <div className="form-group"><label>Déductions</label><input type="number" name="deductions" value={forms.salaire.deductions} onChange={handleChange('salaire')} placeholder="0" /></div>
                     <div className="form-group"><label>Avances</label><input type="number" name="avances" value={forms.salaire.avances} onChange={handleChange('salaire')} placeholder="0" /></div>
-                    <div className="form-group"><label>Mode de paiement</label><select name="mode_paiement" value={forms.salaire.mode_paiement} onChange={handleChange('salaire')}><option value="virement">Virement</option><option value="especes">Espèces</option><option value="cheque">Chèque</option></select></div>
+                    <div className="form-group"><label>Mode de paiement</label><select name="mode_paiement" value={forms.salaire.mode_paiement} onChange={handleChange('salaire')}>{PAYMENT_METHODS.map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}</select></div>
                     <div className="form-group"><label>Statut paiement</label><select name="statut_paiement" value={forms.salaire.statut_paiement} onChange={handleChange('salaire')}><option value="non_paye">Non payé</option><option value="partiel">Partiel</option><option value="paye">Payé</option></select></div>
                     <div className="form-group"><label>Référence paiement</label><input name="reference_paiement" value={forms.salaire.reference_paiement} onChange={handleChange('salaire')} placeholder="Référence" /></div>
                     <div className="form-group full-width"><label>Notes</label><textarea name="notes" value={forms.salaire.notes} onChange={handleChange('salaire')} placeholder="Notes" /></div>

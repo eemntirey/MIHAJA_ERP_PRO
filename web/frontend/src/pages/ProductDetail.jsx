@@ -86,7 +86,7 @@ const ProductDetail = () => {
         )}
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
+      <div className="card product-detail-grid">
         <div>
           <div style={{
             width: '100%', height: '0', paddingTop: '60%', background: 'var(--erp-paper)',
@@ -145,7 +145,7 @@ const ProductDetail = () => {
                 max={maxQty}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
-                style={{ width: '70px', padding: '8px 10px', border: '1px solid var(--erp-line-strong)', fontFamily: 'var(--erp-body-font)', fontSize: '13px' }}
+                style={{ width: '100%', maxWidth: '90px', padding: '8px 10px', border: '1px solid var(--erp-line-strong)', fontFamily: 'var(--erp-body-font)', fontSize: '13px' }}
                 aria-label="Quantité"
               />
               <button

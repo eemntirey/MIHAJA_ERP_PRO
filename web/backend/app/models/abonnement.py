@@ -27,6 +27,7 @@ class Abonnement(BaseModel):
     notes = db.Column(db.Text)
 
     tenant = db.relationship('Tenant', back_populates='abonnements', lazy='select')
+    paiements = db.relationship('Paiement', back_populates='abonnement', cascade='all, delete-orphan')
 
     def to_dict(self, exclude=None):
         data = super().to_dict(exclude)

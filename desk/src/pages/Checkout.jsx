@@ -92,8 +92,9 @@ const Checkout = () => {
   const qrData = orderRef ? `${window.location.origin}/order-tracking/${orderRef}` : '';
   const qrUrl = qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}` : '';
 
-  const orderTotal = products.reduce((sum, product, idx) => {
-    const cartItem = cart[idx];
+  const orderTotal = products.reduce((sum, product) => {
+    const productId = product.id || product.produit_id;
+    const cartItem = cart.find(item => item.id === productId || item.produit_id === productId);
     const qty = cartItem?.quantite || 1;
     const price = Number(product.prix_vente_ht || product.prix || 0);
     return sum + price * qty;
@@ -115,7 +116,7 @@ const Checkout = () => {
       <div className="page-container">
         <div className="alert error">
           <p>Panier vide</p>
-          <Link to="/catalogue" className="btn-primary">Retour au catalogue</Link>
+          <Link to="/" className="btn-primary">Retour à l'accueil</Link>
         </div>
       </div>
     );

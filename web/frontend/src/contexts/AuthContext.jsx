@@ -143,7 +143,10 @@ export const AuthProvider = ({ children }) => {
             setUser(userData);
             setIsAuthenticated(true);
 
-            await fetchSubscriptionStatus();
+            // Les utilisateurs simples (sans tenant) n'ont pas d'abonnement
+            if (tenantData || userData?.tenant_id) {
+                await fetchSubscriptionStatus();
+            }
 
             toast.success('Compte créé avec succès !');
 
@@ -167,8 +170,6 @@ export const AuthProvider = ({ children }) => {
 
     // Connexion
     const login = async (email, password) => {
-        console.log('Tentative de login:', email);
-
         try {
             setLoading(true);
 
@@ -177,9 +178,6 @@ export const AuthProvider = ({ children }) => {
                 password: password,
             });
 
-            console.log('Réponse complète du serveur:', response);
-            console.log('Données reçues:', response.data);
-
             const {
                 access_token,
                 refresh_token,
@@ -187,11 +185,6 @@ export const AuthProvider = ({ children }) => {
                 tenant: tenantData,
             } = response.data || {};
 
-            console.log('access_token reçu:', access_token);
-            console.log('refresh_token reçu:', refresh_token);
-            console.log('user reçu:', userData);
-
-            // Vérification obligatoire
             if (!access_token) {
                 throw new Error(
                     'Le serveur a répondu sans access_token'
@@ -226,25 +219,16 @@ export const AuthProvider = ({ children }) => {
                 );
             }
 
-            console.log(
-                'Token sauvegardé:',
-                localStorage.getItem('access_token')
-            );
-
-            console.log(
-                'Utilisateur sauvegardé:',
-                localStorage.getItem('user')
-            );
-
-            // Mise à jour de React
             setUser(userData);
             setTenant(tenantData || null);
             setIsAuthenticated(true);
 
             const redirectPath = getRedirectPath(userData);
 
-            // Fetch subscription status in background
-            await fetchSubscriptionStatus();
+            // Les utilisateurs simples (sans tenant) n'ont pas d'abonnement
+            if (tenantData || userData?.tenant_id) {
+                await fetchSubscriptionStatus();
+            }
 
             toast.success('Connexion réussie !');
 
@@ -293,8 +277,6 @@ export const AuthProvider = ({ children }) => {
 
     // Déconnexion
     const logout = async () => {
-        console.log('Déconnexion');
-
         try {
             await authService.logout();
         } catch {

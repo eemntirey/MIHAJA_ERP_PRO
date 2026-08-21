@@ -3,11 +3,90 @@
 import api from './api';
 import { buildKey, readJSON, writeJSON, removeKey } from '../utils/localStore';
 
+const NOTIF_STORAGE_KEY = buildKey('notifications', 'list', false);
+
+const DEFAULT_NOTIFICATIONS = [
+  { id: 1, title: 'Nouvelle commande', message: 'Commande #1042 reçue', time: "il y a 2 min", read: false },
+  { id: 2, title: 'Stock critique', message: 'Produit XYZ sous le seuil', time: "il y a 15 min", read: false },
+  { id: 3, title: 'Paiement reçu', message: 'Facture #89 payée', time: "il y a 1 h", read: true },
+];
+
+const readLocalNotifications = () => {
+  const stored = readJSON(NOTIF_STORAGE_KEY, null);
+  return Array.isArray(stored) ? stored : [...DEFAULT_NOTIFICATIONS];
+};
+
+const writeLocalNotifications = (list) => {
+  writeJSON(NOTIF_STORAGE_KEY, list);
+};
+
 export const notificationService = {
-  getAll: () => api.get('/notifications'),
-  markAsRead: (id) => api.post(`/notifications/${id}/read`),
-  markAllAsRead: () => api.post('/notifications/read-all'),
-  delete: (id) => api.delete(`/notifications/${id}`),
+  readAll: () => readLocalNotifications(),
+
+  getAll: () => Promise.resolve({ data: readLocalNotifications() }),
+
+  add: (item) => {
+    const list = readLocalNotifications();
+    const id = item.id || genId();
+    const exists = list.some((n) => n.id === id);
+    if (!exists) {
+      const formatted = {
+        id,
+        title: item.title || 'Notification',
+        message: item.message || '',
+        time: item.time || '',
+        read: !!item.read,
+      };
+      list.unshift(formatted);
+      writeLocalNotifications(list);
+    }
+    return Promise.resolve({ data: list });
+  },
+
+  markAsRead: (id) => {
+    let list = readLocalNotifications();
+    list = list.map((n) => (n.id === id ? { ...n, read: true } : n));
+    writeLocalNotifications(list);
+    return Promise.resolve({ data: list });
+  },
+
+  markAllAsRead: () => {
+    let list = readLocalNotifications();
+    list = list.map((n) => ({ ...n, read: true }));
+    writeLocalNotifications(list);
+    return Promise.resolve({ data: list });
+  },
+
+  delete: (id) => {
+    let list = readLocalNotifications();
+    list = list.filter((n) => n.id !== id);
+    writeLocalNotifications(list);
+    return Promise.resolve({ data: list });
+  },
+
+  triggerNative: (title, body) => {
+    if (typeof window !== 'undefined' && window.electron?.notify) {
+      return Promise.resolve(window.electron.notify(title, body));
+    }
+    return Promise.resolve(true);
+  },
+
+  setBadge: (count) => {
+    if (typeof window !== 'undefined' && window.electron?.setBadge) {
+      return Promise.resolve(window.electron.setBadge(count));
+    }
+    return Promise.resolve(true);
+  },
+
+  clear: () => {
+    writeLocalNotifications([]);
+    return Promise.resolve({ data: [] });
+  },
+
+  save: (list) => {
+    writeLocalNotifications(list);
+    return Promise.resolve({ data: list });
+  },
 };
 
 export const favoriteService = {
