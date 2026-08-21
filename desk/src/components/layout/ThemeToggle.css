@@ -1,3 +1,5 @@
+@import '../../styles/tokens.css';
+
 /* desk/src/components/layout/ThemeToggle.css */
 
 /* ── Bouton de bascule thème (semantic CSS variables only) ────────────── */
@@ -8,12 +10,12 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
   font-weight: 600;
   font-size: 13px;
-  font-family: var(--erp-body-font);
+  font-family: var(--font-body);
   cursor: pointer;
   transition: all 180ms ease;
   white-space: nowrap;
@@ -21,8 +23,8 @@
 }
 
 .theme-toggle:hover {
-  background: var(--erp-gold);
-  border-color: var(--erp-gold);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: var(--on-primary);
 }
 
@@ -71,10 +73,10 @@
 }
 
 .theme-toggle--menuitem:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
 .theme-toggle--menuitem.theme-toggle--dark:hover {
-  color: var(--text-primary);
+  color: var(--color-text);
 }

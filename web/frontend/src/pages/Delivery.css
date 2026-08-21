@@ -1,3 +1,5 @@
+@import '../styles/tokens.css';
+
 /* src/pages/Delivery.css */
 
 .delivery-page {
@@ -8,7 +10,7 @@
 .delivery-tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--erp-line);
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 24px;
   flex-wrap: wrap;
 }
@@ -21,10 +23,10 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  font-family: var(--erp-body-font);
+  font-family: var(--font-body);
   font-size: 13px;
   font-weight: 700;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: color 180ms ease, border-color 180ms ease;
   letter-spacing: -0.01em;
@@ -35,12 +37,12 @@
 }
 
 .delivery-tab:hover {
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
 }
 
 .delivery-tab.is-active {
-  color: var(--erp-onyx);
-  border-bottom-color: var(--erp-gold);
+  color: var(--color-onyx);
+  border-bottom-color: var(--color-primary);
 }
 
 .delivery-tab__count {
@@ -50,16 +52,16 @@
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--erp-paper);
-  color: var(--erp-muted);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
   font-size: 11px;
   font-weight: 800;
-  font-family: var(--erp-heading-font);
+  font-family: var(--font-heading);
 }
 
 .delivery-tab.is-active .delivery-tab__count {
-  background: var(--erp-onyx);
-  color: var(--erp-white);
+  background: var(--color-onyx);
+  color: var(--color-surface);
 }
 
 /* ===== Summary stats ===== */
@@ -75,13 +77,13 @@
   align-items: center;
   gap: 14px;
   padding: 18px 20px;
-  background: var(--erp-white);
-  border: 1px solid var(--erp-line);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   transition: border-color 180ms ease, transform 180ms ease;
 }
 
 .delivery-stat:hover {
-  border-color: var(--erp-line-strong);
+  border-color: var(--color-border-strong);
   transform: translateY(-1px);
 }
 
@@ -91,8 +93,8 @@
   border-radius: 0;
   display: grid;
   place-items: center;
-  background: var(--erp-onyx);
-  color: var(--erp-gold);
+  background: var(--color-onyx);
+  color: var(--color-primary);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -104,10 +106,10 @@
 }
 
 .delivery-stat__value {
-  font-family: var(--erp-heading-font);
+  font-family: var(--font-heading);
   font-size: 22px;
   font-weight: 800;
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
   letter-spacing: -0.04em;
   line-height: 1.1;
 }
@@ -116,7 +118,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   font-weight: 600;
   margin-top: 4px;
 }
@@ -133,7 +135,7 @@
 
 .delivery-section-head h3 {
   margin: 0;
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -141,8 +143,8 @@
 
 /* ===== Status badges ===== */
 .badge.neutral {
-  background: var(--erp-paper);
-  color: var(--erp-muted);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
 }
 
 .badge.info {
@@ -168,14 +170,14 @@
   align-items: center;
   gap: 8px;
   padding: 40px 20px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   font-size: 13px;
   text-align: center;
 }
 
 .delivery-empty .ti {
   font-size: 28px;
-  color: var(--erp-subtle);
+  color: var(--color-text-muted);
 }
 
 /* ===== Tracking / Suivis ===== */
@@ -186,8 +188,8 @@
 }
 
 .delivery-track {
-  border: 1px solid var(--erp-line);
-  background: var(--erp-white);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
 }
@@ -198,20 +200,20 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--erp-line);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .delivery-track__title {
-  font-family: var(--erp-heading-font);
+  font-family: var(--font-heading);
   font-size: 14px;
   font-weight: 800;
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
   letter-spacing: -0.02em;
 }
 
 .delivery-track__sub {
   font-size: 12px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   margin-top: 2px;
 }
 
@@ -232,7 +234,7 @@
   top: 4px;
   bottom: 4px;
   width: 1px;
-  background: var(--erp-line-strong);
+  background: var(--color-border-strong);
 }
 
 .delivery-event {
@@ -251,33 +253,33 @@
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--erp-gold);
-  border: 2px solid var(--erp-white);
-  box-shadow: 0 0 0 1px var(--erp-line-strong);
+  background: var(--color-primary);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-border-strong);
 }
 
 .delivery-event__dot.tone-success { background: var(--erp-success); }
-.delivery-event__dot.tone-danger { background: var(--erp-critical); }
-.delivery-event__dot.tone-warning { background: var(--erp-gold); }
+.delivery-event__dot.tone-danger { background: var(--color-danger); }
+.delivery-event__dot.tone-warning { background: var(--color-primary); }
 .delivery-event__dot.tone-info { background: #4299e1; }
-.delivery-event__dot.tone-neutral { background: var(--erp-subtle); }
+.delivery-event__dot.tone-neutral { background: var(--color-text-muted); }
 
 .delivery-event__status {
   font-weight: 700;
   font-size: 13px;
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
   text-transform: capitalize;
 }
 
 .delivery-event__meta {
   font-size: 11px;
-  color: var(--erp-subtle);
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .delivery-event__comment {
   font-size: 12px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   margin-top: 4px;
 }
 
@@ -286,14 +288,14 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   margin-top: 4px;
 }
 
 .delivery-track__add {
-  border-top: 1px solid var(--erp-line);
+  border-top: 1px solid var(--color-border);
   padding: 16px 18px;
-  background: var(--erp-paper);
+  background: var(--color-background);
 }
 
 .delivery-track__add .form-grid {

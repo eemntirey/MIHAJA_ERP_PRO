@@ -1,3 +1,5 @@
+@import '../../styles/tokens.css';
+
 /* src/components/layout/ChatInput.css */
 
 .chat-input-bar {
@@ -14,8 +16,8 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 0;
   padding: 10px 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -23,7 +25,7 @@
 }
 
 .chat-input-form:focus-within {
-  border-color: var(--erp-gold);
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08), 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -44,7 +46,7 @@
   resize: none;
   font-size: 14px;
   font-family: 'DM Sans', sans-serif;
-  color: var(--text-primary);
+  color: var(--color-text);
   background: transparent;
   max-height: 120px;
   min-height: 24px;
@@ -53,13 +55,13 @@
 }
 
 .chat-input-field::placeholder {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .chat-input-send {
-  background: var(--erp-onyx);
-  color: var(--erp-gold);
-  border: 1px solid var(--erp-onyx);
+  background: var(--color-onyx);
+  color: var(--color-primary);
+  border: 1px solid var(--color-onyx);
   border-radius: 0;
   padding: 8px 16px;
   font-weight: 700;
@@ -71,8 +73,8 @@
 }
 
 .chat-input-send:hover:not(:disabled) {
-  background: var(--erp-onyx-soft);
-  border-color: var(--erp-onyx-soft);
+  background: var(--color-onyx-soft);
+  border-color: var(--color-onyx-soft);
 }
 
 .chat-input-send:disabled {

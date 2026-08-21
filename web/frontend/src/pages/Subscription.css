@@ -1,3 +1,5 @@
+@import '../styles/tokens.css';
+
 /* src/pages/Subscription.css */
 
 .subscription-page {
@@ -6,11 +8,11 @@
 
 .subscription-status-card {
   margin-bottom: 28px;
-  border-left: 4px solid var(--erp-line);
+  border-left: 4px solid var(--color-border);
 }
 
 .subscription-status-card--actif {
-  border-left-color: var(--erp-success);
+  border-left-color: var(--color-success);
 }
 
 .subscription-status-card--en_attente {
@@ -18,7 +20,7 @@
 }
 
 .subscription-status-card--expire {
-  border-left-color: var(--erp-critical);
+  border-left-color: var(--color-danger);
 }
 
 .subscription-status-card__header {
@@ -37,8 +39,8 @@
 .subscription-plan-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--erp-muted);
-  background: var(--erp-paper);
+  color: var(--color-text-secondary);
+  background: var(--color-background);
   padding: 4px 12px;
   border-radius: 20px;
 }
@@ -54,7 +56,7 @@
   gap: 10px;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid var(--erp-line);
+  border-top: 1px solid var(--color-border);
 }
 
 .subscription-plans-section {
@@ -68,8 +70,8 @@
 }
 
 .subscription-plan-card {
-  background: var(--erp-white);
-  border: 1px solid var(--erp-line);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 24px;
   display: flex;
@@ -100,17 +102,17 @@
 .subscription-plan-card__amount {
   font-size: 24px;
   font-weight: 800;
-  font-family: var(--erp-heading-font);
+  font-family: var(--font-heading);
 }
 
 .subscription-plan-card__period {
   font-size: 13px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
 }
 
 .subscription-plan-card__limits {
   font-size: 13px;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   margin-bottom: 14px;
 }
 
@@ -125,7 +127,7 @@
   position: relative;
   padding-left: 18px;
   font-size: 13px;
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
   margin-bottom: 8px;
 }
 
@@ -133,13 +135,13 @@
   content: '✓';
   position: absolute;
   left: 0;
-  color: var(--erp-success);
+  color: var(--color-success);
   font-weight: 700;
 }
 
 .subscription-plan-card__cta {
   width: 100%;
-  color: var(--erp-white);
+  color: var(--color-surface);
   border: none;
 }
 
@@ -172,16 +174,16 @@
 
 /* ==================== DARK MODE ==================== */
 .main-layout[data-theme='dark'] .subscription-status-card {
-  border-left-color: var(--erp-line);
+  border-left-color: var(--color-border);
 }
 
 .main-layout[data-theme='dark'] .subscription-status-card__actions {
-  border-top-color: var(--erp-line);
+  border-top-color: var(--color-border);
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-name {
-  color: var(--erp-muted);
-  background: var(--erp-paper);
+  color: var(--color-text-secondary);
+  background: var(--color-background);
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-card {
@@ -217,8 +219,8 @@
 /* ==================== BULLETIN PAIEMENT HORS LIGNE ==================== */
 
 .offline-bulletin {
-  background: var(--erp-paper, #f8f9fa);
-  border: 1px dashed var(--erp-line, #cbd5e1);
+  background: var(--color-background, #f8f9fa);
+  border: 1px dashed var(--color-border, #cbd5e1);
   border-radius: 10px;
   padding: 18px;
 }
@@ -228,12 +230,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--erp-line, #e5e7eb);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
   font-size: 14px;
 }
 
 .offline-bulletin__ref {
-  font-family: var(--erp-heading-font, monospace);
+  font-family: var(--font-heading, monospace);
   letter-spacing: 0.5px;
   color: #3b82f6;
 }
@@ -241,14 +243,14 @@
 .offline-bulletin__instructions {
   margin: 16px 0 8px;
   font-size: 14px;
-  color: var(--erp-onyx, #1f2937);
+  color: var(--color-onyx, #1f2937);
   line-height: 1.5;
 }
 
 .offline-bulletin__note {
   margin: 0;
   font-size: 13px;
-  color: var(--erp-muted, #6b7280);
+  color: var(--color-text-secondary, #6b7280);
   line-height: 1.5;
 }
 
