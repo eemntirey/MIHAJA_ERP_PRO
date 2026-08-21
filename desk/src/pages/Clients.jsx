@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { clientService } from '../services/api';
 import { toast } from 'react-toastify';
+import { CLIENT_TYPES, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Clients = () => {
@@ -126,18 +127,36 @@ const Clients = () => {
 
   const formatPhone = (phone) => {
     if (!phone) return 'N/A';
-    if (phone.startsWith('0')) {
-      return phone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+    const digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('261')) {
+      const rest = digits.slice(3);
+      if (rest.length === 9) {
+        return `+261 ${rest.slice(0, 2)} ${rest.slice(2, 4)} ${rest.slice(4, 7)} ${rest.slice(7)}`;
+      }
+      return `+261 ${rest.replace(/(\d{2})(\d{2})(\d{3})(\d{2})/, '$1 $2 $3 $4')}`;
     }
-    return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+    if (digits.startsWith('0')) {
+      return digits.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+    }
+    return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
   };
 
   const getClientTypeBadge = (type) => {
-    const types = {
+    const entry = CLIENT_TYPES.find(t => t.value === type);
+    const labels = {
+      boutique: { label: 'Boutique', class: 'success' },
+      epicerie: { label: 'Épicerie', class: 'warning' },
+      revendeur: { label: 'Revendeur', class: 'info' },
+      semi_grossiste: { label: 'Semi-grossiste', class: 'success' },
+      grossiste: { label: 'Grossiste', class: 'success' },
+      supermarche: { label: 'Supermarché', class: 'warning' },
+      restaurant: { label: 'Restaurant', class: 'info' },
+      hotel: { label: 'Hôtel', class: 'info' },
+      entreprise: { label: 'Entreprise', class: 'success' },
+      institution: { label: 'Institution', class: 'info' },
       particulier: { label: 'Particulier', class: 'info' },
-      professionnel: { label: 'Professionnel', class: 'success' },
     };
-    return types[type] || types.particulier;
+    return labels[type] || (entry ? { label: entry.label, class: 'info' } : { label: type, class: 'info' });
   };
 
   const formatAddress = (client) => {
@@ -204,9 +223,9 @@ const Clients = () => {
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            {clients.filter(c => c.type === 'professionnel').length}
+            {clients.filter(c => c.type === 'entreprise').length}
           </div>
-          <div className="stat-label">Professionnels</div>
+          <div className="stat-label">Entreprises</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
@@ -237,8 +256,9 @@ const Clients = () => {
             className="form-select"
           >
             <option value="">Tous les types</option>
-            <option value="particulier">Particulier</option>
-            <option value="professionnel">Professionnel</option>
+            {CLIENT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -333,8 +353,9 @@ const Clients = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="particulier">Particulier</option>
-                    <option value="professionnel">Professionnel</option>
+                    {CLIENT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">
@@ -419,7 +440,7 @@ const Clients = () => {
                   />
                 </div>
                 
-                {formData.type === 'professionnel' && (
+                {formData.type !== 'particulier' && (
                   <>
                     <div className="form-group">
                       <label>SIRET</label>

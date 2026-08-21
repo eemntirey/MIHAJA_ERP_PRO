@@ -19,7 +19,7 @@
   background: var(--erp-white);
   border: 1px solid var(--erp-line);
   border-radius: 0;
-  box-shadow: 0 8px 24px -4px rgba(17, 17, 17, 0.12);
+  box-shadow: 0 8px 24px -4px var(--shadow-md);
   animation: fabIn 0.2s ease;
 }
 
@@ -61,7 +61,7 @@
   border-radius: 0;
   font-size: 22px;
   cursor: pointer;
-  box-shadow: 0 6px 16px -4px rgba(17, 17, 17, 0.3);
+  box-shadow: 0 6px 16px -4px var(--shadow-lg);
   transition: all 180ms ease;
 }
 

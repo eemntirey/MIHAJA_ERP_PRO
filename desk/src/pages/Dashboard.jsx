@@ -671,7 +671,7 @@ const Dashboard = () => {
                   <h2>Aucun abonnement actif</h2>
                 </div>
               </div>
-              <p style={{ color: 'var(--erp-muted)', marginBottom: '16px' }}>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
                 Souscrivez à un plan pour accéder à tous les modules opérationnels.
               </p>
               <Link to="/subscription" className="btn-primary">

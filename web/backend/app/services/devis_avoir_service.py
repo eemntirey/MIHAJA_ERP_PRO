@@ -80,7 +80,7 @@ class DevisService:
             commercial_id=devis.commercial_id,
             total_ht=devis.total_ht,
             total_ttc=devis.total_ttc,
-            mode_paiement='espece',
+            mode_paiement='especes',
             statut='en_attente',
             tenant_id=devis.tenant_id,
         )

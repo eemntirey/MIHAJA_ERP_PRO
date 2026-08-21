@@ -1,8 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 from app import db
 from app.models.vente import Vente
 from app.models.ligne_vente import LigneVente
 from app.models.produit import Produit
+from app.models.stock import MouvementStock
 from app.security.tenant import get_current_tenant_id
 import random
 import string
@@ -28,6 +30,8 @@ def update(id, data):
     sale = get_by_id(id)
     if not sale:
         return None
+    if 'date' in data and isinstance(data['date'], str):
+        data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
     for key, value in data.items():
         if hasattr(sale, key) and key not in ('id', 'tenant_id', 'created_at'):
             setattr(sale, key, value)
@@ -61,15 +65,20 @@ def create_with_lignes(data):
     if not data.get('client_id'):
         raise ValueError("Le client est requis")
 
+    if 'date' in data and isinstance(data['date'], str):
+        data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
+
     total_ht = 0
     total_ttc = 0
     stock_errors = []
     for ligne in lignes_data:
-        quantite = float(ligne.get('quantite', 0))
-        prix_unitaire = float(ligne.get('prix_unitaire', 0))
-        taux_tva = float(ligne.get('taux_tva', 20))
-        total_ht += quantite * prix_unitaire
-        total_ttc += quantite * prix_unitaire * (1 + taux_tva / 100)
+        quantite = Decimal(str(ligne.get('quantite', 0)))
+        prix_unitaire = Decimal(str(ligne.get('prix_unitaire', 0)))
+        taux_tva = Decimal(str(ligne.get('taux_tva', 20)))
+        remise = Decimal(str(ligne.get('remise', 0)))
+        base_ht = quantite * prix_unitaire * (1 - remise / 100)
+        total_ht += base_ht
+        total_ttc += base_ht * (1 + taux_tva / 100)
 
     data['total_ht'] = total_ht
     data['total_ttc'] = total_ttc
@@ -99,7 +108,18 @@ def create_with_lignes(data):
                 produit = produit_query.first()
                 if produit:
                     try:
-                        produit.retirer_stock(qty)
+                        qty_decimal = Decimal(str(qty))
+                        if produit.quantite_stock < qty_decimal:
+                            raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
+                        produit.quantite_stock -= qty_decimal
+                        mouvement = MouvementStock(
+                            produit_id=produit.id,
+                            type_mouvement='sortie',
+                            quantite=qty_decimal,
+                            raison=f'Vente {sale.reference}',
+                            tenant_id=produit.tenant_id,
+                        )
+                        db.session.add(mouvement)
                     except ValueError as e:
                         stock_errors.append(str(e))
     if stock_errors:
@@ -132,7 +152,7 @@ def get_stats():
         if statut not in by_status:
             by_status[statut] = {'count': 0, 'total': 0}
         by_status[statut]['count'] += 1
-        by_status[statut]['total'] += float(v.total_ttc)
+        by_status[statut]['total'] += float(vente.total_ttc)
     return {
         'total': total,
         'count': count,

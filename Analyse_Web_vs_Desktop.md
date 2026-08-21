@@ -177,7 +177,7 @@
 
 ## 9. Endpoints backend concernés
 
-Tous les endpoints suivants existent déjà dans `web/backend/app/api/v1/public.py` :
+Tous les endpoints suivants existent déjà dans `web/backend/app/api/v1/public` :
 
 | Endpoint | Méthode | Usage Desktop |
 |----------|---------|---------------|

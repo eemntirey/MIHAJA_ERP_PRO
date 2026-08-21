@@ -75,34 +75,6 @@ class EmployeService:
         instance.delete()
         return True
 
-    @classmethod
-    def search(cls, query, fields):
-        if not query:
-            return []
-        conditions = []
-        for field in fields:
-            if hasattr(cls.model, field):
-                conditions.append(getattr(cls.model, field).ilike(f'%{query}%'))
-        if conditions:
-            from sqlalchemy import or_
-            query_obj = cls.model.query.filter(
-                cls.model.is_active == True,
-                or_(*conditions)
-            )
-            query_obj = cls._get_tenant_filter(query_obj)
-            return query_obj.limit(20).all()
-        return []
-
-    @classmethod
-    def count(cls, filters=None):
-        query = cls.model.query.filter_by(is_active=True)
-        query = cls._get_tenant_filter(query)
-        if filters:
-            for key, value in filters.items():
-                if value is not None and hasattr(cls.model, key):
-                    query = query.filter_by(**{key: value})
-        return query.count()
-
 class PresenceService:
     model = Presence
 
@@ -301,16 +273,16 @@ class SalaireService:
                 func.extract('month', Prime.date_octroi) == mois,
                 func.extract('year', Prime.date_octroi) == annee
             ).all()
-            total_primes = sum(float(p.montant) for p in primes_mois)
+            total_primes = sum(Decimal(str(p.montant)) for p in primes_mois)
             salaire = Salaire(
                 employe_id=employe.id,
                 mois=mois,
                 annee=annee,
-                salaire_base=employe.salaire_base or 0,
+                salaire_base=Decimal(str(employe.salaire_base or 0)),
                 primes=total_primes,
-                indemnites=0,
-                deductions=0,
-                avances=0,
+                indemnites=Decimal('0'),
+                deductions=Decimal('0'),
+                avances=Decimal('0'),
                 tenant_id=tenant_id,
             )
             salaire.calculer_salaire()

@@ -1,9 +1,10 @@
 // src/App.js
-import React, { useState, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+import { useTheme } from './hooks/useTheme';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { DesktopProvider } from './contexts/DesktopContext';
@@ -14,6 +15,7 @@ import DesktopLayout from './components/layout/DesktopLayout';
 import LandingLayout from './components/landing/LandingLayout';
 
 // Pages publiques
+const Home = React.lazy(() => import('./pages/Home'));
 const Catalogue = React.lazy(() => import('./pages/Catalogue'));
 const Suivi = React.lazy(() => import('./pages/Suivi'));
 const Contact = React.lazy(() => import('./pages/Contact'));
@@ -117,29 +119,18 @@ const ProtectedRoute = ({ children }) => {
 
 const RequireRole = ({ children, role }) => {
   const { hasRole } = useAuth();
-  if (!hasRole(role)) {
+  const requiredRoles = Array.isArray(role) ? role : [role];
+  const allowed = requiredRoles.some((r) => hasRole(r));
+  if (!allowed) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
 };
 
 const App = () => {
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem('dark_mode') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleDarkMode = (next) => {
-    setDarkMode(next);
-    try {
-      localStorage.setItem('dark_mode', String(next));
-    } catch {
-      // ignore
-    }
-  };
+  // Gestion centralisée du thème : synchronise la classe `.dark` sur <html>,
+  // persiste dans localStorage et met à jour le meta theme-color.
+  const [darkMode, toggleDarkMode] = useTheme();
 
   const handleLogout = () => {
     try {
@@ -161,17 +152,15 @@ const App = () => {
       <DesktopProvider>
         <CartProvider>
           <Routes>
-            {/* Point d'entrée par défaut : authentification (aucune page d'accueil) */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
-            {/* Pages publiques (vitrine) avec LandingLayout */}
-            <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
-              <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
-              <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
-              <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
-              <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
-              <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
-            </Route>
+             {/* Pages publiques (vitrine) avec LandingLayout */}
+             <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
+               <Route path="/" element={<PageSuspense><Home /></PageSuspense>} />
+               <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
+               <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
+               <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
+               <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
+               <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
+             </Route>
 
             {/* Authentification */}
             <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
@@ -210,9 +199,9 @@ const App = () => {
               <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
               <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
               <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
-              <Route path="roles" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Roles /></PageSuspense></RequireRole>} />
-              <Route path="permissions" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
-              <Route path="users" element={<RequireRole role="SUPER_ADMIN"><PageSuspense><Users /></PageSuspense></RequireRole>} />
+              <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
+              <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
+              <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
 
               {/* Boutique connectée (utilisateurs simples + autres rôles) */}
               <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
@@ -234,7 +223,7 @@ const App = () => {
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme="light"
+            theme={darkMode ? "dark" : "light"}
           />
         </CartProvider>
       </DesktopProvider>

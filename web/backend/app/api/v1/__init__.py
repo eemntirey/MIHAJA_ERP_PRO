@@ -1,4 +1,3 @@
-from . import test
 from . import auth
 from . import clients
 from . import dashboard
@@ -20,3 +19,6 @@ from . import comptabilite
 from . import roles
 from . import permissions
 from . import users
+from . import papi
+
+# Note: test namespace is imported conditionally in app/__init__.py during API registration

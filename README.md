@@ -27,8 +27,7 @@ ERP_PRO/
 │   │   │   └── config/          # Configuration (settings, database)
 │   │   ├── migrations/
 │   │   ├── logs/
-│   │   ├── requirements.txt
-│   │   └── run.py
+│   │   └── requirements.txt
 │   └── frontend/
 │       ├── src/
 │       │   ├── pages/           # Dashboard, Produits, Clients, Ventes, Stock, Abonnements, Livraison, RH, Comptabilité, Documents, Achats, SuperAdmin...
@@ -129,7 +128,7 @@ cd web/backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-python run.py
+flask run
 ```
 
 Le serveur démarre sur `http://localhost:5000`.

@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { favoriteService } from '../../services/desktopApi';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
+import ThemeToggle from './ThemeToggle';
 import './DesktopSidebar.css';
 
 const FAVORITES_KEY = 'desktop_favorites';
@@ -35,6 +36,7 @@ const DesktopSidebar = ({
   onLogout,
   darkMode,
   onToggleDarkMode,
+  className,
 }) => {
   const { user, hasRole } = useAuth();
   const location = useLocation();
@@ -107,7 +109,7 @@ const DesktopSidebar = ({
 
   const favoriteItems = NAV_ITEMS.filter((item) => favorites.some((f) => f.path === item.path));
   const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g && (g !== 'Admin' || isSuperAdmin))
+    NAV_ITEMS.some((i) => i.group === g)
   );
 
   const renderNavItem = (item) => {
@@ -144,7 +146,7 @@ const DesktopSidebar = ({
   };
 
   return (
-    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Navigation principale">
+    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''} ${className || ''}`} aria-label="Navigation principale">
       <div className="desktop-sidebar__header">
         <Link to="/dashboard" className="desktop-sidebar__brand" aria-label="ERP Pro accueil">
           <span className="desktop-sidebar__brand-mark" aria-hidden="true">ERP</span>
@@ -186,7 +188,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group && (group !== 'Admin' || isSuperAdmin)
+                (item) => item.group === group
               ).map(renderNavItem)}
             </div>
           </div>
@@ -217,15 +219,13 @@ const DesktopSidebar = ({
                 <i className="ti ti-user" aria-hidden="true" /> Profil
               </Link>
             )}
-            <button
-              type="button"
+            <ThemeToggle
+              enabled={darkMode}
+              onChange={onToggleDarkMode}
+              menuItem
               className="desktop-sidebar__menu-item"
-              role="menuitem"
-              onClick={() => { setProfileOpen(false); onToggleDarkMode(!darkMode); }}
-            >
-              <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-              {darkMode ? 'Mode clair' : 'Mode sombre'}
-            </button>
+              onClick={() => setProfileOpen(false)}
+            />
             <button
               type="button"
               className="desktop-sidebar__menu-item desktop-sidebar__menu-item--danger"

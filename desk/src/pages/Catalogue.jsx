@@ -78,7 +78,7 @@ const Catalogue = () => {
                       <span className="badge success">En stock</span>
                     </div>
                     {produit.tenant_nom && (
-                      <p style={{ fontSize: '12px', color: 'var(--erp-muted)', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
                         Vendu par <strong>{produit.tenant_nom}</strong>
                       </p>
                     )}
@@ -87,7 +87,7 @@ const Catalogue = () => {
                       Stock: {stock}
                     </p>
                     {produit.description_courte && (
-                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--erp-muted)' }}>
+                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
                         {produit.description_courte}
                       </p>
                     )}

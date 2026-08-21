@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { paiementService, factureService, clientService } from '../services/api';
 import { toast } from 'react-toastify';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Payments = () => {
@@ -132,17 +133,8 @@ const Payments = () => {
   const totalAmount = payments.reduce((sum, payment) => sum + (payment.montant || 0), 0);
   const averageAmount = payments.length ? totalAmount / payments.length : 0;
 
-  const getModeLabel = (mode) => {
-    const labels = {
-      especes: 'Espèces',
-      virement: 'Virement',
-      carte: 'Carte bancaire',
-      cheque: 'Chèque',
-      mobile_money: 'Mobile money',
-      orange_money: 'Orange Money',
-      airtel_money: 'Airtel Money',
-    };
-    return labels[mode] || mode;
+    const getModeLabel = (mode) => {
+    return PAYMENT_METHOD_LABELS[mode] || mode;
   };
 
   const getStatutLabel = (statut) => {
@@ -319,17 +311,13 @@ const Payments = () => {
                 <div className="form-group">
                   <label>Mode de paiement *</label>
                   <select name="mode_paiement" value={formData.mode_paiement} onChange={handleChange} required>
-                    <option value="especes">Espèces</option>
-                    <option value="virement">Virement</option>
-                    <option value="carte">Carte bancaire</option>
-                    <option value="cheque">Chèque</option>
-                    <option value="orange_money">Orange Money</option>
-                    <option value="airtel_money">Airtel Money</option>
-                    <option value="mobile_money">Autre Mobile Money</option>
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
                   </select>
                 </div>
 
-                {(formData.mode_paiement === 'orange_money' || formData.mode_paiement === 'airtel_money' || formData.mode_paiement === 'mobile_money') && (
+                {(formData.mode_paiement === 'mvola' || formData.mode_paiement === 'orange_money' || formData.mode_paiement === 'airtel_money') && (
                   <>
                     <div className="form-group">
                       <label>Opérateur</label>

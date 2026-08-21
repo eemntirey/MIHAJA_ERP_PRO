@@ -9,6 +9,7 @@ import SplitView from './SplitView';
 import FAB from '../desktop/FAB';
 import { useDesktop } from '../../contexts/DesktopContext';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
@@ -21,26 +22,21 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
-  const { sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
+  const { commandPaletteOpen, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
 
   const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
   const showSplit = !isAIView && SPLIT_MODULES.includes(moduleKey) && !!splitView[moduleKey]?.enabled;
 
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('desktop_sidebar_collapsed') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('desktop_sidebar_collapsed', String(next));
+        localStorage.setItem('desk_sidebar_collapsed', String(next));
       } catch {
         // ignore storage errors
       }
@@ -48,9 +44,31 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     });
   }, []);
 
-  // Raccourcis clavier globaux (CMD+K, CMD+B, CMD+1-9)
-  useKeyboardShortcuts({ onToggleSidebar: toggleCollapsed });
+  const toggleSidebar = useCallback(() => {
+    if (isMobile) {
+      setMobileOpen((prev) => !prev);
+    } else {
+      toggleCollapsed();
+    }
+  }, [isMobile, toggleCollapsed]);
 
+  const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
+
+  // Raccourcis clavier globaux (CMD+K, CMD+B, CMD+1-9)
+  useKeyboardShortcuts({ onToggleSidebar: toggleSidebar });
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', darkMode ? '#0f172a' : '#f8fafc');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileOpen(false);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     let active = true;
@@ -97,31 +115,42 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     };
   }, []);
 
+  const sidebarClassName = [
+    'desktop-sidebar',
+    isMobile && mobileOpen ? 'is-mobile-open' : '',
+    collapsed && !isMobile ? 'collapsed' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`main-layout desktop-layout${collapsed ? ' is-collapsed' : ''}`}
-      data-theme={darkMode ? 'dark' : undefined}
+      className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}`}
       data-ai={isAIView ? 'true' : undefined}
     >
       {IS_ELECTRON && <TitleBar />}
       <DesktopSidebar
+        className={sidebarClassName}
         collapsed={collapsed}
         counters={counters}
         onToggleCollapse={toggleCollapsed}
-        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenPalette={() => setCommandPaletteOpen(true)}
         onLogout={onLogout}
         darkMode={darkMode}
         onToggleDarkMode={onToggleDarkMode}
       />
+
+      {isMobile && mobileOpen && (
+        <div className="sidebar-backdrop" onClick={closeMobileSidebar} />
+      )}
 
       <div className="desktop-main">
         <DesktopTopBar
           darkMode={darkMode}
           onToggleDarkMode={onToggleDarkMode}
           counters={counters}
-          onOpenPalette={() => setPaletteOpen(true)}
-          onToggleSidebar={toggleCollapsed}
+          onOpenPalette={() => setCommandPaletteOpen(true)}
+          onToggleSidebar={toggleSidebar}
           collapsed={collapsed}
+          isMobile={isMobile}
           onLogout={onLogout}
         />
 
@@ -147,7 +176,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
 
       {!isAIView && <FAB />}
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   );
 };

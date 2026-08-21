@@ -115,7 +115,7 @@ const Suivi = () => {
 
               {tracking.items && tracking.items.length > 0 && (
                 <div style={{ marginTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--erp-muted)' }}>
+                  <h4 style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
                     Articles
                   </h4>
                   <div className="table-container">

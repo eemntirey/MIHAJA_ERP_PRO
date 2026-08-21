@@ -4,12 +4,13 @@ from sqlalchemy import Enum, Index, Numeric
 import enum
 
 class TypeFournisseur(enum.Enum):
-    LOCAL = 'local'
-    NATIONAL = 'national'
-    INTERNATIONAL = 'international'
+    PRODUCTEUR_LOCAL = 'producteur_local'
+    IMPORTATEUR = 'importateur'
+    DISTRIBUTEUR = 'distributeur'
     GROSSISTE = 'grossiste'
     FABRICANT = 'fabricant'
-    DISTRIBUTEUR = 'distributeur'
+    FOURNISSEUR_LOCAL = 'fournisseur_local'
+    FOURNISSEUR_INTERNATIONAL = 'fournisseur_international'
 
 class Fournisseur(BaseModel):
     __tablename__ = 'fournisseurs'
@@ -30,7 +31,7 @@ class Fournisseur(BaseModel):
             TypeFournisseur,
             values_callable=lambda enum_class: [e.value for e in enum_class]
         ),
-        default=TypeFournisseur.LOCAL,
+        default=TypeFournisseur.FOURNISSEUR_LOCAL,
         nullable=False
     )
     # Contact

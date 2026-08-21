@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def _get_tenant_name(tenant_id):
     try:
         from app.models.tenant import Tenant
-        tenant = Tenant.query.get(tenant_id)
+        tenant = db.session.get(Tenant, tenant_id)
         return tenant.nom if tenant else None
     except Exception:
         return None
