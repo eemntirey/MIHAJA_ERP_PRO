@@ -65,7 +65,7 @@ def seed_tenant(tenant_data, admin_data):
 
 def seed_default_tenant():
     """Crée le tenant par défaut"""
-    default_password = os.getenv('SEED_USER_PASSWORD') or secrets.token_urlsafe(12)
+    default_password = "Test1234!"
     tenant_data = {
         'nom': 'ERP Démonstration',
         'slug': 'demo',
@@ -104,30 +104,43 @@ def seed_sample_data(tenant_slug='demo'):
         # Créer des produits d'exemple
         produits = [
             Produit(
-                nom='Produit A',
+                nom='Riz blanc (sac 50 kg)',
                 reference='PROD-001',
-                prix_achat_ht=10.0,
-                prix_vente_ht=15.0,
-                quantite_stock=100,
-                categorie='Electronique',
-                tenant_id=tenant.id,
-            ),
-            Produit(
-                nom='Produit B',
-                reference='PROD-002',
-                prix_achat_ht=20.0,
-                prix_vente_ht=30.0,
-                quantite_stock=50,
-                categorie='Electronique',
-                tenant_id=tenant.id,
-            ),
-            Produit(
-                nom='Produit C',
-                reference='PROD-003',
-                prix_achat_ht=5.0,
-                prix_vente_ht=10.0,
-                quantite_stock=200,
+                prix_achat_ht=102000.0,
+                prix_vente_ht=130000.0,
+                quantite_stock=120,
                 categorie='Alimentaire',
+                unite='sac',
+                tenant_id=tenant.id,
+            ),
+            Produit(
+                nom='Huile de tournesol (carton 6 x 1 L)',
+                reference='PROD-002',
+                prix_achat_ht=124000.0,
+                prix_vente_ht=160000.0,
+                quantite_stock=35,
+                categorie='Épicerie',
+                unite='carton',
+                tenant_id=tenant.id,
+            ),
+            Produit(
+                nom='Eau minérale (pack 6 x 1,5 L)',
+                reference='PROD-003',
+                prix_achat_ht=5200.0,
+                prix_vente_ht=7500.0,
+                quantite_stock=500,
+                categorie='Boissons',
+                unite='pack',
+                tenant_id=tenant.id,
+            ),
+            Produit(
+                nom='Savon de toilette (carton 72)',
+                reference='PROD-004',
+                prix_achat_ht=66000.0,
+                prix_vente_ht=85000.0,
+                quantite_stock=25,
+                categorie='Hygiène',
+                unite='carton',
                 tenant_id=tenant.id,
             ),
         ]

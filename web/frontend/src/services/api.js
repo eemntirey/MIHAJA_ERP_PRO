@@ -8,8 +8,6 @@ import { toast } from 'react-toastify';
 const API_BASE_URL =
     process.env.REACT_APP_API_URL || '/api/v1';
 
-// console.log('API Base URL:', API_BASE_URL);
-
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -26,15 +24,7 @@ api.interceptors.request.use(
         config.headers = config.headers || {};
         const token = localStorage.getItem('access_token');
 
-        console.log(
-            'API Request:',
-            config.method?.toUpperCase(),
-            config.url,
-            'Token:',
-            token ? 'présent' : 'absent'
-        );
-
-        if (token) {
+        if (token && !config.headers.Authorization) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
@@ -95,10 +85,6 @@ api.interceptors.response.use(
                     );
                 }
 
-                console.log(
-                    'Tentative de renouvellement du token...'
-                );
-
                 const refreshResponse =
                     await api.post(
                         '/auth/refresh',
@@ -152,11 +138,6 @@ api.interceptors.response.use(
                     `Bearer ${newAccessToken}`;
                 api.defaults.headers.common.Authorization =
                     `Bearer ${newAccessToken}`;
-
-                console.log(
-                    'Token renouvelé avec succès',
-                    originalRequest.headers.Authorization || originalRequest.headers['Authorization']
-                );
 
                 return api(originalRequest);
 
@@ -230,6 +211,23 @@ export const publicCatalogueService = {
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
 };
 
+export const notificationService = {
+    getAll: () =>
+        api.get('/notifications'),
+
+    create: (data) =>
+        api.post('/notifications', data),
+
+    markAsRead: (id) =>
+        api.patch(`/notifications/${id}/read`),
+
+    markAllAsRead: () =>
+        api.patch('/notifications/read-all'),
+
+    delete: (id) =>
+        api.delete(`/notifications/${id}`),
+};
+
 // ======================================================
 // TENANTS (SUPER_ADMIN)
 // ======================================================
@@ -275,13 +273,6 @@ export const authService = {
     register: (data) =>
         api.post('/auth/register', data),
 
-    refresh: (refreshToken) =>
-        axios.post(
-            `${API_BASE_URL}/auth/refresh`,
-            null,
-            { headers: { Authorization: `Bearer ${refreshToken}` } }
-        ),
-
     logout: () =>
         api.post('/auth/logout'),
 
@@ -302,7 +293,37 @@ export const authService = {
 // UTILISATEURS
 // ======================================================
 
-// userService removed: no backend routes exist for /users
+export const userService = {
+    getAll: (params) => api.get('/users', { params }),
+    getById: (id) => api.get(`/users/${id}`),
+    create: (data) => api.post('/users', data),
+    update: (id, data) => api.put(`/users/${id}`, data),
+    delete: (id) => api.delete(`/users/${id}`),
+};
+
+// ======================================================
+// RÔLES
+// ======================================================
+
+export const roleService = {
+    getAll: (params) => api.get('/roles', { params }),
+    getById: (id) => api.get(`/roles/${id}`),
+    create: (data) => api.post('/roles', data),
+    update: (id, data) => api.put(`/roles/${id}`, data),
+    delete: (id) => api.delete(`/roles/${id}`),
+};
+
+// ======================================================
+// PERMISSIONS
+// ======================================================
+
+export const permissionService = {
+    getAll: (params) => api.get('/permissions', { params }),
+    getById: (id) => api.get(`/permissions/${id}`),
+    create: (data) => api.post('/permissions', data),
+    update: (id, data) => api.put(`/permissions/${id}`, data),
+    delete: (id) => api.delete(`/permissions/${id}`),
+};
 
 // ======================================================
 // PRODUITS
@@ -525,6 +546,24 @@ export const subscriptionService = {
 };
 
 // ======================================================
+// PAPI PAYMENTS
+// ======================================================
+
+export const papiService = {
+    createSubscriptionPayment: (subscriptionId, paymentMethod, isTestMode = true) =>
+        api.post(`/papi/payments/subscription/${subscriptionId}`, {
+            payment_method: paymentMethod,
+            is_test_mode: isTestMode,
+        }),
+
+    getPayments: (params) =>
+        api.get('/papi/payments', { params }),
+
+    getPayment: (id) =>
+        api.get(`/papi/payments/${id}`),
+};
+
+// ======================================================
 // INTELLIGENCE ARTIFICIELLE
 // ======================================================
 
@@ -574,6 +613,10 @@ export const livraisonService = {
     delete: (id) => api.delete(`/livraisons/${id}`),
     addSuivi: (id, data) => api.post(`/livraisons/${id}/suivi`, data),
     getSuivis: (id) => api.get(`/livraisons/${id}/suivis`),
+    assigner: (id, data) => api.post(`/livraisons/${id}/assigner`, data),
+    passerAuStatut: (id, data) => api.post(`/livraisons/${id}/statut`, data),
+    avancer: (id) => api.post(`/livraisons/${id}/avancer`),
+    getStats: () => api.get('/livraisons/stats'),
 };
 
 // ======================================================
@@ -594,6 +637,8 @@ export const presenceService = {
     create: (data) => api.post('/presences', data),
     update: (id, data) => api.put(`/presences/${id}`, data),
     delete: (id) => api.delete(`/presences/${id}`),
+    getRegistre: (params) => api.get('/presences/registre', { params }),
+    export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
 };
 
 export const salaireService = {
@@ -602,6 +647,9 @@ export const salaireService = {
     create: (data) => api.post('/salaires', data),
     update: (id, data) => api.put(`/salaires/${id}`, data),
     delete: (id) => api.delete(`/salaires/${id}`),
+    generer: (data) => api.post('/salaires/generer', data),
+    payer: (id, data) => api.post(`/salaires/${id}/payer`, data),
+    export: () => api.get('/salaires/export', { responseType: 'blob' }),
 };
 
 export const primeService = {
@@ -629,6 +677,7 @@ export const compteService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    export: () => api.get('/comptes/export', { responseType: 'blob' }),
 };
 
 export const ecritureService = {
@@ -646,6 +695,8 @@ export const ecritureService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    getJournal: (params) => api.get('/ecritures/journal', { params }),
+    export: () => api.get('/ecritures/export', { responseType: 'blob' }),
 };
 
 export const tresorerieService = {
@@ -662,6 +713,8 @@ export const tresorerieService = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    getMouvements: (params) => api.get('/tresorerie/mouvements', { params }),
+    export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
 };
 
 // ======================================================

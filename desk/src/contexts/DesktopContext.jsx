@@ -1,13 +1,13 @@
-// src/contexts/DesktopContext.jsx
+﻿// src/contexts/DesktopContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { notificationService } from '../services/desktopApi';
+import { NOTIFICATION_EVENTS } from '../utils/notify';
 
 const DesktopContext = createContext();
 
 const LS_KEYS = {
   sidebarCollapsed: 'desk_sidebar_collapsed',
-  favorites: 'desk_favorites',
   splitView: 'desk_split_view',
-  tableColumns: 'desk_table_columns',
   commandPaletteOpen: 'desk_command_palette_open',
 };
 
@@ -22,20 +22,32 @@ export const DesktopProvider = ({ children }) => {
     try { return localStorage.getItem(LS_KEYS.sidebarCollapsed) === 'true'; }
     catch { return false; }
   });
-  const [favorites, setFavorites] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(LS_KEYS.favorites) || '[]'); }
-    catch { return []; }
-  });
   const [splitView, setSplitView] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS_KEYS.splitView) || '{}'); }
     catch { return {}; }
   });
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Nouvelle commande', message: 'Commande #1042 reçue', time: '2 min', read: false },
-    { id: 2, title: 'Stock critique', message: 'Produit XYZ sous le seuil', time: '15 min', read: false },
-    { id: 3, title: 'Paiement reçu', message: 'Facture #89 payée', time: '1h', read: true },
-  ]);
+  const [notifications, setNotificationsState] = useState(() => {
+    try {
+      return notificationService.readAll();
+    } catch {
+      return [];
+    }
+  });
+
+  // Persistance notifications en localStorage + synchronisation du badge Electron
+  useEffect(() => {
+    notificationService.save(notifications).catch(() => {});
+    const unread = notifications.filter((n) => !n.read).length;
+    notificationService.setBadge(unread).catch(() => {});
+  }, [notifications]);
+
+  // Réagir aux notifications ajoutées depuis l'extérieur (utilitaire notify.js)
+  useEffect(() => {
+    const handler = () => setNotificationsState(notificationService.readAll());
+    window.addEventListener(NOTIFICATION_EVENTS.UPDATED, handler);
+    return () => window.removeEventListener(NOTIFICATION_EVENTS.UPDATED, handler);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(LS_KEYS.sidebarCollapsed, String(sidebarCollapsed)); }
@@ -43,36 +55,65 @@ export const DesktopProvider = ({ children }) => {
   }, [sidebarCollapsed]);
 
   useEffect(() => {
-    try { localStorage.setItem(LS_KEYS.favorites, JSON.stringify(favorites.slice(0, 6))); }
-    catch {}
-  }, [favorites]);
-
-  useEffect(() => {
     try { localStorage.setItem(LS_KEYS.splitView, JSON.stringify(splitView)); }
     catch {}
   }, [splitView]);
 
-  const toggleSidebar = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
-  const toggleFavorite = useCallback((item) => {
-    setFavorites((prev) => {
-      const exists = prev.find((f) => f.to === item.to);
-      if (exists) return prev.filter((f) => f.to !== item.to);
-      return [...prev, item].slice(0, 6);
+  const toggleSplitView = useCallback((module) => {
+    setSplitView((prev) => {
+      const cur = prev[module] || { enabled: false, leftWidth: 40 };
+      return { ...prev, [module]: { ...cur, enabled: !cur.enabled } };
     });
   }, []);
-  const isFavorite = useCallback((to) => favorites.some((f) => f.to === to), [favorites]);
+
+  const setSplitWidth = useCallback((module, width) => {
+    setSplitView((prev) => {
+      const cur = prev[module] || { enabled: false, leftWidth: 40 };
+      return { ...prev, [module]: { ...cur, leftWidth: width } };
+    });
+  }, []);
+
+  const toggleSidebar = useCallback(() => setSidebarCollapsed((prev) => !prev), []);
   const markNotificationRead = useCallback((id) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    setNotificationsState((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  }, []);
+  const setNotificationsList = useCallback((next) => {
+    setNotificationsState((prev) => {
+      if (typeof next === 'function') {
+        const result = next(prev);
+        return Array.isArray(result) ? result : [];
+      }
+      return Array.isArray(next) ? next : prev;
+    });
+  }, []);
+  const addNotification = useCallback((notification) => {
+    const id = notification.id || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const formatted = {
+      id,
+      title: notification.title || 'Notification',
+      message: notification.message || '',
+      time: notification.time || '',
+      read: false,
+    };
+    setNotificationsState((prev) => {
+      const exists = prev.some((n) => n.id === id);
+      if (exists) return prev;
+      return [formatted, ...prev];
+    });
+    notificationService.triggerNative(formatted.title, formatted.message).catch(() => {});
+  }, []);
+  const removeNotification = useCallback((id) => {
+    setNotificationsState((prev) => prev.filter((n) => n.id !== id));
   }, []);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <DesktopContext.Provider value={{
-      sidebarCollapsed, toggleSidebar, favorites, toggleFavorite, isFavorite,
-      splitView, setSplitView, commandPaletteOpen, setCommandPaletteOpen,
-      notifications, markNotificationRead, unreadCount,
+      sidebarCollapsed, toggleSidebar, splitView, setSplitView, toggleSplitView, setSplitWidth, commandPaletteOpen, setCommandPaletteOpen,
+      notifications, markNotificationRead, setNotificationsList, addNotification, removeNotification, unreadCount,
     }}>
       {children}
     </DesktopContext.Provider>
   );
 };
+

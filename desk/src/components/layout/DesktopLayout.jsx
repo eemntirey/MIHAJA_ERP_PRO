@@ -2,38 +2,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import DesktopSidebar from './DesktopSidebar';
-import TopBar from './TopBar';
+import DesktopTopBar from './DesktopTopBar';
 import TitleBar from './TitleBar';
 import CommandPalette from './CommandPalette';
-import DarkModeToggle from './DarkModeToggle';
-import ChatInput from './ChatInput';
+import SplitView from './SplitView';
+import FAB from '../desktop/FAB';
 import { useDesktop } from '../../contexts/DesktopContext';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
 const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron;
 
+// Modules éligibles à la vue séparée (Plan §3.1).
+const SPLIT_MODULES = ['/products', '/clients', '/sales', '/invoices', '/inventory'];
+
 const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
-  const { sidebarCollapsed, toggleSidebar, notifications, setCommandPaletteOpen } = useDesktop();
+  const { commandPaletteOpen, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
 
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('desktop_sidebar_collapsed') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const moduleKey = `/${location.pathname.split('/')[1] || ''}`;
+  const showSplit = !isAIView && SPLIT_MODULES.includes(moduleKey) && !!splitView[moduleKey]?.enabled;
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('desktop_sidebar_collapsed', String(next));
+        localStorage.setItem('desk_sidebar_collapsed', String(next));
       } catch {
         // ignore storage errors
       }
@@ -41,16 +44,31 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     });
   }, []);
 
+  const toggleSidebar = useCallback(() => {
+    if (isMobile) {
+      setMobileOpen((prev) => !prev);
+    } else {
+      toggleCollapsed();
+    }
+  }, [isMobile, toggleCollapsed]);
+
+  const closeMobileSidebar = useCallback(() => setMobileOpen(false), []);
+
+  // Raccourcis clavier globaux (CMD+K, CMD+B, CMD+1-9)
+  useKeyboardShortcuts({ onToggleSidebar: toggleSidebar });
+
   useEffect(() => {
-    const onKey = (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', darkMode ? '#0f172a' : '#f8fafc');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileOpen(false);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     let active = true;
@@ -97,48 +115,68 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     };
   }, []);
 
+  const sidebarClassName = [
+    'desktop-sidebar',
+    isMobile && mobileOpen ? 'is-mobile-open' : '',
+    collapsed && !isMobile ? 'collapsed' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`main-layout desktop-layout${collapsed ? ' is-collapsed' : ''}`}
-      data-theme={darkMode ? 'dark' : undefined}
+      className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}`}
       data-ai={isAIView ? 'true' : undefined}
     >
       {IS_ELECTRON && <TitleBar />}
       <DesktopSidebar
+        className={sidebarClassName}
         collapsed={collapsed}
         counters={counters}
         onToggleCollapse={toggleCollapsed}
-        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenPalette={() => setCommandPaletteOpen(true)}
         onLogout={onLogout}
         darkMode={darkMode}
         onToggleDarkMode={onToggleDarkMode}
       />
 
+      {isMobile && mobileOpen && (
+        <div className="sidebar-backdrop" onClick={closeMobileSidebar} />
+      )}
+
       <div className="desktop-main">
-        <TopBar
-          counters={counters}
-          notifications={notifications}
-          onOpenPalette={() => setPaletteOpen(true)}
-          onToggleSidebar={toggleCollapsed}
-          collapsed={collapsed}
+        <DesktopTopBar
           darkMode={darkMode}
           onToggleDarkMode={onToggleDarkMode}
+          counters={counters}
+          onOpenPalette={() => setCommandPaletteOpen(true)}
+          onToggleSidebar={toggleSidebar}
+          collapsed={collapsed}
+          isMobile={isMobile}
           onLogout={onLogout}
         />
 
         <main className="main-content desktop-content">
-          <Outlet />
+          {showSplit ? (
+            <SplitView
+              module={moduleKey}
+              leftWidth={splitView[moduleKey].leftWidth}
+              onResizeWidth={(w) => setSplitWidth(moduleKey, w)}
+              left={<Outlet />}
+              right={
+                <div className="split-view__right-empty">
+                  <i className="ti ti-layout-sidebar" aria-hidden="true" />
+                  <span>Sélectionnez un élément pour afficher le détail</span>
+                </div>
+              }
+            />
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 
-      {!isAIView && (
-        <>
-          <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
-          <ChatInput />
-        </>
-      )}
+      {!isAIView && <FAB />}
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   );
 };

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { tenantService, subscriptionService } from '../services/api';
+import { VILLES_MADAGASCAR } from '../constants/erpConstants';
 import './SuperAdmin.css';
 
 const SuperAdmin = () => {
@@ -464,7 +465,12 @@ const SuperAdmin = () => {
                 </div>
                 <div className="form-group">
                   <label htmlFor="ville">Ville</label>
-                  <input id="ville" name="ville" value={formData.ville} onChange={handleChange} />
+                  <select id="ville" name="ville" value={formData.ville} onChange={handleChange}>
+                    <option value="">Sélectionnez une ville</option>
+                    {VILLES_MADAGASCAR.map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label htmlFor="code_postal">Code postal</label>

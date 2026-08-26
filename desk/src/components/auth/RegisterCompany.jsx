@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
+import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
 const PLANS = [
@@ -36,7 +37,7 @@ const registerSchema = yup.object().shape({
   acceptTerms: yup.boolean().oneOf([true], 'Vous devez accepter les conditions'),
 });
 
-const RegisterCompany = () => {
+const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
   const navigate = useNavigate();
   const { register: registerAuth, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -97,7 +98,7 @@ const RegisterCompany = () => {
 
     if (result && result.success) {
       const role = (result.user?.role || '').toLowerCase();
-      const redirectTo = role === 'user' ? '/' : '/subscription';
+      const redirectTo = role === 'user' ? '/catalogue' : '/subscription';
       toast.success('Entreprise créée ! Choisissez votre abonnement.');
       navigate(redirectTo);
     }
@@ -111,6 +112,7 @@ const RegisterCompany = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="auth-login"
+      data-theme={darkMode ? 'dark' : undefined}
     >
       <main className="auth-login__layout">
         <section
@@ -123,7 +125,7 @@ const RegisterCompany = () => {
 
           <div className="auth-login__context-inner">
             <div className="auth-login__brand-row">
-              <Link to="/" className="auth-login__brand" aria-label="ERP Pro accueil">
+              <Link to="/login" className="auth-login__brand" aria-label="ERP Pro accueil">
                 <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
                 <span className="auth-login__brand-name">ERP Pro</span>
               </Link>
@@ -161,9 +163,12 @@ const RegisterCompany = () => {
           <div className="auth-login__form-container">
             <div className="auth-login__form-header">
               <span>Création d'entreprise</span>
-              <Link to="/register" className="auth-login__back-link">
-                ← Changer de type
-              </Link>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+                <Link to="/register" className="auth-login__back-link">
+                  ← Changer de type
+                </Link>
+              </div>
             </div>
 
             <div className="auth-login__form-intro">
@@ -188,7 +193,7 @@ const RegisterCompany = () => {
                   <input
                     id="register-company-name"
                     type="text"
-                    placeholder="Tech Solutions SARL"
+                    placeholder="Mada Distribution SARL"
                     {...register('nom_entreprise')}
                     className={errors.nom_entreprise ? 'error' : ''}
                     aria-invalid={Boolean(errors.nom_entreprise)}
@@ -201,7 +206,7 @@ const RegisterCompany = () => {
                 )}
               </div>
 
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-row">
                 <div className="auth-login__field">
                   <label htmlFor="register-company-prenom">Prénom du responsable *</label>
                   <div className="auth-login__input-wrap auth-login__input-wrap--plain">
@@ -306,7 +311,7 @@ const RegisterCompany = () => {
                 )}
               </div>
 
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-row">
                 <div className="auth-login__field">
                   <label htmlFor="register-company-ville">Ville *</label>
                   <div className="auth-login__input-wrap auth-login__input-wrap--plain">

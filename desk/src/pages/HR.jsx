@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { employeService, presenceService, salaireService, primeService } from '../services/api';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 import './HR.css';
 
@@ -22,16 +23,11 @@ const PRESENCE_STATUTS = {
 
 const PAIEMENT_STATUTS = {
   paye: { label: 'Payé', class: 'success' },
-  en_attente: { label: 'En attente', class: 'warning' },
+  non_paye: { label: 'Non payé', class: 'danger' },
   partiel: { label: 'Partiel', class: 'info' },
-  impaye: { label: 'Impayé', class: 'danger' },
 };
 
-const MODES_PAIEMENT = {
-  virement: 'Virement',
-  especes: 'Espèces',
-  cheque: 'Chèque',
-};
+const MODES_PAIEMENT = PAYMENT_METHODS.reduce((acc, m) => ({ ...acc, [m.value]: m.label }), {});
 
 const TYPES_PRIME = {
   performance: 'Performance',
@@ -77,6 +73,9 @@ export default function HR() {
   const [salaires, setSalaires] = useState([]);
   const [primes, setPrimes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [genMois, setGenMois] = useState(new Date().getMonth() + 1);
+  const [genAnnee, setGenAnnee] = useState(new Date().getFullYear());
 
   const [search, setSearch] = useState('');
   const [modalType, setModalType] = useState(null);
@@ -88,16 +87,21 @@ export default function HR() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [e, p, s, pr] = await Promise.all([
+      const [e, p, s, pr] = await Promise.allSettled([
         employeService.getAll(),
         presenceService.getAll(),
         salaireService.getAll(),
         primeService.getAll(),
       ]);
-      setEmployes(e.data.employes || []);
-      setPresences(p.data.presences || []);
-      setSalaires(s.data.salaires || []);
-      setPrimes(pr.data.primes || []);
+      const failed = [e, p, s, pr].filter(r => r.status === 'rejected');
+      if (failed.length > 0) {
+        const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
+        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
+      }
+      setEmployes((e.status === 'fulfilled' ? e.value?.data?.employes || e.value?.data || [] : []));
+      setPresences((p.status === 'fulfilled' ? p.value?.data?.presences || p.value?.data || [] : []));
+      setSalaires((s.status === 'fulfilled' ? s.value?.data?.salaires || s.value?.data || [] : []));
+      setPrimes((pr.status === 'fulfilled' ? pr.value?.data?.primes || pr.value?.data || [] : []));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur de chargement des données RH');
     } finally {
@@ -154,6 +158,7 @@ export default function HR() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     const type = modalType;
     const svc = services[type];
     const raw = forms[type];
@@ -180,6 +185,8 @@ export default function HR() {
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur de sauvegarde');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -192,6 +199,44 @@ export default function HR() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur de suppression');
     }
+  };
+
+  const handleGenerateSalaries = async () => {
+    try {
+      await salaireService.generer({ mois: genMois, annee: genAnnee });
+      toast.success('Salaires générés');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Erreur génération');
+    }
+  };
+
+  const handleMarkPaid = async (s) => {
+    if (!window.confirm('Marquer ce bulletin comme payé ?')) return;
+    try {
+      await salaireService.payer(s.id, { statut_paiement: 'paye', mode_paiement: 'virement' });
+      toast.success('Salaire marqué comme payé');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Erreur paiement');
+    }
+  };
+
+  const handleExport = async (type) => {
+    try {
+      const svc = type === 'presence' ? presenceService : salaireService;
+      const res = await svc.export();
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type === 'presence' ? 'presences' : 'salaires'}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Export CSV téléchargé');
+    } catch (e) { toast.error('Erreur export'); }
   };
 
   const filtered = {
@@ -252,28 +297,28 @@ export default function HR() {
 
       <div className="stats-grid mini">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.total}</span>
             <span className="stat-label">Employés ({summary.actifs} actifs)</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-gold-dark)' }}><i className="ti ti-clock" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-primary-hover)' }}><i className="ti ti-clock" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.presencesMois}</span>
             <span className="stat-label">Présences ce mois</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-success)' }}><i className="ti ti-cash" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-success)' }}><i className="ti ti-cash" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{fmtMoney(summary.masseSalariale)}</span>
             <span className="stat-label">Masse salariale</span>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--erp-critical)' }}><i className="ti ti-trophy" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-danger)' }}><i className="ti ti-trophy" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{fmtMoney(summary.totalPrimes)}</span>
             <span className="stat-label">Total primes</span>
@@ -380,6 +425,7 @@ export default function HR() {
             </div>
             <div className="hr-section-actions">
               <button className="btn-primary" onClick={() => openModal('presence')}>+ Nouvelle présence</button>
+              <button className="btn-secondary" onClick={() => handleExport('presence')}>Exporter CSV</button>
             </div>
           </div>
 
@@ -431,6 +477,12 @@ export default function HR() {
             </div>
             <div className="hr-section-actions">
               <button className="btn-primary" onClick={() => openModal('salaire')}>+ Nouveau salaire</button>
+              <div className="hr-gen-controls">
+                <input type="number" min="1" max="12" value={genMois} onChange={e => setGenMois(Number(e.target.value))} placeholder="Mois" />
+                <input type="number" value={genAnnee} onChange={e => setGenAnnee(Number(e.target.value))} placeholder="Année" />
+                <button className="btn-secondary" onClick={handleGenerateSalaries}>Générer salaires</button>
+              </div>
+              <button className="btn-secondary" onClick={() => handleExport('salaire')}>Exporter CSV</button>
             </div>
           </div>
 
@@ -464,6 +516,7 @@ export default function HR() {
                         <td>{renderBadge(PAIEMENT_STATUTS, s.statut_paiement)}</td>
                         <td>
                           <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal('salaire', s)}><i className="ti ti-edit" aria-hidden="true" /></button>
+                          {s.statut_paiement !== 'paye' && <button className="btn-small btn-success" title="Marquer payé" onClick={() => handleMarkPaid(s)}><i className="ti ti-check" aria-hidden="true" /></button>}
                           <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('salaire', s.id)}><i className="ti ti-trash" aria-hidden="true" /></button>
                         </td>
                       </tr>
@@ -556,7 +609,7 @@ export default function HR() {
                       <div className="form-group"><label>Lieu de naissance</label><input name="lieu_naissance" value={forms.employe.lieu_naissance} onChange={handleChange('employe')} placeholder="Ville" /></div>
                       <div className="form-group full-width"><label>Adresse</label><input name="adresse" value={forms.employe.adresse} onChange={handleChange('employe')} placeholder="Adresse" /></div>
                       <div className="form-group"><label>Email</label><input type="email" name="email" value={forms.employe.email} onChange={handleChange('employe')} placeholder="email@exemple.com" /></div>
-                      <div className="form-group"><label>Téléphone</label><input name="telephone" value={forms.employe.telephone} onChange={handleChange('employe')} placeholder="0600000000" /></div>
+                      <div className="form-group"><label>Téléphone</label><input name="telephone" value={forms.employe.telephone} onChange={handleChange('employe')} placeholder="+261 34 00 000 00" /></div>
                     </div>
                   </div>
 
@@ -624,8 +677,8 @@ export default function HR() {
                     <div className="form-group"><label>Indemnités</label><input type="number" name="indemnites" value={forms.salaire.indemnites} onChange={handleChange('salaire')} placeholder="0" /></div>
                     <div className="form-group"><label>Déductions</label><input type="number" name="deductions" value={forms.salaire.deductions} onChange={handleChange('salaire')} placeholder="0" /></div>
                     <div className="form-group"><label>Avances</label><input type="number" name="avances" value={forms.salaire.avances} onChange={handleChange('salaire')} placeholder="0" /></div>
-                    <div className="form-group"><label>Mode de paiement</label><select name="mode_paiement" value={forms.salaire.mode_paiement} onChange={handleChange('salaire')}><option value="virement">Virement</option><option value="especes">Espèces</option><option value="cheque">Chèque</option></select></div>
-                    <div className="form-group"><label>Statut paiement</label><select name="statut_paiement" value={forms.salaire.statut_paiement} onChange={handleChange('salaire')}><option value="en_attente">En attente</option><option value="paye">Payé</option><option value="partiel">Partiel</option><option value="impaye">Impayé</option></select></div>
+                    <div className="form-group"><label>Mode de paiement</label><select name="mode_paiement" value={forms.salaire.mode_paiement} onChange={handleChange('salaire')}>{PAYMENT_METHODS.map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}</select></div>
+                    <div className="form-group"><label>Statut paiement</label><select name="statut_paiement" value={forms.salaire.statut_paiement} onChange={handleChange('salaire')}><option value="non_paye">Non payé</option><option value="partiel">Partiel</option><option value="paye">Payé</option></select></div>
                     <div className="form-group"><label>Référence paiement</label><input name="reference_paiement" value={forms.salaire.reference_paiement} onChange={handleChange('salaire')} placeholder="Référence" /></div>
                     <div className="form-group full-width"><label>Notes</label><textarea name="notes" value={forms.salaire.notes} onChange={handleChange('salaire')} placeholder="Notes" /></div>
                   </div>
@@ -649,8 +702,8 @@ export default function HR() {
               )}
 
               <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-primary">{editingItem ? 'Mettre à jour' : 'Créer'}</button>
+                <button type="button" className="btn-secondary" onClick={closeModal} disabled={submitting}>Annuler</button>
+                <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingItem ? 'Mettre à jour' : 'Créer')}</button>
               </div>
             </form>
           </div>

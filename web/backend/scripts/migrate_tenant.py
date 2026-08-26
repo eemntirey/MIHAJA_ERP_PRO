@@ -108,21 +108,24 @@ def seed():
         # Créer des produits d'exemple
         produits = [
             Produit(
-                nom='Produit A', reference='PROD-001',
-                prix_achat_ht=10.0, prix_vente_ht=15.0,
-                quantite_stock=100, categorie='Electronique',
+                nom='Riz blanc (sac 50 kg)', reference='PROD-001',
+                prix_achat_ht=102000.0, prix_vente_ht=130000.0,
+                quantite_stock=120, categorie='Alimentaire',
+                unite='sac',
                 tenant_id=tenant.id
             ),
             Produit(
-                nom='Produit B', reference='PROD-002',
-                prix_achat_ht=20.0, prix_vente_ht=30.0,
-                quantite_stock=50, categorie='Electronique',
+                nom='Huile de tournesol (carton 6 x 1 L)', reference='PROD-002',
+                prix_achat_ht=124000.0, prix_vente_ht=160000.0,
+                quantite_stock=35, categorie='Épicerie',
+                unite='carton',
                 tenant_id=tenant.id
             ),
             Produit(
-                nom='Produit C', reference='PROD-003',
-                prix_achat_ht=5.0, prix_vente_ht=10.0,
-                quantite_stock=200, categorie='Alimentaire',
+                nom='Eau minérale (pack 6 x 1,5 L)', reference='PROD-003',
+                prix_achat_ht=5200.0, prix_vente_ht=7500.0,
+                quantite_stock=500, categorie='Boissons',
+                unite='pack',
                 tenant_id=tenant.id
             ),
         ]
@@ -130,13 +133,17 @@ def seed():
         # Créer des clients d'exemple
         clients = [
             Client(
-                code='CLI001', nom='Dupont', prenom='Jean',
-                type='professionnel', email='dupont@example.com',
+                code='CLI001', raison_sociale='Boutique Soa',
+                type='boutique', email='contact@boutiquesoa.mg',
+                ville_facturation='Antananarivo',
+                code_postal_facturation='101',
                 tenant_id=tenant.id
             ),
             Client(
-                code='CLI002', nom='Martin', prenom='Marie',
-                type='particulier', email='martin@example.com',
+                code='CLI002', raison_sociale='Épicerie Fitiavana',
+                type='epicerie', email='contact@epiceriefitiavana.mg',
+                ville_facturation='Antsirabe',
+                code_postal_facturation='110',
                 tenant_id=tenant.id
             ),
         ]
@@ -144,13 +151,15 @@ def seed():
         # Créer des fournisseurs d'exemple
         fournisseurs = [
             Fournisseur(
-                code='FOU001', raison_sociale='Fournisseur A',
-                email='contact@fournisseur-a.com',
+                code='FOU001', raison_sociale='Rizière Mahavelika',
+                type='producteur_local', email='contact@mahavelika.mg',
+                ville='Fianarantsoa',
                 tenant_id=tenant.id
             ),
             Fournisseur(
-                code='FOU002', raison_sociale='Fournisseur B',
-                email='contact@fournisseur-b.com',
+                code='FOU002', raison_sociale='TopAliment Import',
+                type='fournisseur_international', email='info@topaliment.mg',
+                ville='Toamasina',
                 tenant_id=tenant.id
             ),
         ]

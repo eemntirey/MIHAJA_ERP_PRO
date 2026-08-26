@@ -27,6 +27,7 @@ class CommandeAchat(BaseModel):
 
     fournisseur = db.relationship('Fournisseur', back_populates='commandes_achat')
     receptions = db.relationship('ReceptionAchat', back_populates='commande_achat', lazy='dynamic')
+    lignes_achat = db.relationship('LigneAchat', back_populates='commande_achat', lazy='dynamic')
 
     __table_args__ = (
         Index('idx_commande_achat_statut', 'statut'),

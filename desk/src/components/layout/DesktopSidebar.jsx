@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { favoriteService } from '../../services/desktopApi';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
+import ThemeToggle from './ThemeToggle';
 import './DesktopSidebar.css';
 
 const FAVORITES_KEY = 'desktop_favorites';
@@ -19,7 +21,8 @@ const readFavorites = () => {
   try {
     const raw = localStorage.getItem(FAVORITES_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => (typeof item === 'string' ? { path: item } : item));
   } catch {
     return [];
   }
@@ -33,6 +36,7 @@ const DesktopSidebar = ({
   onLogout,
   darkMode,
   onToggleDarkMode,
+  className,
 }) => {
   const { user, hasRole } = useAuth();
   const location = useLocation();
@@ -60,11 +64,38 @@ const DesktopSidebar = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const toggleFavorite = (path) => {
+  useEffect(() => {
+    let active = true;
+    favoriteService.getAll().then((res) => {
+      if (!active) return;
+      const items = Array.isArray(res.data) ? res.data : [];
+      const normalized = items
+        .map((item) => ({ id: item.id, path: item.path || item.to }))
+        .filter((item) => item.path)
+        .slice(0, MAX_FAVORITES);
+      setFavorites(normalized);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const toggleFavorite = async (path) => {
     setFavorites((prev) => {
-      if (prev.includes(path)) return prev.filter((p) => p !== path);
+      const exists = prev.find((f) => f.path === path);
+      if (exists) {
+        favoriteService.remove(exists.id).catch(() => {});
+        return prev.filter((f) => f.path !== path);
+      }
       if (prev.length >= MAX_FAVORITES) return prev;
-      return [...prev, path];
+      const navItem = NAV_ITEMS.find((i) => i.path === path);
+      const newItem = { path, label: navItem?.label };
+      favoriteService.add(newItem).then((res) => {
+        const saved = res.data || newItem;
+        setFavorites((p) => {
+          if (p.some((f) => f.path === saved.path)) return p;
+          return [...p, saved].slice(0, MAX_FAVORITES);
+        });
+      }).catch(() => {});
+      return [...prev, newItem];
     });
   };
 
@@ -76,14 +107,14 @@ const DesktopSidebar = ({
     return null;
   };
 
-  const favoriteItems = NAV_ITEMS.filter((item) => favorites.includes(item.path));
+  const favoriteItems = NAV_ITEMS.filter((item) => favorites.some((f) => f.path === item.path));
   const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g && (g !== 'Admin' || isSuperAdmin))
+    NAV_ITEMS.some((i) => i.group === g)
   );
 
   const renderNavItem = (item) => {
     const badge = badgeValue(item);
-    const isFav = favorites.includes(item.path);
+    const isFav = favorites.some((f) => f.path === item.path);
     return (
       <div className="desktop-sidebar__row" key={item.path}>
         <NavLink
@@ -115,9 +146,9 @@ const DesktopSidebar = ({
   };
 
   return (
-    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Navigation principale">
+    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''} ${className || ''}`} aria-label="Navigation principale">
       <div className="desktop-sidebar__header">
-        <Link to="/" className="desktop-sidebar__brand" aria-label="ERP Pro accueil">
+        <Link to="/dashboard" className="desktop-sidebar__brand" aria-label="ERP Pro accueil">
           <span className="desktop-sidebar__brand-mark" aria-hidden="true">ERP</span>
           {!collapsed && <span className="desktop-sidebar__wordmark">PRO</span>}
         </Link>
@@ -157,7 +188,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group && (group !== 'Admin' || isSuperAdmin)
+                (item) => item.group === group
               ).map(renderNavItem)}
             </div>
           </div>
@@ -188,15 +219,13 @@ const DesktopSidebar = ({
                 <i className="ti ti-user" aria-hidden="true" /> Profil
               </Link>
             )}
-            <button
-              type="button"
+            <ThemeToggle
+              enabled={darkMode}
+              onChange={onToggleDarkMode}
+              menuItem
               className="desktop-sidebar__menu-item"
-              role="menuitem"
-              onClick={() => { setProfileOpen(false); onToggleDarkMode(!darkMode); }}
-            >
-              <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-              {darkMode ? 'Mode clair' : 'Mode sombre'}
-            </button>
+              onClick={() => setProfileOpen(false)}
+            />
             <button
               type="button"
               className="desktop-sidebar__menu-item desktop-sidebar__menu-item--danger"

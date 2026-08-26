@@ -1,7 +1,9 @@
+from decimal import Decimal
+
 from app.models.base import BaseModel
 from app import db
 from sqlalchemy import Numeric, Index, CheckConstraint
-from decimal import Decimal
+
 
 class Produit(BaseModel):
     __tablename__ = 'produits'
@@ -22,6 +24,7 @@ class Produit(BaseModel):
     famille = db.Column(db.String(100))
     marque = db.Column(db.String(100))
     modele = db.Column(db.String(100))
+    unite = db.Column(db.String(50), default='piece')
     
     # Prix
     prix_achat_ht = db.Column(Numeric(10, 2), nullable=False, default=0)
@@ -141,6 +144,7 @@ class Produit(BaseModel):
     
     def ajouter_stock(self, quantite, raison='', utilisateur_id=None):
         """Ajoute du stock"""
+        quantite = Decimal(str(quantite))
         if quantite <= 0:
             raise ValueError("La quantité doit être positive")
         
@@ -162,6 +166,7 @@ class Produit(BaseModel):
     
     def retirer_stock(self, quantite, raison='', utilisateur_id=None):
         """Retire du stock"""
+        quantite = Decimal(str(quantite))
         if quantite <= 0:
             raise ValueError("La quantité doit être positive")
         

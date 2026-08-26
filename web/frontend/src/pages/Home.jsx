@@ -418,7 +418,7 @@ const Home = () => {
                       <span className="badge success">En stock</span>
                     </div>
                     {product.tenant_nom && (
-                      <p style={{ fontSize: '12px', color: 'var(--erp-muted)', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
                         Vendu par <strong>{product.tenant_nom}</strong>
                       </p>
                     )}
@@ -427,12 +427,12 @@ const Home = () => {
                       Stock: {product.quantite_stock ?? product.stock ?? 0}
                     </p>
                     {product.description_courte && (
-                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--erp-muted)' }}>
+                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
                         {product.description_courte}
                       </p>
                     )}
                     {isUser && isAuthenticated ? (
-                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px' }}>
+                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <Link
                           to={`/produits/${product.id}`}
                           className="btn-secondary"
