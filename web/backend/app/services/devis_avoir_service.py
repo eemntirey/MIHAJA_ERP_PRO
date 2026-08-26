@@ -2,6 +2,11 @@ from app import db
 from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
 from app.security.tenant import get_current_tenant_id
 from typing import Optional, Dict, Any, List, Tuple
+import datetime
+
+def _gen_reference(prefix):
+    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    return f'{prefix}-{ts}'
 
 class DevisService:
     model = Devis
@@ -37,6 +42,8 @@ class DevisService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             data['tenant_id'] = tenant_id
+        if not data.get('reference'):
+            data['reference'] = _gen_reference('DEV')
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()
@@ -73,7 +80,7 @@ class DevisService:
             commercial_id=devis.commercial_id,
             total_ht=devis.total_ht,
             total_ttc=devis.total_ttc,
-            mode_paiement='espece',
+            mode_paiement='especes',
             statut='en_attente',
             tenant_id=devis.tenant_id,
         )
@@ -117,6 +124,8 @@ class BonLivraisonService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             data['tenant_id'] = tenant_id
+        if not data.get('reference'):
+            data['reference'] = _gen_reference('BL')
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()
@@ -175,6 +184,8 @@ class AvoirService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             data['tenant_id'] = tenant_id
+        if not data.get('reference'):
+            data['reference'] = _gen_reference('AV')
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()

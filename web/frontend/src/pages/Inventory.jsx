@@ -44,7 +44,6 @@ const Inventory = () => {
         const statsResponse = await stockService.getStats();
         setStockStats(statsResponse.data);
       } catch (e) {
-        console.log('Stats endpoint not available');
       }
     } catch (err) {
       console.error('Error fetching inventory:', err);

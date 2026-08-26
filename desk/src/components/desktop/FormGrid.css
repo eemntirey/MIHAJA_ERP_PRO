@@ -3,10 +3,256 @@
 .form-grid-desktop {
   display: grid;
   gap: 16px;
+  align-items: start;
 }
 
+.form-grid-desktop--dense {
+  gap: 10px;
+}
+
+/* Spans ------------------------------------------------------------------ */
+
+.form-field--span-2 {
+  grid-column: span 2;
+}
+
+.form-field--span-3 {
+  grid-column: span 3;
+}
+
+.form-field--full {
+  grid-column: 1 / -1;
+}
+
+/* Champ ------------------------------------------------------------------ */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.form-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--erp-heading-font);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--erp-muted);
+}
+
+.form-field-required {
+  color: var(--erp-critical);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.form-field-control {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Contrôles : aligné sur le style des formulaires existants (.form-group) */
+.form-field-control > input,
+.form-field-control > select,
+.form-field-control > textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--erp-line-strong);
+  border-radius: 0;
+  font-family: var(--erp-body-font);
+  font-size: 13px;
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+}
+
+.form-field-control > input:focus,
+.form-field-control > select:focus,
+.form-field-control > textarea:focus {
+  outline: none;
+  border-color: var(--erp-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.form-field-control > textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-field-control > input::placeholder,
+.form-field-control > textarea::placeholder {
+  color: var(--erp-subtle);
+}
+
+.main-layout[data-theme='dark'] .form-field-control > input,
+.main-layout[data-theme='dark'] .form-field-control > select,
+.main-layout[data-theme='dark'] .form-field-control > textarea {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .form-field-control > input::placeholder,
+.main-layout[data-theme='dark'] .form-field-control > textarea::placeholder {
+  color: #64748b;
+}
+
+.form-field-hint {
+  font-size: 11px;
+  color: var(--erp-subtle);
+}
+
+.form-field-error {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--erp-critical);
+}
+
+.form-field.has-error .form-field-control > input,
+.form-field.has-error .form-field-control > select,
+.form-field.has-error .form-field-control > textarea {
+  border-color: var(--erp-critical);
+}
+
+/* Section ---------------------------------------------------------------- */
+
+.form-grid-section + .form-grid-section {
+  margin-top: 20px;
+}
+
+.form-grid-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--erp-line);
+}
+
+.form-grid-section-title {
+  margin: 0;
+  font-family: var(--erp-heading-font);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--erp-onyx);
+}
+
+.form-grid-section-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--erp-muted);
+}
+
+.form-grid-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Ligne répétable (lignes de vente, lignes de commande…) */
+.form-line-block {
+  padding: 10px 12px;
+  border: 1px solid var(--erp-line);
+  background: var(--erp-paper);
+}
+
+.form-line-block + .form-line-block {
+  margin-top: 8px;
+}
+
+/* Brouillons ------------------------------------------------------------- */
+
+.form-draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid var(--erp-gold);
+}
+
+.form-draft-banner-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--erp-body-font);
+  font-size: 12px;
+  color: var(--erp-onyx);
+}
+
+.form-draft-banner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-draft-btn {
+  padding: 5px 12px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line-strong);
+  border-radius: 0;
+  font-family: var(--erp-body-font);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.form-draft-btn:hover {
+  border-color: var(--erp-gold);
+}
+
+.form-draft-btn.is-primary {
+  background: var(--erp-onyx);
+  border-color: var(--erp-onyx);
+  color: var(--erp-white);
+}
+
+.form-draft-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--erp-body-font);
+  font-size: 11px;
+  color: var(--erp-subtle);
+}
+
+.form-draft-status.is-error {
+  color: var(--erp-critical);
+}
+
+/* Responsive ------------------------------------------------------------- */
+
 @media (max-width: 1279px) {
+  .form-grid-desktop[data-columns='3'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .form-field--span-3 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 899px) {
   .form-grid-desktop {
     grid-template-columns: 1fr !important;
+  }
+
+  .form-field--span-2,
+  .form-field--span-3 {
+    grid-column: span 1;
   }
 }

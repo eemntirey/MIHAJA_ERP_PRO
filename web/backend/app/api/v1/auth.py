@@ -6,18 +6,29 @@ from flask_jwt_extended import (
     get_jwt_identity,
     create_access_token,
     create_refresh_token,
-    get_jwt,
 )
+from datetime import datetime, timedelta
 from app import db
 from app.security.auth import authenticate_user, hash_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.tenant import Tenant, StatutTenant
+from app.security.roles import is_super_admin
 
 
 api = Namespace(
     'auth',
     description='Authentification et JWT'
 )
+
+
+def _validate_password(password):
+    if not password or len(password) < 8:
+        return 'Le mot de passe doit contenir au moins 8 caracteres'
+    if not any(c.isalpha() for c in password):
+        return 'Le mot de passe doit contenir au moins une lettre'
+    if not any(c.isdigit() for c in password):
+        return 'Le mot de passe doit contenir au moins un chiffre'
+    return None
 
 
 @api.route('/login')
@@ -76,7 +87,7 @@ class AuthMe(Resource):
     def get(self):
         user_id = get_jwt_identity()
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
 
         if not user:
             return {
@@ -86,7 +97,7 @@ class AuthMe(Resource):
         tenant = None
 
         if user.tenant_id:
-            tenant = Tenant.query.get(user.tenant_id)
+            tenant = db.session.get(Tenant, user.tenant_id)
 
         return {
             'user': user.to_dict(),
@@ -97,7 +108,7 @@ class AuthMe(Resource):
     def put(self):
         user_id = get_jwt_identity()
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
 
         if not user:
             return {
@@ -134,6 +145,10 @@ class AuthRegister(Resource):
             return {
                 'message': 'Email, username et mot de passe requis'
             }, 400
+
+        pwd_error = _validate_password(password)
+        if pwd_error:
+            return {'message': pwd_error}, 400
 
         if Utilisateur.query.filter(
             (Utilisateur.email == email) | (Utilisateur.username == username)
@@ -260,7 +275,7 @@ class AuthRefresh(Resource):
     def post(self):
         user_id = get_jwt_identity()
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
 
         if not user:
             return {
@@ -270,7 +285,7 @@ class AuthRefresh(Resource):
         tenant = None
 
         if user.tenant_id:
-            tenant = Tenant.query.get(user.tenant_id)
+            tenant = db.session.get(Tenant, user.tenant_id)
 
         access_token = create_access_token(
             identity=user.id,
@@ -324,10 +339,42 @@ class AuthForgotPassword(Resource):
         email = data.get('email')
         if not email:
             return {'message': 'Email requis'}, 400
+
         user = Utilisateur.query.filter_by(email=email, is_active=True).first()
+
         if user:
-            return {'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'}, 200
-        return {'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'}, 200
+            from app.models.password_reset_token import PasswordResetToken
+
+            PasswordResetToken.query.filter_by(
+                user_id=user.id,
+                used=False
+            ).update({'used': True})
+            db.session.commit()
+
+            raw_token = PasswordResetToken.generate_token()
+            hashed_token = PasswordResetToken.hash_token(raw_token)
+            token = PasswordResetToken(
+                user_id=user.id,
+                token=hashed_token,
+                expires_at=datetime.utcnow() + timedelta(hours=1),
+                ip_address=request.remote_addr,
+            )
+            db.session.add(token)
+            db.session.commit()
+
+            reset_link = (
+                f"{request.host_url.rstrip('/')}"
+                f"/reset-password/{raw_token}"
+            )
+            current_app.logger.info(
+                'Password reset requested for %s from IP %s',
+                user.email,
+                request.remote_addr,
+            )
+
+        return {
+            'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'
+        }, 200
 
 
 @api.route('/reset-password')
@@ -340,25 +387,30 @@ class AuthResetPassword(Resource):
         if not token or not new_password:
             return {'message': 'Token et nouveau mot de passe requis'}, 400
 
+        from app.models.password_reset_token import PasswordResetToken
         from app.security.auth import hash_password
-        from app.models.utilisateur import Utilisateur
-        from datetime import datetime
-        from flask_jwt_extended import decode_token
 
-        try:
-            decoded = decode_token(token)
-            user_id = decoded.get('sub')
-            if not user_id:
-                return {'message': 'Token invalide'}, 400
-        except Exception:
+        reset_tokens = PasswordResetToken.query.filter_by(
+            used=False
+        ).all()
+
+        reset_token = None
+        for t in reset_tokens:
+            if PasswordResetToken.verify_token(token, t.token):
+                reset_token = t
+                break
+
+        if not reset_token or reset_token.is_expired:
             return {'message': 'Token invalide ou expiré'}, 400
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, reset_token.user_id)
         if not user or not user.is_active:
             return {'message': 'Utilisateur non trouvé'}, 404
 
         user.password_hash = hash_password(new_password)
+        reset_token.used = True
         db.session.commit()
+
         return {'message': 'Mot de passe réinitialisé avec succès'}, 200
 
 
@@ -369,14 +421,14 @@ class SuperAdminMe(Resource):
     def get(self):
         user_id = get_jwt_identity()
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
 
         if not user:
             return {
                 'message': 'Utilisateur non trouve'
             }, 404
 
-        if user.role not in [Role.SUPER_ADMIN]:
+        if not is_super_admin(user.role):
             return {
                 'message': 'Acces refuse'
             }, 403
@@ -389,14 +441,14 @@ class SuperAdminMe(Resource):
     def put(self):
         user_id = get_jwt_identity()
 
-        user = Utilisateur.query.get(user_id)
+        user = db.session.get(Utilisateur, user_id)
 
         if not user:
             return {
                 'message': 'Utilisateur non trouve'
             }, 404
 
-        if user.role not in [Role.SUPER_ADMIN]:
+        if not is_super_admin(user.role):
             return {
                 'message': 'Acces refuse'
             }, 403

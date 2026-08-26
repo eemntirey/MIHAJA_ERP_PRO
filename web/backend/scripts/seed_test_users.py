@@ -15,31 +15,31 @@ from app.security.auth import hash_password
 
 app = create_app()
 
-DEFAULT_PASSWORD = os.getenv('SEED_USER_PASSWORD') or secrets.token_urlsafe(12)
+DEFAULT_PASSWORD = "Test1234!"
 
 ENTERPRISE_USERS = [
     {
         'tenant': {
-            'nom': 'DistriPro Entreprise',
-            'slug': 'distripro-entreprise',
-            'domaine': 'distripro.local',
-            'email_contact': 'contact@distripro.com',
-            'telephone': '+261 34 11 223 44',
-            'adresse': '10 Avenue des Entreprises',
-            'ville': 'Antsiranana',
-            'code_postal': '201',
+            'nom': 'DistriFood Madagascar',
+            'slug': 'distrifood-entreprise',
+            'domaine': 'distrifood.local',
+            'email_contact': 'contact@distrifood.mg',
+            'telephone': '+261 32 02 345 67',
+            'adresse': '12 Rue du Commerce',
+            'ville': 'Antananarivo',
+            'code_postal': '101',
             'pays': 'Madagascar',
             'statut': StatutTenant.ACTIF,
             'plan': 'enterprise',
         },
         'user': {
-            'username': 'distripro',
-            'email': 'distripro@erp.com',
+            'username': 'distrifood',
+            'email': 'distrifood@erp.com',
             'password': DEFAULT_PASSWORD,
-            'nom': 'Ramanantoandro',
-            'prenom': 'Alice',
-            'telephone': '+261 34 11 223 44',
-            'role': Role.MANAGER,
+            'nom': 'Ravoahangy',
+            'prenom': 'Mirana',
+            'telephone': '+261 32 02 345 67',
+            'role': Role.ADMIN,
         },
         'abonnement': {
             'montant': 199.0,
@@ -51,12 +51,43 @@ ENTERPRISE_USERS = [
     },
     {
         'tenant': {
-            'nom': 'GrossTech Distribution',
-            'slug': 'grosstech-distribution',
-            'domaine': 'grosstech.local',
-            'email_contact': 'contact@grosstech.com',
-            'telephone': '+261 34 22 334 45',
-            'adresse': '55 Route Nationale',
+            'nom': 'Epicerie Solidaire',
+            'slug': 'epicerie-solidaire-enterprise',
+            'domaine': 'epicerie.local',
+            'email_contact': 'contact@epicerie.mg',
+            'telephone': '+261 33 11 223 44',
+            'adresse': '7 Avenue de l\'Indépendance',
+            'ville': 'Toamasina',
+            'code_postal': '601',
+            'pays': 'Madagascar',
+            'statut': StatutTenant.ACTIF,
+            'plan': 'starter',
+        },
+        'user': {
+            'username': 'epicerie',
+            'email': 'epicerie@erp.com',
+            'password': DEFAULT_PASSWORD,
+            'nom': 'Rabet',
+            'prenom': 'Pascal',
+            'telephone': '+261 33 11 223 44',
+            'role': Role.ADMIN,
+        },
+        'abonnement': {
+            'montant': 29.0,
+            'plan': 'starter',
+            'date_debut': datetime.utcnow(),
+            'date_fin': datetime.utcnow() + timedelta(days=60),
+            'statut': StatutAbonnement.ACTIF,
+        },
+    },
+    {
+        'tenant': {
+            'nom': 'GrosRiz Import',
+            'slug': 'grosriz-distribution',
+            'domaine': 'grosriz.local',
+            'email_contact': 'contact@grosriz.mg',
+            'telephone': '+261 32 55 667 78',
+            'adresse': '25 Zone Industrielle',
             'ville': 'Antsirabe',
             'code_postal': '401',
             'pays': 'Madagascar',
@@ -64,12 +95,12 @@ ENTERPRISE_USERS = [
             'plan': 'pro',
         },
         'user': {
-            'username': 'grosstech',
-            'email': 'grosstech@erp.com',
+            'username': 'grosriz',
+            'email': 'grosriz@erp.com',
             'password': DEFAULT_PASSWORD,
-            'nom': 'Rasoamanarivo',
-            'prenom': 'Paul',
-            'telephone': '+261 34 22 334 45',
+            'nom': 'Rasimandimbison',
+            'prenom': 'Jean',
+            'telephone': '+261 32 55 667 78',
             'role': Role.ADMIN,
         },
         'abonnement': {
@@ -85,10 +116,10 @@ ENTERPRISE_USERS = [
 WHOLESALE_USERS = [
     {
         'tenant': {
-            'nom': 'Wholesale Center',
+            'nom': 'Semi-Gros Analamanga',
             'slug': 'wholesale-center',
-            'domaine': 'wholesale.local',
-            'email_contact': 'contact@wholesale.com',
+            'domaine': 'semigros.local',
+            'email_contact': 'contact@semigros.mg',
             'telephone': '+261 34 33 444 56',
             'adresse': '7 Rue du Grossiste',
             'ville': 'Fianarantsoa',
@@ -152,8 +183,8 @@ SIMPLE_USERS = [
         'username': 'client.simple',
         'email': 'client.simple@erp.com',
         'password': DEFAULT_PASSWORD,
-        'nom': 'Durand',
-        'prenom': 'Marc',
+        'nom': 'Andriana',
+        'prenom': 'Marie',
         'role': Role.USER,
         'statut': StatutUtilisateur.ACTIF,
     },
@@ -161,7 +192,7 @@ SIMPLE_USERS = [
         'username': 'client.pub',
         'email': 'client.pub@erp.com',
         'password': DEFAULT_PASSWORD,
-        'nom': 'Petit',
+        'nom': 'Ravoahangy',
         'prenom': 'Lucie',
         'role': Role.USER,
         'statut': StatutUtilisateur.ACTIF,
@@ -214,22 +245,32 @@ def _seed_produits(tenant):
     produits = [
         Produit(
             reference=f"{tenant.slug.upper()}-PROD-001",
-            nom='Produit Entreprise 1',
-            description_courte='Article professionnel de qualite',
-            categorie='Divers',
-            prix_achat_ht=10.0,
-            prix_vente_ht=15.0,
-            quantite_stock=100,
+            nom='Riz de première qualité',
+            description_courte='Riz sélectionné, grain long, qualité supérieure',
+            categorie='riz',
+            prix_achat_ht=7000.0,
+            prix_vente_ht=9500.0,
+            quantite_stock=120,
             tenant_id=tenant.id,
         ),
         Produit(
             reference=f"{tenant.slug.upper()}-PROD-002",
-            nom='Produit Entreprise 2',
-            description_courte='Article professionnel de qualite',
-            categorie='Divers',
-            prix_achat_ht=20.0,
-            prix_vente_ht=35.0,
-            quantite_stock=50,
+            nom='Huile alimentaire 1L',
+            description_courte='Huile de cuisine premium, bouteille 1L',
+            categorie='huile',
+            prix_achat_ht=10500.0,
+            prix_vente_ht=13500.0,
+            quantite_stock=85,
+            tenant_id=tenant.id,
+        ),
+        Produit(
+            reference=f"{tenant.slug.upper()}-PROD-003",
+            nom='Savon barre',
+            description_courte='Savon hygiène quotidienne, paquet de 5',
+            categorie='savon',
+            prix_achat_ht=6000.0,
+            prix_vente_ht=8500.0,
+            quantite_stock=200,
             tenant_id=tenant.id,
         ),
     ]
@@ -246,7 +287,7 @@ def main():
         for item in ENTERPRISE_USERS:
             _create_enterprise(item, 'ENTERPRISE')
 
-        print("=== Grossistes (wholesaler) ===")
+        print("=== Grossistes (wholesale) ===")
         for item in WHOLESALE_USERS:
             _create_enterprise(item, 'WHOLESALE')
 
@@ -271,8 +312,9 @@ def main():
         db.session.commit()
         print("\nSeed termine. Utilisateurs de test disponibles:")
         print(f" - Mot de passe par defaut: {DEFAULT_PASSWORD}")
-        print(" - Enterprise: distripro@erp.com")
-        print(" - Enterprise: grosstech@erp.com")
+        print(" - Enterprise: distrifood@erp.com")
+        print(" - Enterprise: epicerie@erp.com")
+        print(" - Enterprise: grosriz@erp.com")
         print(" - Wholesale: wholesale@erp.com")
         print(" - Wholesale: grossiste-btp@erp.com")
         print(" - Simple: client.simple@erp.com")

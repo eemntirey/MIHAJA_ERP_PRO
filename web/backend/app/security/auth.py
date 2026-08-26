@@ -51,7 +51,7 @@ def authenticate_user(identifier, password, tenant_slug=None):
             or_(Utilisateur.username == identifier, Utilisateur.email == identifier)
         ).first()
         if user and user.tenant_id:
-            tenant = Tenant.query.get(user.tenant_id)
+            tenant = db.session.get(Tenant, user.tenant_id)
     
     if not user:
         return None, "Utilisateur non trouvé"

@@ -1,6 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
+import DataTable from '../components/desktop/DataTable';
+import FilterPanel from '../components/desktop/FilterPanel';
+import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
+import useFormDraft from '../hooks/useFormDraft';
+import { applyFilters, applySearch } from '../utils/filterUtils';
+import { exportRowsToCsv, timestampedFilename } from '../utils/exportUtils';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -33,15 +40,17 @@ const getStatutBadge = (statut) => {
 };
 
 const getModePaiementLabel = (mode) => {
-  const map = {
-    espece: 'Espèce',
-    virement: 'Virement',
-    cheque: 'Chèque',
-    orange_money: 'Orange Money',
-    airtel_money: 'Airtel Money',
-  };
-  return map[mode] || mode || 'N/A';
+  return PAYMENT_METHOD_LABELS[mode] || mode || 'N/A';
 };
+
+const computeLineTotal = (item) => {
+  const quantite = Number(item?.quantite) || 0;
+  const prix = Number(item?.prix_unitaire) || 0;
+  const tva = Number(item?.taux_tva) || 0;
+  return quantite * prix * (1 + tva / 100);
+};
+
+const computeItemsTotal = (items = []) => items.reduce((sum, item) => sum + computeLineTotal(item), 0);
 
 const Sales = () => {
   const [tab, setTab] = useState('ventes');
@@ -55,21 +64,31 @@ const Sales = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [filters, setFilters] = useState([]);
+  const [appliedFilters, setAppliedFilters] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [viewSale, setViewSale] = useState(null);
   const [viewBl, setViewBl] = useState(null);
   const [viewAvoir, setViewAvoir] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
-  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [saleActionLoading, setSaleActionLoading] = useState(false);
 
-  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
   const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
 
-  const fetchData = async () => {
+  // Brouillons locaux (auto-save toutes les 5 s) des deux formulaires de vente
+  const createDraft = useFormDraft(showModal ? 'ventes:new' : null, formData, { enabled: showModal });
+  const editDraft = useFormDraft(
+    showEditModal && editingSale ? `ventes:${editingSale.id}` : null,
+    editFormData,
+    { enabled: showEditModal }
+  );
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -99,9 +118,9 @@ const Sales = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleAddItem = () => {
     setFormData(prev => ({ ...prev, items: [...prev.items, { produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }] }));
@@ -119,6 +138,23 @@ const Sales = () => {
     });
   };
 
+  // Lignes du formulaire d'édition (état distinct de la création)
+  const handleEditAddItem = () => {
+    setEditFormData(prev => ({ ...prev, items: [...prev.items, { produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }] }));
+  };
+
+  const handleEditRemoveItem = (index) => {
+    setEditFormData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
+  };
+
+  const handleEditItemChange = (index, field, value) => {
+    setEditFormData(prev => {
+      const items = [...prev.items];
+      items[index] = { ...items[index], [field]: value };
+      return { ...prev, items };
+    });
+  };
+
   const handleCreateSale = async (e) => {
     e.preventDefault();
     try {
@@ -129,7 +165,8 @@ const Sales = () => {
       };
       await saleService.create(data);
       toast.success('Vente créée');
-      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'espece', remarque: '' });
+      createDraft.clear();
+      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
   };
@@ -220,7 +257,7 @@ const Sales = () => {
       items: sale.lignes?.map(l => ({ produit_id: l.produit_id ?? '', quantite: l.quantite || 1, prix_unitaire: l.prix_unitaire || 0, taux_tva: l.taux_tva || 20 })) || [],
       date: sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0],
       statut: sale.statut || 'en_attente',
-      mode_paiement: sale.mode_paiement || 'espece',
+      mode_paiement: sale.mode_paiement || 'especes',
       remarque: sale.remarque || ''
     });
     setShowEditModal(true);
@@ -238,6 +275,7 @@ const Sales = () => {
       };
       await saleService.update(editingSale.id, data);
       toast.success('Vente modifiée');
+      editDraft.clear();
       setShowEditModal(false);
       setEditingSale(null);
       fetchData();
@@ -249,44 +287,321 @@ const Sales = () => {
     }
   };
 
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
-    setSortConfig({ key, direction });
+  const badgeCell = (value) => {
+    const badge = getStatutBadge(value);
+    return <span className={`badge ${badge.class}`}>{badge.label}</span>;
   };
 
-  const getSortedFilteredData = (data, searchFields) => {
-    let result = [...data];
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(item =>
-        searchFields.some(field => {
-          const val = item[field];
-          return val && String(val).toLowerCase().includes(term);
-        })
-      );
-    }
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
-        if (aVal == null) return 1;
-        if (bVal == null) return -1;
-        if (typeof aVal === 'string') {
-          return sortConfig.direction === 'asc'
-            ? aVal.localeCompare(bVal)
-            : bVal.localeCompare(aVal);
-        }
-        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-      });
-    }
-    return result;
+  /* ------------------------------------------------------ colonnes DataTable */
+
+  const salesColumns = useMemo(() => [
+    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
+    { key: 'client_nom', label: 'Client', width: 200, render: (v) => v || 'N/A' },
+    { key: 'date', label: 'Date', type: 'date', width: 120, render: (v) => formatDate(v) },
+    { key: 'total_ht', label: 'Total HT', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
+    { key: 'total_ttc', label: 'Total TTC', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
+    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
+    { key: 'mode_paiement', label: 'Mode', width: 130, render: (v) => getModePaiementLabel(v) },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: 130,
+      sortable: false,
+      resizable: false,
+      exportable: false,
+      align: 'center',
+      render: (_v, row) => (
+        <span className="dt-actions">
+          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(row)} disabled={saleActionLoading}>
+            <i className="ti ti-eye" />
+          </button>
+          <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(row)} disabled={saleActionLoading}>
+            <i className="ti ti-edit" />
+          </button>
+          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(row.id)} disabled={saleActionLoading}>
+            <i className="ti ti-trash" />
+          </button>
+        </span>
+      ),
+    },
+
+  ], [saleActionLoading]);
+
+  const devisColumns = useMemo(() => [
+    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
+    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
+    { key: 'date', label: 'Date', type: 'date', width: 115, accessor: (row) => row.date || row.created_at, render: (v) => formatDate(v) },
+    { key: 'total_ht', label: 'Total HT', type: 'number', align: 'right', width: 125, render: (v) => formatCurrency(v) },
+    { key: 'total_ttc', label: 'Total TTC', type: 'number', align: 'right', width: 125, render: (v) => formatCurrency(v) },
+    { key: 'date_validite', label: 'Validité', type: 'date', width: 115, render: (v) => formatDate(v) },
+    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: 100,
+      sortable: false,
+      resizable: false,
+      exportable: false,
+      align: 'center',
+      render: (_v, row) => (
+        <span className="dt-actions">
+          <button className="btn-small btn-edit" title="Convertir en vente" onClick={() => handleConvertDevis(row.id)} disabled={saleActionLoading}>
+            <i className="ti ti-refresh" />
+          </button>
+        </span>
+      ),
+    },
+
+  ], [saleActionLoading]);
+
+  const blColumns = useMemo(() => [
+    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
+    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
+    { key: 'vente_reference', label: 'Vente', width: 140, accessor: (row) => row.vente_reference || row.vente_id, render: (v) => v || 'N/A' },
+    { key: 'adresse_livraison', label: 'Adresse', width: 220, render: (v) => v || 'N/A' },
+    { key: 'date_livraison_prevue', label: 'Date livraison', type: 'date', width: 130, render: (v) => formatDate(v) },
+    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: 90,
+      sortable: false,
+      resizable: false,
+      exportable: false,
+      align: 'center',
+      render: (_v, row) => (
+        <span className="dt-actions">
+          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewBl(row)}>
+            <i className="ti ti-eye" />
+          </button>
+        </span>
+      ),
+    },
+
+  ], []);
+
+  const avoirColumns = useMemo(() => [
+    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
+    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
+    { key: 'montant_ht', label: 'Montant HT', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
+    { key: 'montant_ttc', label: 'Montant TTC', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
+    { key: 'motif', label: 'Motif', width: 240, render: (v) => v || 'N/A' },
+    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: 90,
+      sortable: false,
+      resizable: false,
+      exportable: false,
+      align: 'center',
+      render: (_v, row) => (
+        <span className="dt-actions">
+          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewAvoir(row)}>
+            <i className="ti ti-eye" />
+          </button>
+        </span>
+      ),
+    },
+
+  ], []);
+
+  /* --------------------------------------------------------------- filtres */
+
+  const clientOptions = useMemo(
+    () => [...new Set([...sales, ...devisList, ...bls, ...avoirs].map((r) => r.client_nom).filter(Boolean))],
+    [sales, devisList, bls, avoirs]
+  );
+
+  const salesFilterFields = useMemo(() => [
+    { key: 'reference', label: 'Référence', type: 'text' },
+    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
+    { key: 'date', label: 'Date', type: 'date' },
+    { key: 'total_ht', label: 'Total HT', type: 'number' },
+    { key: 'total_ttc', label: 'Total TTC', type: 'number' },
+    {
+      key: 'statut',
+      label: 'Statut',
+      type: 'select',
+      options: [
+        { value: 'en_attente', label: 'En attente' },
+        { value: 'payee', label: 'Payée' },
+        { value: 'partielle', label: 'Partielle' },
+        { value: 'annulee', label: 'Annulée' },
+      ],
+    },
+    {
+      key: 'mode_paiement',
+      label: 'Mode de paiement',
+      type: 'select',
+      options: PAYMENT_METHODS.map(m => ({ value: m.value, label: m.label })),
+    },
+  ], [clientOptions]);
+
+  const devisFilterFields = useMemo(() => [
+    { key: 'reference', label: 'Référence', type: 'text' },
+    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
+    { key: 'total_ttc', label: 'Total TTC', type: 'number' },
+    { key: 'date_validite', label: 'Validité', type: 'date' },
+    {
+      key: 'statut',
+      label: 'Statut',
+      type: 'select',
+      options: [
+        { value: 'en_attente', label: 'En attente' },
+        { value: 'accepte', label: 'Accepté' },
+        { value: 'refuse', label: 'Refusé' },
+        { value: 'converti', label: 'Converti' },
+        { value: 'expire', label: 'Expiré' },
+      ],
+    },
+  ], [clientOptions]);
+
+  const blFilterFields = useMemo(() => [
+    { key: 'reference', label: 'Référence', type: 'text' },
+    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
+    { key: 'adresse_livraison', label: 'Adresse', type: 'text' },
+    { key: 'date_livraison_prevue', label: 'Date livraison', type: 'date' },
+    {
+      key: 'statut',
+      label: 'Statut',
+      type: 'select',
+      options: [
+        { value: 'prepare', label: 'Préparé' },
+        { value: 'expedie', label: 'Expédié' },
+        { value: 'livre', label: 'Livré' },
+      ],
+    },
+  ], [clientOptions]);
+
+  const avoirFilterFields = useMemo(() => [
+    { key: 'reference', label: 'Référence', type: 'text' },
+    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
+    { key: 'montant_ttc', label: 'Montant TTC', type: 'number' },
+    { key: 'motif', label: 'Motif', type: 'text' },
+    {
+      key: 'statut',
+      label: 'Statut',
+      type: 'select',
+      options: [
+        { value: 'en_attente', label: 'En attente' },
+        { value: 'accepte', label: 'Accepté' },
+        { value: 'rembourse', label: 'Remboursé' },
+        { value: 'annule', label: 'Annulé' },
+      ],
+    },
+  ], [clientOptions]);
+
+  const tabConfig = useMemo(() => ({
+    ventes: { module: 'ventes', fields: salesFilterFields, searchFields: ['reference', 'client_nom', 'statut', 'mode_paiement'] },
+    devis: { module: 'ventes-devis', fields: devisFilterFields, searchFields: ['reference', 'client_nom', 'statut'] },
+    'bons-livraison': { module: 'ventes-bl', fields: blFilterFields, searchFields: ['reference', 'client_nom', 'statut'] },
+    avoirs: { module: 'ventes-avoirs', fields: avoirFilterFields, searchFields: ['reference', 'client_nom', 'motif', 'statut'] },
+  }), [salesFilterFields, devisFilterFields, blFilterFields, avoirFilterFields]);
+
+  const activeTabConfig = tabConfig[tab] || tabConfig.ventes;
+
+  const filterRows = useCallback((rows, fields, searchFields) => {
+    const searched = applySearch(rows, searchTerm, searchFields.map((key) => ({ key })));
+    return applyFilters(searched, appliedFilters, fields);
+  }, [appliedFilters, searchTerm]);
+
+  const filteredSales = useMemo(
+    () => filterRows(sales, salesFilterFields, tabConfig.ventes.searchFields),
+    [filterRows, sales, salesFilterFields, tabConfig]
+  );
+  const filteredDevis = useMemo(
+    () => filterRows(devisList, devisFilterFields, tabConfig.devis.searchFields),
+    [filterRows, devisList, devisFilterFields, tabConfig]
+  );
+  const filteredBls = useMemo(
+    () => filterRows(bls, blFilterFields, tabConfig['bons-livraison'].searchFields),
+    [filterRows, bls, blFilterFields, tabConfig]
+  );
+  const filteredAvoirs = useMemo(
+    () => filterRows(avoirs, avoirFilterFields, tabConfig.avoirs.searchFields),
+    [filterRows, avoirs, avoirFilterFields, tabConfig]
+  );
+
+  /* ------------------------------------------------------- actions groupées */
+
+  const makeExportAction = useCallback((prefix, columns, label) => ({
+    key: 'export',
+    label: 'Exporter CSV',
+    icon: 'ti-download',
+    onClick: (ids, rows) => {
+      const ok = exportRowsToCsv(timestampedFilename(prefix), columns, rows);
+      if (ok) toast.success(`${rows.length} ${label} exporté(s)`);
+      else toast.error("Échec de l'export CSV");
+    },
+  }), []);
+
+  const salesBulkActions = useMemo(() => [
+    makeExportAction('ventes', salesColumns, 'vente(s)'),
+    {
+      key: 'delete',
+      label: 'Supprimer',
+      icon: 'ti-trash',
+      variant: 'danger',
+      confirm: (count) => `Supprimer définitivement ${count} vente(s) ?`,
+      onClick: async (ids) => {
+        const results = await Promise.allSettled(ids.map((id) => saleService.delete(id)));
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        const done = results.length - failed;
+        if (done > 0) toast.success(`${done} vente(s) supprimée(s)`);
+        if (failed > 0) toast.error(`${failed} suppression(s) en échec`);
+        fetchData();
+      },
+    },
+  ], [fetchData, makeExportAction, salesColumns]);
+
+  const devisBulkActions = useMemo(() => [
+    makeExportAction('devis', devisColumns, 'devis'),
+    {
+      key: 'convert',
+      label: 'Convertir en ventes',
+      icon: 'ti-refresh',
+      confirm: (count) => `Convertir ${count} devis en vente(s) ?`,
+      onClick: async (ids) => {
+        const results = await Promise.allSettled(ids.map((id) => devisService.convertir(id)));
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        const done = results.length - failed;
+        if (done > 0) toast.success(`${done} devis converti(s)`);
+        if (failed > 0) toast.error(`${failed} conversion(s) en échec`);
+        fetchData();
+      },
+    },
+  ], [devisColumns, fetchData, makeExportAction]);
+
+  const blBulkActions = useMemo(
+    () => [makeExportAction('bons-livraison', blColumns, 'bon(s) de livraison')],
+    [blColumns, makeExportAction]
+  );
+
+  const avoirBulkActions = useMemo(
+    () => [makeExportAction('avoirs', avoirColumns, 'avoir(s)')],
+    [avoirColumns, makeExportAction]
+  );
+
+  const handleTabChange = (nextTab) => {
+    setTab(nextTab);
+    setSelectedIds([]);
+    setFilters([]);
+    setAppliedFilters([]);
+    setSearchTerm('');
   };
 
-  const getSortIndicator = (key) => {
-    if (sortConfig.key !== key) return '';
-    return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
-  };
+  const renderFilterPanel = () => (
+    <FilterPanel
+      key={tab}
+      module={activeTabConfig.module}
+      fields={activeTabConfig.fields}
+      filters={filters}
+      onFiltersChange={setFilters}
+      onApply={setAppliedFilters}
+      onReset={() => setAppliedFilters([])}
+    />
+  );
 
   if (loading && !sales.length && !products.length && !clients.length && !devisList.length && !bls.length && !avoirs.length) {
     return (
@@ -310,10 +625,7 @@ const Sales = () => {
     );
   }
 
-  const sortedSales = getSortedFilteredData(sales, ['reference', 'client_nom', 'statut', 'mode_paiement']);
-  const sortedDevis = getSortedFilteredData(devisList, ['reference', 'client_nom', 'statut']);
-  const sortedBls = getSortedFilteredData(bls, ['reference', 'client_nom', 'statut']);
-  const sortedAvoirs = getSortedFilteredData(avoirs, ['reference', 'client_nom', 'motif', 'statut']);
+  const sortedSales = filteredSales;
 
   return (
     <div className="page-container">
@@ -321,7 +633,7 @@ const Sales = () => {
         <h1>Ventes</h1>
         <div className="tabs">
           {['ventes', 'devis', 'bons-livraison', 'avoirs'].map(t => (
-            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}</button>
+            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => handleTabChange(t)}>{t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}</button>
           ))}
         </div>
       </div>
@@ -341,53 +653,22 @@ const Sales = () => {
               />
             </div>
           </div>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
-                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
-                  <th onClick={() => handleSort('date')} className="sortable">Date{getSortIndicator('date')}</th>
-                  <th onClick={() => handleSort('total_ttc')} className="sortable">Total TTC{getSortIndicator('total_ttc')}</th>
-                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
-                  <th onClick={() => handleSort('mode_paiement')} className="sortable">Mode{getSortIndicator('mode_paiement')}</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedSales.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="text-center">Aucune vente trouvée</td>
-                  </tr>
-                ) : (
-                  sortedSales.map(s => {
-                    const badge = getStatutBadge(s.statut);
-                    return (
-                      <tr key={s.id}>
-                        <td>{s.reference || 'N/A'}</td>
-                        <td>{s.client_nom || 'N/A'}</td>
-                        <td>{formatDate(s.date)}</td>
-                        <td>{formatCurrency(s.total_ttc)}</td>
-                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
-                        <td>{getModePaiementLabel(s.mode_paiement)}</td>
-                        <td>
-                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(s)} disabled={saleActionLoading}>
-                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-eye" />}
-                          </button>
-                          <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(s)} disabled={saleActionLoading}>
-                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-edit" />}
-                          </button>
-                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(s.id)} disabled={saleActionLoading}>
-                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-trash" />}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {renderFilterPanel()}
+          <DataTable
+            module="ventes"
+            columns={salesColumns}
+            data={sortedSales}
+            rowKey="id"
+            loading={loading}
+            emptyMessage="Aucune vente trouvée"
+            defaultSort={[{ key: 'date', direction: 'desc' }]}
+            selectable
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={salesBulkActions}
+            rowHeight={46}
+            maxHeight={560}
+          />
           {showModal && (
             <div className="modal-overlay">
               <div className="modal large" onClick={e => e.stopPropagation()}>
@@ -396,83 +677,83 @@ const Sales = () => {
                   <button onClick={() => setShowModal(false)} className="btn-close">×</button>
                 </div>
                 <form onSubmit={handleCreateSale} className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Client *</label>
-                      <select value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} required>
+                  <FormDraftBanner draft={createDraft} onRestore={(data) => setFormData(prev => ({ ...prev, ...data }))} />
+                  <FormGrid columns={2}>
+                    <FormField label="Client" required htmlFor="vente-client">
+                      <select id="vente-client" value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} required>
                         <option value="">Client</option>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
                       </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Date</label>
-                      <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Statut</label>
-                      <select value={formData.statut} onChange={e => setFormData({...formData, statut: e.target.value})}>
+                    </FormField>
+                    <FormField label="Date" htmlFor="vente-date">
+                      <input id="vente-date" type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                    </FormField>
+                    <FormField label="Statut" htmlFor="vente-statut">
+                      <select id="vente-statut" value={formData.statut} onChange={e => setFormData({...formData, statut: e.target.value})}>
                         <option value="en_attente">En attente</option>
                         <option value="payee">Payée</option>
                         <option value="annulee">Annulée</option>
                       </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Mode de paiement</label>
-                      <select value={formData.mode_paiement} onChange={e => setFormData({...formData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
+                    </FormField>
+                    <FormField label="Mode de paiement" htmlFor="vente-mode">
+                      <select id="vente-mode" value={formData.mode_paiement} onChange={e => setFormData({...formData, mode_paiement: e.target.value})}>
+                        {PAYMENT_METHODS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
                       </select>
+                    </FormField>
+                    <FormField label="Remarque" span="full" htmlFor="vente-remarque">
+                      <textarea id="vente-remarque" value={formData.remarque} onChange={e => setFormData({...formData, remarque: e.target.value})} rows="2" />
+                    </FormField>
+                  </FormGrid>
+
+                  <div className="form-grid-section">
+                    <div className="form-grid-section-head">
+                      <h4 className="form-grid-section-title">Lignes de vente</h4>
+                      <div className="form-grid-section-actions">
+                        <span className="form-field-hint">Total TTC : {formatCurrency(computeItemsTotal(formData.items))}</span>
+                        <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
+                      </div>
                     </div>
+                    {formData.items.length === 0 ? (
+                      <p className="form-field-hint">Aucune ligne — ajoutez au moins un produit.</p>
+                    ) : (
+                      formData.items.map((item, idx) => (
+                        <div key={idx} className="form-line-block">
+                          <FormGrid columns={3} dense>
+                            <FormField label={`Produit ${idx + 1}`} required>
+                              <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
+                                <option value="">Produit</option>
+                                {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                              </select>
+                            </FormField>
+                            <FormField label="Quantité" required>
+                              <input type="number" min="1" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
+                            </FormField>
+                            <FormField label="Prix HT" required>
+                              <input type="number" min="0" step="0.01" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
+                            </FormField>
+                            <FormField label="TVA %">
+                              <input type="number" min="0" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
+                            </FormField>
+                            <FormField label="Total ligne" hint="TTC">
+                              <input type="text" value={formatCurrency(computeLineTotal(item))} readOnly tabIndex={-1} />
+                            </FormField>
+                            <FormField label="Action">
+                              <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
+                            </FormField>
+                          </FormGrid>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <div className="form-section">
-                    <h3>Lignes de vente</h3>
-                    <div className="form-grid">
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Produit</label>
-                          <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
-                            <option value="">Produit</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Quantité</label>
-                          <input type="number" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Prix HT</label>
-                          <input type="number" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>TVA %</label>
-                          <input type="number" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
-                        </div>
-                      ))}
-                      {formData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Action</label>
-                          <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Remarque</label>
-                    <textarea value={formData.remarque} onChange={e => setFormData({...formData, remarque: e.target.value})} />
-                  </div>
+
                   <div className="modal-footer">
-                    <button type="submit" className="btn-primary">Créer</button>
-                    <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
+                    <FormDraftStatus draft={createDraft} />
+                    <div className="modal-footer-actions">
+                      <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
+                      <button type="submit" className="btn-primary">Créer</button>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -529,84 +810,84 @@ const Sales = () => {
                   <button onClick={() => setShowEditModal(false)} className="btn-close">×</button>
                 </div>
                 <form onSubmit={handleUpdateSale} className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Client *</label>
-                      <select value={editFormData.client_id} onChange={e => setEditFormData({...editFormData, client_id: e.target.value})} required>
+                  <FormDraftBanner draft={editDraft} onRestore={(data) => setEditFormData(prev => ({ ...prev, ...data }))} />
+                  <FormGrid columns={2}>
+                    <FormField label="Client" required htmlFor="vente-edit-client">
+                      <select id="vente-edit-client" value={editFormData.client_id} onChange={e => setEditFormData({...editFormData, client_id: e.target.value})} required>
                         <option value="">Client</option>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
                       </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Date</label>
-                      <input type="date" value={editFormData.date} onChange={e => setEditFormData({...editFormData, date: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Statut</label>
-                      <select value={editFormData.statut} onChange={e => setEditFormData({...editFormData, statut: e.target.value})}>
+                    </FormField>
+                    <FormField label="Date" htmlFor="vente-edit-date">
+                      <input id="vente-edit-date" type="date" value={editFormData.date} onChange={e => setEditFormData({...editFormData, date: e.target.value})} />
+                    </FormField>
+                    <FormField label="Statut" htmlFor="vente-edit-statut">
+                      <select id="vente-edit-statut" value={editFormData.statut} onChange={e => setEditFormData({...editFormData, statut: e.target.value})}>
                         <option value="en_attente">En attente</option>
                         <option value="payee">Payée</option>
                         <option value="partielle">Partielle</option>
                         <option value="annulee">Annulée</option>
                       </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Mode de paiement</label>
-                      <select value={editFormData.mode_paiement} onChange={e => setEditFormData({...editFormData, mode_paiement: e.target.value})}>
-                        <option value="espece">Espèce</option>
-                        <option value="virement">Virement</option>
-                        <option value="cheque">Chèque</option>
-                        <option value="orange_money">Orange Money</option>
-                        <option value="airtel_money">Airtel Money</option>
+                    </FormField>
+                    <FormField label="Mode de paiement" htmlFor="vente-edit-mode">
+                      <select id="vente-edit-mode" value={editFormData.mode_paiement} onChange={e => setEditFormData({...editFormData, mode_paiement: e.target.value})}>
+                        {PAYMENT_METHODS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
                       </select>
+                    </FormField>
+                    <FormField label="Remarque" span="full" htmlFor="vente-edit-remarque">
+                      <textarea id="vente-edit-remarque" value={editFormData.remarque} onChange={e => setEditFormData({...editFormData, remarque: e.target.value})} rows="2" />
+                    </FormField>
+                  </FormGrid>
+
+                  <div className="form-grid-section">
+                    <div className="form-grid-section-head">
+                      <h4 className="form-grid-section-title">Lignes de vente</h4>
+                      <div className="form-grid-section-actions">
+                        <span className="form-field-hint">Total TTC : {formatCurrency(computeItemsTotal(editFormData.items))}</span>
+                        <button type="button" className="btn-secondary" onClick={handleEditAddItem}>+ Ajouter ligne</button>
+                      </div>
                     </div>
+                    {editFormData.items.length === 0 ? (
+                      <p className="form-field-hint">Aucune ligne — ajoutez au moins un produit.</p>
+                    ) : (
+                      editFormData.items.map((item, idx) => (
+                        <div key={idx} className="form-line-block">
+                          <FormGrid columns={3} dense>
+                            <FormField label={`Produit ${idx + 1}`} required>
+                              <select value={item.produit_id} onChange={e => handleEditItemChange(idx, 'produit_id', e.target.value)} required>
+                                <option value="">Produit</option>
+                                {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                              </select>
+                            </FormField>
+                            <FormField label="Quantité" required>
+                              <input type="number" min="1" value={item.quantite} onChange={e => handleEditItemChange(idx, 'quantite', e.target.value)} required />
+                            </FormField>
+                            <FormField label="Prix HT" required>
+                              <input type="number" min="0" step="0.01" value={item.prix_unitaire} onChange={e => handleEditItemChange(idx, 'prix_unitaire', e.target.value)} required />
+                            </FormField>
+                            <FormField label="TVA %">
+                              <input type="number" min="0" value={item.taux_tva} onChange={e => handleEditItemChange(idx, 'taux_tva', e.target.value)} />
+                            </FormField>
+                            <FormField label="Total ligne" hint="TTC">
+                              <input type="text" value={formatCurrency(computeLineTotal(item))} readOnly tabIndex={-1} />
+                            </FormField>
+                            <FormField label="Action">
+                              <button type="button" className="btn-small btn-danger" onClick={() => handleEditRemoveItem(idx)}>Supprimer</button>
+                            </FormField>
+                          </FormGrid>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <div className="form-section">
-                    <h3>Lignes de vente</h3>
-                    <div className="form-grid">
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Produit</label>
-                          <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
-                            <option value="">Produit</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Quantité</label>
-                          <input type="number" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Prix HT</label>
-                          <input type="number" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>TVA %</label>
-                          <input type="number" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
-                        </div>
-                      ))}
-                      {editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-group">
-                          <label>Action</label>
-                          <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Remarque</label>
-                    <textarea value={editFormData.remarque} onChange={e => setEditFormData({...editFormData, remarque: e.target.value})} />
-                  </div>
+
                   <div className="modal-footer">
-                    <button type="submit" className="btn-primary">Enregistrer</button>
-                    <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Fermer</button>
+                    <FormDraftStatus draft={editDraft} />
+                    <div className="modal-footer-actions">
+                      <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Fermer</button>
+                      <button type="submit" className="btn-primary" disabled={saleActionLoading}>Enregistrer</button>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -660,49 +941,22 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
-                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
-                  <th>Date</th>
-                  <th>Total HT</th>
-                  <th>Total TTC</th>
-                  <th>Validité</th>
-                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedDevis.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="text-center">Aucun devis trouvé</td>
-                  </tr>
-                ) : (
-                  sortedDevis.map(d => {
-                    const badge = getStatutBadge(d.statut);
-                    return (
-                      <tr key={d.id}>
-                        <td>{d.reference || 'N/A'}</td>
-                        <td>{d.client_nom || 'N/A'}</td>
-                        <td>{formatDate(d.date || d.created_at)}</td>
-                        <td>{formatCurrency(d.total_ht)}</td>
-                        <td>{formatCurrency(d.total_ttc)}</td>
-                        <td>{formatDate(d.date_validite)}</td>
-                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
-                        <td>
-                          <button className="btn-small btn-edit" title="Convertir" onClick={() => handleConvertDevis(d.id)}>
-                            <i className="ti ti-refresh" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {renderFilterPanel()}
+          <DataTable
+            module="ventes-devis"
+            columns={devisColumns}
+            data={filteredDevis}
+            rowKey="id"
+            loading={loading}
+            emptyMessage="Aucun devis trouvé"
+            defaultSort={[{ key: 'date', direction: 'desc' }]}
+            selectable
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={devisBulkActions}
+            rowHeight={46}
+            maxHeight={520}
+          />
           {viewBl && (
             <div className="modal-overlay" onClick={() => setViewBl(null)}>
               <div className="modal" onClick={e => e.stopPropagation()}>
@@ -771,47 +1025,22 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
-                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
-                  <th>Vente</th>
-                  <th>Adresse</th>
-                  <th>Date livraison</th>
-                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedBls.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="text-center">Aucun bon de livraison trouvé</td>
-                  </tr>
-                ) : (
-                  sortedBls.map(b => {
-                    const badge = getStatutBadge(b.statut);
-                    return (
-                      <tr key={b.id}>
-                        <td>{b.reference || 'N/A'}</td>
-                        <td>{b.client_nom || 'N/A'}</td>
-                        <td>{b.vente_reference || b.vente_id || 'N/A'}</td>
-                        <td>{b.adresse_livraison || 'N/A'}</td>
-                        <td>{formatDate(b.date_livraison_prevue)}</td>
-                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
-                        <td>
-                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewBl(b)}>
-                            <i className="ti ti-eye" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {renderFilterPanel()}
+          <DataTable
+            module="ventes-bl"
+            columns={blColumns}
+            data={filteredBls}
+            rowKey="id"
+            loading={loading}
+            emptyMessage="Aucun bon de livraison trouvé"
+            defaultSort={[{ key: 'date_livraison_prevue', direction: 'desc' }]}
+            selectable
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={blBulkActions}
+            rowHeight={46}
+            maxHeight={520}
+          />
           {viewAvoir && (
             <div className="modal-overlay" onClick={() => setViewAvoir(null)}>
               <div className="modal" onClick={e => e.stopPropagation()}>
@@ -880,47 +1109,21 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
-                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
-                  <th>Montant HT</th>
-                  <th>Montant TTC</th>
-                  <th>Motif</th>
-                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAvoirs.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="text-center">Aucun avoir trouvé</td>
-                  </tr>
-                ) : (
-                  sortedAvoirs.map(a => {
-                    const badge = getStatutBadge(a.statut);
-                    return (
-                      <tr key={a.id}>
-                        <td>{a.reference || 'N/A'}</td>
-                        <td>{a.client_nom || 'N/A'}</td>
-                        <td>{formatCurrency(a.montant_ht)}</td>
-                        <td>{formatCurrency(a.montant_ttc)}</td>
-                        <td>{a.motif || 'N/A'}</td>
-                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
-                        <td>
-                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewAvoir(a)}>
-                            <i className="ti ti-eye" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {renderFilterPanel()}
+          <DataTable
+            module="ventes-avoirs"
+            columns={avoirColumns}
+            data={filteredAvoirs}
+            rowKey="id"
+            loading={loading}
+            emptyMessage="Aucun avoir trouvé"
+            selectable
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            bulkActions={avoirBulkActions}
+            rowHeight={46}
+            maxHeight={520}
+          />
         </div>
       )}
     </div>

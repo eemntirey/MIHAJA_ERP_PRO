@@ -1,0 +1,114 @@
+/* src/styles/themes.css */
+
+@import './tokens.css';
+
+/* ===== Dark Mode ===== */
+.main-layout[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #1e293b;
+
+  --color-text: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  --color-border: #334155;
+  --color-border-subtle: #334155;
+  --color-border-strong: #475569;
+
+  --color-onyx: #e2e8f0;
+  --color-onyx-soft: #334155;
+  --color-white: #0f172a;
+  --color-paper: #1e293b;
+  --color-line: #334155;
+  --color-line-strong: #475569;
+  --color-muted: #94a3b8;
+  --color-subtle: #64748b;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Backward compatibility for existing selectors */
+.main-layout[data-theme='dark'] body,
+.main-layout[data-theme='dark'] .app,
+.main-layout[data-theme='dark'] .page-container,
+.main-layout[data-theme='dark'] .main-content,
+.main-layout[data-theme='dark'] .main-header,
+.main-layout[data-theme='dark'] .chat-input-bar,
+.main-layout[data-theme='dark'] .chat-input-form {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.main-layout[data-theme='dark'] .main-header {
+  border-color: var(--color-border);
+}
+
+.main-layout[data-theme='dark'] .card,
+.main-layout[data-theme='dark'] .stat-card,
+.main-layout[data-theme='dark'] .auth-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.main-layout[data-theme='dark'] .nav-link,
+.main-layout[data-theme='dark'] a {
+  color: var(--color-text);
+}
+
+.main-layout[data-theme='dark'] input,
+.main-layout[data-theme='dark'] textarea,
+.main-layout[data-theme='dark'] select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.main-layout[data-theme='dark'] .btn-primary,
+.main-layout[data-theme='dark'] .btn-secondary,
+.main-layout[data-theme='dark'] .chat-input-send,
+.main-layout[data-theme='dark'] .logout-btn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.main-layout[data-theme='dark'] .btn-primary:hover,
+.main-layout[data-theme='dark'] .btn-secondary:hover,
+.main-layout[data-theme='dark'] .chat-input-send:hover,
+.main-layout[data-theme='dark'] .logout-btn:hover {
+  background: var(--color-onyx-soft);
+  border-color: var(--color-border-strong);
+}
+
+/* Loading screen */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 18px;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+.auth-loading,
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 16px;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+.main-layout[data-theme='dark'] .auth-loading,
+.main-layout[data-theme='dark'] .page-loading {
+  background: var(--color-background);
+  color: var(--color-text);
+}

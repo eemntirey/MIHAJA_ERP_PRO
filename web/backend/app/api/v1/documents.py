@@ -1,8 +1,8 @@
 from flask_restx import Namespace, Resource
 from flask import send_file, abort
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required, get_current_tenant
 from app.services.document_service import ModeleDocumentService, DocumentGenereService
-from app.utils.pdf_generator import generate_report_pdf
+from app.utils.pdf_generator import generate_document_pdf
 from app.utils.qr_generator import generate_qr_code
 from app import db
 from datetime import datetime
@@ -101,13 +101,14 @@ class GenererDocument(Resource):
     @tenant_required
     def post(self):
         from flask import request
+        from app.models.tenant import Tenant
         data = request.get_json()
         modele_id = data.get('modele_id')
         type_document = data.get('type_document')
         reference = data.get('reference')
         entite_type = data.get('entite_type')
         entite_id = data.get('entite_id')
-        donnees = data.get('donnees', {})
+        donnees = data.get('donnees', {}) or {}
 
         modele = ModeleDocumentService.get_by_id(modele_id)
         if not modele:
@@ -117,10 +118,34 @@ class GenererDocument(Resource):
 
         html_content = modele.contenu_modele
         for key, value in donnees.items():
-            html_content = html_content.replace('{{' + key + '}}', str(value) if value else '')
+            html_content = html_content.replace('{{' + key + '}}', str(value) if value is not None else '')
+
+        tenant = None
+        current_tenant = get_current_tenant()
+        if current_tenant:
+            tenant = current_tenant.to_dict()
+        else:
+            tenant_user = None
+            from flask_jwt_extended import get_jwt
+            claims = get_jwt() or {}
+            tenant_id = claims.get('tenant_id')
+            if tenant_id:
+                tenant_obj = db.session.get(Tenant, tenant_id)
+                if tenant_obj:
+                    tenant = tenant_obj.to_dict()
+
+        modele_dict = modele.to_dict()
+        modele_dict.pop('tenant_id', None)
 
         filename = f"{type_document}_{reference}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-        pdf_path = generate_report_pdf(filename, [donnees], f"{type_document.upper()} - {reference}")
+        pdf_path = generate_document_pdf(
+            filename=filename,
+            type_document=type_document,
+            reference=reference,
+            donnees=donnees,
+            tenant=tenant,
+            modele=modele_dict,
+        )
 
         document = DocumentGenereService.create({
             'modele_id': modele.id,

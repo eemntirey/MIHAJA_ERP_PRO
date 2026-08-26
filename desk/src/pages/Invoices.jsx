@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { factureService, saleService, clientService, paiementService } from '../services/api';
 import { toast } from 'react-toastify';
+import { PAYMENT_METHODS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Invoices = () => {
@@ -30,7 +31,7 @@ const Invoices = () => {
   const [paymentData, setPaymentData] = useState({
     facture_id: '',
     montant: 0,
-    mode_paiement: 'espece',
+    mode_paiement: 'especes',
     date: new Date().toISOString().split('T')[0],
     remarque: '',
   });
@@ -156,7 +157,7 @@ const Invoices = () => {
     setPaymentData({
       facture_id: invoice.id,
       montant: total - paid,
-      mode_paiement: 'espece',
+      mode_paiement: 'especes',
       date: new Date().toISOString().split('T')[0],
       remarque: '',
     });
@@ -501,10 +502,9 @@ const Invoices = () => {
                     onChange={(e) => handleChange(e, setPaymentData)}
                     required
                   >
-                    <option value="espece">Espèces</option>
-                    <option value="carte">Carte bancaire</option>
-                    <option value="virement">Virement</option>
-                    <option value="cheque">Chèque</option>
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">

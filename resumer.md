@@ -13,96 +13,93 @@
 #### 📁 **Structure et fichiers clés**
 
 **Configuration et structure :**
-- `web/backend/app/__init__.py` - Configuration Flask complète avec JWT, SQLAlchemy, RESTX, CORS, auto-seeding
-- `web/backend/app/api/v1/__init__.py` - Initialisation des namespaces API
+- `web/backend/app/__init__` - Configuration Flask complète avec JWT, SQLAlchemy, RESTX, CORS, auto-seeding
+- `web/backend/app/api/v1/__init__` - Initialisation des namespaces API
 
 **Endpoints API (20+ namespaces) :**
-- `web/backend/app/api/v1/test.py` - Endpoint de test fonctionnel
-- `web/backend/app/api/v1/auth.py` - Authentification JWT avec tenant_slug
-- `web/backend/app/api/v1/clients.py` - CRUD Clients avec tenant_required
-- `web/backend/app/api/v1/produits.py` - CRUD Produits avec tenant_required
-- `web/backend/app/api/v1/fournisseurs.py` - CRUD Fournisseurs
-- `web/backend/app/api/v1/ventes.py` - Gestion des ventes
-- `web/backend/app/api/v1/stocks.py` - Gestion des stocks
-- `web/backend/app/api/v1/factures.py` - Gestion des factures
-- `web/backend/app/api/v1/paiements.py` - Gestion des paiements
-- `web/backend/app/api/v1/dashboard.py` - Dashboard avec statistiques
-- `web/backend/app/api/v1/ai.py` - Endpoints IA (placeholders)
-- `web/backend/app/api/v1/public.py` - API publique (catalogue, commandes, suivi)
-- `web/backend/app/api/v1/tenants.py` - Gestion des tenants (Super Admin)
-- `web/backend/app/api/v1/abonnements.py` - Gestion des abonnements
-- `web/backend/app/api/v1/livraisons.py` - Livreurs, véhicules, itinéraires, livraisons, suivi
-- `web/backend/app/api/v1/rh.py` - Employés, présences, salaires, primes
-- `web/backend/app/api/v1/comptabilite.py` - Comptes, écritures, trésorerie
-- `web/backend/app/api/v1/documents.py` - Modèles et génération de documents
-- `web/backend/app/api/v1/achats_devis.py` - Commandes d'achat, réceptions, devis, bons de livraison, avoirs
-- `web/backend/app/api/v1/roles.py` - Gestion des rôles personnalisés
-- `web/backend/app/api/v1/permissions.py` - Gestion des permissions
-- `web/backend/app/api/v1/users.py` - Gestion des utilisateurs
+- `web/backend/app/api/v1/test` - Endpoint de test fonctionnel
+- `web/backend/app/api/v1/auth` - Authentification JWT avec tenant_slug
+- `web/backend/app/api/v1/clients` - CRUD Clients avec tenant_required
+- `web/backend/app/api/v1/produits` - CRUD Produits avec tenant_required
+- `web/backend/app/api/v1/fournisseurs` - CRUD Fournisseurs
+- `web/backend/app/api/v1/ventes` - Gestion des ventes
+- `web/backend/app/api/v1/stocks` - Gestion des stocks
+- `web/backend/app/api/v1/factures` - Gestion des factures
+- `web/backend/app/api/v1/paiements` - Gestion des paiements
+- `web/backend/app/api/v1/dashboard` - Dashboard avec statistiques
+- `web/backend/app/api/v1/ai` - Endpoints IA (placeholders)
+- `web/backend/app/api/v1/public` - API publique (catalogue, commandes, suivi)
+- `web/backend/app/api/v1/tenants` - Gestion des tenants (Super Admin)
+- `web/backend/app/api/v1/abonnements` - Gestion des abonnements
+- `web/backend/app/api/v1/livraisons` - Livreurs, véhicules, itinéraires, livraisons, suivi
+- `web/backend/app/api/v1/rh` - Employés, présences, salaires, primes
+- `web/backend/app/api/v1/comptabilite` - Comptes, écritures, trésorerie
+- `web/backend/app/api/v1/documents` - Modèles et génération de documents
+- `web/backend/app/api/v1/achats_devis` - Commandes d'achat, réceptions, devis, bons de livraison, avoirs
+- `web/backend/app/api/v1/roles` - Gestion des rôles personnalisés
+- `web/backend/app/api/v1/permissions` - Gestion des permissions
+- `web/backend/app/api/v1/users` - Gestion des utilisateurs
 
 **Modèles de données (35+ modèles) :**
-- `web/backend/app/models/base.py` - BaseModel avec tenant_id, timestamps, soft-delete
-- `web/backend/app/models/tenant.py` - Modèle Tenant complet
-- `web/backend/app/models/utilisateur.py` - Utilisateur avec rôles et permissions personnalisées
-- `web/backend/app/models/client.py` - Client avec typologies
-- `web/backend/app/models/fournisseur.py` - Fournisseur avec infos légales
-- `web/backend/app/models/produit.py` - Produit avec stock, pricing, catégories, marques
-- `web/backend/app/models/vente.py` - Vente
-- `web/backend/app/models/stock.py` - MouvementStock
-- `web/backend/app/models/facture.py` - Facture
-- `web/backend/app/models/paiement.py` - Paiement
-- `web/backend/app/models/commande_fournisseur.py` - Commande fournisseur
-- `web/backend/app/models/facture_fournisseur.py` - Facture fournisseur
-- `web/backend/app/models/ligne_vente.py` - Ligne de vente
-- `web/backend/app/models/ligne_achat.py` - Ligne d'achat
-- `web/backend/app/models/abonnement.py` - Abonnement
-- `web/backend/app/models/commande_client.py` - Commande client (marketplace)
-- `web/backend/app/models/livreur.py` - Livreur
-- `web/backend/app/models/vehicule.py` - Véhicule
-- `web/backend/app/models/itineraire.py` - Itinéraire
-- `web/backend/app/models/livraison.py` - Livraison
-- `web/backend/app/models/suivi_livraison.py` - Suivi de livraison
-- `web/backend/app/models/employe.py` - Employé (RH)
-- `web/backend/app/models/presence.py` - Présence (RH)
-- `web/backend/app/models/salaire.py` - Salaire (RH)
-- `web/backend/app/models/prime.py` - Prime (RH)
-- `web/backend/app/models/compte_comptable.py` - Plan comptable
-- `web/backend/app/models/ecriture_comptable.py` - Écriture comptable
-- `web/backend/app/models/tresorerie.py` - Trésorerie
-- `web/backend/app/models/modele_document.py` - Modèle de document
-- `web/backend/app/models/document_genere.py` - Document généré
-- `web/backend/app/models/commande_achat.py` - Commande d'achat
-- `web/backend/app/models/devis_avoir_bl.py` - Devis, avoirs, bons de livraison
-- `web/backend/app/models/role_permission.py` - Rôle personnalisé et permissions
-- `web/backend/app/models/devis_avoir_bl.py` - Devis, avoirs, BL
+- `web/backend/app/models/base` - BaseModel avec tenant_id, timestamps, soft-delete
+- `web/backend/app/models/tenant` - Modèle Tenant complet
+- `web/backend/app/models/utilisateur` - Utilisateur avec rôles et permissions personnalisées
+- `web/backend/app/models/client` - Client avec typologies
+- `web/backend/app/models/fournisseur` - Fournisseur avec infos légales
+- `web/backend/app/models/produit` - Produit avec stock, pricing, catégories, marques
+- `web/backend/app/models/vente` - Vente
+- `web/backend/app/models/stock` - MouvementStock
+- `web/backend/app/models/facture` - Facture
+- `web/backend/app/models/paiement` - Paiement
+- `web/backend/app/models/commande_fournisseur` - Commande fournisseur
+- `web/backend/app/models/facture_fournisseur` - Facture fournisseur
+- `web/backend/app/models/ligne_vente` - Ligne de vente
+- `web/backend/app/models/ligne_achat` - Ligne d'achat
+- `web/backend/app/models/abonnement` - Abonnement
+- `web/backend/app/models/commande_client` - Commande client (marketplace)
+- `web/backend/app/models/livreur` - Livreur
+- `web/backend/app/models/vehicule` - Véhicule
+- `web/backend/app/models/itineraire` - Itinéraire
+- `web/backend/app/models/livraison` - Livraison
+- `web/backend/app/models/suivi_livraison` - Suivi de livraison
+- `web/backend/app/models/employe` - Employé (RH)
+- `web/backend/app/models/presence` - Présence (RH)
+- `web/backend/app/models/salaire` - Salaire (RH)
+- `web/backend/app/models/prime` - Prime (RH)
+- `web/backend/app/models/compte_comptable` - Plan comptable
+- `web/backend/app/models/ecriture_comptable` - Écriture comptable
+- `web/backend/app/models/tresorerie` - Trésorerie
+- `web/backend/app/models/modele_document` - Modèle de document
+- `web/backend/app/models/document_genere` - Document généré
+- `web/backend/app/models/commande_achat` - Commande d'achat
+- `web/backend/app/models/devis_avoir_bl` - Devis, avoirs, bons de livraison
+- `web/backend/app/models/role_permission` - Rôle personnalisé et permissions
 
 **Services métier (20+ services) :**
-- `web/backend/app/services/base_service.py` - CRUD générique avec filtrage tenant
-- `web/backend/app/services/auth_service.py` - Service Auth
-- `web/backend/app/services/produit_service.py` - Service Produit complet
-- `web/backend/app/services/client_service.py` - Service Client complet
-- `web/backend/app/services/fournisseur_service.py` - Service Fournisseur complet
-- `web/backend/app/services/vente_service.py` - Service Vente
-- `web/backend/app/services/stock_service.py` - Service Stock
-- `web/backend/app/services/facturation_service.py` - Service Facturation
-- `web/backend/app/services/paiement_service.py` - Service Paiement
-- `web/backend/app/services/dashboard_service.py` - Service Dashboard
-- `web/backend/app/services/abonnement_service.py` - Service Abonnement
-- `web/backend/app/services/commande_service.py` - Service Commande
-- `web/backend/app/services/livraison_service.py` - Service Livraison
-- `web/backend/app/services/rh_service.py` - Service RH
-- `web/backend/app/services/comptabilite_service.py` - Service Comptabilité
-- `web/backend/app/services/document_service.py` - Service Documents
-- `web/backend/app/services/achat_service.py` - Service Achats
-- `web/backend/app/services/devis_avoir_service.py` - Service Devis/Avoirs
-- `web/backend/app/services/facturation_service.py` - Service Facturation
+- `web/backend/app/services/base_service` - CRUD générique avec filtrage tenant
+- `web/backend/app/services/auth_service` - Service Auth
+- `web/backend/app/services/produit_service` - Service Produit complet (inclut stock/search/count)
+- `web/backend/app/services/client_service` - Service Client complet
+- `web/backend/app/services/fournisseur_service` - Service Fournisseur complet
+- `web/backend/app/services/vente_service` - Service Vente
+- `web/backend/app/services/facturation_service` - Service Facturation
+- `web/backend/app/services/paiement_service` - Service Paiement
+- `web/backend/app/services/dashboard_service` - Service Dashboard
+- `web/backend/app/services/abonnement_service` - Service Abonnement
+- `web/backend/app/services/commande_service` - Service Commande
+- `web/backend/app/services/livraison_service` - Service Livraison
+- `web/backend/app/services/rh_service` - Service RH
+- `web/backend/app/services/comptabilite_service` - Service Comptabilité
+- `web/backend/app/services/document_service` - Service Documents
+- `web/backend/app/services/achat_service` - Service Achats
+- `web/backend/app/services/devis_avoir_service` - Service Devis/Avoirs
 
 **Sécurité :**
-- `web/backend/app/security/tenant.py` - Middleware multi-tenant complet
-- `web/backend/app/security/auth.py` - Authentification JWT + bcrypt
-- `web/backend/app/security/roles.py` - Système de rôles et permissions
-- `web/backend/app/security/permissions.py` - Système de permissions granulaires
-- `web/backend/app/security/encryption.py` - Chiffrement
+- `web/backend/app/security/tenant` - Middleware multi-tenant complet
+- `web/backend/app/security/auth` - Authentification JWT + bcrypt
+- `web/backend/app/security/roles` - Système de rôles et permissions
+- `web/backend/app/security/permissions` - Système de permissions granulaires
+- `web/backend/app/security/encryption` - Chiffrement
 
 **Utilitaires :**
 - `web/backend/app/utils/` - PDF, Barcode, Excel, QR generators, validators, logger
@@ -126,7 +123,6 @@
 - `web/frontend/src/components/layout/` - MainLayout
 - `web/frontend/src/contexts/` - AuthContext, CartContext
 - `web/frontend/src/services/api.js` - Services API complets (tous les modules)
-- `web/frontend/src/hooks/useAuth.js` - Hooks personnalisés
 
 ### Desktop (Electron) - `desk/`
 
@@ -138,6 +134,48 @@
 - `desk/src/contexts/` - AuthContext, DesktopContext
 - `desk/src/services/api.js` - Services API identiques au web
 - `desk/package.json` - Configuration Electron avec scripts de build
+
+---
+
+## Nettoyage du code mort - 21 août 2026
+
+### Fichiers supprimés
+
+**Frontend :**
+- `web/frontend/src/hooks/useAuth.js` — hooks `useAuthHook`, `usePermission`, `useRole` jamais importés
+- `web/frontend/src/components/landing/Hero.jsx` — composant landing jamais importé, absent du routing
+- `web/frontend/src/components/landing/Footer.jsx` — composant landing jamais importé, absent du routing
+- `web/frontend/src/components/landing/Header.jsx` — composant landing jamais importé, absent du routing
+- `web/frontend/src/components/landing/Testimonials.jsx` — composant landing jamais importé, absent du routing
+- `web/frontend/src/components/landing/TrustBar.jsx` — composant landing jamais importé, absent du routing
+- `web/frontend/src/pages/Untitled-1.txt` — fichier résiduel sans référence
+
+**Backend :**
+- `web/backend/app/services/stock_service.py` — jamais importé, logique doublon de `ProduitService`
+
+### Code mort supprimé dans fichiers existants
+
+- `web/backend/app/services/base_service.py` : méthodes `search()` et `count()` supprimées (jamais appelées)
+- `web/frontend/src/services/api.js` : `authService.refresh` supprimé (jamais utilisé, refresh géré par intercepteur axios)
+- `web/frontend/src/services/api.js` : 3 `console.log` de debug supprimés
+- `web/frontend/src/contexts/AuthContext.jsx` : 7 `console.log` de debug supprimés
+- `web/frontend/src/App.js` : 6 `console.log` de debug supprimés dans `ProtectedRoute`
+- `web/frontend/src/pages/Inventory.jsx` : 1 `console.log` supprimé
+
+### Fichiers conservés
+
+- `web/backend/app/utils/malagasy_data.py` — **KEEP** : utilisé par `scripts/seed_mada_business.py`
+- `web/backend/app/services/base_service.py` — **KEEP** : utilisé par `FournisseurService`, `CommandeService`, `ClientService`
+- `web/frontend/src/components/landing/Catalog.jsx` — **KEEP** : utilisé par `pages/Catalogue.jsx`
+- `web/frontend/src/components/landing/OrderTracking.jsx` — **KEEP** : utilisé par `pages/Suivi.jsx`
+- `desk/src/components/landing/` — **KEEP** : projet Desktop séparé, non touché
+
+### Vérifications effectuées
+
+- ✅ Aucun import cassé vers les fichiers supprimés
+- ✅ Routes React intactes
+- ✅ Build frontend réussi
+- ✅ Syntaxe Python valide
 
 ---
 

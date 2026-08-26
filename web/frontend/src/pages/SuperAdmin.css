@@ -1,3 +1,5 @@
+@import '../styles/tokens.css';
+
 /* src/pages/SuperAdmin.css */
 
 .superadmin-page {
@@ -8,7 +10,7 @@
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
-  border-bottom: 1px solid var(--erp-line);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .superadmin-tab {
@@ -17,21 +19,21 @@
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   transition: all 0.2s ease;
-  font-family: var(--erp-body-font);
+  font-family: var(--font-body);
 }
 
 .superadmin-tab:hover {
-  color: var(--erp-onyx);
+  color: var(--color-onyx);
 }
 
 .superadmin-tab--active {
-  color: var(--erp-onyx);
-  border-bottom-color: var(--erp-onyx);
+  color: var(--color-onyx);
+  border-bottom-color: var(--color-onyx);
 }
 
 @media (max-width: 768px) {

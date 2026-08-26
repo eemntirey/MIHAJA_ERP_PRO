@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { compteService, ecritureService, tresorerieService } from '../services/api';
+import { PAYMENT_METHODS } from '../constants/erpConstants';
 import './Pages.css';
 
 export default function Accounting() {
@@ -9,39 +10,87 @@ export default function Accounting() {
     const [ecritures, setEcritures] = useState([]);
     const [tresoreries, setTresoreries] = useState([]);
     const [solde, setSolde] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
 
+    const STATUT_ECRITURES = {
+      brouillon: { label: 'Brouillon', class: 'warning' },
+      valide: { label: 'Validé', class: 'success' },
+      annule: { label: 'Annulé', class: 'danger' },
+    };
+
     const [compteForm, setCompteForm] = useState({ numero: '', nom: '', type_compte: 'actif', sous_compte_id: '' });
     const [ecritureForm, setEcritureForm] = useState({ date: '', compte_id: '', montant_debit: '', montant_credit: '', libelle: '', reference_externe: '', entite_type: '', entite_id: '', piece_joint: '' });
-    const [tresForm, setTresForm] = useState({ date: '', type_operation: 'entree', montant: '', mode_paiement: 'espece', libelle: '', compte_bancaire: '', reference: '' });
+    const [tresForm, setTresForm] = useState({ date: '', type_operation: 'entree', montant: '', mode_paiement: 'especes', libelle: '', compte_bancaire: '', reference: '' });
 
     const [editingId, setEditingId] = useState(null);
     const [editingType, setEditingType] = useState(null);
     const [importFile, setImportFile] = useState(null);
     const [importPreview, setImportPreview] = useState([]);
+    const [journal, setJournal] = useState(null);
+    const [journalLoading, setJournalLoading] = useState(false);
+    const [loadError, setLoadError] = useState(null);
 
     const fetchAll = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
-            const [c, e, t] = await Promise.all([compteService.getAll(), ecritureService.getAll(), tresorerieService.getAll()]);
-            setComptes(c.data.comptes || []);
-            setEcritures(e.data.ecritures || []);
-            setTresoreries(t.data.tresoreries || []);
-        } catch (err) { toast.error('Erreur chargement'); }
+            const [c, e, t] = await Promise.allSettled([compteService.getAll(), ecritureService.getAll(), tresorerieService.getAll()]);
+            const failed = [c, e, t].filter(r => r.status === 'rejected');
+            if (failed.length > 0) {
+              const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
+              const errMsg = msgs.join(', ');
+              toast.warning(`Chargement partiel: ${errMsg}`);
+              setLoadError(errMsg);
+            }
+            setComptes((c.status === 'fulfilled' ? c.value?.data?.comptes || c.value?.data || [] : []));
+            setEcritures((e.status === 'fulfilled' ? e.value?.data?.ecritures || e.value?.data || [] : []));
+            setTresoreries((t.status === 'fulfilled' ? t.value?.data?.tresoreries || t.value?.data || [] : []));
+        } catch (err) {
+            const msg = err.response?.data?.message || err.message || 'Erreur chargement';
+            toast.error(msg);
+            setLoadError(msg);
+        }
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchAll(); }, []);
+    const fetchJournal = async () => {
+        setJournalLoading(true);
+        setJournal(null);
+        try {
+            const res = await ecritureService.getJournal();
+            setJournal(res.data);
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message || 'Erreur journal';
+            toast.error(msg);
+            setJournal(null);
+        }
+        finally { setJournalLoading(false); }
+    };
 
     const fetchSolde = async () => {
         try { const res = await tresorerieService.getSolde(); setSolde(res.data.solde); }
         catch (e) { toast.error('Erreur solde'); }
     };
 
+    useEffect(() => { fetchAll(); fetchSolde(); fetchJournal(); }, []);
+
+    if (loading && comptes.length === 0 && ecritures.length === 0 && tresoreries.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement de la comptabilité...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleSubmit = async (e, type) => {
         e.preventDefault();
+        setSubmitting(true);
         try {
             let data;
             if (type === 'compte') data = { ...compteForm, sous_compte_id: compteForm.sous_compte_id ? Number(compteForm.sous_compte_id) : null };
@@ -52,6 +101,7 @@ export default function Accounting() {
             else { await svc.create(data); toast.success('Créé'); }
             resetForm(type); fetchAll();
         } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
+        finally { setSubmitting(false); }
     };
 
     const handleDelete = async (type, id) => {
@@ -70,7 +120,7 @@ export default function Accounting() {
         setEditingId(item.id); setEditingType(type);
         if (type === 'compte') setCompteForm({ numero: item.numero || '', nom: item.nom || '', type_compte: item.type_compte || 'actif', sous_compte_id: item.sous_compte_id || '' });
         else if (type === 'ecriture') setEcritureForm({ date: item.date ? item.date.slice(0, 10) : '', compte_id: item.compte_id || '', montant_debit: item.montant_debit || '', montant_credit: item.montant_credit || '', libelle: item.libelle || '', reference_externe: item.reference_externe || '', entite_type: item.entite_type || '', entite_id: item.entite_id || '', piece_joint: item.piece_joint || '' });
-        else if (type === 'tresorerie') setTresForm({ date: item.date ? item.date.slice(0, 10) : '', type_operation: item.type_operation || 'entree', montant: item.montant || '', mode_paiement: item.mode_paiement || 'espece', libelle: item.libelle || '', compte_bancaire: item.compte_bancaire || '', reference: item.reference || '' });
+        else if (type === 'tresorerie') setTresForm({ date: item.date ? item.date.slice(0, 10) : '', type_operation: item.type_operation || 'entree', montant: item.montant || '', mode_paiement: item.mode_paiement || 'especes', libelle: item.libelle || '', compte_bancaire: item.compte_bancaire || '', reference: item.reference || '' });
         setTab(type === 'compte' ? 'comptes' : type === 'ecriture' ? 'ecritures' : 'tresorerie');
     };
 
@@ -78,7 +128,7 @@ export default function Accounting() {
         setEditingId(null); setEditingType(null);
         if (type === 'compte') setCompteForm({ numero: '', nom: '', type_compte: 'actif', sous_compte_id: '' });
         else if (type === 'ecriture') setEcritureForm({ date: '', compte_id: '', montant_debit: '', montant_credit: '', libelle: '', reference_externe: '', entite_type: '', entite_id: '', piece_joint: '' });
-        else if (type === 'tresorerie') setTresForm({ date: '', type_operation: 'entree', montant: '', mode_paiement: 'espece', libelle: '', compte_bancaire: '', reference: '' });
+        else if (type === 'tresorerie') setTresForm({ date: '', type_operation: 'entree', montant: '', mode_paiement: 'especes', libelle: '', compte_bancaire: '', reference: '' });
     };
 
     const handleImportFile = (e) => {
@@ -118,22 +168,49 @@ export default function Accounting() {
     };
 
     const handleValider = async (id) => {
-        await ecritureService.valider(id); toast.success('Écriture validée'); fetchAll();
+        await ecritureService.valider(id); toast.success('Écriture validée'); fetchAll(); fetchSolde(); fetchJournal();
     };
     const handleAnnuler = async (id) => {
-        await ecritureService.annuler(id); toast.success('Écriture annulée'); fetchAll();
+        await ecritureService.annuler(id); toast.success('Écriture annulée'); fetchAll(); fetchSolde(); fetchJournal();
+    };
+
+    const handleExport = async (type) => {
+        try {
+            const svc = type === 'compte' ? compteService : type === 'ecriture' ? ecritureService : tresorerieService;
+            const res = await svc.export();
+            const blob = new Blob([res.data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${type === 'compte' ? 'comptes' : type === 'ecriture' ? 'ecritures' : 'tresorerie'}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Export CSV téléchargé');
+        } catch (e) { toast.error('Erreur export'); }
     };
 
     return (
         <div className="page-container">
+            {loadError && (
+                <div className="card" style={{marginBottom: 16, borderLeft: '4px solid #e74c3c'}}>
+                    <h3 style={{color: '#e74c3c'}}>Erreur de chargement</h3>
+                    <p>{loadError}</p>
+                    <button className="btn-secondary" onClick={fetchAll}>Réessayer</button>
+                </div>
+            )}
             <div className="page-header">
                 <h1>Comptabilité</h1>
                 <div className="tabs">
-                    {['comptes', 'ecritures', 'tresorerie'].map(t => (
+                    {['comptes', 'ecritures', 'tresorerie', 'journal'].map(t => (
                         <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setEditingId(null); setImportFile(null); setImportResult(null); }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
                     ))}
                 </div>
                 {tab === 'tresorerie' && <button className="btn-primary" onClick={fetchSolde}>Voir solde</button>}
+                {tab === 'journal' && <button className="btn-secondary" onClick={fetchJournal}>Actualiser le journal</button>}
+                <button className="btn-secondary" onClick={() => handleExport(tab === 'comptes' ? 'compte' : tab === 'ecritures' ? 'ecriture' : 'tresorerie')}>Exporter CSV</button>
+                {tab === 'journal' && <button className="btn-secondary" onClick={() => handleExport('ecriture')}>Exporter journal CSV</button>}
             </div>
 
             {solde !== null && <div className="stats-row"><div className="stat-card"><h3>Solde trésorerie</h3><p className="stat-value">{solde.toFixed(2)} MGA</p></div></div>}
@@ -179,9 +256,9 @@ export default function Accounting() {
                             </select>
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">{editingType === 'compte' ? 'Modifier' : 'Créer'}</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'compte' ? 'Modifier' : 'Créer')}</button>
                         </div>
-                        {editingType === 'compte' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('compte')}>Annuler</button></div>}
+                        {editingType === 'compte' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('compte')} disabled={submitting}>Annuler</button></div>}
                     </form>
 
                     <div className="import-section">
@@ -198,7 +275,7 @@ export default function Accounting() {
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Numéro</th><th>Nom</th><th>Type</th><th>Solde</th><th>Actions</th></tr></thead>
-                        <tbody>{comptes.map(c => <tr key={c.id}><td>{c.numero}</td><td>{c.nom}</td><td>{c.type_compte}</td><td>{c.solde}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(c, 'compte')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('compte', c.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{comptes.length === 0 ? <tr><td colSpan="5" className="text-muted" style={{textAlign: 'center'}}>Aucun compte comptable</td></tr> : comptes.map(c => <tr key={c.id}><td>{c.numero}</td><td>{c.nom}</td><td>{c.type_compte}</td><td>{c.solde}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(c, 'compte')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('compte', c.id)}>Supprimer</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -243,9 +320,9 @@ export default function Accounting() {
                             <input type="number" value={ecritureForm.entite_id} onChange={e => setEcritureForm({...ecritureForm, entite_id: e.target.value})} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">{editingType === 'ecriture' ? 'Modifier' : 'Créer'}</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'ecriture' ? 'Modifier' : 'Créer')}</button>
                         </div>
-                        {editingType === 'ecriture' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('ecriture')}>Annuler</button></div>}
+                        {editingType === 'ecriture' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('ecriture')} disabled={submitting}>Annuler</button></div>}
                     </form>
 
                     <div className="import-section">
@@ -262,7 +339,7 @@ export default function Accounting() {
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Date</th><th>Compte</th><th>Débit</th><th>Crédit</th><th>Libellé</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>{ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${ec.statut}`}>{ec.statut}</span></td><td><button className="btn-small btn-primary" onClick={() => handleValider(ec.id)}>Valider</button> <button className="btn-small btn-secondary" onClick={() => handleAnnuler(ec.id)}>Annuler</button> <button className="btn-small btn-delete" onClick={() => handleDelete('ecriture', ec.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{ecritures.length === 0 ? <tr><td colSpan="7" className="text-muted" style={{textAlign: 'center'}}>Aucune écriture comptable</td></tr> : ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td><td><button className="btn-small btn-primary" onClick={() => handleValider(ec.id)}>Valider</button> <button className="btn-small btn-secondary" onClick={() => handleAnnuler(ec.id)}>Annuler</button> <button className="btn-small btn-delete" onClick={() => handleDelete('ecriture', ec.id)}>Supprimer</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -289,10 +366,9 @@ export default function Accounting() {
                         <div className="form-group">
                             <label>Mode de paiement</label>
                             <select value={tresForm.mode_paiement} onChange={e => setTresForm({...tresForm, mode_paiement: e.target.value})}>
-                                <option value="espece">Espèce</option>
-                                <option value="virement">Virement</option>
-                                <option value="cheque">Chèque</option>
-                                <option value="mobile_money">Mobile Money</option>
+                              {PAYMENT_METHODS.map(m => (
+                                <option key={m.value} value={m.value}>{m.label}</option>
+                              ))}
                             </select>
                         </div>
                         <div className="form-group">
@@ -308,7 +384,7 @@ export default function Accounting() {
                             <input value={tresForm.reference} onChange={e => setTresForm({...tresForm, reference: e.target.value})} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">Créer</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Créer'}</button>
                         </div>
                     </form>
 
@@ -326,8 +402,54 @@ export default function Accounting() {
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Mode</th><th>Libellé</th><th>Actions</th></tr></thead>
-                        <tbody>{tresoreries.map(t => <tr key={t.id}><td>{t.date}</td><td>{t.type_operation}</td><td>{t.montant}</td><td>{t.mode_paiement}</td><td>{t.libelle}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(t, 'tresorerie')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('tresorerie', t.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{tresoreries.length === 0 ? <tr><td colSpan="6" className="text-muted" style={{textAlign: 'center'}}>Aucune entrée de trésorerie</td></tr> : tresoreries.map(t => <tr key={t.id}><td>{t.date}</td><td>{t.type_operation}</td><td>{t.montant}</td><td>{t.mode_paiement}</td><td>{t.libelle}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(t, 'tresorerie')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('tresorerie', t.id)}>Supprimer</button></td></tr>)}</tbody></table>
                     </div>
+                </div>
+            )}
+
+            {tab === 'journal' && (
+                <div className="card">
+                    <h3>Journal des écritures (solde courant)</h3>
+                    {journalLoading ? (
+                        <p className="text-muted">Chargement du journal…</p>
+                    ) : journal ? (
+                        <>
+                            <div className="stats-row">
+                                <div className="stat-card"><h4>Total débit</h4><p className="stat-value">{journal.total_debit.toFixed(2)}</p></div>
+                                <div className="stat-card"><h4>Total crédit</h4><p className="stat-value">{journal.total_credit.toFixed(2)}</p></div>
+                            </div>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>Date</th><th>Compte</th><th>N° compte</th><th>Débit</th><th>Crédit</th><th>Libellé</th><th>Statut</th><th>Solde courant</th></tr></thead>
+                                <tbody>{journal.ecritures.map(ec => (
+                                    <tr key={ec.id}>
+                                        <td>{ec.date?.slice(0, 10)}</td>
+                                        <td>{ec.compte_nom}</td>
+                                        <td>{ec.compte_numero}</td>
+                                        <td>{ec.montant_debit}</td>
+                                        <td>{ec.montant_credit}</td>
+                                        <td>{ec.libelle}</td>
+                                        <td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td>
+                                        <td>{ec.solde_courant}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                            <h4 style={{marginTop: 16}}>Solde par compte</h4>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>Numéro</th><th>Nom</th><th>Débit</th><th>Crédit</th><th>Solde</th></tr></thead>
+                                <tbody>{journal.comptes_resume.map(c => (
+                                    <tr key={c.compte_id}>
+                                        <td>{c.numero}</td>
+                                        <td>{c.nom}</td>
+                                        <td>{c.debit.toFixed(2)}</td>
+                                        <td>{c.credit.toFixed(2)}</td>
+                                        <td>{c.solde.toFixed(2)}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-muted">Aucune donnée de journal disponible</p>
+                    )}
                 </div>
             )}
         </div>

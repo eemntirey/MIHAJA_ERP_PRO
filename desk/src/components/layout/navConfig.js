@@ -17,6 +17,9 @@ export const NAV_ITEMS = [
   { path: '/documents', label: 'Documents', icon: 'ti-file-description', group: 'Gestion' },
   { path: '/ai', label: 'Assistant IA', icon: 'ti-robot', group: 'Gestion' },
   { path: '/super-admin', label: 'Administration', icon: 'ti-settings', group: 'Admin' },
+  { path: '/users', label: 'Utilisateurs', icon: 'ti-users', group: 'Admin' },
+  { path: '/roles', label: 'Rôles', icon: 'ti-user-cog', group: 'Admin' },
+  { path: '/permissions', label: 'Permissions', icon: 'ti-key', group: 'Admin' },
 ];
 
 export const NAV_GROUPS = ['Piloter', 'Opérations', 'Gestion', 'Admin'];
@@ -25,11 +28,13 @@ export const findNavItem = (pathname) =>
   NAV_ITEMS.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`));
 
 // Construit un fil d'Ariane cliquable à partir de l'URL (Plan §4.3).
-export const buildBreadcrumb = (pathname) => {
+export const buildBreadcrumb = (pathname, isAuthenticated = true) => {
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs = [{ label: 'Accueil', to: '/dashboard' }];
+  const crumbs = isAuthenticated
+    ? [{ label: 'Accueil', to: '/dashboard' }]
+    : [{ label: 'Connexion', to: '/login' }];
 
-  const root = segments[0] ? `/${segments[0]}` : '/dashboard';
+  const root = segments[0] ? `/${segments[0]}` : (isAuthenticated ? '/dashboard' : '/login');
   const navItem = NAV_ITEMS.find((item) => item.path === root);
 
   if (navItem) {

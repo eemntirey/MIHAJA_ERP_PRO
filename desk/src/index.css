@@ -1,6 +1,12 @@
 /* src/index.css */
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@500;600;700;800&display=swap');
+
+@import './styles/tokens.css';
 
 * {
   margin: 0;
@@ -8,32 +14,10 @@
   box-sizing: border-box;
 }
 
-:root {
-  --erp-onyx: #111111;
-  --erp-onyx-soft: #2a2a2a;
-  --erp-gold: #d4af37;
-  --erp-gold-dark: #cda233;
-  --erp-white: #ffffff;
-  --erp-paper: #f7f7f5;
-  --erp-line: #e6e6e1;
-  --erp-line-strong: #deded8;
-  --erp-muted: #77776f;
-  --erp-subtle: #9a9a92;
-  --erp-critical: #b96e55;
-  --erp-success: #6e9b79;
-  --erp-heading-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --erp-body-font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --text-primary: #111111;
-  --text-secondary: #77776f;
-  --card-bg: #ffffff;
-  --border-color: #e6e6e1;
-  --bg-secondary: #f7f7f5;
-}
-
 body {
-  font-family: var(--erp-body-font);
-  background: var(--erp-white);
-  color: var(--erp-onyx);
+  font-family: var(--font-body);
+  background: var(--color-background);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -46,109 +30,71 @@ body {
   min-height: 100vh;
 }
 
-/* Dark mode via data-theme attribute */
-.main-layout[data-theme='dark'] {
-  color-scheme: dark;
-  --erp-onyx: #e2e8f0;
-  --erp-onyx-soft: #334155;
-  --erp-white: #0f172a;
-  --erp-paper: #1e293b;
-  --erp-line: #334155;
-  --erp-line-strong: #475569;
-  --erp-muted: #94a3b8;
-  --erp-subtle: #64748b;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --card-bg: #1e293b;
-  --border-color: #334155;
-  --bg-secondary: #0f172a;
+[data-theme='dark'] body,
+[data-theme='dark'] #root {
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
-.main-layout[data-theme='dark'] body,
-.main-layout[data-theme='dark'] .app,
-.main-layout[data-theme='dark'] .page-container,
-.main-layout[data-theme='dark'] .card,
-.main-layout[data-theme='dark'] .stat-card,
-.main-layout[data-theme='dark'] .auth-card,
-.main-layout[data-theme='dark'] .home-page,
-.main-layout[data-theme='dark'] .main-content,
-.main-layout[data-theme='dark'] .main-header,
-.main-layout[data-theme='dark'] .chat-input-bar,
-.main-layout[data-theme='dark'] .chat-input-form {
-  background: #0f172a;
-  color: #e2e8f0;
-}
-
-.main-layout[data-theme='dark'] .main-header {
-  border-color: #1e293b;
-}
-
-.main-layout[data-theme='dark'] .card,
-.main-layout[data-theme='dark'] .stat-card,
-.main-layout[data-theme='dark'] .auth-card {
-  border-color: #1e293b;
-}
-
-.main-layout[data-theme='dark'] .nav-link,
-.main-layout[data-theme='dark'] a {
-  color: #e2e8f0;
-}
-
-.main-layout[data-theme='dark'] input,
-.main-layout[data-theme='dark'] textarea,
-.main-layout[data-theme='dark'] select {
-  background: #1e293b;
-  color: #e2e8f0;
-  border-color: #334155;
-}
-
-.main-layout[data-theme='dark'] .btn-primary,
-.main-layout[data-theme='dark'] .btn-secondary,
-.main-layout[data-theme='dark'] .chat-input-send,
-.main-layout[data-theme='dark'] .logout-btn {
-  background: #1e293b;
-  color: #e2e8f0;
-  border-color: #334155;
-}
-
-.main-layout[data-theme='dark'] .btn-primary:hover,
-.main-layout[data-theme='dark'] .btn-secondary:hover,
-.main-layout[data-theme='dark'] .chat-input-send:hover,
-.main-layout[data-theme='dark'] .logout-btn:hover {
-  background: #334155;
-}
-
-/* Loading screen */
 .loading-screen {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   font-size: 18px;
-  color: var(--erp-onyx);
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+.auth-loading,
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 16px;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+[data-theme='dark'] .auth-loading,
+[data-theme='dark'] .page-loading {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.dark .auth-loading,
+.dark .page-loading {
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--erp-white);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--erp-gold);
-  border-radius: 0;
+  background: var(--color-border);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--erp-gold-dark);
+  background: var(--color-text-muted);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 /* Selection */
 ::selection {
-  background: var(--erp-gold);
-  color: var(--erp-onyx);
+  background: var(--color-primary);
+  color: var(--color-onyx);
 }

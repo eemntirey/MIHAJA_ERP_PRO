@@ -1,78 +1,76 @@
 // src/components/layout/DesktopTopBar.jsx
-import React, { useState, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDesktop } from '../../contexts/DesktopContext';
-import CommandPalette from './CommandPalette';
+import { notificationService } from '../../services/desktopApi';
+import Breadcrumbs from './Breadcrumbs';
 import NotificationDropdown from './NotificationDropdown';
-import DarkModeToggle from './DarkModeToggle';
+import ThemeToggle from './ThemeToggle';
 import './DesktopTopBar.css';
 
-const BREADCRUMB_MAP = {
-  '/dashboard': ['Tableau de bord'],
-  '/products': ['Produits'],
-  '/clients': ['Piloter', 'Clients'],
-  '/sales': ['Piloter', 'Ventes'],
-  '/invoices': ['Piloter', 'Factures'],
-  '/payments': ['Piloter', 'Paiements'],
-  '/inventory': ['Opérations', 'Stock'],
-  '/suppliers': ['Opérations', 'Fournisseurs'],
-  '/purchases': ['Opérations', 'Achats'],
-  '/delivery': ['Opérations', 'Livraisons'],
-  '/hr': ['Gestion', 'Ressources Humaines'],
-  '/accounting': ['Gestion', 'Comptabilité'],
-  '/documents': ['Gestion', 'Documents'],
-  '/ai': ['Gestion', 'Assistant IA'],
-  '/subscription': ['Compte', 'Abonnement'],
-  '/super-admin': ['Admin', 'Administration'],
-};
-
-const DesktopTopBar = ({ darkMode, onToggleDarkMode }) => {
-  const location = useLocation();
+const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, isMobile, onLogout }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { setCommandPaletteOpen, unreadCount } = useDesktop();
+  const { user, hasRole } = useAuth();
+  const { setCommandPaletteOpen, notifications, unreadCount } = useDesktop();
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
 
-  const path = location.pathname;
-  const crumbs = useMemo(() => {
-    const base = BREADCRUMB_MAP[path] || ['Page'];
-    return base;
-  }, [path]);
+  // Fermer le dropdown notifications au clic extérieur
+  useEffect(() => {
+    const onClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
 
-  const quickStats = useMemo(() => {
-    if (path === '/inventory') return [
-      { label: 'Stock critique', value: '2', tone: 'danger' },
-    ];
-    if (path === '/invoices') return [
-      { label: 'Impayés', value: '12 450 Ar', tone: 'warning' },
-    ];
-    if (path === '/sales') return [
-      { label: 'Ventes du jour', value: '3', tone: 'success' },
-    ];
-    return [];
-  }, [path]);
+  // Synchronisation du badge du dock Electron
+  useEffect(() => {
+    notificationService.setBadge(unreadCount).catch(() => {});
+  }, [unreadCount]);
 
-  const openCommandPalette = () => setCommandPaletteOpen(true);
+  const indicators = useMemo(() => [
+    { key: 'stock', label: 'Stock critique', value: counters.stock, icon: 'ti-alert-triangle', to: '/inventory', tone: 'critical' },
+    { key: 'invoices', label: 'Impayés', value: counters.invoices, icon: 'ti-file-text', to: '/invoices', tone: 'warn' },
+    { key: 'sales', label: 'Ventes du jour', value: counters.salesToday, icon: 'ti-receipt', to: '/sales', tone: 'ok' },
+  ].filter((i) => i.value > 0), [counters]);
+
+  const openCommandPalette = () => {
+    if (onOpenPalette) onOpenPalette();
+    else setCommandPaletteOpen(true);
+  };
 
   return (
     <header className="desktop-topbar">
-      <div className="topbar-left">
-        <nav className="topbar-breadcrumb" aria-label="Fil d'Ariane">
-          {crumbs.map((crumb, i) => (
-            <span key={i} className="topbar-crumb">
-              {i > 0 && <i className="ti ti-chevron-right" aria-hidden="true" />}
-              {i === crumbs.length - 1 ? <strong>{crumb}</strong> : <span>{crumb}</span>}
-            </span>
-          ))}
-        </nav>
+      <div className="desktop-topbar__left">
+        {onToggleSidebar && (
+          <button
+            type="button"
+            className="desktop-topbar__toggle"
+            onClick={onToggleSidebar}
+            title={isMobile ? 'Menu' : (collapsed ? 'Déplier la barre' : 'Réduire la barre')}
+            aria-label={isMobile ? 'Menu' : 'Basculer la barre latérale'}
+          >
+            <i className={`ti ${isMobile ? 'ti-menu' : 'ti-menu-2'}`} aria-hidden="true" />
+          </button>
+        )}
+          <Breadcrumbs />
       </div>
 
       <div className="topbar-center">
-        {quickStats.map((stat, i) => (
-          <span key={i} className={`topbar-pill ${stat.tone}`}>
-            {stat.label}: {stat.value}
-          </span>
+        {indicators.map((ind) => (
+          <button
+            key={ind.key}
+            type="button"
+            className={`topbar-icon topbar-icon--${ind.tone}`}
+            onClick={() => navigate(ind.to)}
+            title={ind.label}
+            aria-label={ind.label}
+          >
+            <i className={`ti ${ind.icon}`} aria-hidden="true" />
+            <span className="topbar-icon__badge">{ind.value}</span>
+          </button>
         ))}
       </div>
 
@@ -83,7 +81,7 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode }) => {
           <kbd>⌘K</kbd>
         </button>
 
-        <div className="topbar-notifications" style={{ position: 'relative' }}>
+        <div className="topbar-notifications" ref={notifRef} style={{ position: 'relative' }}>
           <button className="topbar-icon-btn" onClick={() => setShowNotifications(!showNotifications)} title="Notifications">
             <i className="ti ti-bell" aria-hidden="true" />
             {unreadCount > 0 && <span className="topbar-notif-badge">{unreadCount}</span>}
@@ -91,7 +89,19 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode }) => {
           {showNotifications && <NotificationDropdown onClose={() => setShowNotifications(false)} />}
         </div>
 
-        <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+        {hasRole && hasRole('super_admin') && (
+          <button type="button" className="topbar-icon-btn" onClick={() => navigate('/super-admin/profile')} title="Profil">
+            <i className="ti ti-user" aria-hidden="true" />
+          </button>
+        )}
+
+                <ThemeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+
+        {onLogout && (
+          <button type="button" className="topbar-icon-btn" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">
+            <i className="ti ti-logout" aria-hidden="true" />
+          </button>
+        )}
       </div>
     </header>
   );

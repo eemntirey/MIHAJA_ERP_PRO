@@ -48,92 +48,91 @@ Vous êtes un expert fullstack spécialisé en debugging d'applications ERP. Vou
 ```
 web/backend/app/
 ├── models/           # Modèles SQLAlchemy (35+ entités)
-│   ├── base.py              # BaseModel (tenant_id, timestamps, soft-delete)
-│   ├── tenant.py            # Modèle Tenant
-│   ├── utilisateur.py       # Utilisateurs + rôles (7 rôles + rôles personnalisés)
-│   ├── client.py            # Clients (7 types)
-│   ├── fournisseur.py       # Fournisseurs (6 types)
-│   ├── produit.py           # Produits (SKU, barcodes, stocks, prix HT/TTC, catégories)
-│   ├── vente.py             # Ventes
-│   ├── facture.py           # Factures clients
-│   ├── paiement.py          # Paiements (5 modes)
-│   ├── stock.py             # Mouvements de stock (6 types)
-│   ├── commande_fournisseur.py  # Commandes fournisseurs
-│   ├── facture_fournisseur.py   # Factures fournisseurs
-│   ├── ligne_vente.py       # Lignes de vente
-│   ├── ligne_achat.py       # Lignes d'achat
-│   ├── abonnement.py        # Abonnements
-│   ├── commande_client.py   # Commandes marketplace
-│   ├── livreur.py           # Livreurs
-│   ├── vehicule.py          # Véhicules
-│   ├── itineraire.py        # Itinéraires
-│   ├── livraison.py         # Livraisons
-│   ├── suivi_livraison.py   # Suivi de livraison
-│   ├── employe.py           # Employés (RH)
-│   ├── presence.py          # Présences (RH)
-│   ├── salaire.py           # Salaires (RH)
-│   ├── prime.py             # Primes (RH)
-│   ├── compte_comptable.py  # Plan comptable
-│   ├── ecriture_comptable.py # Écritures comptables
-│   ├── tresorerie.py        # Trésorerie
-│   ├── modele_document.py   # Modèles de documents
-│   ├── document_genere.py   # Documents générés
-│   ├── commande_achat.py    # Commandes d'achat
-│   ├── devis_avoir_bl.py    # Devis, avoirs, bons de livraison
-│   └── role_permission.py   # Rôles personnalisés et permissions
+│   ├── base              # BaseModel (tenant_id, timestamps, soft-delete)
+│   ├── tenant            # Modèle Tenant
+│   ├── utilisateur       # Utilisateurs + rôles (7 rôles + rôles personnalisés)
+│   ├── client            # Clients (7 types)
+│   ├── fournisseur       # Fournisseurs (6 types)
+│   ├── produit           # Produits (SKU, barcodes, stocks, prix HT/TTC, catégories)
+│   ├── vente             # Ventes
+│   ├── facture           # Factures clients
+│   ├── paiement          # Paiements (5 modes)
+│   ├── stock             # Mouvements de stock (6 types)
+│   ├── commande_fournisseur  # Commandes fournisseurs
+│   ├── facture_fournisseur   # Factures fournisseurs
+│   ├── ligne_vente       # Lignes de vente
+│   ├── ligne_achat       # Lignes d'achat
+│   ├── abonnement        # Abonnements
+│   ├── commande_client   # Commandes marketplace
+│   ├── livreur           # Livreurs
+│   ├── vehicule          # Véhicules
+│   ├── itineraire        # Itinéraires
+│   ├── livraison         # Livraisons
+│   ├── suivi_livraison   # Suivi de livraison
+│   ├── employe           # Employés (RH)
+│   ├── presence          # Présences (RH)
+│   ├── salaire           # Salaires (RH)
+│   ├── prime             # Primes (RH)
+│   ├── compte_comptable  # Plan comptable
+│   ├── ecriture_comptable # Écritures comptables
+│   ├── tresorerie        # Trésorerie
+│   ├── modele_document   # Modèles de documents
+│   ├── document_genere   # Documents générés
+│   ├── commande_achat    # Commandes d'achat
+│   ├── devis_avoir_bl    # Devis, avoirs, bons de livraison
+│   └── role_permission   # Rôles personnalisés et permissions
 ├── services/         # Logique métier (20+ services)
-│   ├── base_service.py      # BaseService (CRUD générique avec filtrage tenant)
-│   ├── auth_service.py      # Authentification
-│   ├── produit_service.py   # Gestion produits
-│   ├── stock_service.py     # Gestion stocks
-│   ├── vente_service.py     # Gestion ventes
-│   ├── facturation_service.py   # Factures
-│   ├── paiement_service.py  # Paiements
-│   ├── fournisseur_service.py   # Fournisseurs
-│   ├── dashboard_service.py # KPIs dashboard
-│   ├── client_service.py    # Clients
-│   ├── abonnement_service.py # Abonnements
-│   ├── commande_service.py  # Commandes
-│   ├── livraison_service.py # Livraison
-│   ├── rh_service.py        # Ressources Humaines
-│   ├── comptabilite_service.py # Comptabilité
-│   ├── document_service.py  # Documents
-│   ├── achat_service.py     # Achats
-│   ├── devis_avoir_service.py # Devis/Avoirs
-│   └── facturation_service.py # Facturation
+│   ├── base_service      # BaseService (CRUD générique avec filtrage tenant)
+│   ├── auth_service      # Authentification
+│   ├── produit_service   # Gestion produits
+│   ├── stock_service     # Gestion stocks
+│   ├── vente_service     # Gestion ventes
+│   ├── facturation_service   # Factures
+│   ├── paiement_service  # Paiements
+│   ├── fournisseur_service   # Fournisseurs
+│   ├── dashboard_service # KPIs dashboard
+│   ├── client_service    # Clients
+│   ├── abonnement_service # Abonnements
+│   ├── commande_service  # Commandes
+│   ├── livraison_service # Livraison
+│   ├── rh_service        # Ressources Humaines
+│   ├── comptabilite_service # Comptabilité
+│   ├── document_service  # Documents
+│   ├── achat_service     # Achats
+│   └── devis_avoir_service # Devis/Avoirs
 ├── api/              # Routes Flask-RESTx (22 namespaces, Swagger auto-documenté)
 │   └── v1/
-│       ├── test.py, auth.py, clients.py, produits.py, fournisseurs.py
-│       ├── stocks.py, ventes.py, factures.py, paiements.py
-│       ├── dashboard.py, ai.py, public.py, tenants.py, abonnements.py
-│       ├── livraisons.py, rh.py, comptabilite.py, documents.py
-│       ├── achats_devis.py, roles.py, permissions.py, users.py
+│       ├── test, auth, clients, produits, fournisseurs
+│       ├── stocks, ventes, factures, paiements
+│       ├── dashboard, ai, public, tenants, abonnements
+│       ├── livraisons, rh, comptabilite, documents
+│       └── achats_devis, roles, permissions, users
 ├── security/        # Sécurité
-│   ├── auth.py              # Décorateurs JWT (@jwt_required)
-│   ├── permissions.py       # Vérifications RBAC
-│   ├── roles.py            # Mappages rôles-permissions
-│   ├── tenant.py           # Middleware multi-tenancy (@tenant_required)
-│   └── encryption.py       # Chiffrement données sensibles
+│   ├── auth              # Décorateurs JWT (@jwt_required)
+│   ├── permissions       # Vérifications RBAC
+│   ├── roles             # Mappages rôles-permissions
+│   ├── tenant            # Middleware multi-tenancy (@tenant_required)
+│   └── encryption        # Chiffrement données sensibles
 ├── ai/              # Intelligence Artificielle (placeholders)
-│   ├── previsions.py       # Prévisions de vente/stock (ML)
-│   ├── anomalies.py        # Détection anomalies
-│   ├── recommendations.py  # Recommandations
-│   ├── assistant.py        # Chatbot IA
-│   └── training.py         # Entraînement modèles
+│   ├── previsions        # Prévisions de vente/stock (ML)
+│   ├── anomalies         # Détection anomalies
+│   ├── recommendations   # Recommandations
+│   ├── assistant         # Chatbot IA
+│   └── training          # Entraînement modèles
 ├── tasks/           # Tâches Celery (placeholders)
-│   ├── backups.py          # Sauvegarde BD
-│   ├── emails.py           # Envoi emails
-│   └── reports.py          # Génération rapports
+│   ├── backups           # Sauvegarde BD
+│   ├── emails            # Envoi emails
+│   └── reports           # Génération rapports
 ├── utils/           # Utilitaires
-│   ├── pdf_generator.py    # Génération PDF (reportlab)
-│   ├── excel_generator.py  # Export Excel (openpyxl)
-│   ├── qr_generator.py     # Génération QR codes
-│   ├── barcode_generator.py # Génération codes-barres
-│   ├── logger.py           # Logging structuré
-│   └── validators.py       # Validations métier
+│   ├── pdf_generator     # Génération PDF (reportlab)
+│   ├── excel_generator   # Export Excel (openpyxl)
+│   ├── qr_generator      # Génération QR codes
+│   ├── barcode_generator # Génération codes-barres
+│   ├── logger            # Logging structuré
+│   └── validators        # Validations métier
 └── config/          # Configuration
-    ├── settings.py         # Config globale (DB, JWT, Redis, Mail, etc)
-    └── database.py         # Initialisation BD
+    ├── settings          # Config globale (DB, JWT, Redis, Mail, etc)
+    └── database          # Initialisation BD
 ```
 
 ---
@@ -168,7 +167,7 @@ web/backend/app/
 ### 3️⃣ **Contrôle d'accès (RBAC)**
 - **7 rôles** : SUPER_ADMIN, ADMIN, MANAGER, SALES, STOCK, ACCOUNTANT, USER
 - **Rôles personnalisés** : Modèle `RoleModel` avec permissions granulaires
-- Permissions définies dans `web/backend/app/security/roles.py`
+- Permissions définies dans `web/backend/app/security/roles`
 - Vérifiées par `@role_required()` et `has_permission()` sur les routes sensibles
 
 ### 4️⃣ **Modèle de base (BaseModel)**
@@ -262,7 +261,7 @@ count(tenant_id)
 - **Cause** : Utilisateur sans bon rôle ou rôle non configuré
 - **Debug** :
   - Vérifier rôles utilisateur en BD
-  - Vérifier mapping rôles-permissions dans `security/roles.py`
+  - Vérifier mapping rôles-permissions dans `security/roles`
   - Vérifier décorateur `@role_required()` sur la route
   - Vérifier `custom_role_id` et permissions associées
 
@@ -296,7 +295,7 @@ count(tenant_id)
 - **Symptôme** : Erreur CORS en console browser, requête bloquée
 - **Cause** : Frontend et backend pas sur même origin, ou CORS mal configuré
 - **Debug** :
-  - Vérifier `CORS_ORIGINS` en `settings.py`
+  - Vérifier `CORS_ORIGINS` en `settings`
   - Vérifier `Access-Control-Allow-Origin` en réponse
   - Ajouter `http://localhost:3000` si React en local
 
@@ -372,7 +371,7 @@ SELECT id, tenant_id, nom FROM produits LIMIT 5;
 ### Étape 5 : Profiler la performance
 ```python
 # Utiliser werkzeug profiler ou SQLAlchemy echo
-SQLALCHEMY_ECHO = True  # Dans settings.py pour voir les requêtes SQL
+SQLALCHEMY_ECHO = True  # Dans settings pour voir les requêtes SQL
 ```
 
 ---
@@ -463,7 +462,7 @@ print(f"[DB] Utilisateur.query.get(user_id) → tenant_id={utilisateur.tenant_id
 
 ### Pour erreurs SQL
 ```python
-# Activer echo dans settings.py
+# Activer echo dans settings
 SQLALCHEMY_ECHO = True
 SQLALCHEMY_ECHO_POOL = True  # Pour pool connections
 ```
@@ -481,12 +480,12 @@ console.log('[API Response]', {status: response.status, data: response.data});
 
 | Erreur | Fichiers à vérifier |
 |--------|-------------------|
-| Token/Auth | `web/backend/app/security/auth.py`, `web/backend/app/api/v1/auth.py`, `web/frontend/src/contexts/AuthContext.jsx` |
-| Tenancy | `web/backend/app/models/base.py`, `web/backend/app/services/base_service.py`, `web/backend/app/security/tenant.py` |
-| Produits/Stocks | `web/backend/app/models/produit.py`, `web/backend/app/services/stock_service.py`, `web/backend/app/api/v1/stocks.py` |
-| Ventes/Factures | `web/backend/app/models/vente.py`, `web/backend/app/services/facturation_service.py`, `web/backend/app/api/v1/factures.py` |
-| Rôles/Permissions | `web/backend/app/security/roles.py`, `web/backend/app/security/permissions.py`, `web/backend/app/models/role_permission.py` |
-| BD | `web/backend/app/config/settings.py`, `web/backend/app/config/database.py`, `web/backend/migrations/` |
+| Token/Auth | `web/backend/app/security/auth`, `web/backend/app/api/v1/auth`, `web/frontend/src/contexts/AuthContext.jsx` |
+| Tenancy | `web/backend/app/models/base`, `web/backend/app/services/base_service`, `web/backend/app/security/tenant` |
+| Produits/Stocks | `web/backend/app/models/produit`, `web/backend/app/services/stock_service`, `web/backend/app/api/v1/stocks` |
+| Ventes/Factures | `web/backend/app/models/vente`, `web/backend/app/services/facturation_service`, `web/backend/app/api/v1/factures` |
+| Rôles/Permissions | `web/backend/app/security/roles`, `web/backend/app/security/permissions`, `web/backend/app/models/role_permission` |
+| BD | `web/backend/app/config/settings`, `web/backend/app/config/database`, `web/backend/migrations/` |
 | Frontend | `web/frontend/src/services/api.js`, `web/frontend/src/hooks/useAuth.js` |
 | Desktop | `desk/src/services/api.js`, `desk/src/contexts/DesktopContext.jsx` |
 | Logs | `web/backend/logs/` |
