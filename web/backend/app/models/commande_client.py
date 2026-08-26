@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Numeric
 import enum
@@ -11,7 +11,7 @@ class StatutCommande(enum.Enum):
     LIVREE = 'livree'
     ANNULEE = 'annulee'
 
-class CommandeClient(BaseModel):
+class CommandeClient(BaseTenantModel):
     __tablename__ = 'commandes_client'
     
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)

@@ -1,7 +1,7 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 
-class SuiviLivraison(BaseModel):
+class SuiviLivraison(BaseTenantModel):
     __tablename__ = 'suivis_livraison'
 
     livraison_id = db.Column(db.Integer, db.ForeignKey('livraisons.id'), nullable=False, index=True)

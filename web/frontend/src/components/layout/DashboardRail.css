@@ -12,13 +12,14 @@
   flex-direction: column;
   align-items: center;
   padding: var(--space-5) var(--space-3);
-  background: var(--color-onyx);
+  background-color: rgb(7, 5, 32);
   color: var(--color-white);
 }
 
 .dashboard-rail[data-theme='dark'] {
-  background: var(--color-surface);
+  background: var(--color-paper);
   border-right-color: var(--color-border);
+  color: var(--color-text);
 }
 
 /* Brand */

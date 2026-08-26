@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import api, { modeleDocumentService, documentService } from '../services/api';
+import { authStorage } from '../../../../shared/storage/authStorage';
 import './Documents.css';
 
 export default function Documents() {
@@ -120,7 +121,7 @@ export default function Documents() {
         try {
             const response = await fetch(url, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    'Authorization': `Bearer ${authStorage.getAccessToken()}`
                 }
             });
             if (!response.ok) throw new Error('Erreur téléchargement');

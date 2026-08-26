@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Index
 
-class Itineraire(BaseModel):
+class Itineraire(BaseTenantModel):
     __tablename__ = 'itineraires'
 
     nom = db.Column(db.String(100), nullable=False)

@@ -62,7 +62,6 @@ const SuperAdminProfile = () => {
       const updated = response.data?.user || response.data || {};
       const mergedUser = { ...(user || {}), ...updated };
       setUser(mergedUser);
-      try { localStorage.setItem('user', JSON.stringify(mergedUser)); } catch {}
       toast.success('Profil mis à jour');
     } catch (err) {
       console.error('Error updating profile:', err);

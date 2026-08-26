@@ -46,8 +46,10 @@ class BaseService:
     @classmethod
     def create(cls, data: Dict[str, Any]) -> Any:
         """Crée une nouvelle entité"""
-        tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
+        if hasattr(cls.model, 'tenant_id'):
+            tenant_id = data.get('tenant_id') or get_current_tenant_id()
+            if not tenant_id:
+                raise ValueError("tenant_id est obligatoire pour cette ressource")
             data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         instance.save()

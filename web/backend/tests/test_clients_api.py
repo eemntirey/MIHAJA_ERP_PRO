@@ -30,7 +30,6 @@ def tenant(app):
         domaine='test.local',
         statut=StatutTenant.ACTIF,
         plan='pro',
-        max_clients=2
     )
     db.session.add(tenant)
     db.session.commit()
@@ -44,7 +43,8 @@ def tenant(app):
         statut=StatutAbonnement.ACTIF,
         methode_paiement='especes',
         reference_paiement='SUB-TEST-001',
-        is_active=True
+        is_active=True,
+        max_clients=2,
     )
     db.session.add(abonnement)
     db.session.commit()

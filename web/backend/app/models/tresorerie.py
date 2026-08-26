@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -7,7 +7,7 @@ class TypeTresorerie(enum.Enum):
     ENTREE = 'entree'
     SORTIE = 'sortie'
 
-class Tresorerie(BaseModel):
+class Tresorerie(BaseTenantModel):
     __tablename__ = 'tresoreries'
 
     date = db.Column(db.Date, nullable=False)

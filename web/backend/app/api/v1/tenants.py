@@ -5,6 +5,8 @@ from app.models.tenant import Tenant, StatutTenant
 from app.models.utilisateur import Utilisateur, Role
 from app import db
 from app.security.roles import is_super_admin
+from app.security.plans import check_tenant_limit
+from datetime import datetime, timedelta
 
 ns = Namespace('tenants', description='Gestion des tenants (SUPER_ADMIN)')
 
@@ -50,6 +52,14 @@ class TenantList(Resource):
         if err:
             return err
         data = request.get_json() or {}
+        now = datetime.utcnow()
+        trial_duration = timedelta(days=14)
+        plan = data.get('plan', 'gratuit')
+
+        allowed, message = check_tenant_limit(plan)
+        if not allowed:
+            return {'message': message}, 403
+
         tenant = Tenant(
             nom=data.get('nom'),
             slug=data.get('slug'),
@@ -60,8 +70,10 @@ class TenantList(Resource):
             ville=data.get('ville'),
             pays=data.get('pays', 'Madagascar'),
             code_postal=data.get('code_postal'),
-            statut=_coerce_statut(data.get('statut', StatutTenant.ACTIF)) or StatutTenant.ACTIF,
-            plan=data.get('plan', 'gratuit')
+            statut=_coerce_statut(data.get('statut', StatutTenant.EN_ESSAI)) or StatutTenant.EN_ESSAI,
+            plan=plan,
+            date_debut_essai=now,
+            date_fin_essai=now + trial_duration,
         )
         db.session.add(tenant)
         db.session.commit()

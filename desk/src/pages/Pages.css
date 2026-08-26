@@ -522,23 +522,23 @@
 }
 
 .badge.success {
-  background: rgba(110, 155, 121, 0.12);
-  color: #3d6b4a;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
 }
 
 .badge.warning {
-  background: rgba(212, 175, 55, 0.12);
-  color: #8d6b18;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
 }
 
 .badge.danger {
-  background: rgba(185, 110, 85, 0.10);
-  color: var(--erp-critical);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
 }
 
 .badge.info {
-  background: rgba(66, 153, 225, 0.10);
-  color: #2b6cb0;
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
 }
 
 /* Payment status badges */
@@ -556,23 +556,23 @@
 }
 
 .statut-badge.statut-success {
-  background: rgba(110, 155, 121, 0.12);
-  color: #3d6b4a;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
 }
 
 .statut-badge.statut-warning {
-  background: rgba(212, 175, 55, 0.12);
-  color: #8d6b18;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
 }
 
 .statut-badge.statut-error {
-  background: rgba(185, 110, 85, 0.10);
-  color: var(--erp-critical);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
 }
 
 .statut-badge.statut-info {
-  background: rgba(66, 153, 225, 0.10);
-  color: #2b6cb0;
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
 }
 
 /* Small buttons for table actions */
@@ -611,9 +611,9 @@
 }
 
 .btn-view:hover {
-  border-color: var(--erp-success);
-  color: #3d6b4a;
-  background: rgba(110, 155, 121, 0.06);
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+  background: var(--color-success-soft);
 }
 
 .btn-small.btn-primary {
@@ -886,21 +886,21 @@
 }
 
 .alert.error {
-  background: rgba(185, 110, 85, 0.08);
-  color: var(--erp-critical);
-  border: 1px solid rgba(185, 110, 85, 0.25);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
 }
 
 .alert.success {
-  background: rgba(110, 155, 121, 0.08);
-  color: #3d6b4a;
-  border: 1px solid rgba(110, 155, 121, 0.25);
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
 }
 
 .alert.warning {
-  background: rgba(212, 175, 55, 0.08);
-  color: #8d6b18;
-  border: 1px solid rgba(212, 175, 55, 0.25);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
 }
 
 .alert button {
@@ -2007,11 +2007,11 @@
   font-family: var(--erp-body-font);
   font-size: 13px;
   font-weight: 700;
-  color: #b96e55;
+  color: var(--color-danger);
 }
 
 .user-cartouche-logout:hover {
-  background: #fff5f2;
+  background: var(--color-danger-soft);
 }
 
 .user-cartouche-orders {
@@ -2122,43 +2122,43 @@
 }
 
 .main-layout[data-theme='dark'] .badge.success {
-  background: rgba(110, 155, 121, 0.15);
-  color: #6e9b79;
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-success-text);
 }
 
 .main-layout[data-theme='dark'] .badge.warning {
-  background: rgba(212, 175, 55, 0.15);
-  color: #d4af37;
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-warning-text);
 }
 
 .main-layout[data-theme='dark'] .badge.danger {
-  background: rgba(185, 110, 85, 0.15);
-  color: #e2e8f0;
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-danger-text);
 }
 
 .main-layout[data-theme='dark'] .badge.info {
-  background: rgba(66, 153, 225, 0.15);
-  color: #90cdf4;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-info-text);
 }
 
 .main-layout[data-theme='dark'] .statut-badge.statut-success {
-  background: rgba(110, 155, 121, 0.15);
-  color: #6e9b79;
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-success-text);
 }
 
 .main-layout[data-theme='dark'] .statut-badge.statut-warning {
-  background: rgba(212, 175, 55, 0.15);
-  color: #d4af37;
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-warning-text);
 }
 
 .main-layout[data-theme='dark'] .statut-badge.statut-error {
-  background: rgba(185, 110, 85, 0.15);
-  color: #e2e8f0;
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-danger-text);
 }
 
 .main-layout[data-theme='dark'] .statut-badge.statut-info {
-  background: rgba(66, 153, 225, 0.15);
-  color: #90cdf4;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-info-text);
 }
 
 .main-layout[data-theme='dark'] .btn-small {
@@ -2172,21 +2172,21 @@
 }
 
 .main-layout[data-theme='dark'] .btn-edit:hover {
-  border-color: #d4af37;
-  color: #d4af37;
-  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .main-layout[data-theme='dark'] .btn-delete:hover {
-  border-color: #b96e55;
-  color: #b96e55;
-  background: rgba(185, 110, 85, 0.1);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
 }
 
 .main-layout[data-theme='dark'] .btn-view:hover {
-  border-color: #6e9b79;
-  color: #6e9b79;
-  background: rgba(110, 155, 121, 0.1);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background: var(--color-success-soft);
 }
 
 .main-layout[data-theme='dark'] .modal-overlay {

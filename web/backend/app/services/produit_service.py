@@ -1,52 +1,15 @@
 from app import db
 from app.models.produit import Produit
+from app.services.base_service import BaseService
 from app.security.tenant import get_current_tenant_id
 from typing import Optional, Dict, Any, List, Tuple
 
-class ProduitService:
+class ProduitService(BaseService):
     model = Produit
 
     @classmethod
-    def _get_tenant_filter(cls, query):
-        tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
-            query = query.filter(cls.model.tenant_id == tenant_id)
-        return query
-
-    @classmethod
-    def get_all(cls, page=1, per_page=20, filters=None, order_by=None):
-        query = cls.model.query.filter_by(is_active=True)
-        query = cls._get_tenant_filter(query)
-        if filters:
-            for key, value in filters.items():
-                if value is not None and hasattr(cls.model, key):
-                    query = query.filter_by(**{key: value})
-        if order_by:
-            query = query.order_by(order_by)
-        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-        return paginated.items, paginated.total
-
-    @classmethod
-    def get_by_id(cls, id):
-        query = cls.model.query.filter_by(id=id, is_active=True)
-        query = cls._get_tenant_filter(query)
-        return query.first()
-
-    @classmethod
-    def get_by_code_barre(cls, code_barre):
-        query = cls.model.query.filter_by(code_barre=code_barre, is_active=True)
-        query = cls._get_tenant_filter(query)
-        return query.first()
-
-    @classmethod
     def create(cls, data):
-        tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
-            data['tenant_id'] = tenant_id
-        instance = cls.model(**data)
-        db.session.add(instance)
-        db.session.commit()
-        return instance
+        return super().create(data)
 
     @classmethod
     def update(cls, id, data):

@@ -420,6 +420,8 @@ const Dashboard = () => {
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -485,9 +487,11 @@ const Dashboard = () => {
       setLoading(false);
       setHasLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   const fetchSubscription = useCallback(async () => {
+    if (!user) return;
+
     try {
       setSubscriptionLoading(true);
       const response = await subscriptionService.getMonAbonnement();
@@ -498,7 +502,7 @@ const Dashboard = () => {
     } finally {
       setSubscriptionLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchSubscription();
@@ -557,7 +561,6 @@ const Dashboard = () => {
       });
       const updatedUser = response.data?.user || response.data;
       setUser((prev) => ({ ...(prev || {}), ...updatedUser }));
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setIsEditingName(false);
       toast.success('Profil mis à jour');
     } catch (err) {

@@ -138,23 +138,23 @@
 }
 
 .landing-badge.success {
-  background: rgba(110, 155, 121, 0.12);
-  color: #3d6b4a;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
 }
 
 .landing-badge.warning {
-  background: rgba(212, 175, 55, 0.12);
-  color: #8d6b18;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
 }
 
 .landing-badge.danger {
-  background: rgba(185, 110, 85, 0.10);
-  color: #8a4a3a;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
 }
 
 .landing-badge.info {
-  background: rgba(66, 153, 225, 0.10);
-  color: #2b6cb0;
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
 }
 
 .landing-tracking-result {
@@ -514,8 +514,8 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  background: var(--erp-success);
+  box-shadow: 0 0 6px var(--color-success-soft);
   flex-shrink: 0;
 }
 

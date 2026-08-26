@@ -11,12 +11,15 @@ from flask_jwt_extended import JWTManager
 
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+
+logger = logging.getLogger(__name__)
 
 
 def create_app():
@@ -51,6 +54,9 @@ def create_app():
 
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
         seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
+    )
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(
+        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 30))
     )
 
     # Accepter /route et /route/
@@ -167,7 +173,7 @@ def create_app():
     from app.api.v1.tenants import ns as tenants_ns
     from app.api.v1.abonnements import ns as abonnements_ns
     from app.api.v1.livraisons import ns_livreurs as livreurs_ns, ns_vehicules as vehicules_ns, ns_itineraires as itineraires_ns, ns_livraisons as livraisons_ns
-    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns
+    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
     from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns
     from app.api.v1.documents import ns_modeles as modeles_documents_ns, ns_documents as documents_ns
     from app.api.v1.achats_devis import ns_commandes_achat as commandes_achat_ns, ns_receptions as receptions_ns, ns_devis as devis_ns, ns_bons_livraison as bons_livraison_ns, ns_avoirs as avoirs_ns
@@ -177,7 +183,15 @@ def create_app():
     from app.api.v1.papi import ns as papi_ns
     from app.api.v1.notifications import ns as notifications_ns
 
-    # Register test namespace only in DEBUG/TESTING mode
+    from app.api.v1.super_admin import ns as super_admin_ns
+
+    # Synchronisation desktop/web (favoris, colonnes, filtres, sync incrémental)
+    from app.api.v1.desk import desk_bp
+
+    api.add_namespace(
+        super_admin_ns,
+        path='/api/v1/super-admin'
+    )
     if app.config.get('DEBUG', False) or app.config.get('TESTING', False):
         from app.api.v1.test import ns as test_ns
         api.add_namespace(
@@ -276,6 +290,11 @@ def create_app():
     )
 
     api.add_namespace(
+        stagiaires_ns,
+        path='/api/v1/stagiaires'
+    )
+
+    api.add_namespace(
         presences_ns,
         path='/api/v1/presences'
     )
@@ -365,6 +384,9 @@ def create_app():
         path='/api/v1/notifications'
     )
 
+    # Blueprint de synchronisation desktop/web (JWT standard, compatible tiers).
+    app.register_blueprint(desk_bp)
+
     # ==========================================================
     # ROUTES PRINCIPALES
     # ==========================================================
@@ -390,7 +412,6 @@ def create_app():
 
     @app.before_request
     def before_request():
-
         from flask import g
 
         from app.security.tenant import (
@@ -402,14 +423,16 @@ def create_app():
         g.current_user = None
 
         try:
-
             tenant = resolve_tenant_from_header()
-
             if tenant:
                 g.current_tenant = tenant
 
         except Exception:
-            pass
+            logger.warning(
+                "Impossible de résoudre le tenant depuis les headers HTTP",
+                exc_info=True,
+            )
+            g.current_tenant = None
 
     # ==========================================================
     # AUTO-SEEDING: Desactive en production. A appeler explicitement
@@ -430,7 +453,7 @@ def create_app():
                 user_count = Utilisateur.query.count()
 
                 if user_count == 0:
-                    default_password = "Test1234!"
+                    default_password = os.getenv('DEFAULT_ADMIN_PASSWORD') or os.urandom(16).hex()
 
                     entreprises = [
                         {
@@ -571,7 +594,7 @@ def create_app():
             except Exception:
                 pass
 
-    if os.getenv('FLASK_ENV') in ('development', 'testing'):
+    if os.getenv('FLASK_ENV') in ('development', 'testing') and os.getenv('AUTO_SEED_DATA') == '1':
         _seed_initial_data(app)
 
     # ==========================================================
@@ -597,7 +620,6 @@ def create_app():
         )
 
         if user:
-
             return {
                 'username': user.username,
                 'email': user.email,
@@ -610,5 +632,16 @@ def create_app():
             }
 
         return {}
+
+    # ==========================================================
+    # TEMPS RÉEL (Socket.IO) - optionnel, activé par ENABLE_SOCKETIO=1
+    # ==========================================================
+    socketio = None
+    if os.getenv('ENABLE_SOCKETIO') == '1':
+        try:
+            from app.websockets.socket_events import init_socketio
+            socketio = init_socketio(app)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("SocketIO non initialisé : %s", exc)
 
     return app

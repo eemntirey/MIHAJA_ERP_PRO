@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { tenantService, subscriptionService } from '../services/api';
 import { VILLES_MADAGASCAR } from '../constants/erpConstants';
 import './SuperAdmin.css';
+import './Pages.css';
 
 const SuperAdmin = () => {
   const [activeTab, setActiveTab] = useState('tenants');

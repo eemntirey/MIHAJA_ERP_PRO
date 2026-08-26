@@ -59,44 +59,10 @@ def has_role(role_value, *allowed_roles):
     return normalized in allowed_normalized
 
 
-PERMISSIONS = {
-    'super_admin': ['*'],
-    'admin': ['*'],
-    'manager': [
-        'product.create', 'product.update', 'product.delete',
-        'stock.view', 'stock.update',
-        'sale.view', 'sale.create', 'sale.update',
-        'user.view', 'user.create', 'user.update',
-        'report.view'
-    ],
-    'sales': [
-        'product.view',
-        'sale.view', 'sale.create',
-        'client.view', 'client.create', 'client.update',
-        'quote.view', 'quote.create'
-    ],
-    'stock': [
-        'product.view',
-        'stock.view', 'stock.update',
-        'supplier.view', 'supplier.create', 'supplier.update',
-        'purchase_order.view', 'purchase_order.create'
-    ],
-    'accountant': [
-        'product.view',
-        'invoice.view', 'invoice.create', 'invoice.update',
-        'payment.view', 'payment.create',
-        'report.view',
-        'sale.view',
-        'client.view',
-        'compte.view', 'compte.create', 'compte.update', 'compte.delete',
-        'ecriture.view', 'ecriture.create', 'ecriture.update', 'ecriture.delete',
-        'tresorerie.view', 'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
-    ],
-    'user': [
-        'product.view',
-        'profile.view', 'profile.update'
-    ]
-}
+from app.security.permission_matrix import ROLE_PERMISSIONS
+
+PERMISSIONS = ROLE_PERMISSIONS
+
 
 def has_permission(user_id, permission):
     user = db.session.get(Utilisateur, user_id)

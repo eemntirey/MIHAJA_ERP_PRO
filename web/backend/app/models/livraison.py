@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Index
 
-class Livraison(BaseModel):
+class Livraison(BaseTenantModel):
     __tablename__ = 'livraisons'
 
     vente_id = db.Column(db.Integer, db.ForeignKey('ventes.id'), index=True)

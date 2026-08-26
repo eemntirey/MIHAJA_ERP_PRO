@@ -2,7 +2,9 @@ from datetime import datetime, timedelta
 from app import db
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
+from app.models.tenant import Tenant, StatutTenant
 from app.security.tenant import get_current_tenant_id
+from app.security.plans import apply_plan_to_abonnement
 
 
 class AbonnementService:
@@ -18,6 +20,34 @@ class AbonnementService:
         ).first()
 
     @classmethod
+    def activate_free_plan(cls, tenant_id, plan='gratuit'):
+        tenant = db.session.get(Tenant, tenant_id)
+        if not tenant:
+            raise ValueError("Tenant non trouve")
+
+        now = datetime.utcnow()
+        abonnement = Abonnement(
+            tenant_id=tenant_id,
+            montant=0,
+            devise='MGA',
+            date_debut=now,
+            date_fin=now + timedelta(days=30),
+            statut=StatutAbonnement.ACTIF,
+            plan=plan,
+        )
+        apply_plan_to_abonnement(abonnement, plan)
+        db.session.add(abonnement)
+        db.session.flush()
+
+        tenant.statut = StatutTenant.ACTIF
+        tenant.plan = plan
+        tenant.date_abonnement = now
+        db.session.add(tenant)
+        db.session.commit()
+
+        return abonnement
+
+    @classmethod
     def create_abonnement(cls, data):
         tenant_id = data.get('tenant_id')
         if not tenant_id:
@@ -25,6 +55,11 @@ class AbonnementService:
 
         if not tenant_id:
             raise ValueError("tenant_id requis")
+
+        plan = data.get('plan', 'starter')
+
+        if plan == 'gratuit':
+            return cls.activate_free_plan(tenant_id, plan), None
 
         abonnement = Abonnement(
             tenant_id=tenant_id,
@@ -36,8 +71,9 @@ class AbonnementService:
             methode_paiement=data.get('methode_paiement'),
             reference_paiement=data.get('reference_paiement'),
             notes=data.get('notes'),
-            plan=data.get('plan', 'starter')
+            plan=plan
         )
+        apply_plan_to_abonnement(abonnement, abonnement.plan)
         db.session.add(abonnement)
         db.session.flush()
 
@@ -89,6 +125,7 @@ class AbonnementService:
         abonnement.date_debut = base_date
         abonnement.date_fin = base_date + timedelta(days=30)
         abonnement.statut = StatutAbonnement.ACTIF
+        apply_plan_to_abonnement(abonnement, abonnement.plan)
         abonnement.save()
 
         paiement = Paiement(

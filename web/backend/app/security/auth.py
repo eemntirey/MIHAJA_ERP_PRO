@@ -2,7 +2,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token, jwt_re
 from flask import request, g
 from functools import wraps
 from sqlalchemy import or_
-from app.models.utilisateur import Utilisateur
+from app.models.utilisateur import Utilisateur, StatutUtilisateur
 from app.models.tenant import Tenant
 from app import db
 import bcrypt
@@ -17,6 +17,16 @@ def hash_password(password):
 def verify_password(password, password_hash):
     """Vérifie un mot de passe hashé"""
     return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+
+
+def _validate_password(password):
+    if not password or len(password) < 8:
+        return 'Le mot de passe doit contenir au moins 8 caracteres'
+    if not any(c.isalpha() for c in password):
+        return 'Le mot de passe doit contenir au moins une lettre'
+    if not any(c.isdigit() for c in password):
+        return 'Le mot de passe doit contenir au moins un chiffre'
+    return None
 
 
 def create_access_token_for_user(user):
@@ -58,6 +68,9 @@ def authenticate_user(identifier, password, tenant_slug=None):
     
     if not verify_password(password, user.password_hash):
         return None, "Mot de passe incorrect"
+    
+    if user.statut != StatutUtilisateur.ACTIF:
+        return None, "Utilisateur inactif ou bloque"
     
     g.current_tenant = tenant
     g.current_user = user

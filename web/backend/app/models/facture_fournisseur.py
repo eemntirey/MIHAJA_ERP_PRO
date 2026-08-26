@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric
 
-class FactureFournisseur(BaseModel):
+class FactureFournisseur(BaseTenantModel):
     __tablename__ = 'factures_fournisseur'
     
     fournisseur_id = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=False, index=True)

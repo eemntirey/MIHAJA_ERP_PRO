@@ -1,7 +1,9 @@
 // src/services/desktopApi.js
+// API desktop avec synchronisation hors-ligne vers le backend partagé.
 
-import api from './api';
+import api from '../../../shared/services/api';
 import { buildKey, readJSON, writeJSON, removeKey } from '../utils/localStore';
+import { syncEngine } from '../../../shared/utils/syncEngine';
 
 const NOTIF_STORAGE_KEY = buildKey('notifications', 'list', false);
 
@@ -18,6 +20,22 @@ const readLocalNotifications = () => {
 
 const writeLocalNotifications = (list) => {
   writeJSON(NOTIF_STORAGE_KEY, list);
+};
+
+const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const nowIso = () => new Date().toISOString();
+
+const normalizeModule = (module) => String(module || 'default').trim().toLowerCase();
+
+const enqueueMutation = (entity, op, payload) => {
+  const entry = {
+    entity,
+    op,
+    payload,
+    createdAt: nowIso(),
+  };
+  syncEngine.enqueue(entry);
 };
 
 export const notificationService = {
@@ -107,6 +125,7 @@ export const favoriteService = {
         list.push({ ...item, id: item.id || item.path });
         localStorage.setItem('desk_favorites', JSON.stringify(list));
       }
+      enqueueMutation('favorite', 'upsert', item);
       return Promise.resolve({ data: list });
     } catch {
       return Promise.resolve({ data: [] });
@@ -117,6 +136,7 @@ export const favoriteService = {
       const stored = JSON.parse(localStorage.getItem('desk_favorites') || '[]');
       const list = Array.isArray(stored) ? stored.filter((f) => f.id !== id && f.path !== id) : [];
       localStorage.setItem('desk_favorites', JSON.stringify(list));
+      enqueueMutation('favorite', 'delete', { key: id });
       return Promise.resolve({ data: list });
     } catch {
       return Promise.resolve({ data: [] });
@@ -124,19 +144,8 @@ export const favoriteService = {
   },
 };
 
-
 const CONFIG_VERSION = 1;
 
-const nowIso = () => new Date().toISOString();
-
-const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-const normalizeModule = (module) => String(module || 'default').trim().toLowerCase();
-
-/**
- * Configuration des colonnes (largeurs + colonnes masquées) par module.
- * Tente d'abord le backend (`/desk/columns/:module`), puis replie sur localStorage.
- */
 export const columnConfigService = {
   get: (module) => {
     const m = normalizeModule(module);
@@ -162,6 +171,7 @@ export const columnConfigService = {
     return api.post(`/desk/columns/${m}`, payload).catch(() => {
       const key = buildKey('columns', m);
       writeJSON(key, payload);
+      enqueueMutation('column', 'upsert', { module: m, config: payload });
       return Promise.resolve({ data: { module: m, config: payload, persisted: true } });
     });
   },
@@ -170,6 +180,7 @@ export const columnConfigService = {
     const m = normalizeModule(module);
     return api.delete(`/desk/columns/${m}`).catch(() => {
       removeKey(buildKey('columns', m));
+      enqueueMutation('column', 'delete', { module: m });
       return Promise.resolve({ data: { module: m, config: { widths: {}, hidden: [], sort: [] } } });
     });
   },
@@ -196,20 +207,10 @@ const writePresets = (module, presets) => {
   return writeJSON(key, { version: CONFIG_VERSION, updatedAt: nowIso(), presets });
 };
 
-/**
- * Presets de filtres personnalisés par module (ventes, produits, stocks, ...).
- * Persistés en localStorage : aucun endpoint `/desk/filters` n'existe côté backend.
- * L'API reste promise-based afin de pouvoir basculer vers le backend sans toucher l'UI.
- */
 export const filterPresetService = {
   getAll: (module) =>
     Promise.resolve({ data: { module: normalizeModule(module), presets: readPresets(module) } }),
 
-  /**
-   * Crée ou met à jour un preset (upsert par `id`, sinon par `name`).
-   * @param {string} module
-   * @param {{id?:string,name:string,filters:Array,isDefault?:boolean}} preset
-   */
   save: (module, preset = {}) => {
     const name = String(preset.name || '').trim();
     if (!name) {
@@ -244,12 +245,14 @@ export const filterPresetService = {
     }
 
     const persisted = writePresets(module, presets);
+    enqueueMutation('filter', 'upsert', { module: normalizeModule(module), preset: saved });
     return Promise.resolve({ data: { module: normalizeModule(module), preset: saved, presets, persisted } });
   },
 
   delete: (module, id) => {
     const presets = readPresets(module).filter((p) => p.id !== id);
     writePresets(module, presets);
+    enqueueMutation('filter', 'delete', { module: normalizeModule(module), id });
     return Promise.resolve({ data: { module: normalizeModule(module), presets } });
   },
 
@@ -262,5 +265,39 @@ export const filterPresetService = {
   clear: (module) => {
     removeKey(buildKey('filters', normalizeModule(module)));
     return Promise.resolve({ data: { module: normalizeModule(module), presets: [] } });
+  },
+};
+
+export const syncService = {
+  flushQueue: async () => {
+    return syncEngine.flush(async (entry) => {
+      await api.post('/desk/sync/mutations', {
+        mutations: [{
+          entity: entry.entity,
+          op: entry.op,
+          payload: entry.payload,
+        }],
+      });
+    });
+  },
+
+  getQueue: () => syncEngine.getQueue(),
+
+  clearQueue: () => syncEngine.clear(),
+
+  isOnline: () => syncEngine.isOnline(),
+
+  getLastSyncedAt: () => syncEngine.getLastSyncedAt(),
+
+  hydrate: async () => {
+    return syncEngine.hydrate(async (entry) => {
+      await api.post('/desk/sync/mutations', {
+        mutations: [{
+          entity: entry.entity,
+          op: entry.op,
+          payload: entry.payload,
+        }],
+      });
+    });
   },
 };

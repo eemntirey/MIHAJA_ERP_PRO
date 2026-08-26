@@ -9,31 +9,24 @@ from flask_jwt_extended import (
 )
 from datetime import datetime, timedelta
 from app import db
-from app.security.auth import authenticate_user, hash_password
+from app.security.auth import authenticate_user, hash_password, _validate_password, verify_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import is_super_admin
 
+
+from app.security.rate_limit import rate_limit
+from app.security.plans import check_tenant_limit
 
 api = Namespace(
     'auth',
     description='Authentification et JWT'
 )
 
-
-def _validate_password(password):
-    if not password or len(password) < 8:
-        return 'Le mot de passe doit contenir au moins 8 caracteres'
-    if not any(c.isalpha() for c in password):
-        return 'Le mot de passe doit contenir au moins une lettre'
-    if not any(c.isdigit() for c in password):
-        return 'Le mot de passe doit contenir au moins un chiffre'
-    return None
-
-
 @api.route('/login')
 class AuthLogin(Resource):
 
+    @rate_limit(5, 300)
     def post(self):
         data = request.get_json() or {}
 
@@ -116,6 +109,13 @@ class AuthMe(Resource):
             }, 404
 
         data = request.get_json() or {}
+        sensitive_fields = {'email', 'password'}
+        provided_fields = set(data.keys())
+        if sensitive_fields & provided_fields:
+            password = data.get('password')
+            if not password or not verify_password(password, user.password_hash):
+                return {'message': 'Mot de passe actuel requis pour modifier les champs sensibles'}, 403
+
         for key, value in data.items():
             if key in ['nom', 'prenom', 'telephone', 'mobile', 'email']:
                 setattr(user, key, value)
@@ -130,6 +130,7 @@ class AuthMe(Resource):
 @api.route('/register')
 class AuthRegister(Resource):
 
+    @rate_limit(5, 300)
     def post(self):
         data = request.get_json() or {}
 
@@ -172,6 +173,10 @@ class AuthRegister(Resource):
 
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
+
+            allowed, message = check_tenant_limit(plan)
+            if not allowed:
+                return {'message': message}, 403
 
             base_slug = nom_entreprise.lower().replace(' ', '-').replace('.', '-')
             slug = base_slug
@@ -334,6 +339,7 @@ class AuthLogout(Resource):
 @api.route('/forgot-password')
 class AuthForgotPassword(Resource):
 
+    @rate_limit(5, 300)
     def post(self):
         data = request.get_json() or {}
         email = data.get('email')
@@ -388,7 +394,7 @@ class AuthResetPassword(Resource):
             return {'message': 'Token et nouveau mot de passe requis'}, 400
 
         from app.models.password_reset_token import PasswordResetToken
-        from app.security.auth import hash_password
+        from app.security.auth import hash_password, _validate_password
 
         reset_tokens = PasswordResetToken.query.filter_by(
             used=False
@@ -402,6 +408,10 @@ class AuthResetPassword(Resource):
 
         if not reset_token or reset_token.is_expired:
             return {'message': 'Token invalide ou expiré'}, 400
+
+        pwd_error = _validate_password(new_password)
+        if pwd_error:
+            return {'message': pwd_error}, 400
 
         user = db.session.get(Utilisateur, reset_token.user_id)
         if not user or not user.is_active:

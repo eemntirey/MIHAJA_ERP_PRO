@@ -7,15 +7,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './contexts/AuthContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { SyncProvider } from '../../shared/contexts/SyncContext';
 import { DesktopProvider } from './contexts/DesktopContext';
 import { CartProvider } from './contexts/CartContext';
+import { authStorage } from '../../shared/storage/authStorage';
 
 // Layout
 import DesktopLayout from './components/layout/DesktopLayout';
 import LandingLayout from './components/landing/LandingLayout';
 
 // Pages publiques
-const Home = React.lazy(() => import('./pages/Home'));
 const Catalogue = React.lazy(() => import('./pages/Catalogue'));
 const Suivi = React.lazy(() => import('./pages/Suivi'));
 const Contact = React.lazy(() => import('./pages/Contact'));
@@ -72,11 +73,32 @@ const PageSuspense = ({ children }) => (
 const STOREFRONT_PREFIXES = ['/cart', '/checkout', '/order-tracking', '/mes-commandes'];
 
 // Protection des routes
+const PATH_MODULE_MAP = {
+  '/dashboard': 'dashboard',
+  '/products': 'produits',
+  '/clients': 'clients',
+  '/sales': 'ventes',
+  '/invoices': 'factures',
+  '/payments': 'paiements',
+  '/inventory': 'stocks',
+  '/suppliers': null,
+  '/purchases': 'achats',
+  '/delivery': 'livraison',
+  '/hr': 'rh',
+  '/accounting': 'comptabilite',
+  '/documents': 'documents',
+  '/ai': 'ia',
+  '/super-admin': null,
+  '/users': null,
+  '/roles': null,
+  '/permissions': null,
+};
+
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, user, subscription } = useAuth();
+  const { isAuthenticated, loading, user, subscription, getAllowedModules } = useAuth();
   const location = useLocation();
 
-  const hasToken = !!localStorage.getItem('access_token');
+  const hasToken = !!authStorage.getAccessToken();
   const shouldAllow = isAuthenticated || hasToken;
 
   if (loading) {
@@ -114,6 +136,13 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/subscription" replace />;
   }
 
+  const allowedModules = getAllowedModules();
+  const requiredModule = PATH_MODULE_MAP[location.pathname];
+
+  if (requiredModule && allowedModules !== null && !allowedModules.includes(requiredModule)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 
@@ -134,11 +163,7 @@ const App = () => {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('tenant');
-      localStorage.removeItem('subscription');
+      authStorage.clear();
     } catch {
       // ignore
     }
@@ -148,86 +173,88 @@ const App = () => {
 
 
   return (
-    <AuthProvider>
-      <DesktopProvider>
-        <CartProvider>
-          <Routes>
-             {/* Pages publiques (vitrine) avec LandingLayout */}
-             <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
-               <Route path="/" element={<PageSuspense><Home /></PageSuspense>} />
-               <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
-               <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
-               <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
-               <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
-               <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
+    <SyncProvider>
+      <AuthProvider>
+        <DesktopProvider>
+          <CartProvider>
+            <Routes>
+               {/* Pages publiques (vitrine) avec LandingLayout */}
+              <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
+                  <Route path="/" element={<Navigate to="/catalogue" replace />} />
+                  <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
+                 <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
+                 <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
+                 <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
+                 <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
+               </Route>
+
+              {/* Authentification */}
+              <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+              <Route path="/register" element={<AuthSuspense><Register /></AuthSuspense>} />
+              <Route path="/register/simple" element={<AuthSuspense><RegisterUser darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+              <Route path="/register/company" element={<AuthSuspense><RegisterCompany darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+              <Route path="/forgot-password" element={<AuthSuspense><ForgotPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+              <Route path="/reset-password/:token" element={<AuthSuspense><ResetPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+
+             {/* Espace protégé (layout desktop) — inclut la boutique connectée */}
+             <Route
+               element={(
+                 <ProtectedRoute>
+                   <DesktopLayout
+                     darkMode={darkMode}
+                     onToggleDarkMode={toggleDarkMode}
+                     onLogout={handleLogout}
+                   />
+                 </ProtectedRoute>
+               )}
+             >
+               <Route path="dashboard" element={<PageSuspense><Dashboard /></PageSuspense>} />
+               <Route path="products" element={<PageSuspense><Products /></PageSuspense>} />
+               <Route path="clients" element={<PageSuspense><Clients /></PageSuspense>} />
+               <Route path="sales" element={<PageSuspense><Sales /></PageSuspense>} />
+               <Route path="invoices" element={<PageSuspense><Invoices /></PageSuspense>} />
+               <Route path="payments" element={<PageSuspense><Payments /></PageSuspense>} />
+               <Route path="inventory" element={<PageSuspense><Inventory /></PageSuspense>} />
+               <Route path="suppliers" element={<PageSuspense><Suppliers /></PageSuspense>} />
+               <Route path="purchases" element={<PageSuspense><Purchases /></PageSuspense>} />
+               <Route path="delivery" element={<PageSuspense><Delivery /></PageSuspense>} />
+               <Route path="hr" element={<PageSuspense><HR /></PageSuspense>} />
+               <Route path="accounting" element={<PageSuspense><Accounting /></PageSuspense>} />
+               <Route path="documents" element={<PageSuspense><Documents /></PageSuspense>} />
+               <Route path="ai" element={<PageSuspense><AI /></PageSuspense>} />
+               <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
+               <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
+               <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
+               <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
+               <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
+               <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
+
+               {/* Boutique connectée (utilisateurs simples + autres rôles) */}
+               <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
+               <Route path="checkout" element={<PageSuspense><Checkout /></PageSuspense>} />
+               <Route path="order-tracking/:ref" element={<PageSuspense><OrderTracking /></PageSuspense>} />
+               <Route path="mes-commandes" element={<PageSuspense><UserOrders /></PageSuspense>} />
              </Route>
 
-            {/* Authentification */}
-            <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
-            <Route path="/register" element={<AuthSuspense><Register darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
-            <Route path="/register/simple" element={<AuthSuspense><RegisterUser darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
-            <Route path="/register/company" element={<AuthSuspense><RegisterCompany darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
-            <Route path="/forgot-password" element={<AuthSuspense><ForgotPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
-            <Route path="/reset-password/:token" element={<AuthSuspense><ResetPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+             <Route path="*" element={<Navigate to="/login" replace />} />
+           </Routes>
 
-            {/* Espace protégé (layout desktop) — inclut la boutique connectée */}
-            <Route
-              element={(
-                <ProtectedRoute>
-                  <DesktopLayout
-                    darkMode={darkMode}
-                    onToggleDarkMode={toggleDarkMode}
-                    onLogout={handleLogout}
-                  />
-                </ProtectedRoute>
-              )}
-            >
-              <Route path="dashboard" element={<PageSuspense><Dashboard /></PageSuspense>} />
-              <Route path="products" element={<PageSuspense><Products /></PageSuspense>} />
-              <Route path="clients" element={<PageSuspense><Clients /></PageSuspense>} />
-              <Route path="sales" element={<PageSuspense><Sales /></PageSuspense>} />
-              <Route path="invoices" element={<PageSuspense><Invoices /></PageSuspense>} />
-              <Route path="payments" element={<PageSuspense><Payments /></PageSuspense>} />
-              <Route path="inventory" element={<PageSuspense><Inventory /></PageSuspense>} />
-              <Route path="suppliers" element={<PageSuspense><Suppliers /></PageSuspense>} />
-              <Route path="purchases" element={<PageSuspense><Purchases /></PageSuspense>} />
-              <Route path="delivery" element={<PageSuspense><Delivery /></PageSuspense>} />
-              <Route path="hr" element={<PageSuspense><HR /></PageSuspense>} />
-              <Route path="accounting" element={<PageSuspense><Accounting /></PageSuspense>} />
-              <Route path="documents" element={<PageSuspense><Documents /></PageSuspense>} />
-              <Route path="ai" element={<PageSuspense><AI /></PageSuspense>} />
-              <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
-              <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
-              <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
-              <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
-              <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
-              <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
-
-              {/* Boutique connectée (utilisateurs simples + autres rôles) */}
-              <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
-              <Route path="checkout" element={<PageSuspense><Checkout /></PageSuspense>} />
-              <Route path="order-tracking/:ref" element={<PageSuspense><OrderTracking /></PageSuspense>} />
-              <Route path="mes-commandes" element={<PageSuspense><UserOrders /></PageSuspense>} />
-            </Route>
-
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme={darkMode ? "dark" : "light"}
-          />
-        </CartProvider>
-      </DesktopProvider>
-    </AuthProvider>
+           <ToastContainer
+             position="top-right"
+             autoClose={5000}
+             hideProgressBar={false}
+             newestOnTop
+             closeOnClick
+             rtl={false}
+             pauseOnFocusLoss
+             draggable
+             pauseOnHover
+             theme={darkMode ? "dark" : "light"}
+           />
+         </CartProvider>
+       </DesktopProvider>
+     </AuthProvider>
+   </SyncProvider>
   );
 };
 

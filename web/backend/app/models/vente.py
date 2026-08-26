@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric
 
-class Vente(BaseModel):
+class Vente(BaseTenantModel):
     __tablename__ = 'ventes'
     
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)

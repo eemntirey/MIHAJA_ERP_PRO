@@ -241,13 +241,13 @@
 }
 
 .landing-user-menu-item--logout {
-  color: #b96e55;
+  color: var(--erp-critical);
   margin-top: 4px;
 }
 
 .landing-user-menu-item--logout:hover {
-  background: #fff5f2;
-  color: #b96e55;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
 }
 
 /* Burger */

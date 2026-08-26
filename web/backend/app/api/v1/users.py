@@ -1,11 +1,15 @@
 from flask import request, g
 from flask_restx import Namespace, Resource
+from flask_jwt_extended import get_jwt_identity
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.role_permission import RoleModel
+from app.models.tenant import Tenant
 from app import db
-from app.security.auth import hash_password
-from app.security.plan_limits import check_plan_limits
+from app.security.auth import hash_password, _validate_password
+from app.security.plan_limits import check_plan_limits, check_admin_limit, require_module
 from app.security.tenant import tenant_required, get_current_tenant_id
+from app.utils.audit import log_audit
+from app.models.audit_log import TypeActionAudit
 
 ns = Namespace('users', description='Gestion des utilisateurs')
 
@@ -105,6 +109,7 @@ class UserList(Resource):
 
     @tenant_required
     @check_plan_limits('utilisateurs')
+    @check_admin_limit()
     def post(self):
         err, status = _require_admin()
         if err:
@@ -115,6 +120,9 @@ class UserList(Resource):
         password = data.get('password')
         if not username or not email or not password:
             return {'message': 'username, email et password requis'}, 400
+        pwd_error = _validate_password(password)
+        if pwd_error:
+            return {'message': pwd_error}, 400
         existing = (
             Utilisateur.query.execution_options(_skip_tenant_filter=True)
             .filter((Utilisateur.email == email) | (Utilisateur.username == username))
@@ -128,8 +136,14 @@ class UserList(Resource):
         tenant_id = data.get('tenant_id')
         current_tenant_id = get_current_tenant_id()
         if current_tenant_id is not None:
-            # Un admin de tenant crée toujours un utilisateur dans son propre tenant.
+            if tenant_id is not None and tenant_id != current_tenant_id:
+                return {'message': 'Vous ne pouvez pas creer d\'utilisateur dans un autre tenant'}, 403
             tenant_id = current_tenant_id
+        if tenant_id is not None:
+            tenant = db.session.get(Tenant, tenant_id)
+            if not tenant:
+                return {'message': 'Tenant introuvable'}, 404
+        creator_id = get_jwt_identity()
         user = Utilisateur(
             username=username,
             email=email,
@@ -142,9 +156,20 @@ class UserList(Resource):
             statut=_coerce_statut(data.get('statut')) or StatutUtilisateur.ACTIF,
             custom_role_id=data.get('custom_role_id'),
             tenant_id=tenant_id,
+            created_by=creator_id,
         )
         db.session.add(user)
         db.session.commit()
+        try:
+            log_audit(
+                TypeActionAudit.CREATION_UTILISATEUR,
+                f"Création de l'utilisateur {user.username} (role={role.value})",
+                tenant_id=tenant_id,
+                utilisateur_id=get_jwt_identity(),
+                metadata={'user_id': user.id, 'role': role.value},
+            )
+        except Exception:
+            pass
         return user.to_dict(), 201
 
 
@@ -171,6 +196,7 @@ class UserResource(Resource):
         if user.is_super_admin and not _is_global_admin():
             return {'message': 'Seul un super administrateur peut modifier un compte super_admin'}, 403
         data = request.get_json() or {}
+        old_role = user.role
         for key in _ALLOWED_USER_FIELDS:
             if key not in data:
                 continue
@@ -179,13 +205,29 @@ class UserResource(Resource):
                 coerced = _coerce_role(value)
                 if coerced == Role.SUPER_ADMIN and not _is_global_admin():
                     return {'message': 'Seul un super administrateur peut assigner le role super_admin'}, 403
+                if coerced in (Role.ADMIN, Role.SUPER_ADMIN) and user.tenant_id:
+                    tenant = db.session.get(Tenant, user.tenant_id)
+                    if tenant and not check_admin_limit(tenant):
+                        return {'message': 'Limite d\'administrateurs atteinte pour votre abonnement actuel.'}, 403
                 value = coerced
             elif key == 'statut':
                 value = _coerce_statut(value)
             setattr(user, key, value)
         if 'password' in data and data['password']:
+            pwd_error = _validate_password(data['password'])
+            if pwd_error:
+                return {'message': pwd_error}, 400
             user.password_hash = hash_password(data['password'])
+        user.updated_by = get_jwt_identity()
         db.session.commit()
+        if old_role != user.role:
+            log_audit(
+                TypeActionAudit.CHANGEMENT_ROLE,
+                f"Changement de rôle pour {user.username}: {old_role.value} -> {user.role.value}",
+                tenant_id=user.tenant_id,
+                utilisateur_id=g.current_user.id if hasattr(g, 'current_user') and g.current_user else None,
+                metadata={'user_id': user.id, 'old_role': old_role.value, 'new_role': user.role.value},
+            )
         return user.to_dict(), 200
 
     @tenant_required

@@ -80,7 +80,16 @@ class PublicTenantDetail(Resource):
         tenant = Tenant.query.filter_by(id=tenant_id, is_active=True).first()
         if not tenant:
             return {'message': 'Vendeur non trouve'}, 404
-        return tenant.to_dict(), 200
+        data = {
+            'id': tenant.id,
+            'nom': tenant.nom,
+            'slug': tenant.slug,
+            'ville': tenant.ville,
+            'pays': tenant.pays,
+            'statut': tenant.statut.value if hasattr(tenant.statut, 'value') else tenant.statut,
+            'plan': tenant.plan,
+        }
+        return data, 200
 
 
 @ns_public.route('/commandes')
@@ -125,7 +134,16 @@ class PublicCommandeTracking(Resource):
         commande = CommandeService.get_by_reference(ref)
         if not commande:
             return {'message': 'Commande non trouvee'}, 404
-        return commande.to_dict(), 200
+        statut_value = (
+            commande.statut.value
+            if hasattr(commande.statut, 'value')
+            else commande.statut
+        )
+        return {
+            'reference': commande.reference,
+            'statut': statut_value,
+            'updated_at': commande.updated_at.isoformat() if commande.updated_at else None,
+        }, 200
 
 
 @ns_public.route('/notifications')

@@ -146,8 +146,8 @@
 }
 
 .badge.info {
-  background: rgba(66, 153, 225, 0.12);
-  color: #2b6cb0;
+  background: var(--color-info-soft);
+  color: var(--color-info-text);
 }
 
 .badge.gold {
@@ -259,7 +259,7 @@
 .delivery-event__dot.tone-success { background: var(--erp-success); }
 .delivery-event__dot.tone-danger { background: var(--erp-critical); }
 .delivery-event__dot.tone-warning { background: var(--erp-gold); }
-.delivery-event__dot.tone-info { background: #4299e1; }
+.delivery-event__dot.tone-info { background: var(--color-info); }
 .delivery-event__dot.tone-neutral { background: var(--erp-subtle); }
 
 .delivery-event__status {

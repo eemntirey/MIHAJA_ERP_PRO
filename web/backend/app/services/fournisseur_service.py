@@ -55,27 +55,22 @@ class FournisseurService(BaseService):
     def create(cls, data: Dict[str, Any]) -> Fournisseur:
         """Crée un nouveau fournisseur"""
         tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            raise ValueError("Aucun tenant associe a ce compte")
         
         # Vérifier le code unique dans le tenant
-        q = cls.model.query.filter_by(code=data['code'])
-        if tenant_id:
-            q = q.filter_by(tenant_id=tenant_id)
+        q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
         if q.first():
             raise ValueError(f"Le code {data['code']} existe déjà")
         
         # Vérifier le SIRET unique dans le tenant
         if data.get('siret'):
-            q = cls.model.query.filter_by(siret=data['siret'])
-            if tenant_id:
-                q = q.filter_by(tenant_id=tenant_id)
+            q = cls.model.query.filter_by(siret=data['siret'], tenant_id=tenant_id)
             if q.first():
                 raise ValueError(f"Le SIRET {data['siret']} existe déjà")
         
-        if tenant_id:
-            data['tenant_id'] = tenant_id
-        fournisseur = cls.model(**data)
-        fournisseur.save()
-        return fournisseur
+        data['tenant_id'] = tenant_id
+        return super().create(data)
     
     @classmethod
     def get_by_siret(cls, siret: str) -> Optional[Fournisseur]:

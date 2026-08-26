@@ -1,7 +1,7 @@
 // src/pages/HR.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { employeService, presenceService, salaireService, primeService } from '../services/api';
+import { employeService, presenceService, salaireService, primeService, stagiaireService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 import './HR.css';
@@ -36,8 +36,24 @@ const TYPES_PRIME = {
   exceptionnel: 'Exceptionnel',
 };
 
+const STAGIAIRE_STATUTS = {
+  actif: { label: 'Actif', class: 'success' },
+  inactif: { label: 'Inactif', class: 'danger' },
+  en_stage: { label: 'En stage', class: 'success' },
+  termine: { label: 'Terminé', class: 'info' },
+  abandon: { label: 'Abandon', class: 'danger' },
+};
+
+const TYPES_CONTRAT_STAGIAIRE = {
+  stage_initiation: 'Stage initiation',
+  stage_fin_etudes: 'Stage fin d\'études',
+  stage_professionnel: 'Stage professionnel',
+  apprentissage: 'Apprentissage',
+};
+
 const TABS = [
   { key: 'employes', label: 'Employés', icon: 'ti-users' },
+  { key: 'stagiaires', label: 'Stagiaires', icon: 'ti-school' },
   { key: 'presences', label: 'Présences', icon: 'ti-clock' },
   { key: 'salaires', label: 'Salaires', icon: 'ti-cash' },
   { key: 'primes', label: 'Primes', icon: 'ti-trophy' },
@@ -54,6 +70,7 @@ const initials = (e) => {
 
 const emptyForms = {
   employe: { matricule: '', nom: '', prenom: '', date_naissance: '', lieu_naissance: '', sexe: 'M', adresse: '', telephone: '', email: '', poste: '', departement: '', date_embauche: '', date_fin_contrat: '', type_contrat: 'cdi', salaire_base: '', banque_nom: '', banque_iban: '', banque_bic: '', statut: 'actif' },
+  stagiaire: { matricule: '', nom: '', prenom: '', date_naissance: '', lieu_naissance: '', sexe: 'M', adresse: '', telephone: '', email: '', etablissement: '', formation: '', type_contrat: 'stage_initiation', date_debut: '', date_fin: '', indemnite: '', tuteur_id: '', departement: '', note: '', statut: 'actif' },
   presence: { employe_id: '', date: '', heure_arrivee: '', heure_depart: '', heure_pause_debut: '', heure_pause_fin: '', statut: 'present', remarque: '' },
   salaire: { employe_id: '', mois: '', annee: '', salaire_base: '', primes: '', indemnites: '', deductions: '', avances: '', mode_paiement: 'virement', reference_paiement: '', notes: '', statut_paiement: 'en_attente' },
   prime: { employe_id: '', type_prime: 'performance', montant: '', date_octroi: '', motif: '' },
@@ -61,6 +78,7 @@ const emptyForms = {
 
 const services = {
   employe: employeService,
+  stagiaire: stagiaireService,
   presence: presenceService,
   salaire: salaireService,
   prime: primeService,
@@ -69,6 +87,7 @@ const services = {
 export default function HR() {
   const [tab, setTab] = useState('employes');
   const [employes, setEmployes] = useState([]);
+  const [stagiaires, setStagiaires] = useState([]);
   const [presences, setPresences] = useState([]);
   const [salaires, setSalaires] = useState([]);
   const [primes, setPrimes] = useState([]);
@@ -87,18 +106,20 @@ export default function HR() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [e, p, s, pr] = await Promise.allSettled([
+      const [e, st, p, s, pr] = await Promise.allSettled([
         employeService.getAll(),
+        stagiaireService.getAll(),
         presenceService.getAll(),
         salaireService.getAll(),
         primeService.getAll(),
       ]);
-      const failed = [e, p, s, pr].filter(r => r.status === 'rejected');
+      const failed = [e, st, p, s, pr].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
         toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
       setEmployes((e.status === 'fulfilled' ? e.value?.data?.employes || e.value?.data || [] : []));
+      setStagiaires((st.status === 'fulfilled' ? st.value?.data?.stagiaires || st.value?.data || [] : []));
       setPresences((p.status === 'fulfilled' ? p.value?.data?.presences || p.value?.data || [] : []));
       setSalaires((s.status === 'fulfilled' ? s.value?.data?.salaires || s.value?.data || [] : []));
       setPrimes((pr.status === 'fulfilled' ? pr.value?.data?.primes || pr.value?.data || [] : []));
@@ -113,6 +134,7 @@ export default function HR() {
 
   const tabCounts = {
     employes: employes.length,
+    stagiaires: stagiaires.length,
     presences: presences.length,
     salaires: salaires.length,
     primes: primes.length,
@@ -120,11 +142,12 @@ export default function HR() {
 
   const summary = useMemo(() => {
     const actifs = employes.filter((e) => e.statut === 'actif').length;
+    const stagiairesActifs = stagiaires.filter((s) => s.statut === 'actif' || s.statut === 'en_stage').length;
     const masseSalariale = salaires.reduce((sum, s) => sum + (Number(s.salaire_net) || 0), 0);
     const totalPrimes = primes.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
     const presencesMois = presences.filter((p) => p.date && p.date.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
-    return { total: employes.length, actifs, masseSalariale, totalPrimes, presencesMois };
-  }, [employes, salaires, primes, presences]);
+    return { total: employes.length, actifs, stagiairesActifs, masseSalariale, totalPrimes, presencesMois };
+  }, [employes, stagiaires, salaires, primes, presences]);
 
   const openModal = (type, item = null) => {
     if (item) {
@@ -165,12 +188,12 @@ export default function HR() {
     let data = { ...raw };
     const numFields = {
       employe: ['salaire_base'],
+      stagiaire: ['indemnite', 'tuteur_id'],
       presence: ['employe_id'],
       salaire: ['employe_id', 'mois', 'annee', 'salaire_base', 'primes', 'indemnites', 'deductions', 'avances'],
       prime: ['employe_id', 'montant'],
     }[type];
-    numFields.forEach((k) => { data[k] = Number(data[k]) || 0; });
-    const dateFields = ['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date'];
+    const dateFields = ['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date', 'date_debut', 'date_fin'];
     dateFields.forEach((k) => { if (data[k] === '') data[k] = null; });
 
     try {
@@ -247,6 +270,13 @@ export default function HR() {
       (e.poste || '').toLowerCase().includes(search.toLowerCase()) ||
       (e.departement || '').toLowerCase().includes(search.toLowerCase())
     ),
+    stagiaires: stagiaires.filter((s) =>
+      !search ||
+      (s.nom_complet || `${s.prenom ? s.prenom + ' ' : ''}${s.nom || ''}`.trim()).toLowerCase().includes(search.toLowerCase()) ||
+      (s.matricule || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.etablissement || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.formation || '').toLowerCase().includes(search.toLowerCase())
+    ),
     presences: presences.filter((p) =>
       !search ||
       (empMap[p.employe_id] ? empName(empMap[p.employe_id]) : p.employe_nom || '').toLowerCase().includes(search.toLowerCase())
@@ -304,6 +334,13 @@ export default function HR() {
           </div>
         </div>
         <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--color-primary)' }}><i className="ti ti-school" aria-hidden="true" /></div>
+          <div className="stat-content">
+            <span className="stat-value">{summary.stagiairesActifs}</span>
+            <span className="stat-label">Stagiaires actifs</span>
+          </div>
+        </div>
+        <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--color-primary-hover)' }}><i className="ti ti-clock" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.presencesMois}</span>
@@ -345,7 +382,7 @@ export default function HR() {
           <div className="search-box">
             <input
               type="text"
-              placeholder={`Rechercher un${tab === 'employes' ? 'e employé' : `e ${TABS.find((t) => t.key === tab).label.toLowerCase().slice(0, -1)}`}...`}
+              placeholder={`Rechercher un${tab === 'employes' ? 'e employé' : tab === 'stagiaires' ? 'e stagiaire' : `e ${TABS.find((t) => t.key === tab).label.toLowerCase().slice(0, -1)}`}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -404,6 +441,67 @@ export default function HR() {
                         <td>
                           <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal('employe', e)}><i className="ti ti-edit" aria-hidden="true" /></button>
                           <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('employe', e.id)}><i className="ti ti-trash" aria-hidden="true" /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ============ STAGIAIRES ============ */}
+      {tab === 'stagiaires' && (
+        <>
+          <div className="hr-section-head">
+            <div>
+              <h2>Liste des stagiaires</h2>
+              <p>Fiches stagiaires, établissements et tuteurs</p>
+            </div>
+            <div className="hr-section-actions">
+              <button className="btn-primary" onClick={() => openModal('stagiaire')}>+ Nouveau stagiaire</button>
+            </div>
+          </div>
+
+          <div className="card full-width">
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Matricule</th>
+                    <th>Nom</th>
+                    <th>Établissement</th>
+                    <th>Formation</th>
+                    <th>Période</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.stagiaires.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center">Aucun stagiaire trouvé</td></tr>
+                  ) : (
+                    filtered.stagiaires.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.matricule || '—'}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div className="hr-avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{initials(s)}</div>
+                            <div>
+                              <div>{s.nom_complet || `${s.prenom ? s.prenom + ' ' : ''}${s.nom || ''}`.trim() || `#${s.id}`}</div>
+                              <div className="hr-table-meta">{s.email || s.telephone || ''}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{s.etablissement || '—'}</td>
+                        <td>{s.formation || '—'}</td>
+                        <td>{fmtDate(s.date_debut)} - {fmtDate(s.date_fin)}</td>
+                        <td>{renderBadge(STAGIAIRE_STATUTS, s.statut)}</td>
+                        <td>
+                          <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal('stagiaire', s)}><i className="ti ti-edit" aria-hidden="true" /></button>
+                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('stagiaire', s.id)}><i className="ti ti-trash" aria-hidden="true" /></button>
                         </td>
                       </tr>
                     ))
@@ -638,6 +736,47 @@ export default function HR() {
                       <div className="form-group"><label>Banque</label><input name="banque_nom" value={forms.employe.banque_nom} onChange={handleChange('employe')} placeholder="Nom banque" /></div>
                       <div className="form-group"><label>IBAN</label><input name="banque_iban" value={forms.employe.banque_iban} onChange={handleChange('employe')} placeholder="IBAN" /></div>
                       <div className="form-group"><label>BIC</label><input name="banque_bic" value={forms.employe.banque_bic} onChange={handleChange('employe')} placeholder="BIC" /></div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {modalType === 'stagiaire' && (
+                <>
+                  <div className="hr-form-section">
+                    <div className="hr-form-section-header">
+                      <span className="hr-form-section-icon"><i className="ti ti-school" aria-hidden="true" /></span>
+                      <span className="hr-form-section-title">Informations personnelles</span>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group"><label>Matricule <span className="hr-required">*</span></label><input name="matricule" value={forms.stagiaire.matricule} onChange={handleChange('stagiaire')} required placeholder="STG-001" /></div>
+                      <div className="form-group"><label>Nom <span className="hr-required">*</span></label><input name="nom" value={forms.stagiaire.nom} onChange={handleChange('stagiaire')} required placeholder="Nom" /></div>
+                      <div className="form-group"><label>Prénom</label><input name="prenom" value={forms.stagiaire.prenom} onChange={handleChange('stagiaire')} placeholder="Prénom" /></div>
+                      <div className="form-group"><label>Sexe</label><select name="sexe" value={forms.stagiaire.sexe} onChange={handleChange('stagiaire')}><option value="M">M</option><option value="F">F</option></select></div>
+                      <div className="form-group"><label>Date de naissance</label><input type="date" name="date_naissance" value={forms.stagiaire.date_naissance} onChange={handleChange('stagiaire')} /></div>
+                      <div className="form-group"><label>Lieu de naissance</label><input name="lieu_naissance" value={forms.stagiaire.lieu_naissance} onChange={handleChange('stagiaire')} placeholder="Ville" /></div>
+                      <div className="form-group full-width"><label>Adresse</label><input name="adresse" value={forms.stagiaire.adresse} onChange={handleChange('stagiaire')} placeholder="Adresse" /></div>
+                      <div className="form-group"><label>Email</label><input type="email" name="email" value={forms.stagiaire.email} onChange={handleChange('stagiaire')} placeholder="email@exemple.com" /></div>
+                      <div className="form-group"><label>Téléphone</label><input name="telephone" value={forms.stagiaire.telephone} onChange={handleChange('stagiaire')} placeholder="+261 34 00 000 00" /></div>
+                    </div>
+                  </div>
+
+                  <div className="hr-form-section">
+                    <div className="hr-form-section-header">
+                      <span className="hr-form-section-icon"><i className="ti ti-school" aria-hidden="true" /></span>
+                      <span className="hr-form-section-title">Stage & formation</span>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group"><label>Établissement</label><input name="etablissement" value={forms.stagiaire.etablissement} onChange={handleChange('stagiaire')} placeholder="Établissement" /></div>
+                      <div className="form-group"><label>Formation</label><input name="formation" value={forms.stagiaire.formation} onChange={handleChange('stagiaire')} placeholder="Formation" /></div>
+                      <div className="form-group"><label>Type de contrat</label><select name="type_contrat" value={forms.stagiaire.type_contrat} onChange={handleChange('stagiaire')}><option value="stage_initiation">Stage initiation</option><option value="stage_fin_etudes">Stage fin d'études</option><option value="stage_professionnel">Stage professionnel</option><option value="apprentissage">Apprentissage</option></select></div>
+                      <div className="form-group"><label>Statut</label><select name="statut" value={forms.stagiaire.statut} onChange={handleChange('stagiaire')}><option value="actif">Actif</option><option value="inactif">Inactif</option><option value="en_stage">En stage</option><option value="termine">Terminé</option><option value="abandon">Abandon</option></select></div>
+                      <div className="form-group"><label>Date début</label><input type="date" name="date_debut" value={forms.stagiaire.date_debut} onChange={handleChange('stagiaire')} /></div>
+                      <div className="form-group"><label>Date fin</label><input type="date" name="date_fin" value={forms.stagiaire.date_fin} onChange={handleChange('stagiaire')} /></div>
+                      <div className="form-group"><label>Indemnité</label><input type="number" name="indemnite" value={forms.stagiaire.indemnite} onChange={handleChange('stagiaire')} placeholder="0" /></div>
+                      <div className="form-group"><label>Tuteur</label><select name="tuteur_id" value={forms.stagiaire.tuteur_id} onChange={handleChange('stagiaire')}><option value="">Aucun</option>{employes.map((e) => (<option key={e.id} value={e.id}>{empName(e)}</option>))}</select></div>
+                      <div className="form-group"><label>Département</label><input name="departement" value={forms.stagiaire.departement} onChange={handleChange('stagiaire')} placeholder="Département" /></div>
+                      <div className="form-group full-width"><label>Note</label><input name="note" value={forms.stagiaire.note} onChange={handleChange('stagiaire')} placeholder="Note" /></div>
                     </div>
                   </div>
                 </>

@@ -14,7 +14,7 @@
 }
 
 .subscription-status-card--en_attente {
-  border-left-color: #d4af37;
+  border-left-color: var(--color-warning);
 }
 
 .subscription-status-card--expire {
@@ -234,12 +234,12 @@
 }
 
 .payment-method-card:hover {
-  border-color: #3b82f6;
+  border-color: var(--color-info);
 }
 
 .payment-method-card--selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--color-info);
+  background: var(--color-info-soft);
 }
 
 .payment-method-card__icon {
@@ -317,7 +317,7 @@
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-card__features li::before {
-  color: #6e9b79;
+  color: var(--color-success);
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-card__cta {
@@ -345,7 +345,7 @@
 .offline-bulletin__ref {
   font-family: var(--erp-heading-font, monospace);
   letter-spacing: 0.5px;
-  color: #3b82f6;
+  color: var(--color-info);
 }
 
 .offline-bulletin__instructions {

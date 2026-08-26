@@ -78,6 +78,8 @@ const MainLayout = () => {
   };
 
   useEffect(() => {
+    if (!user) return;
+
     let active = true;
 
     const safeCount = (value) => {
@@ -120,7 +122,7 @@ const MainLayout = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user]);
 
   if (isDesktop) {
     return (

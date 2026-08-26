@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -8,7 +8,7 @@ class StatutPaiementSalaire(enum.Enum):
     PARTIEL = 'partiel'
     PAYE = 'paye'
 
-class Salaire(BaseModel):
+class Salaire(BaseTenantModel):
     __tablename__ = 'salaires'
 
     employe_id = db.Column(db.Integer, db.ForeignKey('employes.id'), nullable=False, index=True)
