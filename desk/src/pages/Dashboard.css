@@ -1,18 +1,18 @@
 .dashboard-page {
-  --dashboard-onyx: #111111;
-  --dashboard-onyx-soft: #2a2a2a;
+  --dashboard-onyx: #0c0a09;
+  --dashboard-onyx-soft: #292524;
   --dashboard-gold: #d4af37;
   --dashboard-gold-dark: #cda233;
   --dashboard-white: #ffffff;
-  --dashboard-surface: #f7f7f5;
-  --dashboard-line: #e6e6e1;
-  --dashboard-line-strong: #deded8;
-  --dashboard-muted: #77776f;
-  --dashboard-subtle: #9a9a92;
-  --dashboard-chart-grid: #e9e9e4;
-  --dashboard-critical: #b96e55;
-  --dashboard-success: #6e9b79;
-  --dashboard-focus: #8d6b18;
+  --dashboard-surface: #fafafa;
+  --dashboard-line: #e7e5e4;
+  --dashboard-line-strong: #d6d3d1;
+  --dashboard-muted: #78716c;
+  --dashboard-subtle: #a8a29e;
+  --dashboard-chart-grid: #e7e5e4;
+  --dashboard-critical: #dc2626;
+  --dashboard-success: #16a34a;
+  --dashboard-focus: #926e22;
   --dashboard-heading-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --dashboard-body-font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --dashboard-content-padding: 52px;
@@ -884,7 +884,7 @@
   position: fixed;
   z-index: 35;
   right: 28px;
-  bottom: 24px;
+  bottom: 86px;
   display: inline-flex;
   min-width: 48px;
   height: 48px;
@@ -1056,7 +1056,7 @@
 
   .dashboard-assistant {
     right: 18px;
-    bottom: 18px;
+    bottom: 80px;
   }
 }
 

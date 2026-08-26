@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -9,7 +9,7 @@ class TypePrime(enum.Enum):
     OBJECTIF = 'objectif'
     EXCEPTIONNEL = 'exceptionnel'
 
-class Prime(BaseModel):
+class Prime(BaseTenantModel):
     __tablename__ = 'primes'
 
     employe_id = db.Column(db.Integer, db.ForeignKey('employes.id'), nullable=False, index=True)

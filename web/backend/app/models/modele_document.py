@@ -1,12 +1,12 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 
-class ModeleDocument(BaseModel):
+class ModeleDocument(BaseTenantModel):
     __tablename__ = 'modeles_documents'
 
     nom = db.Column(db.String(100), nullable=False)
-    type_document = db.Column(db.String(50), nullable=False)  # facture/devis/contrat/bon_livraison/avoir
-    contenu_modele = db.Column(db.Text, nullable=False)  # HTML template with {{placeholders}}
+    type_document = db.Column(db.String(50), nullable=False)
+    contenu_modele = db.Column(db.Text, nullable=False)
     est_actif = db.Column(db.Boolean, default=True)
     est_defaut = db.Column(db.Boolean, default=False)
     logo_url = db.Column(db.String(500))

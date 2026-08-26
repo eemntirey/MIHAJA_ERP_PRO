@@ -98,6 +98,7 @@ const Subscription = () => {
       ]);
       setSubscription(subRes.data?.abonnement ?? null);
       setHistorique(histRes.data?.abonnements || histRes.data || []);
+      fetchSubscriptionStatus();
     } catch (err) {
       console.error('Error fetching subscription data:', err);
     } finally {

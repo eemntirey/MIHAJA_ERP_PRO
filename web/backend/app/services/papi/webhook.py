@@ -6,7 +6,7 @@ from app import db
 from app.models.paiement import Paiement, StatutPaiement
 from app.models.payment_event import PaymentEvent
 from app.models.abonnement import Abonnement, StatutAbonnement
-from app.models.tenant import Tenant
+from app.models.tenant import Tenant, StatutTenant
 from app.services.papi.errors import (
     PapiWebhookError,
     PapiDuplicateWebhookError,
@@ -138,6 +138,13 @@ def process_papi_webhook(payload: dict) -> dict:
                 subscription.methode_paiement = paiement.payment_method
                 subscription.reference_paiement = paiement.external_reference
                 db.session.add(subscription)
+
+                if subscription.tenant_id:
+                    tenant = db.session.get(Tenant, subscription.tenant_id)
+                    if tenant and tenant.statut != StatutTenant.ACTIF:
+                        tenant.statut = StatutTenant.ACTIF
+                        tenant.date_abonnement = datetime.utcnow()
+                        db.session.add(tenant)
 
     elif payment_status == 'FAILED':
         if paiement.statut != StatutPaiement.FAILED:

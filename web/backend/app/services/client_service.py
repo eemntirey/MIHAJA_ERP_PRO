@@ -57,15 +57,12 @@ class ClientService(BaseService):
     @classmethod
     def create(cls, data: Dict[str, Any]) -> Client:
         """Crée un nouveau client"""
-        tenant_id = get_current_tenant_id()
-        
-        if not tenant_id:
-            raise ValueError("Aucun tenant associe a ce compte")
-        
         if 'code' not in data or not data['code']:
             raise ValueError("Le code client est requis")
         
-        data['tenant_id'] = tenant_id
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            raise ValueError("Aucun tenant associe a ce compte")
         
         q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
         if q.first():
@@ -76,9 +73,8 @@ class ClientService(BaseService):
             if q.first():
                 raise ValueError(f"L'email {data['email']} existe déjà")
         
-        client = cls.model(**data)
-        client.save()
-        return client
+        data['tenant_id'] = tenant_id
+        return super().create(data)
     
     @classmethod
     def get_by_email(cls, email: str) -> Optional[Client]:

@@ -601,3 +601,49 @@ class TestSecurityMultiTenancy:
 
         r = client.get(f'/api/v1/fournisseurs/factures/{ffid_b}', headers=headers_a)
         assert r.status_code == 404, r.get_json()
+
+    def test_create_without_tenant_id_is_rejected(self, app):
+        _make_context()
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        with app.app_context():
+            from app.services.client_service import ClientService
+            with pytest.raises(ValueError, match='Aucun tenant associe'):
+                ClientService.create({'code': 'CLI-NO-TENANT', 'nom': 'Orphelin'})
+
+    def test_create_with_valid_tenant_id_succeeds(self, app):
+        ta, _, admin_a, _, _ = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        r = client.post('/api/v1/clients', json={
+            'code': 'CLI-OK',
+            'nom': 'Client OK',
+            'prenom': 'Test'
+        }, headers=headers)
+        assert r.status_code == 201, r.get_json()
+        assert r.get_json()['tenant_id'] == ta.id
+
+    def test_super_admin_without_tenant_id_works(self, app):
+        _make_context()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.get('/api/v1/clients', headers=headers)
+        assert r.status_code == 200
+
+    def test_tenant_resolution_failure_is_logged(self, app, monkeypatch, caplog):
+        import logging
+        from app.security import tenant as tenant_module
+
+        def bad_resolve():
+            raise RuntimeError('header cassé')
+
+        monkeypatch.setattr(tenant_module, 'resolve_tenant_from_header', bad_resolve)
+
+        with caplog.at_level(logging.WARNING, logger='app'):
+            client = app.test_client()
+            client.get('/api/v1/auth/login', json={'username': 'x', 'password': 'y'})
+
+        assert any('Impossible de résoudre le tenant' in record.getMessage() for record in caplog.records)

@@ -29,6 +29,10 @@ def register_tenant_filter_event():
         
         # Skip if execution options indicate no tenant filtering
         if orm_execute_state.execution_options.get('_skip_tenant_filter'):
+            logger.warning(
+                "Tenant filter bypassed via _skip_tenant_filter on query: %s",
+                str(orm_execute_state.statement),
+            )
             return
         
         # Get current tenant from Flask g
@@ -162,7 +166,7 @@ def tenant_required(fn):
 def tenant_admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        from flask_jwt_extended import verify_jwt_in_request
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
         from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
 
         try:
@@ -178,10 +182,17 @@ def tenant_admin_required(fn):
         except Exception:
             return {'message': 'Token JWT invalide ou expiré'}, 401
 
-        if not g.current_user.is_admin:
+        user_id = get_jwt_identity()
+        if isinstance(user_id, str) and user_id.isdigit():
+            user_id = int(user_id)
+
+        utilisateur = db.session.get(Utilisateur, user_id)
+        if not utilisateur or not utilisateur.is_admin:
             return {'message': 'Acces refuse: admin requis'}, 403
+
+        g.current_user = utilisateur
         return fn(*args, **kwargs)
-    
+
     return wrapper
 
 

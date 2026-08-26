@@ -7,30 +7,30 @@ const NAV_GROUPS = [
   {
     label: 'Piloter',
     items: [
-      { label: 'Tableau de bord', to: '/dashboard', icon: 'ti-layout-dashboard' },
-      { label: 'Produits', to: '/products', icon: 'ti-package', badge: 'products' },
-      { label: 'Clients', to: '/clients', icon: 'ti-users' },
-      { label: 'Ventes', to: '/sales', icon: 'ti-shopping-cart', badge: 'sales' },
-      { label: 'Factures', to: '/invoices', icon: 'ti-file-text', badge: 'invoices' },
-      { label: 'Paiements', to: '/payments', icon: 'ti-credit-card' },
+      { label: 'Tableau de bord', to: '/dashboard', icon: 'ti-layout-dashboard', module: 'dashboard' },
+      { label: 'Produits', to: '/products', icon: 'ti-package', module: 'produits', badge: 'products' },
+      { label: 'Clients', to: '/clients', icon: 'ti-users', module: 'clients' },
+      { label: 'Ventes', to: '/sales', icon: 'ti-shopping-cart', module: 'ventes', badge: 'sales' },
+      { label: 'Factures', to: '/invoices', icon: 'ti-file-text', module: 'factures', badge: 'invoices' },
+      { label: 'Paiements', to: '/payments', icon: 'ti-credit-card', module: 'paiements' },
     ],
   },
   {
     label: 'Opérations',
     items: [
-      { label: 'Stock', to: '/inventory', icon: 'ti-box', badge: 'stock' },
+      { label: 'Stock', to: '/inventory', icon: 'ti-box', module: 'stocks', badge: 'stock' },
       { label: 'Fournisseurs', to: '/suppliers', icon: 'ti-truck' },
-      { label: 'Achats', to: '/purchases', icon: 'ti-shopping-cart-plus' },
-      { label: 'Livraisons', to: '/delivery', icon: 'ti-truck-delivery' },
+      { label: 'Achats', to: '/purchases', icon: 'ti-shopping-cart-plus', module: 'achats' },
+      { label: 'Livraisons', to: '/delivery', icon: 'ti-truck-delivery', module: 'livraison' },
     ],
   },
   {
     label: 'Gestion',
     items: [
-      { label: 'Ressources Humaines', to: '/hr', icon: 'ti-users-group' },
-      { label: 'Comptabilité', to: '/accounting', icon: 'ti-calculator' },
-      { label: 'Documents', to: '/documents', icon: 'ti-file-description' },
-      { label: 'IA', to: '/ai', icon: 'ti-robot' },
+      { label: 'Ressources Humaines', to: '/hr', icon: 'ti-users-group', module: 'rh' },
+      { label: 'Comptabilité', to: '/accounting', icon: 'ti-calculator', module: 'comptabilite' },
+      { label: 'Documents', to: '/documents', icon: 'ti-file-description', module: 'documents' },
+      { label: 'IA', to: '/ai', icon: 'ti-robot', module: 'ia' },
     ],
   },
   {
@@ -60,7 +60,7 @@ const formatRole = (role) => {
 };
 
 const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEditName, onSaveName, nameForm, onUpdateNameField, darkMode, onToggleDarkMode, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead }) => {
-  const { hasRole } = useAuth();
+  const { hasRole, getAllowedModules } = useAuth();
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const mobileProfileRef = useRef(null);
@@ -70,12 +70,15 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
+  const allowedModules = getAllowedModules();
+  const isAdmin = hasRole('super_admin') || hasRole('admin');
 
   const filteredNavGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
       if (item.to === '/accounting') return hasAccountingAccess;
-      if (item.to === '/super-admin' || item.to === '/users' || item.to === '/roles' || item.to === '/permissions') return hasRole('super_admin');
+      if (item.to === '/super-admin' || item.to === '/users' || item.to === '/roles' || item.to === '/permissions') return isAdmin;
+      if (!isSuperAdmin && item.module && allowedModules !== null && !allowedModules.includes(item.module)) return false;
       return true;
     })
   })).filter(group => group.items.length > 0);

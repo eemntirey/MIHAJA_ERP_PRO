@@ -28,10 +28,12 @@ class DemanderAbonnement(Resource):
         data['tenant_id'] = tenant_id
         try:
             abonnement, paiement = AbonnementService.create_abonnement(data)
-            return {
+            response = {
                 'abonnement': abonnement.to_dict(),
-                'paiement': paiement.to_dict()
-            }, 201
+            }
+            if paiement:
+                response['paiement'] = paiement.to_dict()
+            return response, 201
         except Exception as e:
             db.session.rollback()
             return {'message': str(e)}, 400
@@ -126,6 +128,55 @@ class RenouvelerAbonnement(Resource):
         return {
             'abonnement': abonnement.to_dict(),
             'paiement': paiement.to_dict()
+        }, 200
+
+
+@ns.route('/paiements/<int:paiement_id>/valider')
+class ValiderPaiementHorsLigne(Resource):
+    @jwt_required()
+    def post(self, paiement_id):
+        user_id = get_jwt_identity()
+        utilisateur = db.session.get(Utilisateur, user_id)
+        if not utilisateur or not is_super_admin(utilisateur.role):
+            return {'message': 'Acces super administrateur requis'}, 403
+
+        paiement = db.session.get(Paiement, paiement_id)
+        if not paiement or not paiement.is_active:
+            return {'message': 'Paiement non trouve'}, 404
+
+        if paiement.statut == StatutPaiement.SUCCESS:
+            return {'message': 'Paiement deja valide'}, 400
+
+        paiement.statut = StatutPaiement.SUCCESS
+        paiement.date_paiement = datetime.utcnow()
+        db.session.commit()
+
+        abonnement = None
+        if paiement.subscription_id:
+            abonnement = db.session.get(Abonnement, paiement.subscription_id)
+            if abonnement and abonnement.statut != StatutAbonnement.ACTIF:
+                abonnement.statut = StatutAbonnement.ACTIF
+                if not abonnement.date_debut:
+                    abonnement.date_debut = datetime.utcnow()
+                if not abonnement.date_fin:
+                    from datetime import timedelta
+                    abonnement.date_fin = datetime.utcnow() + timedelta(days=30)
+                db.session.add(abonnement)
+
+        tenant = None
+        if abonnement and abonnement.tenant_id:
+            tenant = db.session.get(Tenant, abonnement.tenant_id)
+            if tenant and tenant.statut != StatutTenant.ACTIF:
+                tenant.statut = StatutTenant.ACTIF
+                tenant.date_abonnement = datetime.utcnow()
+                db.session.add(tenant)
+
+        db.session.commit()
+
+        return {
+            'paiement': paiement.to_dict(),
+            'abonnement': abonnement.to_dict() if abonnement else None,
+            'tenant': tenant.to_dict() if tenant else None,
         }, 200
 
 

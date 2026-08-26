@@ -41,3 +41,8 @@ class BaseModel(db.Model):
                 value = float(value)
             data[column.name] = value
         return data
+
+
+class BaseTenantModel(BaseModel):
+    __abstract__ = True
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)

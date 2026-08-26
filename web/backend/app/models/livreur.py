@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 
-class Livreur(BaseModel):
+class Livreur(BaseTenantModel):
     __tablename__ = 'livreurs'
 
     nom = db.Column(db.String(100), nullable=False)

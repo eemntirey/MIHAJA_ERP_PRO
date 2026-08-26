@@ -61,6 +61,16 @@ class Tenant(BaseModel):
         back_populates='tenant',
         lazy='dynamic'
     )
+    employes = db.relationship(
+        'Employe',
+        back_populates='tenant',
+        lazy='dynamic'
+    )
+    stagiaires = db.relationship(
+        'Stagiaire',
+        back_populates='tenant',
+        lazy='dynamic'
+    )
     def to_dict(self):
         return {
             'id': self.id,

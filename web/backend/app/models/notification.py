@@ -1,9 +1,9 @@
 from app import db
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from datetime import datetime
 
 
-class Notification(BaseModel):
+class Notification(BaseTenantModel):
     __tablename__ = 'notifications'
 
     title = db.Column(db.String(255), nullable=False)

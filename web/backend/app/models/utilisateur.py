@@ -79,7 +79,7 @@ class Utilisateur(BaseModel):
     def get_permissions(self):
         if self.custom_role_id and self.custom_role and self.custom_role.permissions:
             return [p.code for p in self.custom_role.permissions]
-        from app.security.roles import PERMISSIONS
+        from app.security.permission_matrix import PERMISSIONS
         role_name = self.role.value if hasattr(self.role, 'value') else self.role
         return PERMISSIONS.get(role_name, [])
     
@@ -100,6 +100,7 @@ class Utilisateur(BaseModel):
                 data['custom_role'] = self.custom_role.to_dict()
             else:
                 data['custom_role'] = None
+        data['permissions'] = self.get_permissions()
         return data
     
     def __repr__(self):

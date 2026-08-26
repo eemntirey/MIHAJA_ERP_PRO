@@ -12,6 +12,8 @@ from app.models.utilisateur import Role
 
 app = create_app()
 
+from app.security.permission_matrix import ROLE_PERMISSIONS
+
 DEFAULT_ROLES = [
     {
         'name': 'super_admin',
@@ -19,7 +21,6 @@ DEFAULT_ROLES = [
         'description': 'Acces complet a toutes les fonctionnalites',
         'is_default': True,
         'is_system': True,
-        'permissions': ['*']
     },
     {
         'name': 'admin',
@@ -27,7 +28,6 @@ DEFAULT_ROLES = [
         'description': 'Acces administratif a toutes les ressources',
         'is_default': True,
         'is_system': True,
-        'permissions': ['*']
     },
     {
         'name': 'manager',
@@ -35,16 +35,6 @@ DEFAULT_ROLES = [
         'description': 'Gestion des produits, stock, ventes, utilisateurs et rapports',
         'is_default': True,
         'is_system': True,
-        'permissions': [
-            'product.create', 'product.update', 'product.delete', 'product.view',
-            'stock.view', 'stock.update',
-            'sale.view', 'sale.create', 'sale.update',
-            'user.view', 'user.create', 'user.update',
-            'report.view',
-            'client.view', 'client.create', 'client.update',
-            'invoice.view', 'invoice.create', 'invoice.update',
-            'payment.view', 'payment.create',
-        ]
     },
     {
         'name': 'sales',
@@ -52,13 +42,6 @@ DEFAULT_ROLES = [
         'description': 'Gestion des ventes, clients et devis',
         'is_default': True,
         'is_system': True,
-        'permissions': [
-            'product.view',
-            'sale.view', 'sale.create',
-            'client.view', 'client.create', 'client.update',
-            'quote.view', 'quote.create',
-            'invoice.view',
-        ]
     },
     {
         'name': 'stock',
@@ -66,13 +49,6 @@ DEFAULT_ROLES = [
         'description': 'Gestion des stocks, produits et fournisseurs',
         'is_default': True,
         'is_system': True,
-        'permissions': [
-            'product.view', 'product.create', 'product.update',
-            'stock.view', 'stock.update',
-            'supplier.view', 'supplier.create', 'supplier.update',
-            'purchase_order.view', 'purchase_order.create',
-            'sale.view',
-        ]
     },
     {
         'name': 'accountant',
@@ -80,17 +56,6 @@ DEFAULT_ROLES = [
         'description': 'Gestion comptable, factures et paiements',
         'is_default': True,
         'is_system': True,
-        'permissions': [
-            'product.view',
-            'invoice.view', 'invoice.create', 'invoice.update',
-            'payment.view', 'payment.create',
-            'report.view',
-            'sale.view',
-            'client.view',
-            'compte.view', 'compte.create', 'compte.update', 'compte.delete',
-            'ecriture.view', 'ecriture.create', 'ecriture.update', 'ecriture.delete',
-            'tresorerie.view', 'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
-        ]
     },
     {
         'name': 'user',
@@ -98,10 +63,6 @@ DEFAULT_ROLES = [
         'description': 'Utilisateur standard avec acces limite',
         'is_default': True,
         'is_system': True,
-        'permissions': [
-            'product.view',
-            'profile.view', 'profile.update',
-        ]
     },
 ]
 
@@ -129,7 +90,7 @@ def seed_roles():
                 )
                 db.session.add(existing)
             
-            for perm_code in role_data['permissions']:
+            for perm_code in ROLE_PERMISSIONS.get(role_data['name'], []):
                 if perm_code == '*':
                     continue
                 perm = Permission.query.filter_by(code=perm_code).first()

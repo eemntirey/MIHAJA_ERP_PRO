@@ -38,9 +38,12 @@ const DesktopSidebar = ({
   onToggleDarkMode,
   className,
 }) => {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, getAllowedModules } = useAuth();
   const location = useLocation();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const allowedModules = getAllowedModules();
+
+  const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
 
   const [favorites, setFavorites] = useState(readFavorites);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -113,6 +116,9 @@ const DesktopSidebar = ({
   );
 
   const renderNavItem = (item) => {
+    if (item.path === '/accounting' && !hasAccountingAccess) return null;
+    if ((item.path === '/super-admin' || item.path === '/users' || item.path === '/roles' || item.path === '/permissions') && !isSuperAdmin) return null;
+    if (!isSuperAdmin && item.module && allowedModules !== null && !allowedModules.includes(item.module)) return null;
     const badge = badgeValue(item);
     const isFav = favorites.some((f) => f.path === item.path);
     return (

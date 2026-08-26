@@ -409,7 +409,7 @@ const PriorityPanel = ({ priorities }) => (
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, setUser, logout, hasRole } = useAuth();
+  const { user, setUser, logout, hasRole, fetchSubscriptionStatus } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
   const [dashboardState, setDashboardState] = useState(createEmptyDashboardState);
@@ -420,6 +420,8 @@ const Dashboard = () => {
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -485,20 +487,24 @@ const Dashboard = () => {
       setLoading(false);
       setHasLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   const fetchSubscription = useCallback(async () => {
+    if (!user) return;
+
     try {
       setSubscriptionLoading(true);
       const response = await subscriptionService.getMonAbonnement();
-      setSubscription(response.data?.abonnement || response.data || null);
+      const sub = response.data?.abonnement || response.data || null;
+      setSubscription(sub);
+      fetchSubscriptionStatus();
     } catch (err) {
       console.error('Error fetching subscription:', err);
       setSubscription(null);
     } finally {
       setSubscriptionLoading(false);
     }
-  }, []);
+  }, [user, fetchSubscriptionStatus]);
 
   useEffect(() => {
     fetchSubscription();
@@ -557,7 +563,6 @@ const Dashboard = () => {
       });
       const updatedUser = response.data?.user || response.data;
       setUser((prev) => ({ ...(prev || {}), ...updatedUser }));
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setIsEditingName(false);
       toast.success('Profil mis à jour');
     } catch (err) {

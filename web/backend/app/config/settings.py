@@ -12,16 +12,9 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DATABASE_URL',
-        'mysql+pymysql://erp_user:password@localhost:3306/erp_db?charset=utf8mb4'
-    )
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///erp.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
-        'pool_pre_ping': True,
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')

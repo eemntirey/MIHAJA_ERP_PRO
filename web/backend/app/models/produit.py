@@ -1,11 +1,11 @@
 from decimal import Decimal
 
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index, CheckConstraint
 
 
-class Produit(BaseModel):
+class Produit(BaseTenantModel):
     __tablename__ = 'produits'
     
     # Identifiants

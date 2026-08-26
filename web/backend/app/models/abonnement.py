@@ -26,6 +26,15 @@ class Abonnement(BaseModel):
     plan = db.Column(db.String(50))
     notes = db.Column(db.Text)
 
+    max_utilisateurs = db.Column(db.Integer, nullable=True)
+    max_produits = db.Column(db.Integer, nullable=True)
+    max_clients = db.Column(db.Integer, nullable=True)
+    max_admins = db.Column(db.Integer, nullable=True)
+    max_employees = db.Column(db.Integer, nullable=True)
+    max_interns = db.Column(db.Integer, nullable=True)
+    max_tenants = db.Column(db.Integer, nullable=True)
+    modules = db.Column(db.Text, nullable=True)
+
     tenant = db.relationship('Tenant', back_populates='abonnements', lazy='select')
     paiements = db.relationship('Paiement', back_populates='abonnement', cascade='all, delete-orphan')
 
@@ -46,6 +55,11 @@ class Abonnement(BaseModel):
             self.date_fin.isoformat()
             if self.date_fin
             else None
+        )
+        data['modules'] = (
+            [m.strip() for m in self.modules.split(',') if m.strip()]
+            if isinstance(self.modules, str)
+            else self.modules
         )
         return data
 
