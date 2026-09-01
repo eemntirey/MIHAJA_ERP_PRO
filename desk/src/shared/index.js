@@ -7,5 +7,5 @@ export * from './storage/storageAdapter';
 export * from './utils/syncEngine';
 export * from './services/syncApi';
 export * from './services/preferences';
-export { default as AuthContext, AuthProvider, useAuth } from './contexts/AuthContext';
+export { default as AuthContext, AuthProvider, useAuth } from '../../contexts/AuthContext';
 export * from './realtime/socketClient';

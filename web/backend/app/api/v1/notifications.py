@@ -2,7 +2,7 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from app.models.notification import Notification
 from app import db
-from app.security.tenant import tenant_required, get_current_tenant_id_or_none
+from app.security.tenant import tenant_required_readonly, get_current_tenant_id_or_none
 from datetime import datetime
 
 ns = Namespace('notifications', description='Gestion des notifications')
@@ -27,7 +27,7 @@ notification_model = ns.model('Notification', {
 class NotificationList(Resource):
     @ns.doc('list_notifications')
     @ns.marshal_list_with(notification_model)
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         tenant_id = get_current_tenant_id_or_none()
         query = Notification.query.filter_by(is_active=True)
@@ -39,7 +39,7 @@ class NotificationList(Resource):
     @ns.doc('create_notification')
     @ns.expect(notification_model, validate=True)
     @ns.marshal_with(notification_model, code=201)
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         data = request.get_json() or {}
         title = data.get('title')
@@ -70,7 +70,7 @@ class NotificationList(Resource):
 class NotificationDetail(Resource):
     @ns.doc('get_notification')
     @ns.marshal_with(notification_model)
-    @tenant_required
+    @tenant_required_readonly
     def get(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
         query = Notification.query.filter_by(id=notification_id, is_active=True)
@@ -82,7 +82,7 @@ class NotificationDetail(Resource):
         return notification.to_dict(), 200
 
     @ns.doc('delete_notification')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
         query = Notification.query.filter_by(id=notification_id, is_active=True)
@@ -100,7 +100,7 @@ class NotificationDetail(Resource):
 class NotificationRead(Resource):
     @ns.doc('mark_notification_as_read')
     @ns.marshal_with(notification_model)
-    @tenant_required
+    @tenant_required_readonly
     def patch(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
         query = Notification.query.filter_by(id=notification_id, is_active=True)
@@ -118,7 +118,7 @@ class NotificationRead(Resource):
 @ns.route('/read-all')
 class NotificationReadAll(Resource):
     @ns.doc('mark_all_notifications_as_read')
-    @tenant_required
+    @tenant_required_readonly
     def patch(self):
         tenant_id = get_current_tenant_id_or_none()
         query = Notification.query.filter_by(is_active=True, read=False)

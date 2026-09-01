@@ -1,7 +1,8 @@
+// src/pages/ProductDetail.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/publicApi';
+import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
@@ -28,7 +29,7 @@ const ProductDetail = () => {
       } catch (err) {
         console.error('Error fetching product:', err);
         toast.error('Produit introuvable');
-        navigate('/catalogue');
+        navigate('/');
       } finally {
         setLoading(false);
       }
@@ -57,7 +58,7 @@ const ProductDetail = () => {
       <div className="page-container">
         <div className="alert error">
           <p>Produit introuvable</p>
-          <Link to="/catalogue" className="btn-primary">Retour au catalogue</Link>
+          <Link to="/" className="btn-primary">Retour au catalogue</Link>
         </div>
       </div>
     );
@@ -144,7 +145,7 @@ const ProductDetail = () => {
                 max={maxQty}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
-                style={{ width: '70px', padding: '8px 10px', border: '1px solid var(--color-border-strong)', fontFamily: 'var(--font-body)', fontSize: '13px' }}
+                style={{ width: '100%', maxWidth: '90px', padding: '8px 10px', border: '1px solid var(--color-border-strong)', fontFamily: 'var(--font-body)', fontSize: '13px' }}
                 aria-label="Quantité"
               />
               <button
@@ -161,7 +162,7 @@ const ProductDetail = () => {
               <Link to="/login" className="btn-primary">
                 Se connecter pour commander
               </Link>
-              <Link to="/catalogue" className="btn-secondary">
+              <Link to="/" className="btn-secondary">
                 ← Retour au catalogue
               </Link>
             </div>

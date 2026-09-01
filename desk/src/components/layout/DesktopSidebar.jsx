@@ -41,6 +41,7 @@ const DesktopSidebar = ({
   const { user, hasRole, getAllowedModules } = useAuth();
   const location = useLocation();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const isAdminPrincipal = hasRole('admin') || hasRole('super_admin');
   const allowedModules = getAllowedModules();
 
   const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
@@ -223,6 +224,11 @@ const DesktopSidebar = ({
             {isSuperAdmin && (
               <Link to="/super-admin/profile" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
                 <i className="ti ti-user" aria-hidden="true" /> Profil
+              </Link>
+            )}
+            {isAdminPrincipal && (
+              <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
               </Link>
             )}
             <ThemeToggle

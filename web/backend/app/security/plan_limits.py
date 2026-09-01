@@ -140,6 +140,20 @@ def check_plan_limits(feature):
             mod = __import__(module_name, fromlist=[class_name])
             model_class = getattr(mod, class_name)
 
+            # Verification atomique : verrou de la ligne tenant le temps du
+            # count pour empecher la course entre deux creations concurrentes
+            # qui depasseraient la limite. Sur SQLite, le verrou est ignore
+            # mais la serialisation des transactions reste effective.
+            try:
+                locked_tenant = Tenant.query.filter_by(id=tenant.id).with_for_update().first()
+                if locked_tenant is None:
+                    return {'message': 'Tenant introuvable'}, 401
+            except Exception:
+                # Si le SGBD ne supporte pas SELECT FOR UPDATE (ex: SQLite),
+                # on continue sans verrou : la verification suivante reste
+                # correcte dans 99% des cas et le risque est limite en dev.
+                pass
+
             current_count = model_class.query.filter_by(
                 tenant_id=tenant.id,
                 is_active=True,
@@ -169,6 +183,21 @@ def is_admin_limit_reached(tenant):
     ).count()
 
     return current_admins >= admin_limit_val
+
+
+def is_employee_limit_reached(tenant):
+    limits = _get_limits(tenant)
+    employee_limit_val = limits.get('max_employees', 0)
+    if is_unlimited(employee_limit_val):
+        return False
+
+    current_employees = Utilisateur.query.filter(
+        Utilisateur.tenant_id == tenant.id,
+        Utilisateur.role.notin_([Role.ADMIN, Role.SUPER_ADMIN]),
+        Utilisateur.is_active == True,
+    ).count()
+
+    return current_employees >= employee_limit_val
 
 
 def check_admin_limit():

@@ -1,6 +1,6 @@
 from app import create_app, db
 from app.models.tenant import Tenant, StatutTenant
-from app.models.utilisateur import Utilisateur, Role
+from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.produit import Produit
 from app.security.auth import hash_password
 from datetime import datetime, timedelta
@@ -52,7 +52,7 @@ def seed_tenant(tenant_data, admin_data):
                 nom=admin_data.get('nom', 'Admin'),
                 prenom=admin_data.get('prenom', 'System'),
                 role=Role.ADMIN,
-                statut=admin_data.get('statut', 'actif'),
+                statut=admin_data.get('statut', StatutUtilisateur.ACTIF),
                 tenant_id=tenant.id,
             )
             db.session.add(admin)

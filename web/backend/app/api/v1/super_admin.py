@@ -2,7 +2,7 @@ from flask import request
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app import db
-from app.models.utilisateur import Utilisateur
+from app.models.utilisateur import Utilisateur, Role, StatutAdmin, StatutUtilisateur
 from app.models.tenant import Tenant, StatutTenant
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.paiement import Paiement, StatutPaiement
@@ -12,10 +12,40 @@ from app.models.vente import Vente
 from app.models.facture import Facture
 from app.models.client import Client
 from app.models.fournisseur import Fournisseur
+from app.models.employe import Employe
+from app.models.stagiaire import Stagiaire
+from app.models.admin_device import AdminDevice
+from app.models.livreur import Livreur
+from app.models.vehicule import Vehicule
+from app.models.itineraire import Itineraire
+from app.models.stock import MouvementStock
+from app.models.ligne_vente import LigneVente
+from app.models.ligne_achat import LigneAchat
+from app.models.commande_client import CommandeClient
+from app.models.commande_fournisseur import CommandeFournisseur
+from app.models.commande_achat import CommandeAchat
+from app.models.facture_fournisseur import FactureFournisseur
+from app.models.devis_avoir_bl import BonLivraison, Devis, Avoir
+from app.models.livraison import Livraison
+from app.models.suivi_livraison import SuiviLivraison
+from app.models.compte_comptable import CompteComptable
+from app.models.ecriture_comptable import EcritureComptable
+from app.models.tresorerie import Tresorerie
+from app.models.document_genere import DocumentGenere
+from app.models.modele_document import ModeleDocument
+from app.models.notification import Notification
+from app.models.password_reset_token import PasswordResetToken
+from app.models.payment_event import PaymentEvent
+from app.models.presence import Presence
+from app.models.salaire import Salaire
+from app.models.prime import Prime
+from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
+from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
 from app.security.plans import apply_plan_to_abonnement
+from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, text
 import json
 
 ns = Namespace('super-admin', description='Endpoints réservés au SUPER_ADMIN')
@@ -48,11 +78,16 @@ def _log_audit(action_type, description, tenant_id=None, metadata=None):
             pass
 
 
+from app.security.plans import PLAN_CONFIG
+
 PLANS = [
-    {'code': 'gratuit', 'label': 'Gratuit', 'prix': 0, 'duree_mois': 0},
-    {'code': 'starter', 'label': 'Starter', 'prix': 29, 'duree_mois': 30},
-    {'code': 'pro', 'label': 'Pro', 'prix': 79, 'duree_mois': 30},
-    {'code': 'enterprise', 'label': 'Enterprise', 'prix': 199, 'duree_mois': 30},
+    {
+        'code': code,
+        'label': config.get('label', code.replace('_', ' ').title()),
+        'prix': config.get('prix', 0),
+        'duree_jours': config.get('duree_jours', 30),
+    }
+    for code, config in PLAN_CONFIG.items()
 ]
 
 
@@ -120,7 +155,7 @@ class SuperAdminDashboard(Resource):
             Tenant.is_active == True,
         ).scalar() or 0
         tenants_suspendus = db.session.query(func.count(Tenant.id)).filter(
-            Tenant.statut == StatutTenant.INACTIF,
+            Tenant.statut == StatutTenant.BLOQUE,
         ).scalar() or 0
         tenants_essai = db.session.query(func.count(Tenant.id)).filter(
             Tenant.statut == StatutTenant.EN_ESSAI,
@@ -239,7 +274,7 @@ class SuperAdminTenantsList(Resource):
         statut = request.args.get('statut')
         plan = request.args.get('plan')
 
-        query = Tenant.query
+        query = Tenant.query.filter(Tenant.is_active == True)
 
         if search:
             search_filter = f"%{search}%"
@@ -332,7 +367,6 @@ class SuperAdminTenantDetail(Resource):
 
         abonnement_actuel = Abonnement.query.filter(
             Abonnement.tenant_id == tenant.id,
-            Abonnement.is_active == True,
         ).order_by(Abonnement.date_fin.desc()).first()
 
         tenant_data['abonnement_actuel'] = abonnement_actuel.to_dict() if abonnement_actuel else None
@@ -368,6 +402,40 @@ class SuperAdminTenantDetail(Resource):
 
         return tenant_data, 200
 
+    @jwt_required()
+    def delete(self, tenant_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        try:
+            tenant = db.session.get(Tenant, tenant_id)
+            if not tenant:
+                return {'message': 'Tenant non trouve'}, 404
+
+            if not tenant.is_active or tenant.statut == StatutTenant.INACTIF:
+                return {'message': 'Tenant deja desactive'}, 400
+
+            tenant_nom = tenant.nom
+            tenant_id_log = tenant.id
+            _hard_delete_tenant_data(tenant_id)
+            db.session.commit()
+
+            _log_audit(
+                TypeActionAudit.SUPPRESSION_TENANT,
+                f"Suppression definitive du tenant {tenant_nom} (id={tenant_id_log})",
+                tenant_id=tenant_id_log,
+                metadata={'action': 'delete_tenant'},
+            )
+
+            return {
+                'message': 'Tenant supprime definitivement',
+                'tenant': {'id': tenant_id_log, 'nom': tenant_nom},
+            }, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur lors de la suppression: {str(e)}'}, 500
+
 
 @ns.route('/tenants/<int:tenant_id>/suspend')
 class SuperAdminSuspendTenant(Resource):
@@ -377,25 +445,42 @@ class SuperAdminSuspendTenant(Resource):
         if err:
             return err
 
-        tenant = db.session.get(Tenant, tenant_id)
-        if not tenant:
-            return {'message': 'Tenant non trouvé'}, 404
+        try:
+            tenant = db.session.get(Tenant, tenant_id)
+            if not tenant:
+                return {'message': 'Tenant non trouvé'}, 404
 
-        tenant.statut = StatutTenant.INACTIF
-        tenant.is_active = False
-        db.session.commit()
+            if tenant.statut == StatutTenant.BLOQUE:
+                return {'message': 'Tenant déjà suspendu'}, 200
 
-        _log_audit(
-            TypeActionAudit.SUSPENSION_TENANT,
-            f"Suspension du tenant {tenant.nom} (id={tenant.id})",
-            tenant_id=tenant.id,
-            metadata={'action': 'suspend_tenant'},
-        )
+            tenant.statut = StatutTenant.BLOQUE
+            db.session.commit()
 
-        return {
-            'message': 'Tenant suspendu',
-            'tenant': tenant.to_dict(),
-        }, 200
+            admins = Utilisateur.query.filter_by(tenant_id=tenant_id, role=Role.ADMIN, is_active=True).all()
+            for admin in admins:
+                admin.admin_statut = StatutAdmin.SUSPENDED
+                db.session.add(admin)
+
+            db.session.commit()
+
+            _log_audit(
+                TypeActionAudit.SUSPENSION_TENANT,
+                f"Suspension du tenant {tenant.nom} (id={tenant.id})",
+                tenant_id=tenant.id,
+                metadata={'action': 'suspend_tenant'},
+            )
+            try:
+                broadcast_to_tenant(tenant.id, 'tenant:updated', tenant.to_dict())
+            except Exception:
+                pass
+
+            return {
+                'message': 'Tenant suspendu',
+                'tenant': tenant.to_dict(),
+            }, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur lors de la suspension: {str(e)}'}, 500
 
 
 @ns.route('/tenants/<int:tenant_id>/activate')
@@ -406,25 +491,43 @@ class ActivateTenant(Resource):
         if err:
             return err
 
-        tenant = db.session.get(Tenant, tenant_id)
-        if not tenant:
-            return {'message': 'Tenant non trouvé'}, 404
+        try:
+            tenant = db.session.get(Tenant, tenant_id)
+            if not tenant:
+                return {'message': 'Tenant non trouvé'}, 404
 
-        tenant.statut = StatutTenant.ACTIF
-        tenant.is_active = True
-        db.session.commit()
+            if tenant.statut == StatutTenant.ACTIF and tenant.is_active:
+                return {'message': 'Tenant déjà activé'}, 200
 
-        _log_audit(
-            TypeActionAudit.ACTIVATION_TENANT,
-            f"Activation du tenant {tenant.nom} (id={tenant.id})",
-            tenant_id=tenant.id,
-            metadata={'action': 'activate_tenant'},
-        )
+            tenant.statut = StatutTenant.ACTIF
+            tenant.is_active = True
+            db.session.commit()
 
-        return {
-            'message': 'Tenant activé',
-            'tenant': tenant.to_dict(),
-        }, 200
+            admins = Utilisateur.query.filter_by(tenant_id=tenant_id, role=Role.ADMIN).all()
+            for admin in admins:
+                admin.admin_statut = StatutAdmin.ACTIVE
+                db.session.add(admin)
+
+            db.session.commit()
+
+            _log_audit(
+                TypeActionAudit.ACTIVATION_TENANT,
+                f"Activation du tenant {tenant.nom} (id={tenant.id})",
+                tenant_id=tenant.id,
+                metadata={'action': 'activate_tenant'},
+            )
+            try:
+                broadcast_to_tenant(tenant.id, 'tenant:updated', tenant.to_dict())
+            except Exception:
+                pass
+
+            return {
+                'message': 'Tenant activé',
+                'tenant': tenant.to_dict(),
+            }, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur lors de l\'activation: {str(e)}'}, 500
 
 
 @ns.route('/tenants/<int:tenant_id>/reactivate')
@@ -435,25 +538,43 @@ class ReactivateTenant(Resource):
         if err:
             return err
 
-        tenant = db.session.get(Tenant, tenant_id)
-        if not tenant:
-            return {'message': 'Tenant non trouvé'}, 404
+        try:
+            tenant = db.session.get(Tenant, tenant_id)
+            if not tenant:
+                return {'message': 'Tenant non trouvé'}, 404
 
-        tenant.statut = StatutTenant.ACTIF
-        tenant.is_active = True
-        db.session.commit()
+            if tenant.statut == StatutTenant.ACTIF and tenant.is_active:
+                return {'message': 'Tenant déjà activé'}, 200
 
-        _log_audit(
-            TypeActionAudit.ACTIVATION_TENANT,
-            f"Réactivation du tenant {tenant.nom} (id={tenant.id})",
-            tenant_id=tenant.id,
-            metadata={'action': 'reactivate_tenant'},
-        )
+            tenant.statut = StatutTenant.ACTIF
+            tenant.is_active = True
+            db.session.commit()
 
-        return {
-            'message': 'Tenant réactivé',
-            'tenant': tenant.to_dict(),
-        }, 200
+            admins = Utilisateur.query.filter_by(tenant_id=tenant_id, role=Role.ADMIN).all()
+            for admin in admins:
+                admin.admin_statut = StatutAdmin.ACTIVE
+                db.session.add(admin)
+
+            db.session.commit()
+
+            _log_audit(
+                TypeActionAudit.ACTIVATION_TENANT,
+                f"Réactivation du tenant {tenant.nom} (id={tenant.id})",
+                tenant_id=tenant.id,
+                metadata={'action': 'reactivate_tenant'},
+            )
+            try:
+                broadcast_to_tenant(tenant.id, 'tenant:updated', tenant.to_dict())
+            except Exception:
+                pass
+
+            return {
+                'message': 'Tenant réactivé',
+                'tenant': tenant.to_dict(),
+            }, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur lors de la réactivation: {str(e)}'}, 500
 
 
 @ns.route('/tenants/<int:tenant_id>/subscription/change')
@@ -498,6 +619,12 @@ class ChangeSubscription(Resource):
             tenant_id=tenant.id,
             metadata={'action': 'change_subscription', 'old_plan': old_plan, 'new_plan': new_plan, 'days': days},
         )
+        try:
+            broadcast_to_tenant(tenant.id, 'tenant:updated', tenant.to_dict())
+            if abonnement:
+                broadcast_to_tenant(tenant.id, 'subscription:updated', abonnement.to_dict())
+        except Exception:
+            pass
 
         return {
             'message': 'Abonnement modifié',
@@ -541,6 +668,10 @@ class ExtendSubscription(Resource):
             tenant_id=tenant.id,
             metadata={'action': 'extend_subscription', 'days': days, 'abonnement_id': abonnement.id},
         )
+        try:
+            broadcast_to_tenant(tenant.id, 'subscription:updated', abonnement.to_dict())
+        except Exception:
+            pass
 
         return {
             'message': 'Abonnement prolongé',
@@ -561,20 +692,14 @@ class SuperAdminSubscriptions(Resource):
         statut = request.args.get('statut')
         plan = request.args.get('plan')
 
-        query = Abonnement.query
-
-        if statut:
-            query = query.filter(Abonnement.statut == statut)
-
-        if plan:
-            query = query.filter(Abonnement.plan == plan)
-
-        query = query.order_by(Abonnement.created_at.desc())
-
-        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+        from app.services.abonnement_service import AbonnementService
+        items, total = AbonnementService.get_all_subscriptions(
+            tenant_id=None, page=page, per_page=per_page,
+            statut=statut, plan=plan,
+        )
 
         subs_data = []
-        for sub in paginated.items:
+        for sub in items:
             sub_dict = sub.to_dict()
             tenant = db.session.get(Tenant, sub.tenant_id)
             sub_dict['tenant'] = {
@@ -586,10 +711,10 @@ class SuperAdminSubscriptions(Resource):
 
         return {
             'abonnements': subs_data,
-            'total': paginated.total,
+            'total': total,
             'page': page,
             'per_page': per_page,
-            'pages': paginated.pages,
+            'pages': (total + per_page - 1) // per_page,
         }, 200
 
 
@@ -663,6 +788,7 @@ class SuperAdminPlans(Resource):
         if err:
             return err
 
+        from app.security.plans import PLAN_CONFIG
         plans_data = []
         for plan in PLANS:
             count = 0
@@ -671,14 +797,545 @@ class SuperAdminPlans(Resource):
                     Abonnement.plan == plan['code'],
                     Abonnement.is_active == True,
                 ).scalar() or 0
+            cfg = PLAN_CONFIG.get(plan['code'], {})
             plans_data.append({
                 'code': plan['code'],
                 'label': plan['label'],
                 'prix': plan['prix'],
-                'duree_mois': plan['duree_mois'],
+                'duree_jours': plan['duree_jours'],
+                'max_utilisateurs': cfg.get('max_utilisateurs', 1),
+                'max_employees': cfg.get('max_employees', 0),
+                'modules': cfg.get('modules', []),
                 'tenants_count': count,
             })
 
         return {
             'plans': plans_data,
         }, 200
+
+    @jwt_required()
+    def put(self):
+        from app.security.plans import PLAN_CONFIG
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        data = request.get_json()
+        if not data:
+            return {'message': 'Données requises'}, 400
+
+        code = data.get('code')
+        if not code:
+            return {'message': 'Code du plan requis'}, 400
+
+        plan = next((p for p in PLANS if p['code'] == code), None)
+        if not plan:
+            return {'message': 'Plan non trouvé'}, 404
+
+        if 'prix' in data:
+            try:
+                prix = int(data['prix'])
+                if prix < 0:
+                    return {'message': 'Le prix doit être positif'}, 400
+                plan['prix'] = prix
+                if code in PLAN_CONFIG:
+                    PLAN_CONFIG[code]['prix'] = prix
+            except (ValueError, TypeError):
+                return {'message': 'Prix invalide'}, 400
+
+        if 'duree_jours' in data:
+            try:
+                duree = int(data['duree_jours'])
+                if duree != -1 and duree <= 0:
+                    return {'message': 'La durée doit être positive ou -1 pour illimité'}, 400
+                plan['duree_jours'] = duree
+                if code in PLAN_CONFIG:
+                    PLAN_CONFIG[code]['duree_jours'] = duree
+            except (ValueError, TypeError):
+                return {'message': 'Durée invalide'}, 400
+
+        _log_audit(
+            TypeActionAudit.MODIFICATION_PARAMETRE,
+            f"Modification plan {code}: prix={plan['prix']}, durée={plan['duree_jours']}j",
+            metadata={'plan_code': code, 'prix': plan['prix'], 'duree_jours': plan['duree_jours']},
+        )
+
+        try:
+            broadcast_to_super_admin('plan:updated', {
+                'code': plan['code'],
+                'label': plan['label'],
+                'prix': plan['prix'],
+                'duree_jours': plan['duree_jours'],
+            })
+        except Exception:
+            pass
+
+        return {
+            'message': 'Plan mis à jour',
+            'plan': {
+                'code': plan['code'],
+                'label': plan['label'],
+                'prix': plan['prix'],
+                'duree_jours': plan['duree_jours'],
+            }
+        }, 200
+
+
+@ns.route('/employes')
+class SuperAdminEmployesList(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '')
+        tenant_id = request.args.get('tenant_id', type=int)
+        statut = request.args.get('statut')
+
+        query = Employe.query.filter_by(is_active=True)
+
+        if tenant_id:
+            query = query.filter(Employe.tenant_id == tenant_id)
+
+        if search:
+            search_filter = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Employe.nom.ilike(search_filter),
+                    Employe.prenom.ilike(search_filter),
+                    Employe.matricule.ilike(search_filter),
+                )
+            )
+
+        if statut:
+            query = query.filter(Employe.statut == statut)
+
+        query = query.order_by(Employe.created_at.desc())
+
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        employes_data = []
+        for employe in paginated.items:
+            emp_dict = employe.to_dict()
+            tenant = db.session.get(Tenant, employe.tenant_id)
+            emp_dict['tenant_nom'] = tenant.nom if tenant else None
+            emp_dict['tenant_slug'] = tenant.slug if tenant else None
+            employes_data.append(emp_dict)
+
+        return {
+            'employes': employes_data,
+            'total': paginated.total,
+            'page': page,
+            'per_page': per_page,
+            'pages': paginated.pages,
+        }, 200
+
+
+@ns.route('/employes/<int:employe_id>')
+class SuperAdminEmployeDetail(Resource):
+    @jwt_required()
+    def get(self, employe_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        employe = Employe.query.filter_by(id=employe_id, is_active=True).first()
+        if not employe:
+            return {'message': 'Employe non trouve'}, 404
+
+        data = employe.to_dict()
+        tenant = db.session.get(Tenant, employe.tenant_id)
+        data['tenant_nom'] = tenant.nom if tenant else None
+        data['tenant_slug'] = tenant.slug if tenant else None
+        return data, 200
+
+    @jwt_required()
+    def put(self, employe_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        employe = Employe.query.filter_by(id=employe_id, is_active=True).first()
+        if not employe:
+            return {'message': 'Employe non trouve'}, 404
+
+        data = request.get_json() or {}
+        allowed_fields = {
+            'nom', 'prenom', 'matricule', 'date_naissance', 'lieu_naissance',
+            'sexe', 'adresse', 'date_embauche', 'date_fin_contrat', 'type_contrat',
+            'salaire_base', 'coefficient', 'anciennete', 'banque_nom', 'banque_iban',
+            'banque_bic', 'photo', 'statut', 'notes', 'departement', 'poste',
+        }
+
+        for key, value in data.items():
+            if key in allowed_fields and hasattr(employe, key):
+                if key in ('sexe', 'type_contrat', 'statut') and isinstance(value, str):
+                    enum_map = {
+                        'sexe': {'M': 'M', 'F': 'F'},
+                        'type_contrat': {'cdi': 'cdi', 'cdd': 'cdd', 'stage': 'stage', 'freelance': 'freelance'},
+                        'statut': {'actif': 'actif', 'inactif': 'inactif', 'en_conges': 'en_conges', 'depart': 'depart'},
+                    }
+                    mapped = enum_map.get(key, {}).get(value.lower())
+                    if mapped:
+                        setattr(employe, key, mapped)
+                else:
+                    setattr(employe, key, value)
+
+        db.session.commit()
+        db.session.refresh(employe)
+
+        result = employe.to_dict()
+        tenant = db.session.get(Tenant, employe.tenant_id)
+        result['tenant_nom'] = tenant.nom if tenant else None
+        result['tenant_slug'] = tenant.slug if tenant else None
+
+        _log_audit(
+            TypeActionAudit.MODIFICATION_EMPLOYE,
+            f"Modification de l'employe {employe.nom_complet} (id={employe.id}) par le super admin",
+            tenant_id=employe.tenant_id,
+            metadata={'employe_id': employe.id, 'matricule': employe.matricule},
+        )
+
+        return result, 200
+
+    @jwt_required()
+    def delete(self, employe_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        employe = Employe.query.filter_by(id=employe_id, is_active=True).first()
+        if not employe:
+            return {'message': 'Employe non trouve'}, 404
+
+        employe.delete()
+
+        _log_audit(
+            TypeActionAudit.SUPPRESSION_EMPLOYE,
+            f"Suppression de l'employe {employe.nom_complet} (id={employe.id}, matricule={employe.matricule}) par le super admin",
+            tenant_id=employe.tenant_id,
+            metadata={'employe_id': employe.id, 'matricule': employe.matricule},
+        )
+
+        return {'message': 'Employe supprime'}, 200
+
+
+def _cascade_delete_tenant_data(tenant_id):
+    """Desactive en cascade toutes les données d'un tenant (soft-delete).
+
+    Cette fonction effectue une suppression logique de toutes les données
+    associees au tenant : utilisateurs, employes, produits, clients, fournisseurs,
+    ventes, factures, abonnements, paiements, etc. Aucune donnee n'est
+    physiquement supprimee afin de preserver l'historique et la tracabilite.
+    """
+    from app.models.stagiaire import Stagiaire
+    from app.models.presence import Presence
+    from app.models.salaire import Salaire
+    from app.models.prime import Prime
+    from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat
+    from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
+    from app.models.livraison import Livraison
+    from app.models.stock import MouvementStock
+    from app.models.compte_comptable import CompteComptable
+    from app.models.ecriture_comptable import EcritureComptable
+    from app.models.audit_log import AuditLog
+    from app.models.document_genere import DocumentGenere
+    from app.models.notification import Notification
+    from app.models.admin_device import AdminDevice
+    from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
+    from app.models.password_reset_token import PasswordResetToken
+    from app.models.ligne_vente import LigneVente
+    from app.models.ligne_achat import LigneAchat
+    from app.models.commande_client import CommandeClient
+    from app.models.suivi_livraison import SuiviLivraison
+    from app.models.payment_event import PaymentEvent
+    from app.models.facture_fournisseur import FactureFournisseur
+    from app.models.livreur import Livreur
+    from app.models.vehicule import Vehicule
+    from app.models.itineraire import Itineraire
+
+    tenant_models = [
+        PaymentEvent, LigneVente, LigneAchat, QualiteAchat,
+        ReceptionAchat, SuiviLivraison, DocumentGenere,
+        Presence, Salaire, Prime, MouvementStock,
+        Notification, AdminDevice,
+        DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent,
+        PasswordResetToken, FactureFournisseur,
+        Tresorerie, EcritureComptable, BonLivraison, Avoir,
+        Devis, Livraison, Vente, CommandeClient,
+        CommandeFournisseur, CommandeAchat, Facture,
+        Client, Fournisseur, Stagiaire,
+        Employe, Produit, ModeleDocument, CompteComptable,
+        Livreur, Vehicule, Itineraire, AuditLog,
+    ]
+    for model in tenant_models:
+        try:
+            model.query.filter_by(tenant_id=tenant_id, is_active=True).update(
+                {model.is_active: False}, synchronize_session=False
+            )
+        except Exception:
+            pass
+
+    abonnements = Abonnement.query.filter_by(tenant_id=tenant_id, is_active=True).all()
+    for abonnement in abonnements:
+        db.session.delete(abonnement)
+
+    users = Utilisateur.query.filter_by(tenant_id=tenant_id, is_active=True).all()
+    for user in users:
+        user.mark_deleted()
+
+
+def _hard_delete_tenant_data(tenant_id):
+    """Supprime physiquement toutes les donnees d'un tenant.
+
+    Cette fonction effectue une suppression reelle de toutes les donnees
+    associees au tenant dans l'ordre des dependances FK pour eviter
+    les violations de contrainte.
+    """
+    from app.models.stagiaire import Stagiaire
+    from app.models.presence import Presence
+    from app.models.salaire import Salaire
+    from app.models.prime import Prime
+    from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat
+    from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
+    from app.models.livraison import Livraison
+    from app.models.stock import MouvementStock
+    from app.models.compte_comptable import CompteComptable
+    from app.models.ecriture_comptable import EcritureComptable
+    from app.models.audit_log import AuditLog
+    from app.models.document_genere import DocumentGenere
+    from app.models.notification import Notification
+    from app.models.admin_device import AdminDevice
+    from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
+    from app.models.password_reset_token import PasswordResetToken
+    from app.models.ligne_vente import LigneVente
+    from app.models.ligne_achat import LigneAchat
+    from app.models.commande_client import CommandeClient
+    from app.models.suivi_livraison import SuiviLivraison
+    from app.models.payment_event import PaymentEvent
+    from app.models.facture_fournisseur import FactureFournisseur
+    from app.models.livreur import Livreur
+    from app.models.vehicule import Vehicule
+    from app.models.itineraire import Itineraire
+
+    hard_delete_order = [
+        SyncEvent,
+        PasswordResetToken,
+        Notification,
+        DeskFavorite,
+        DeskFilterPreset,
+        DeskColumnConfig,
+        AdminDevice,
+        Presence,
+        Salaire,
+        Prime,
+        Stagiaire,
+        PaymentEvent,
+        LigneVente,
+        LigneAchat,
+        SuiviLivraison,
+        EcritureComptable,
+        DocumentGenere,
+        Paiement,
+        Avoir,
+        BonLivraison,
+        Facture,
+        Vente,
+        Devis,
+        Livraison,
+        CommandeClient,
+        CommandeFournisseur,
+        QualiteAchat,
+        ReceptionAchat,
+        CommandeAchat,
+        FactureFournisseur,
+        MouvementStock,
+        Produit,
+        Client,
+        Fournisseur,
+        Employe,
+        Livreur,
+        Vehicule,
+        Itineraire,
+        Abonnement,
+        CompteComptable,
+        Tresorerie,
+        ModeleDocument,
+        Utilisateur,
+    ]
+
+    for user in Utilisateur.query.filter_by(tenant_id=tenant_id):
+        AdminDevice.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+    for model in hard_delete_order:
+        try:
+            model.query.filter_by(tenant_id=tenant_id).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+    Tenant.query.filter_by(id=tenant_id).delete(synchronize_session=False)
+
+
+@ns.route('/users')
+class SuperAdminUsersList(Resource):
+    @jwt_required()
+    def get(self):
+        """Liste tous les utilisateurs de la plateforme (super admin seulement).
+        
+        Filtrage par rôle : par défaut, montre seulement les admins (ADMIN et SUPER_ADMIN).
+        Utiliser ?role=all pour voir tous les utilisateurs.
+        """
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search = request.args.get('search', '')
+        role_filter = request.args.get('role', 'admins')
+        tenant_id = request.args.get('tenant_id', type=int)
+        statut = request.args.get('statut')
+
+        query = Utilisateur.query.filter_by(is_active=True)
+        query = query.filter(Utilisateur.statut == StatutUtilisateur.ACTIF)
+
+        if tenant_id:
+            query = query.filter(Utilisateur.tenant_id == tenant_id)
+
+        if role_filter == 'admins':
+            query = query.filter(
+                Utilisateur.role.in_([Role.ADMIN, Role.SUPER_ADMIN])
+            )
+        elif role_filter == 'tenant_admins':
+            query = query.filter(Utilisateur.role == Role.ADMIN)
+        elif role_filter == 'super_admins':
+            query = query.filter(Utilisateur.role == Role.SUPER_ADMIN)
+        elif role_filter == 'employees':
+            query = query.filter(
+                Utilisateur.role.in_([Role.USER, Role.SALES, Role.STOCK, Role.ACCOUNTANT, Role.RH, Role.MANAGER])
+            )
+        elif role_filter and role_filter != 'all':
+            try:
+                role_enum = Role(role_filter)
+                query = query.filter(Utilisateur.role == role_enum)
+            except ValueError:
+                pass
+
+        if search:
+            search_filter = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Utilisateur.username.ilike(search_filter),
+                    Utilisateur.email.ilike(search_filter),
+                    Utilisateur.nom.ilike(search_filter),
+                    Utilisateur.prenom.ilike(search_filter),
+                )
+            )
+
+        if statut:
+            try:
+                statut_enum = StatutUtilisateur(statut)
+                query = query.filter(Utilisateur.statut == statut_enum)
+            except ValueError:
+                pass
+
+        query = query.order_by(Utilisateur.created_at.desc())
+
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        users_data = []
+        for user in paginated.items:
+            user_dict = user.to_dict()
+            tenant = (
+                db.session.get(Tenant, user.tenant_id)
+                if user.tenant_id is not None
+                else None
+            )
+            user_dict['tenant_nom'] = tenant.nom if tenant else None
+            user_dict['tenant_slug'] = tenant.slug if tenant else None
+            users_data.append(user_dict)
+
+        return {
+            'users': users_data,
+            'total': paginated.total,
+            'page': page,
+            'per_page': per_page,
+            'pages': paginated.pages,
+        }, 200
+
+
+@ns.route('/users/<int:user_id>')
+class SuperAdminUserDetail(Resource):
+    @jwt_required()
+    def get(self, user_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        user = db.session.get(Utilisateur, user_id)
+        if not user:
+            return {'message': 'Utilisateur non trouvé'}, 404
+
+        user_dict = user.to_dict()
+        tenant = (
+            db.session.get(Tenant, user.tenant_id)
+            if user.tenant_id is not None
+            else None
+        )
+        user_dict['tenant_nom'] = tenant.nom if tenant else None
+        user_dict['tenant_slug'] = tenant.slug if tenant else None
+        return user_dict, 200
+
+    @jwt_required()
+    def delete(self, user_id):
+        """Suppression d'un utilisateur par le super admin.
+        
+        Si c'est un admin de tenant, supprime aussi le tenant et toutes ses données.
+        """
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        try:
+            user = db.session.get(Utilisateur, user_id)
+            if not user:
+                return {'message': 'Utilisateur non trouvé'}, 404
+
+            if user.is_super_admin:
+                return {'message': 'Impossible de supprimer un super administrateur'}, 400
+
+            user_username = user.username
+            tenant_id = user.tenant_id
+            is_admin = user.role == Role.ADMIN
+
+            if is_admin and tenant_id:
+                tenant = db.session.get(Tenant, tenant_id)
+                tenant_nom = tenant.nom if tenant else "inconnu"
+                _hard_delete_tenant_data(tenant_id)
+                message = f"Admin {user_username}, tenant {tenant_nom} et toutes ses données ont été supprimés"
+            else:
+                user.mark_deleted()
+                message = f"Utilisateur {user_username} désactivé"
+
+            db.session.commit()
+
+            _log_audit(
+                TypeActionAudit.SUPPRESSION_UTILISATEUR,
+                f"Suppression de l'utilisateur {user_username} (id={user_id}) par le super admin",
+                tenant_id=tenant_id,
+                metadata={'user_id': user_id, 'is_admin': is_admin},
+            )
+
+            if is_admin and tenant:
+                try:
+                    broadcast_to_tenant(tenant.id, 'tenant:updated', tenant.to_dict())
+                except Exception:
+                    pass
+
+            return {'message': message}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur lors de la suppression: {str(e)}'}, 500

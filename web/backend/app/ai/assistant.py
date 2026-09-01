@@ -35,7 +35,9 @@ def _build_context_block(tenant_id):
         if tenant_id:
             ventes = ventes.filter_by(tenant_id=tenant_id)
         nb_ventes = ventes.count()
-        ca_total = sum(float(v.total_ttc or 0) for v in ventes.limit(200).all())
+        # Calcul du CA total sur l'ensemble des ventes du tenant (pas de
+        # limite tronquee : on parcourt tout pour avoir un chiffre exact).
+        ca_total = sum(float(v.total_ttc or 0) for v in ventes.all())
 
         clients = Client.query.filter_by(is_active=True)
         if tenant_id:

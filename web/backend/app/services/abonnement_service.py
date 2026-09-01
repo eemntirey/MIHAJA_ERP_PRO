@@ -4,7 +4,8 @@ from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.models.tenant import Tenant, StatutTenant
 from app.security.tenant import get_current_tenant_id
-from app.security.plans import apply_plan_to_abonnement
+from app.security.plans import apply_plan_to_abonnement, get_plan_duration_days, get_plan_price, is_unlimited
+from app.services.papi.payment import resolve_payment_provider
 
 
 class AbonnementService:
@@ -26,12 +27,18 @@ class AbonnementService:
             raise ValueError("Tenant non trouve")
 
         now = datetime.utcnow()
+        duree_jours = get_plan_duration_days(plan)
+        if is_unlimited(duree_jours):
+            date_fin = now + timedelta(days=365 * 99)  # ~9999 ans = illimité
+        else:
+            date_fin = now + timedelta(days=duree_jours)
+
         abonnement = Abonnement(
             tenant_id=tenant_id,
             montant=0,
             devise='MGA',
             date_debut=now,
-            date_fin=now + timedelta(days=30),
+            date_fin=date_fin,
             statut=StatutAbonnement.ACTIF,
             plan=plan,
         )
@@ -40,6 +47,7 @@ class AbonnementService:
         db.session.flush()
 
         tenant.statut = StatutTenant.ACTIF
+        tenant.is_active = True
         tenant.plan = plan
         tenant.date_abonnement = now
         db.session.add(tenant)
@@ -61,12 +69,20 @@ class AbonnementService:
         if plan == 'gratuit':
             return cls.activate_free_plan(tenant_id, plan), None
 
+        duree_jours = get_plan_duration_days(plan)
+        now = datetime.utcnow()
+        if is_unlimited(duree_jours):
+            date_fin = now + timedelta(days=365 * 99)
+        else:
+            date_fin = now + timedelta(days=duree_jours)
+
+        montant_officiel = get_plan_price(plan)
         abonnement = Abonnement(
             tenant_id=tenant_id,
-            montant=data.get('montant'),
+            montant=montant_officiel,
             devise=data.get('devise', 'MGA'),
-            date_debut=data.get('date_debut') or datetime.utcnow(),
-            date_fin=data.get('date_fin') or (datetime.utcnow() + timedelta(days=30)),
+            date_debut=data.get('date_debut') or now,
+            date_fin=data.get('date_fin') or date_fin,
             statut=StatutAbonnement.EN_ATTENTE,
             methode_paiement=data.get('methode_paiement'),
             reference_paiement=data.get('reference_paiement'),
@@ -77,15 +93,19 @@ class AbonnementService:
         db.session.add(abonnement)
         db.session.flush()
 
+        provider, payment_method = resolve_payment_provider(data.get('methode_paiement'))
+
         paiement = Paiement(
             tenant_id=tenant_id,
-            montant=data.get('montant'),
+            subscription_id=abonnement.id,
+            montant=montant_officiel,
             devise=data.get('devise', 'MGA'),
             statut=StatutPaiement.EN_ATTENTE,
             type=TypePaiement.ABONNEMENT,
+            provider=provider,
+            payment_method=payment_method,
             reference=data.get('reference_paiement'),
             notes=data.get('notes'),
-            date_paiement=datetime.utcnow()
         )
         db.session.add(paiement)
         db.session.commit()
@@ -94,17 +114,23 @@ class AbonnementService:
 
     @classmethod
     def get_history_by_tenant(cls, tenant_id, page=1, per_page=20):
-        query = Abonnement.query.filter_by(tenant_id=tenant_id, is_active=True)
+        query = Abonnement.query.filter_by(tenant_id=tenant_id)
         paginated = query.order_by(Abonnement.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
         return paginated.items, paginated.total
 
     @classmethod
-    def get_all_subscriptions(cls, tenant_id=None, page=1, per_page=20):
-        query = Abonnement.query.filter_by(is_active=True)
+    def get_all_subscriptions(cls, tenant_id=None, page=1, per_page=20,
+                              statut=None, plan=None):
+        query = Abonnement.query.join(Tenant, Abonnement.tenant_id == Tenant.id)
         if tenant_id is not None:
-            query = query.filter_by(tenant_id=tenant_id)
+            query = query.filter(Tenant.id == tenant_id)
+        if statut:
+            query = query.filter(Abonnement.statut == statut)
+        if plan:
+            query = query.filter(Abonnement.plan == plan)
+        query = query.filter(Tenant.is_active == True)
         paginated = query.order_by(Abonnement.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
@@ -122,21 +148,31 @@ class AbonnementService:
         else:
             base_date = now
 
+        duree_jours = get_plan_duration_days(abonnement.plan)
+        if is_unlimited(duree_jours):
+            date_fin = base_date + timedelta(days=365 * 99)
+        else:
+            date_fin = base_date + timedelta(days=duree_jours)
+
         abonnement.date_debut = base_date
-        abonnement.date_fin = base_date + timedelta(days=30)
+        abonnement.date_fin = date_fin
         abonnement.statut = StatutAbonnement.ACTIF
         apply_plan_to_abonnement(abonnement, abonnement.plan)
         abonnement.save()
 
+        provider, payment_method = resolve_payment_provider(abonnement.methode_paiement)
+
         paiement = Paiement(
             tenant_id=abonnement.tenant_id,
-            montant=abonnement.montant,
+            subscription_id=abonnement.id,
+            montant=abonnement.montant or get_plan_price(abonnement.plan),
             devise=abonnement.devise,
             statut=StatutPaiement.EN_ATTENTE,
             type=TypePaiement.ABONNEMENT,
+            provider=provider,
+            payment_method=payment_method,
             reference=f"Renouvellement {abonnement.id}",
             notes=f"Renouvellement de l'abonnement {abonnement.id}",
-            date_paiement=now
         )
         db.session.add(paiement)
         db.session.commit()

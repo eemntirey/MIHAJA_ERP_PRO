@@ -92,14 +92,14 @@ export default function HR() {
   const [salaires, setSalaires] = useState([]);
   const [primes, setPrimes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [genMois, setGenMois] = useState(new Date().getMonth() + 1);
-  const [genAnnee, setGenAnnee] = useState(new Date().getFullYear());
 
   const [search, setSearch] = useState('');
   const [modalType, setModalType] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [forms, setForms] = useState(emptyForms);
+  const [submitting, setSubmitting] = useState(false);
+  const [genMois, setGenMois] = useState(new Date().getMonth() + 1);
+  const [genAnnee, setGenAnnee] = useState(new Date().getFullYear());
 
   const empMap = useMemo(() => Object.fromEntries(employes.map((e) => [e.id, e])), [employes]);
 
@@ -193,6 +193,7 @@ export default function HR() {
       salaire: ['employe_id', 'mois', 'annee', 'salaire_base', 'primes', 'indemnites', 'deductions', 'avances'],
       prime: ['employe_id', 'montant'],
     }[type];
+    numFields.forEach((k) => { data[k] = Number(data[k]) || 0; });
     const dateFields = ['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date', 'date_debut', 'date_fin'];
     dateFields.forEach((k) => { if (data[k] === '') data[k] = null; });
 
@@ -327,7 +328,7 @@ export default function HR() {
 
       <div className="stats-grid mini">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--color-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-primary)' }}><i className="ti ti-users" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.total}</span>
             <span className="stat-label">Employés ({summary.actifs} actifs)</span>

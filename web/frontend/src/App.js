@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
+import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
 
 // Composants d'authentification
@@ -79,7 +80,7 @@ const PATH_MODULE_MAP = {
 const ADMIN_PATHS = ['/super-admin', '/users', '/roles', '/permissions'];
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, user, subscription, getAllowedModules } = useAuth();
+  const { isAuthenticated, loading, user, subscription, subscriptionLoading, getAllowedModules } = useAuth();
   const location = useLocation();
 
   const hasToken = !!authStorage.getAccessToken();
@@ -94,7 +95,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   const role = (user?.role || '').toLowerCase();
-  if (role === 'user') {
+  if (role === 'user' && !user?.tenant_id) {
     return <Navigate to="/" replace />;
   }
 
@@ -108,7 +109,7 @@ const ProtectedRoute = ({ children }) => {
 
   const isAdminPath = ADMIN_PATHS.includes(location.pathname);
 
-  if (!isAdminPath && !isSubscriptionPage && !hasActiveSubscription) {
+  if (!isAdminPath && !isSubscriptionPage && !subscriptionLoading && !hasActiveSubscription) {
     return <Navigate to="/subscription" replace />;
   }
 
@@ -125,6 +126,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  useRealtimeSync();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
   useEffect(() => {
@@ -137,8 +139,7 @@ function App() {
 
   return (
     <SyncProvider>
-      <AuthProvider>
-        <NotificationProvider>
+      <NotificationProvider>
           <CartProvider>
             <BrowserRouter>
               <div className="app">
@@ -240,8 +241,7 @@ function App() {
           </BrowserRouter>
         </CartProvider>
       </NotificationProvider>
-    </AuthProvider>
-  </SyncProvider>
+    </SyncProvider>
 );
 }
 

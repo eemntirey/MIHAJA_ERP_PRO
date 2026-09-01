@@ -1,20 +1,20 @@
 from flask_restx import Namespace, Resource
 from app.services.fournisseur_service import FournisseurService
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 
 ns = Namespace('fournisseurs', description='Gestion des fournisseurs')
 
 @ns.route('/')
 class FournisseurListResource(Resource):
     @ns.doc('list_fournisseurs')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste tous les fournisseurs"""
         fournisseurs, total = FournisseurService.get_all()
         return {'fournisseurs': [f.to_dict() for f in fournisseurs], 'total': total}, 200
 
     @ns.doc('create_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Cree un nouveau fournisseur"""
         from flask import request
@@ -25,7 +25,7 @@ class FournisseurListResource(Resource):
 @ns.route('/<int:fournisseur_id>')
 class FournisseurResource(Resource):
     @ns.doc('get_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def get(self, fournisseur_id):
         """Recupere un fournisseur par son ID"""
         fournisseur = FournisseurService.get_by_id(fournisseur_id)
@@ -34,7 +34,7 @@ class FournisseurResource(Resource):
         return fournisseur.to_dict(), 200
 
     @ns.doc('update_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def put(self, fournisseur_id):
         """Met a jour un fournisseur"""
         from flask import request
@@ -45,7 +45,7 @@ class FournisseurResource(Resource):
         return fournisseur.to_dict(), 200
 
     @ns.doc('delete_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, fournisseur_id):
         """Supprime un fournisseur"""
         success = FournisseurService.delete(fournisseur_id)
@@ -56,7 +56,7 @@ class FournisseurResource(Resource):
 @ns.route('/commandes')
 class CommandeFournisseurListResource(Resource):
     @ns.doc('list_commandes_fournisseurs')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste des commandes fournisseurs"""
         from app.models.commande_fournisseur import CommandeFournisseur
@@ -69,7 +69,7 @@ class CommandeFournisseurListResource(Resource):
         return {'commandes': [c.to_dict() for c in commandes]}, 200
 
     @ns.doc('create_commande_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Cree une commande fournisseur"""
         from flask import request
@@ -94,7 +94,7 @@ class CommandeFournisseurListResource(Resource):
 @ns.route('/commandes/<int:id>')
 class CommandeFournisseurResource(Resource):
     @ns.doc('get_commande_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def get(self, id):
         """Recupere une commande fournisseur par ID"""
         from app.models.commande_fournisseur import CommandeFournisseur
@@ -105,7 +105,7 @@ class CommandeFournisseurResource(Resource):
         return commande.to_dict(), 200
 
     @ns.doc('update_commande_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def put(self, id):
         """Met a jour une commande fournisseur"""
         from app.models.commande_fournisseur import CommandeFournisseur
@@ -115,14 +115,17 @@ class CommandeFournisseurResource(Resource):
         if not commande:
             return {'message': 'Commande fournisseur non trouvee'}, 404
         data = request.get_json() or {}
+        PROTECTED = {'id', 'tenant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_active'}
         for key, value in data.items():
-            if hasattr(commande, key) and key not in ('id', 'tenant_id', 'created_at'):
+            if key in PROTECTED:
+                continue
+            if hasattr(commande, key):
                 setattr(commande, key, value)
         commande.save()
         return commande.to_dict(), 200
 
     @ns.doc('delete_commande_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, id):
         """Supprime une commande fournisseur"""
         from app.models.commande_fournisseur import CommandeFournisseur
@@ -136,7 +139,7 @@ class CommandeFournisseurResource(Resource):
 @ns.route('/factures')
 class FactureFournisseurListResource(Resource):
     @ns.doc('list_factures_fournisseurs')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste des factures fournisseurs"""
         from app.models.facture_fournisseur import FactureFournisseur
@@ -149,7 +152,7 @@ class FactureFournisseurListResource(Resource):
         return {'factures': [f.to_dict() for f in factures]}, 200
 
     @ns.doc('create_facture_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Cree une facture fournisseur"""
         from flask import request
@@ -174,7 +177,7 @@ class FactureFournisseurListResource(Resource):
 @ns.route('/factures/<int:id>')
 class FactureFournisseurResource(Resource):
     @ns.doc('get_facture_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def get(self, id):
         """Recupere une facture fournisseur par ID"""
         from app.models.facture_fournisseur import FactureFournisseur
@@ -185,7 +188,7 @@ class FactureFournisseurResource(Resource):
         return facture.to_dict(), 200
 
     @ns.doc('update_facture_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def put(self, id):
         """Met a jour une facture fournisseur"""
         from app.models.facture_fournisseur import FactureFournisseur
@@ -195,14 +198,17 @@ class FactureFournisseurResource(Resource):
         if not facture:
             return {'message': 'Facture fournisseur non trouvee'}, 404
         data = request.get_json() or {}
+        PROTECTED = {'id', 'tenant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_active'}
         for key, value in data.items():
-            if hasattr(facture, key) and key not in ('id', 'tenant_id', 'created_at'):
+            if key in PROTECTED:
+                continue
+            if hasattr(facture, key):
                 setattr(facture, key, value)
         facture.save()
         return facture.to_dict(), 200
 
     @ns.doc('delete_facture_fournisseur')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture fournisseur"""
         from app.models.facture_fournisseur import FactureFournisseur

@@ -1,3 +1,5 @@
+@import '../styles/tokens.css';
+
 /* src/pages/SuperAdmin.css */
 
 .superadmin-page {
@@ -8,7 +10,8 @@
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
-  border-bottom: 1px solid var(--erp-line);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
 }
 
 .superadmin-tab {
@@ -17,21 +20,21 @@
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   transition: all 0.2s ease;
-  font-family: var(--erp-body-font);
+  font-family: var(--font-family-body);
 }
 
 .superadmin-tab:hover {
-  color: var(--erp-onyx);
+  color: var(--color-text-primary);
 }
 
 .superadmin-tab--active {
-  color: var(--erp-onyx);
-  border-bottom-color: var(--erp-onyx);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 @media (max-width: 768px) {
@@ -43,4 +46,165 @@
     padding: 10px 14px;
     font-size: 13px;
   }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.pagination-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  font-family: var(--font-family-body);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  padding: 0 12px;
+}
+
+/* Confirmation Modal */
+.confirm-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 450px;
+  box-shadow: var(--shadow-modal);
+}
+
+.confirm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.confirm-modal-header h3 {
+  font-family: var(--font-family-heading);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.confirm-modal-body {
+  padding: 24px;
+}
+
+.confirm-modal-body p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.confirm-modal-warning {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-top: 16px;
+  color: var(--color-warning-text);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Dashboard stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.stat-card .stat-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.stat-card .stat-value {
+  font-family: var(--font-family-heading);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* Plan cards */
+.plan-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.plan-card .plan-label {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.plan-card .plan-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.plan-card .plan-duration {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.plan-card .plan-count {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 12px;
+}
+
+/* Full width card */
+.full-width {
+  width: 100%;
 }

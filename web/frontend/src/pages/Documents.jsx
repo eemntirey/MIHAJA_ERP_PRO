@@ -49,7 +49,7 @@ export default function Documents() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const data = { ...modeleForm, est_actif: true };
+            const data = { ...modeleForm, is_active: true };
             if (editingId) { await modeleDocumentService.update(editingId, data); toast.success('Modèle modifié'); }
             else { await modeleDocumentService.create(data); toast.success('Modèle créé'); }
             setModeleForm({ nom: '', type_document: 'facture', contenu_modele: '', est_defaut: false, logo_url: '', mention_legales: '', conditions_generales: '' });
@@ -98,11 +98,11 @@ export default function Documents() {
     const getPdfUrl = (doc) => {
         if (doc.pdf_url) {
             if (doc.pdf_url.startsWith('http')) return doc.pdf_url;
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}${doc.pdf_url}`;
         }
         if (doc.contenu_pdf_path) {
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}/api/v1/documents/${doc.id}/pdf`;
         }
         return '#';

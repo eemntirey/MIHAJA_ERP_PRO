@@ -27,6 +27,9 @@ def init_socketio(app):
         cors_allowed_origins=app.config.get('CORS_ORIGINS', ['http://localhost:3000']),
         async_mode="threading",
         path="/socket.io",
+        ping_timeout=60,
+        ping_interval=25,
+        max_http_buffer_size=2 * 1024 * 1024,
     )
     _register_handlers()
     return socketio

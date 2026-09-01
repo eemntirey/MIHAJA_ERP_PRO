@@ -29,7 +29,7 @@ def _build_papi_payload(
     user: Utilisateur,
     notification_token: str,
     payment_method: str,
-    is_test_mode: bool = True,
+    is_test_mode: bool = False,
 ) -> dict:
     """Build the Papi payment link creation payload."""
     reference = f"SUB-{tenant.id}-{subscription.id}-{uuid.uuid4().hex[:8].upper()}"
@@ -58,10 +58,11 @@ def _build_papi_payload(
         'validDuration': 60,
         'provider': provider,
         'payerEmail': tenant.email_contact or user.email,
-        'payerPhone': tenant.telephone or user.telephone or user.mobile,
+        'payerPhone': tenant.telephone or user.mobile,
         'isTestMode': is_test_mode,
-        'testReason': 'Integration test ERP',
     }
+    if is_test_mode:
+        payload['testReason'] = 'Integration test ERP'
 
     if provider == 'BRED':
         payload['provider'] = 'BRED'
@@ -72,7 +73,7 @@ def _build_papi_payload(
 def create_subscription_payment(
     subscription_id: int,
     payment_method: str,
-    is_test_mode: bool = True,
+    is_test_mode: bool = False,
     tenant_id: int = None,
 ) -> dict:
     """Create a Papi payment link for a subscription.
@@ -190,7 +191,12 @@ def create_subscription_payment(
     )
 
     db.session.add(paiement)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Echec commit Paiement Papi: ref=%s", external_reference)
+        raise
 
     logger.info(
         "Papi payment created: paiement_id=%s reference=%s",
@@ -205,8 +211,43 @@ def create_subscription_payment(
     }
 
 
-# Modes de paiement papier / hors ligne (espèces, virement, chèque)
 PAPER_METHODS = ('ESPECES', 'VIREMENT', 'CHEQUE')
+ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'ARTEL_MONEY', 'BRED')
+
+METHOD_ALIASES = {
+    'mvola': 'MVOLA',
+    'orange_money': 'ORANGE_MONEY',
+    'orange money': 'ORANGE_MONEY',
+    'airtel_money': 'ARTEL_MONEY',
+    'airtel money': 'ARTEL_MONEY',
+    'bred': 'BRED',
+    'especes': 'ESPECES',
+    'espèces': 'ESPECES',
+    'cash': 'ESPECES',
+    'virement': 'VIREMENT',
+    'bank_transfer': 'VIREMENT',
+    'cheque': 'CHEQUE',
+    'chèque': 'CHEQUE',
+    'check': 'CHEQUE',
+}
+
+
+def normalize_payment_method(payment_method):
+    raw = (payment_method or '').strip()
+    if not raw:
+        return None
+    return METHOD_ALIASES.get(raw.lower(), raw.upper())
+
+
+def resolve_payment_provider(methode_paiement):
+    method = normalize_payment_method(methode_paiement)
+    if not method:
+        return 'especes', 'especes'
+    if method in ELECTRONIC_METHODS:
+        return 'papi', PROVIDER_METHOD_MAP.get(method, method)
+    if method in PAPER_METHODS:
+        return 'manuel', method
+    return 'especes', method
 
 PAPER_INSTRUCTIONS = {
     'ESPECES': (
@@ -298,7 +339,12 @@ def create_subscription_offline_payment(
     )
 
     db.session.add(paiement)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Echec commit Paiement hors-ligne: ref=%s", reference)
+        raise
 
     logger.info(
         "Offline payment created: paiement_id=%s reference=%s method=%s",

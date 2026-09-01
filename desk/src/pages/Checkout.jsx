@@ -1,7 +1,8 @@
+// src/pages/Checkout.jsx
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/publicApi';
+import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
@@ -91,14 +92,15 @@ const Checkout = () => {
 
   const qrData = orderRef ? `${window.location.origin}/order-tracking/${orderRef}` : '';
   const qrUrl = qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}` : '';
+  const qrUrlFallback = qrData ? `/api/qr/generate?data=${encodeURIComponent(qrData)}` : '';
 
-  const orderTotal = products.reduce((sum, product) => {
+const orderTotal = products.reduce((sum, product) => {
     const productId = product.id || product.produit_id;
     const cartItem = cart.find(item => item.id === productId || item.produit_id === productId);
     const qty = cartItem?.quantite || 1;
     const price = Number(product.prix_vente_ht || product.prix || 0);
     return sum + price * qty;
-  }, 0);
+}, 0);
 
   if (loading) {
     return (
@@ -146,7 +148,7 @@ const Checkout = () => {
                 const qty = cartItem?.quantite || 1;
                 const price = Number(product.prix_vente_ht || product.prix || 0);
                 return (
-                  <div key={product.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={product.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
                       <p style={{ fontWeight: 700, fontSize: '15px' }}>{product.nom}</p>
                       <p className="public-card__subtitle">Quantité: {qty}</p>

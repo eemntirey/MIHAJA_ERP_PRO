@@ -1,13 +1,13 @@
 from flask_restx import Namespace, Resource
 from app.services.dashboard_service import get_dashboard_data
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 
 api = Namespace('dashboard', description='Tableau de bord et statistiques')
 
 @api.route('/')
 class Dashboard(Resource):
     @api.doc('get_dashboard')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Récupère les données du tableau de bord"""
         data = get_dashboard_data()
@@ -18,7 +18,7 @@ class Dashboard(Resource):
 
 @api.route('/sales-stats')
 class SalesStats(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Statistiques des ventes"""
         from app.models.vente import Vente
@@ -62,7 +62,7 @@ class SalesStats(Resource):
 
 @api.route('/top-products')
 class TopProducts(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Top produits vendus"""
         from app.models.ligne_vente import LigneVente
@@ -105,7 +105,7 @@ class TopProducts(Resource):
 
 @api.route('/top-clients')
 class TopClients(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Top clients par chiffre d'affaires"""
         from app.models.vente import Vente
@@ -148,7 +148,7 @@ class TopClients(Resource):
 
 @api.route('/alerts')
 class Alerts(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Alertes stock et autres"""
         from app.models.produit import Produit

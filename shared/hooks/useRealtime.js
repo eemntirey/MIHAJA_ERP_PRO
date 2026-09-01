@@ -1,17 +1,18 @@
-
+﻿
 // shared/hooks/useRealtime.js
-// Hook temps-réel pour les mises à jour (favoris, colonnes, filtres, notifications).
-// Utilise le polling par défaut (via /api/v1/desk/events).
+// Hook temps-rÃ©el pour les mises Ã  jour (favoris, colonnes, filtres, notifications).
+// Utilise le polling par dÃ©faut (via /api/v1/desk/events).
 // Support optionnel de WebSocket via socket.io-client si disponible.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { syncService } from '../services/api';
+import { tokenStore } from '../storage/tokenStore';
 
 const POLL_INTERVAL_MS = 5000;
 const USE_WEBSOCKET = false;
 
 export function useRealtime(options = {}) {
-  const { onFavoriteUpdate, onColumnUpdate, onFilterUpdate, onNotification, pollInterval = POLL_INTERVAL_MS } = options;
+  const { onFavoriteUpdate, onColumnUpdate, onFilterUpdate, onNotification, onUserUpdate, onTenantUpdate, pollInterval = POLL_INTERVAL_MS } = options;
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState(null);
   const intervalRef = useRef(null);
@@ -33,19 +34,26 @@ export function useRealtime(options = {}) {
     if (entity.includes('notification') && typeof onNotification === 'function') {
       onNotification(event);
     }
-  }, [onFavoriteUpdate, onColumnUpdate, onFilterUpdate, onNotification]);
+    if (entity.includes('user') && typeof onUserUpdate === 'function') {
+      onUserUpdate(event);
+    }
+    if (entity.includes('tenant') && typeof onTenantUpdate === 'function') {
+      onTenantUpdate(event);
+    }
+  }, [onFavoriteUpdate, onColumnUpdate, onFilterUpdate, onNotification, onUserUpdate, onTenantUpdate]);
 
   useEffect(() => {
     if (USE_WEBSOCKET && typeof window !== 'undefined') {
       let socket = null;
       try {
         const { io } = require('socket.io-client');
-        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+          const token = tokenStore.getAccessToken();
         if (token) {
           socket = io(window.location.origin, {
             path: '/socket.io',
             query: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
+        upgrade: false,
           });
 
           socket.on('connect', () => setConnected(true));
@@ -54,6 +62,8 @@ export function useRealtime(options = {}) {
           socket.on('column:updated', (data) => processEvent({ entity: 'column', data }));
           socket.on('filter:updated', (data) => processEvent({ entity: 'filter', data }));
           socket.on('notification:new', (data) => processEvent({ entity: 'notification', data }));
+          socket.on('user:updated', (data) => processEvent({ entity: 'user', data }));
+          socket.on('tenant:updated', (data) => processEvent({ entity: 'tenant', data }));
         }
       } catch {
         // socket.io-client non disponible, on utilisera le polling
@@ -72,7 +82,29 @@ export function useRealtime(options = {}) {
   useEffect(() => {
     if (USE_WEBSOCKET) return;
 
+    let stopped = false;
+
+    const handleLogout = () => {
+      stopped = true;
+      setConnected(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const hasToken = !!tokenStore.getAccessToken();
+    if (!hasToken) {
+      setConnected(false);
+      return () => {
+        window.removeEventListener('auth:logout', handleLogout);
+      };
+    }
+
+    window.addEventListener('auth:logout', handleLogout);
+
     const poll = async () => {
+      if (stopped) return;
       try {
         const since = sinceRef.current;
         const response = await syncService.events(since);
@@ -91,9 +123,12 @@ export function useRealtime(options = {}) {
     intervalRef.current = setInterval(poll, pollInterval);
 
     return () => {
+      stopped = true;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
+      window.removeEventListener('auth:logout', handleLogout);
     };
   }, [processEvent, pollInterval]);
 

@@ -1,7 +1,7 @@
-
+﻿
 // shared/hooks/useRealtime.js
-// Hook temps-réel pour les mises à jour (favoris, colonnes, filtres, notifications).
-// Utilise le polling par défaut (via /api/v1/desk/events).
+// Hook temps-rÃ©el pour les mises Ã  jour (favoris, colonnes, filtres, notifications).
+// Utilise le polling par dÃ©faut (via /api/v1/desk/events).
 // Support optionnel de WebSocket via socket.io-client si disponible.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -45,7 +45,8 @@ export function useRealtime(options = {}) {
           socket = io(window.location.origin, {
             path: '/socket.io',
             query: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
+        upgrade: false,
           });
 
           socket.on('connect', () => setConnected(true));

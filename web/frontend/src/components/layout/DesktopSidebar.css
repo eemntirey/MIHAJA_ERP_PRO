@@ -6,7 +6,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  width: var(--sidebar-width);
+  width: var(--erp-sidebar-width, var(--sidebar-width));
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -256,8 +256,8 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--color-onyx-soft);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-onyx);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -296,7 +296,6 @@
   background: var(--color-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
   padding: var(--space-1);
   z-index: 50;
 }
@@ -338,7 +337,8 @@
 .desktop-sidebar.collapsed .desktop-sidebar__menu {
   left: calc(100% + 6px);
   right: auto;
-  bottom: auto;
-  top: 0;
+  top: auto;
+  bottom: 0;
   min-width: 220px;
+  box-shadow: var(--shadow-lg);
 }

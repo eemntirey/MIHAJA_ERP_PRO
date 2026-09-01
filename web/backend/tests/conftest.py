@@ -16,12 +16,13 @@ def app():
     app.config['TESTING'] = True
 
     with app.app_context():
+        from app.models.role_permission import RoleModel, Permission
+        from app.models.utilisateur import Role
         _db.drop_all()
         _db.create_all()
-
-    yield app
-
-    with app.app_context():
+        from scripts.seed_roles import seed_roles
+        seed_roles()
+        yield app
         _db.drop_all()
 
 

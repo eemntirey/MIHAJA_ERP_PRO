@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { clientService } from '../services/api';
 import { toast } from 'react-toastify';
+import ClientModal from '../components/ClientModal';
 import { CLIENT_TYPES, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
@@ -9,23 +10,9 @@ const Clients = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [showModal, setShowModal] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
-  const [formData, setFormData] = useState({
-    code: '',
-    nom: '',
-    prenom: '',
-    email: '',
-    telephone: '',
-    adresse_facturation: '',
-    ville_facturation: '',
-    code_postal_facturation: '',
-    pays: 'Madagascar',
-    type: 'particulier',
-    siret: '',
-    numero_tva: '',
-  });
 
   const [typeFilter, setTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,65 +37,14 @@ const Clients = () => {
     fetchClients();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
   const openModal = (client = null) => {
     setCurrentClient(client);
-    setFormData(client ? {
-      code: client.code || '',
-      nom: client.nom || '',
-      prenom: client.prenom || '',
-      email: client.email || '',
-      telephone: client.telephone || '',
-      adresse_facturation: client.adresse_facturation || '',
-      ville_facturation: client.ville_facturation || '',
-      code_postal_facturation: client.code_postal_facturation || '',
-      pays: client.pays || 'Madagascar',
-      type: client.type || 'particulier',
-      siret: client.siret || '',
-      numero_tva: client.numero_tva || '',
-    } : {
-      code: '',
-      nom: '',
-      prenom: '',
-      email: '',
-      telephone: '',
-      adresse_facturation: '',
-      ville_facturation: '',
-      code_postal_facturation: '',
-      pays: 'Madagascar',
-      type: 'particulier',
-      siret: '',
-      numero_tva: '',
-    });
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setCurrentClient(null);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (currentClient) {
-        await clientService.update(currentClient.id, formData);
-        toast.success('Client mis à jour avec succès');
-      } else {
-        await clientService.create(formData);
-        toast.success('Client créé avec succès');
-      }
-      fetchClients();
-      closeModal();
-    } catch (err) {
-      console.error('Error saving client:', err);
-      const msg = err.response?.data?.message || 'Échec de la sauvegarde du client';
-      toast.error(msg);
-    }
   };
 
   const handleDelete = async (id) => {
@@ -166,7 +102,7 @@ const Clients = () => {
 
   const filteredClients = clients.filter(client => {
     const matchesType = !typeFilter || client.type === typeFilter;
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       client.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -302,15 +238,15 @@ const Clients = () => {
                     <td>{client.total_commandes || 0}</td>
                     <td>{(client.total_achats || 0).toFixed(2)} Ar</td>
                     <td>
-                      <button 
-                        onClick={() => openModal(client)} 
+                      <button
+                        onClick={() => openModal(client)}
                         className="btn-small btn-edit"
                         title="Modifier"
                       >
                         <i className="ti ti-edit" aria-hidden="true" />
                       </button>
-                      <button 
-                        onClick={() => handleDelete(client.id)} 
+                      <button
+                        onClick={() => handleDelete(client.id)}
                         className="btn-small btn-delete"
                         title="Supprimer"
                       >
@@ -326,156 +262,14 @@ const Clients = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal large" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{currentClient ? 'Modifier le client' : 'Ajouter un nouveau client'}</h2>
-              <button onClick={closeModal} className="btn-close">×</button>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Code client *</label>
-                  <input 
-                    type="text" 
-                    name="code" 
-                    value={formData.code}
-                    onChange={handleChange}
-                    required
-                    placeholder="Code client"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Type de client *</label>
-                  <select 
-                    name="type" 
-                    value={formData.type}
-                    onChange={handleChange}
-                    required
-                  >
-                    {CLIENT_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Nom *</label>
-                  <input 
-                    type="text" 
-                    name="nom" 
-                    value={formData.nom}
-                    onChange={handleChange}
-                    required
-                    placeholder="Nom"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Prénom</label>
-                  <input 
-                    type="text" 
-                    name="prenom" 
-                    value={formData.prenom}
-                    onChange={handleChange}
-                    placeholder="Prénom"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="client@email.com"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Téléphone</label>
-                  <input 
-                    type="tel" 
-                    name="telephone" 
-                    value={formData.telephone}
-                    onChange={handleChange}
-                    placeholder="0612345678"
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>Adresse</label>
-                  <input 
-                    type="text" 
-                    name="adresse_facturation" 
-                    value={formData.adresse_facturation}
-                    onChange={handleChange}
-                    placeholder="Rue, numéro"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Code postal</label>
-                  <input 
-                    type="text" 
-                    name="code_postal_facturation" 
-                    value={formData.code_postal_facturation}
-                    onChange={handleChange}
-                     placeholder="101"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Ville</label>
-                  <input 
-                    type="text" 
-                    name="ville_facturation" 
-                    value={formData.ville_facturation}
-                    onChange={handleChange}
-                     placeholder="Antananarivo"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Pays</label>
-                  <input 
-                    type="text" 
-                    name="pays" 
-                    value={formData.pays}
-                    onChange={handleChange}
-                     placeholder="Madagascar"
-                  />
-                </div>
-                
-                {formData.type !== 'particulier' && (
-                  <>
-                    <div className="form-group">
-                      <label>SIRET</label>
-                      <input 
-                        type="text" 
-                        name="siret" 
-                        value={formData.siret}
-                        onChange={handleChange}
-                        placeholder="123 456 789 00010"
-                      />
-                    </div>
-                  <div className="form-group">
-                    <label>TVA Intracommunautaire</label>
-                    <input 
-                      type="text" 
-                      name="numero_tva" 
-                      value={formData.numero_tva}
-                      onChange={handleChange}
-                      placeholder="FRXX 123456789"
-                    />
-                  </div>
-                  </>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button type="button" onClick={closeModal} className="btn-secondary">
-                  Annuler
-                </button>
-                <button type="submit" className="btn-primary" disabled={!formData.nom}>
-                  {currentClient ? 'Mettre à jour' : 'Ajouter'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ClientModal
+          client={currentClient}
+          onClose={closeModal}
+          onSuccess={() => {
+            fetchClients();
+            closeModal();
+          }}
+        />
       )}
     </div>
   );

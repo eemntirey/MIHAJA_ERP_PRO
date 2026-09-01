@@ -21,7 +21,9 @@ if __name__ == "__main__":
         from app.realtime import socketio
         if socketio:
             print("Temps-réel Socket.IO activé sur le port", port)
-            socketio.run(app, debug=debug, host=host, port=port, allow_unsafe_werkzeug=True)
+            # allow_unsafe_werkzeug uniquement en mode debug explicite.
+            socketio.run(app, debug=debug, host=host, port=port,
+                         allow_unsafe_werkzeug=debug)
         else:
             print("SocketIO indisponible : démarrage HTTP classique.")
             app.run(debug=debug, host=host, port=port)

@@ -128,7 +128,10 @@ def predict_stock_rupture(tenant_id=None):
 
     predictions = []
     for p in produits:
-        mouvements = MouvementStock.query.filter_by(produit_id=p.id, is_active=True).all()
+        mouvements_query = MouvementStock.query.filter_by(produit_id=p.id, is_active=True)
+        if tenant_id:
+            mouvements_query = mouvements_query.filter_by(tenant_id=tenant_id)
+        mouvements = mouvements_query.all()
         if not mouvements:
             continue
         qty_changes = [abs(float(m.quantite)) for m in mouvements if getattr(m.type_mouvement, 'value', str(m.type_mouvement)).lower() in ['sortie', 'vente']]

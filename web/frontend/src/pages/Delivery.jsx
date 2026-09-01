@@ -50,6 +50,8 @@ export default function Delivery() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [associerId, setAssocierId] = useState(null);
+  const [associerUserId, setAssocierUserId] = useState('');
 
   const fetchAll = async () => {
     setLoading(true);
@@ -97,8 +99,8 @@ export default function Delivery() {
       let data;
       if (type === 'livreur') data = { ...livreurForm };
       else if (type === 'vehicule') data = { ...vehiculeForm, capacite_charge: vehiculeForm.capacite_charge ? Number(vehiculeForm.capacite_charge) : null, capacite_volume: vehiculeForm.capacite_volume ? Number(vehiculeForm.capacite_volume) : null };
-      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: Number(itineraireForm.livreur_id), vehicule_id: Number(itineraireForm.vehicule_id), points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
-      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: Number(livraisonForm.livreur_id), vehicule_id: Number(livraisonForm.vehicule_id), itineraire_id: Number(livraisonForm.itineraire_id) || null, vente_id: Number(livraisonForm.vente_id) || null, commande_client_id: Number(livraisonForm.commande_client_id) || null };
+      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: itineraireForm.livreur_id ? Number(itineraireForm.livreur_id) : null, vehicule_id: itineraireForm.vehicule_id ? Number(itineraireForm.vehicule_id) : null, points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
+      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: livraisonForm.livreur_id ? Number(livraisonForm.livreur_id) : null, vehicule_id: livraisonForm.vehicule_id ? Number(livraisonForm.vehicule_id) : null, itineraire_id: livraisonForm.itineraire_id ? Number(livraisonForm.itineraire_id) : null, vente_id: livraisonForm.vente_id ? Number(livraisonForm.vente_id) : null, commande_client_id: livraisonForm.commande_client_id ? Number(livraisonForm.commande_client_id) : null };
       const svc = type === 'livreur' ? livreurService : type === 'vehicule' ? vehiculeService : type === 'itineraire' ? itineraireService : livraisonService;
       if (editingType === type && editingId) {
         await svc.update(editingId, data);
@@ -123,9 +125,19 @@ export default function Delivery() {
       await svc.delete(id);
       toast.success('Supprimé');
       fetchAll();
-    } catch (e) {
-      toast.error('Erreur de suppression');
-    }
+    } catch (e) { toast.error('Erreur de suppression'); }
+  };
+
+  const handleAssocier = async (id) => {
+    setSubmitting(true);
+    try {
+      await livreurService.associerUtilisateur(id, Number(associerUserId));
+      toast.success('Compte associé');
+      setAssocierId(null);
+      setAssocierUserId('');
+      fetchAll();
+    } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
+    finally { setSubmitting(false); }
   };
 
   const handleEdit = (item, type) => {
@@ -290,15 +302,25 @@ export default function Delivery() {
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
-              <thead><tr><th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th>Compte associé</th><th>Actions</th></tr></thead>
               <tbody>
                 {livreurs.map(l => (
                   <tr key={l.id}>
                     <td>{l.nom}</td><td>{l.prenom}</td><td>{l.telephone}</td><td>{l.email}</td>
                     <td><StatusBadge status={l.statut} /></td>
+                    <td>{l.utilisateur_id ? `Utilisateur #${l.utilisateur_id}` : '—'}</td>
                     <td>
                       <span className="delivery-actions">
                         <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(l, 'livreur')}><i className="ti ti-edit" /></button>
+                        {associerId === l.id ? (
+                          <>
+                            <input type="number" placeholder="ID utilisateur" value={associerUserId} onChange={e => setAssocierUserId(e.target.value)} style={{width: 100, marginRight: 4}} />
+                            <button className="btn-small btn-primary" disabled={submitting} onClick={() => handleAssocier(l.id)}><i className="ti ti-check" /></button>
+                            <button className="btn-small btn-secondary" disabled={submitting} onClick={() => { setAssocierId(null); setAssocierUserId(''); }}><i className="ti ti-x" /></button>
+                          </>
+                        ) : (
+                          <button className="btn-small btn-edit" title="Associer compte" onClick={() => { setAssocierId(l.id); setAssocierUserId(''); }}><i className="ti ti-user-plus" /></button>
+                        )}
                         <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('livreur', l.id)}><i className="ti ti-trash" /></button>
                       </span>
                     </td>

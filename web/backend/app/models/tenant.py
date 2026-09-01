@@ -4,6 +4,8 @@ from sqlalchemy import Enum, ForeignKey
 import enum
 from datetime import datetime
 
+from app.models.utilisateur import Utilisateur
+
 
 class StatutTenant(enum.Enum):
     ACTIF = 'actif'
@@ -27,7 +29,11 @@ class Tenant(BaseModel):
     code_postal = db.Column(db.String(10))
     
     # Abonnement
-    statut = db.Column(Enum(StatutTenant), default=StatutTenant.EN_ESSAI, nullable=False)
+    statut = db.Column(
+        Enum(StatutTenant, values_callable=lambda x: [e.value for e in x]),
+        default=StatutTenant.EN_ESSAI,
+        nullable=False,
+    )
     plan = db.Column(db.String(50), default='gratuit')  # gratuit, starter, pro, enterprise
     date_debut_essai = db.Column(db.DateTime)
     date_fin_essai = db.Column(db.DateTime)
@@ -71,8 +77,15 @@ class Tenant(BaseModel):
         back_populates='tenant',
         lazy='dynamic'
     )
-    def to_dict(self):
-        return {
+
+    # Admin principal : rattaché au TENANT (et non à un utilisateur),
+    # conformément à l'architecture SUPER ADMIN =| TENANT == ADMIN.
+    admin_principal_id = db.Column(
+        db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True
+    )
+
+    def to_dict(self, include_subscription=False):
+        data = {
             'id': self.id,
             'nom': self.nom,
             'slug': self.slug,
@@ -121,6 +134,8 @@ class Tenant(BaseModel):
 
             'is_active': self.is_active,
 
+            'admin_principal_id': self.admin_principal_id,
+
             'created_at': (
                 self.created_at.isoformat()
                 if self.created_at
@@ -133,5 +148,52 @@ class Tenant(BaseModel):
                 else None
             ),
         }
+
+        if include_subscription:
+            from app.models.abonnement import Abonnement, StatutAbonnement
+            from datetime import datetime
+            now = datetime.utcnow()
+            abonnement = Abonnement.query.filter(
+                Abonnement.tenant_id == self.id,
+                Abonnement.is_active == True
+            ).order_by(Abonnement.created_at.desc()).first()
+            if abonnement:
+                data['abonnement'] = abonnement.to_dict()
+                data['abonnement']['statut'] = (
+                    abonnement.statut.value
+                    if hasattr(abonnement.statut, 'value')
+                    else abonnement.statut
+                )
+                data['abonnement']['date_debut'] = (
+                    abonnement.date_debut.isoformat()
+                    if abonnement.date_debut
+                    else None
+                )
+                data['abonnement']['date_fin'] = (
+                    abonnement.date_fin.isoformat()
+                    if abonnement.date_fin
+                    else None
+                )
+            else:
+                data['abonnement'] = None
+
+            if self.admin_principal_id:
+                admin = db.session.get(Utilisateur, self.admin_principal_id)
+                if admin:
+                    data['admin_principal'] = {
+                        'id': admin.id,
+                        'username': admin.username,
+                        'email': admin.email,
+                        'nom': admin.nom,
+                        'prenom': admin.prenom,
+                        'role': admin.role.value if hasattr(admin.role, 'value') else admin.role,
+                    }
+                else:
+                    data['admin_principal'] = None
+            else:
+                data['admin_principal'] = None
+
+        return data
+
     def __repr__(self):
         return f'<Tenant {self.nom} ({self.slug})>'

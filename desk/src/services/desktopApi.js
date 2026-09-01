@@ -1,9 +1,9 @@
 // src/services/desktopApi.js
 // API desktop avec synchronisation hors-ligne vers le backend partagé.
 
-import api from '../../../shared/services/api';
+import api from '../../shared/services/api';
 import { buildKey, readJSON, writeJSON, removeKey } from '../utils/localStore';
-import { syncEngine } from '../../../shared/utils/syncEngine';
+import { syncEngine } from '../../shared/utils/syncEngine';
 
 const NOTIF_STORAGE_KEY = buildKey('notifications', 'list', false);
 

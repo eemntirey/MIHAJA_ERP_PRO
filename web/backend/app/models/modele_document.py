@@ -7,7 +7,6 @@ class ModeleDocument(BaseTenantModel):
     nom = db.Column(db.String(100), nullable=False)
     type_document = db.Column(db.String(50), nullable=False)
     contenu_modele = db.Column(db.Text, nullable=False)
-    est_actif = db.Column(db.Boolean, default=True)
     est_defaut = db.Column(db.Boolean, default=False)
     logo_url = db.Column(db.String(500))
     mention_legales = db.Column(db.Text)

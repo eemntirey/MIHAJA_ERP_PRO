@@ -14,6 +14,8 @@ class BaseService:
         tenant_id = get_current_tenant_id()
         if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
             query = query.filter(cls.model.tenant_id == tenant_id)
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
         return query
     
     @classmethod
@@ -45,13 +47,36 @@ class BaseService:
     
     @classmethod
     def create(cls, data: Dict[str, Any]) -> Any:
-        """Crée une nouvelle entité"""
+        """Crée une nouvelle entité en bloquant le mass assignment des champs sensibles.
+
+        Les champs protégés (tenant_id, is_active, role, statut, created_by,
+        updated_by, etc.) ne peuvent jamais être fournis par l'appelant :
+        le tenant_id est déterminé côté serveur (contexte authentifié).
+        """
+        protected_fields = getattr(cls, 'PROTECTED_FIELDS', None) or {
+            'tenant_id', 'id', 'created_by', 'updated_by',
+            'created_at', 'updated_at', 'is_active', 'role',
+            'statut', 'password_hash',
+            'custom_role_id', 'admin_statut',
+            'device_id', 'is_principal_admin',
+        }
+        clean_data = {
+            key: value for key, value in data.items()
+            if key not in protected_fields
+        }
+
         if hasattr(cls.model, 'tenant_id'):
-            tenant_id = data.get('tenant_id') or get_current_tenant_id()
+            # La source de vérité du tenant est le contexte authentifié.
+            tenant_id = get_current_tenant_id()
+            if tenant_id is None:
+                # Aucun contexte tenant (ex : super admin) : on accepte le
+                # tenant fourni explicitement (provisioning plateforme).
+                tenant_id = clean_data.get('tenant_id')
             if not tenant_id:
                 raise ValueError("tenant_id est obligatoire pour cette ressource")
-            data['tenant_id'] = tenant_id
-        instance = cls.model(**data)
+            clean_data['tenant_id'] = tenant_id
+
+        instance = cls.model(**clean_data)
         instance.save()
         return instance
     
@@ -61,11 +86,19 @@ class BaseService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
-        
+        data = data or {}
+        protected_fields = getattr(cls, 'PROTECTED_FIELDS', None) or {
+            'tenant_id', 'id', 'created_by', 'updated_by',
+            'created_at', 'updated_at', 'is_active', 'role',
+            'statut', 'password_hash',
+            'custom_role_id', 'admin_statut',
+            'device_id', 'is_principal_admin',
+        }
         for key, value in data.items():
+            if key in protected_fields:
+                continue
             if hasattr(instance, key):
                 setattr(instance, key, value)
-        
         instance.save()
         return instance
     

@@ -1,5 +1,8 @@
 // shared/storage/authStorage.js
-// Stockage unifié de l'authentification pour web et desktop.
+// Stockage unifie de l'authentification pour web et desktop.
+
+import { getString, setString, removeKey, readJSON, writeJSON } from './storageAdapter';
+import { tokenStore } from './tokenStore';
 
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
@@ -7,72 +10,53 @@ const USER_KEY = 'user';
 const TENANT_KEY = 'tenant';
 const SUBSCRIPTION_KEY = 'subscription';
 
-const safeGet = (key) => {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
-const safeSet = (key, value) => {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // quota dépassé ou stockage indisponible
-  }
-};
-
-const safeRemove = (key) => {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
+const NEW = {
+  access: 'erp.auth.access_token',
+  refresh: 'erp.auth.refresh_token',
+  user: 'erp.auth.user',
+  tenant: 'erp.auth.tenant',
+  subscription: 'erp.auth.subscription',
 };
 
 export const authStorage = {
-  getAccessToken: () => safeGet(ACCESS_TOKEN_KEY),
-  getRefreshToken: () => safeGet(REFRESH_TOKEN_KEY),
-  getUser: () => {
-    const raw = safeGet(USER_KEY);
-    try {
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+  getAccessToken: () => getString(ACCESS_TOKEN_KEY),
+  getRefreshToken: () => getString(REFRESH_TOKEN_KEY),
+  getUser: () => readJSON(USER_KEY),
+  getTenant: () => readJSON(TENANT_KEY),
+  getSubscription: () => readJSON(SUBSCRIPTION_KEY),
+
+  setAccessToken: (token) => {
+    setString(ACCESS_TOKEN_KEY, token);
+    setString(NEW.access, token);
   },
-  getTenant: () => {
-    const raw = safeGet(TENANT_KEY);
-    try {
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+  setRefreshToken: (token) => {
+    setString(REFRESH_TOKEN_KEY, token);
+    setString(NEW.refresh, token);
   },
-  getSubscription: () => {
-    const raw = safeGet(SUBSCRIPTION_KEY);
-    try {
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+  setUser: (user) => {
+    const v = JSON.stringify(user);
+    writeJSON(USER_KEY, user);
+    setString(NEW.user, v);
+  },
+  setTenant: (tenant) => {
+    const v = JSON.stringify(tenant);
+    writeJSON(TENANT_KEY, tenant);
+    setString(NEW.tenant, v);
+  },
+  setSubscription: (sub) => {
+    const v = sub ? JSON.stringify(sub) : null;
+    writeJSON(SUBSCRIPTION_KEY, sub);
+    if (v) {
+      setString(NEW.subscription, v);
+    } else {
+      removeKey(NEW.subscription);
     }
   },
 
-  setAccessToken: (token) => safeSet(ACCESS_TOKEN_KEY, token),
-  setRefreshToken: (token) => safeSet(REFRESH_TOKEN_KEY, token),
-  setUser: (user) => safeSet(USER_KEY, JSON.stringify(user)),
-  setTenant: (tenant) => safeSet(TENANT_KEY, JSON.stringify(tenant)),
-  setSubscription: (sub) => safeSet(SUBSCRIPTION_KEY, JSON.stringify(sub)),
-
-  remove: (key) => safeRemove(key),
+  remove: (key) => removeKey(key),
 
   clear: () => {
-    safeRemove(ACCESS_TOKEN_KEY);
-    safeRemove(REFRESH_TOKEN_KEY);
-    safeRemove(USER_KEY);
-    safeRemove(TENANT_KEY);
-    safeRemove(SUBSCRIPTION_KEY);
+    tokenStore.clear();
   },
 };
 

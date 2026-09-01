@@ -49,7 +49,13 @@ export default function Purchases() {
         try {
             let lignes = [];
             try { lignes = JSON.parse(cmdForm.lignes); } catch { toast.error('JSON invalide pour les lignes'); setSubmitting(false); return; }
-            const data = { ...cmdForm, fournisseur_id: Number(cmdForm.fournisseur_id), total_ht: Number(cmdForm.total_ht) || 0, total_ttc: Number(cmdForm.total_ttc) || 0, lignes };
+            const data = {
+                ...cmdForm,
+                fournisseur_id: cmdForm.fournisseur_id ? Number(cmdForm.fournisseur_id) : null,
+                total_ht: Number(cmdForm.total_ht) || 0,
+                total_ttc: Number(cmdForm.total_ttc) || 0,
+                lignes
+            };
             if (editingId) { await commandeAchatService.update(editingId, data); toast.success('Commande modifiée'); }
             else { await commandeAchatService.create(data); toast.success('Commande créée'); }
             setCmdForm({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' });
@@ -62,7 +68,12 @@ export default function Purchases() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const data = { ...recForm, commande_achat_id: Number(recForm.commande_achat_id), quantite_recue: Number(recForm.quantite_recue), quantite_commandee: Number(recForm.quantite_commandee) };
+            const data = {
+                ...recForm,
+                commande_achat_id: recForm.commande_achat_id ? Number(recForm.commande_achat_id) : null,
+                quantite_recue: Number(recForm.quantite_recue),
+                quantite_commandee: Number(recForm.quantite_commandee)
+            };
             await receptionService.create(data);
             toast.success('Réception créée');
             setRecForm({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
@@ -158,7 +169,12 @@ export default function Purchases() {
                     </form>
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Référence</th><th>Fournisseur</th><th>Total HT</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>{commandes.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune commande</td></tr> : commandes.map(c => <tr key={c.id}><td>{c.reference}</td><td>{c.fournisseur_nom}</td><td>{c.total_ht}</td><td><span className={`badge ${c.statut}`}>{c.statut}</span></td><td><button className="btn-small btn-edit" onClick={() => handleEditCmd(c)}>Modifier</button> <button className="btn-small btn-danger" onClick={() => handleDelete('commande', c.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{commandes.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune commande</td></tr> : commandes.map(c => <tr key={c.id}><td>{c.reference}</td><td>{c.fournisseur_nom}</td><td>{c.total_ht}</td><td><span className={`badge ${c.statut}`}>{c.statut}</span></td><td>                    <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditCmd(c)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
+                    </button>
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('commande', c.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -196,7 +212,9 @@ export default function Purchases() {
                     </form>
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Référence</th><th>Commande</th><th>Qté reçue</th><th>Qté cmd</th><th>Actions</th></tr></thead>
-                        <tbody>{receptions.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune réception</td></tr> : receptions.map(r => <tr key={r.id}><td>{r.reference}</td><td>{r.commande_achat_id}</td><td>{r.quantite_recue}</td><td>{r.quantite_commandee}</td><td><button className="btn-small btn-danger" onClick={() => handleDelete('reception', r.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{receptions.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune réception</td></tr> : receptions.map(r => <tr key={r.id}><td>{r.reference}</td><td>{r.commande_achat_id}</td><td>{r.quantite_recue}</td><td>{r.quantite_commandee}</td><td>                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('reception', r.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}

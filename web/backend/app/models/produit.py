@@ -70,6 +70,7 @@ class Produit(BaseTenantModel):
     est_service = db.Column(db.Boolean, default=False)
     est_dechirable = db.Column(db.Boolean, default=False)
     est_dangereux = db.Column(db.Boolean, default=False)
+    published = db.Column(db.Boolean, default=False, nullable=False)
     
     # Relations
     fournisseur = db.relationship('Fournisseur', back_populates='produits')
@@ -191,7 +192,6 @@ class Produit(BaseTenantModel):
     
     def to_dict(self, exclude=None):
         data = super().to_dict(exclude)
-        # Ajouter les propriétés calculées
         data['valeur_stock'] = float(self.valeur_stock)
         data['marge_unitaire'] = float(self.marge_unitaire)
         data['taux_marge'] = float(self.taux_marge)
@@ -199,6 +199,26 @@ class Produit(BaseTenantModel):
         data['est_en_rupture'] = self.est_en_rupture
         data['est_alerte_stock'] = self.est_alerte_stock
         return data
-    
+
+    def to_public_dict(self):
+        allowed_public_fields = {
+            'id', 'nom', 'description_courte', 'description_longue',
+            'categorie', 'sous_categorie', 'famille', 'marque', 'modele',
+            'unite', 'prix_vente_ht', 'prix_vente_ttc', 'taux_tva',
+            'image_url', 'qr_code_data', 'tags', 'statut', 'est_service',
+            'est_dechirable', 'est_dangereux', 'poids', 'longueur',
+            'largeur', 'hauteur', 'volume', 'reference', 'code_barre',
+            'code_interne',
+        }
+        data = {}
+        for column in self.__table__.columns:
+            if column.name in allowed_public_fields:
+                value = getattr(self, column.name)
+                if isinstance(value, Decimal):
+                    value = float(value)
+                data[column.name] = value
+        data['tenant_nom'] = None
+        return data
+
     def __repr__(self):
         return f'<Produit {self.reference} - {self.nom}>'

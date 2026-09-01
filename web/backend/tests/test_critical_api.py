@@ -231,5 +231,5 @@ class TestPublicAPI:
             'nom_client': 'John Doe',
             'email_client': 'john@example.com',
             'items': [{'produit_id': produit.id, 'quantite': 2}],
-        })
-        assert r.status_code == 201
+        }, headers={'X-Tenant-Slug': tenant.slug})
+        assert r.status_code == 201, r.get_json()

@@ -12,7 +12,10 @@ class FournisseurService(BaseService):
     def _get_tenant_filter(cls, query):
         """Applique le filtre tenant à une requête"""
         from app.security.tenant import set_tenant_filter
-        return set_tenant_filter(query, cls.model)
+        query = set_tenant_filter(query, cls.model)
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
+        return query
     
     @classmethod
     def get_all(cls, page: int = 1, per_page: int = 20,
@@ -60,12 +63,14 @@ class FournisseurService(BaseService):
         
         # Vérifier le code unique dans le tenant
         q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
+        q = q.execution_options(_skip_tenant_filter=True)
         if q.first():
             raise ValueError(f"Le code {data['code']} existe déjà")
         
         # Vérifier le SIRET unique dans le tenant
         if data.get('siret'):
             q = cls.model.query.filter_by(siret=data['siret'], tenant_id=tenant_id)
+            q = q.execution_options(_skip_tenant_filter=True)
             if q.first():
                 raise ValueError(f"Le SIRET {data['siret']} existe déjà")
         
@@ -101,6 +106,9 @@ class FournisseurService(BaseService):
         
         if tenant_id:
             query = query.filter(Fournisseur.tenant_id == tenant_id)
+        
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
         
         results = query.group_by(
             Fournisseur.id

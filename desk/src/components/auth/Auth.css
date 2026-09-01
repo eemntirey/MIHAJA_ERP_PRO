@@ -545,10 +545,10 @@
 .auth-login__eyebrow {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--erp-gold-dark);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
@@ -562,6 +562,7 @@
 
 .auth-login__context-content {
   padding: 96px 0 72px;
+  text-align: center;
 }
 
 .auth-login__context-content h1 {
@@ -668,6 +669,7 @@
 .auth-login__form-container {
   width: 100%;
   max-width: 420px;
+  margin: 0 auto;
 }
 
 .auth-login__form-header {
@@ -790,6 +792,28 @@
   color: var(--erp-subtle);
 }
 
+.auth-login__select-wrap select option {
+  background: #f5f5f4;
+  color: var(--erp-onyx);
+}
+
+.auth-login {
+  color-scheme: light;
+}
+
+.auth-login[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+.auth-login[data-theme='dark'] .auth-login__select-wrap select {
+  color-scheme: dark;
+}
+
+.auth-login[data-theme='dark'] .auth-login__select-wrap select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
 .auth-login__password-toggle {
   position: absolute;
   right: 12px;
@@ -808,6 +832,13 @@
   font-size: 12px;
   color: var(--erp-critical);
   margin-top: 4px;
+}
+
+.auth-login__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--erp-slate);
+  opacity: 0.8;
 }
 
 .auth-login__remember {
@@ -847,6 +878,7 @@
 .auth-login__submit:hover:not(:disabled) {
   background: var(--erp-onyx-soft);
   border-color: var(--erp-onyx-soft);
+  color: #ffffff;
 }
 
 .auth-login__submit:disabled {
@@ -1068,6 +1100,33 @@
 @media (max-width: 900px) {
   .auth-login__layout { grid-template-columns: 1fr; }
   .auth-login__context { display: none; }
+}
+
+@media (min-width: 901px) {
+  .auth-register .auth-login {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__layout {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__context {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+   .auth-register .auth-login__form-panel {
+     display: block;
+     height: 100vh;
+     min-height: 0;
+     overflow-y: auto;
+     overflow-x: hidden;
+   }
 }
 
 /* Dark mode - auth-login layout */

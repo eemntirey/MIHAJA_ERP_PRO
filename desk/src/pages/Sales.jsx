@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
-import DataTable from '../components/desktop/DataTable';
-import FilterPanel from '../components/desktop/FilterPanel';
-import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
-import useFormDraft from '../hooks/useFormDraft';
-import { applyFilters, applySearch } from '../utils/filterUtils';
-import { exportRowsToCsv, timestampedFilename } from '../utils/exportUtils';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -43,14 +40,281 @@ const getModePaiementLabel = (mode) => {
   return PAYMENT_METHOD_LABELS[mode] || mode || 'N/A';
 };
 
-const computeLineTotal = (item) => {
-  const quantite = Number(item?.quantite) || 0;
-  const prix = Number(item?.prix_unitaire) || 0;
-  const tva = Number(item?.taux_tva) || 0;
-  return quantite * prix * (1 + tva / 100);
+const saleLineSchema = yup.object().shape({
+  produit_id: yup.number().required('Produit requis'),
+  quantite: yup.number().required('Quantité requise').min(1, 'Quantité minimum 1'),
+  prix_unitaire: yup.number().required('Prix requis').min(0, 'Prix invalide'),
+  taux_tva: yup.number().min(0).default(20),
+});
+
+const saleSchema = yup.object().shape({
+  client_id: yup.number().required('Client requis'),
+  date: yup.string().required('Date requise'),
+  statut: yup.string().oneOf(['en_attente', 'payee', 'annulee', 'partielle']).default('en_attente'),
+  mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money']).default('especes'),
+  remarque: yup.string().nullable(),
+  lignes: yup.array().of(saleLineSchema).min(1, 'Au moins une ligne requise'),
+});
+
+const getProductDefaults = (products, produitId) => {
+  const product = products.find(p => p.id === Number(produitId));
+  if (!product) return { prix_unitaire: 0, taux_tva: 20 };
+  return {
+    prix_unitaire: product.prix_vente_ht || 0,
+    taux_tva: product.taux_tva || 20,
+  };
 };
 
-const computeItemsTotal = (items = []) => items.reduce((sum, item) => sum + computeLineTotal(item), 0);
+const calculateLineTotal = (quantite, prix_unitaire, taux_tva) => {
+  const q = Number(quantite) || 0;
+  const p = Number(prix_unitaire) || 0;
+  const t = Number(taux_tva) || 0;
+  return q * p * (1 + t / 100);
+};
+
+const calculateTotals = (items) => {
+  const totalHt = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0), 0);
+  const totalTva = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0) * ((Number(item.taux_tva) || 0) / 100), 0);
+  const totalTtc = totalHt + totalTva;
+  return { totalHt, totalTva, totalTtc };
+};
+
+const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
+  const defaultValues = {
+    client_id: '',
+    date: new Date().toISOString().split('T')[0],
+    statut: 'en_attente',
+    mode_paiement: 'especes',
+    remarque: '',
+    lignes: [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
+  };
+
+  const editValues = initialData ? {
+    client_id: initialData.client_id || '',
+    date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
+    statut: initialData.statut || 'en_attente',
+    mode_paiement: initialData.mode_paiement || 'especes',
+    remarque: initialData.remarque || '',
+    lignes: initialData.lignes?.map(l => ({
+      produit_id: l.produit_id ?? '',
+      quantite: l.quantite || 1,
+      prix_unitaire: l.prix_unitaire || 0,
+      taux_tva: l.taux_tva || 20,
+    })) || [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
+  } : defaultValues;
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    control,
+    formState: { errors, isSubmitting },
+    setValue,
+    getValues,
+  } = useForm({
+    resolver: yupResolver(saleSchema),
+    defaultValues: isEdit ? editValues : defaultValues,
+    mode: 'onChange',
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'lignes' });
+
+  const watchedLines = watch('lignes');
+  const totals = calculateTotals(watchedLines);
+
+  const handleProduitChange = (index, produitId) => {
+    const defaults = getProductDefaults(products, produitId);
+    setValue(`lignes.${index}.prix_unitaire`, defaults.prix_unitaire, { shouldValidate: true });
+    setValue(`lignes.${index}.taux_tva`, defaults.taux_tva, { shouldValidate: true });
+  };
+
+  const onSubmit = async (data) => {
+    try {
+      const payload = {
+        client_id: Number(data.client_id),
+        date: data.date,
+        statut: data.statut,
+        mode_paiement: data.mode_paiement,
+        remarque: data.remarque,
+        lignes: data.lignes.map(l => ({
+          produit_id: Number(l.produit_id),
+          quantite: Number(l.quantite),
+          prix_unitaire: Number(l.prix_unitaire),
+          taux_tva: Number(l.taux_tva),
+        })),
+      };
+
+      if (isEdit) {
+        await saleService.update(initialData.id, payload);
+        toast.success('Vente modifiée avec succès');
+      } else {
+        await saleService.create(payload);
+        toast.success('Vente créée avec succès');
+      }
+      onSuccess();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde de la vente';
+      toast.error(msg);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{isEdit ? `Modifier la vente #${initialData?.id}` : 'Nouvelle vente'}</h2>
+          <button onClick={onClose} className="btn-close">×</button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Client *</label>
+              <select {...register('client_id')} required>
+                <option value="">Sélectionner un client</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
+              </select>
+              {errors.client_id && <span className="field-error">{errors.client_id.message}</span>}
+            </div>
+            <div className="form-group">
+              <label>Date *</label>
+              <input type="date" {...register('date')} required />
+              {errors.date && <span className="field-error">{errors.date.message}</span>}
+            </div>
+            <div className="form-group">
+              <label>Statut</label>
+              <select {...register('statut')}>
+                <option value="en_attente">En attente</option>
+                <option value="payee">Payée</option>
+                <option value="partielle">Partielle</option>
+                <option value="annulee">Annulée</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Mode de paiement</label>
+              <select {...register('mode_paiement')}>
+                {PAYMENT_METHODS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h3>Lignes de vente</h3>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Produit *</th>
+                    <th>Quantité *</th>
+                    <th>Prix HT *</th>
+                    <th>TVA %</th>
+                    <th>Total TTC</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field, index) => (
+                    <tr key={field.id}>
+                      <td>
+                        <select
+                          {...register(`lignes.${index}.produit_id`)}
+                          onChange={(e) => handleProduitChange(index, e.target.value)}
+                          required
+                        >
+                          <option value="">Produit</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.nom} ({formatCurrency(p.prix_vente_ht)})</option>)}
+                        </select>
+                        {errors.lignes?.[index]?.produit_id && <span className="field-error">{errors.lignes[index].produit_id.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          {...register(`lignes.${index}.quantite`, { valueAsNumber: true })}
+                          required
+                        />
+                        {errors.lignes?.[index]?.quantite && <span className="field-error">{errors.lignes[index].quantite.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          {...register(`lignes.${index}.prix_unitaire`, { valueAsNumber: true })}
+                          required
+                        />
+                        {errors.lignes?.[index]?.prix_unitaire && <span className="field-error">{errors.lignes[index].prix_unitaire.message}</span>}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          {...register(`lignes.${index}.taux_tva`, { valueAsNumber: true })}
+                        />
+                      </td>
+                      <td>
+                        {watchedLines[index] && formatCurrency(calculateLineTotal(
+                          watchedLines[index].quantite,
+                          watchedLines[index].prix_unitaire,
+                          watchedLines[index].taux_tva
+                        ))}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-small btn-danger"
+                          onClick={() => remove(index)}
+                          disabled={fields.length <= 1}
+                        >
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className="btn-secondary" onClick={() => append({ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 })}>
+              + Ajouter ligne
+            </button>
+          </div>
+
+          <div className="totals-display">
+            <div className="total-row">
+              <span>Total HT :</span>
+              <span>{formatCurrency(totals.totalHt)}</span>
+            </div>
+            <div className="total-row">
+              <span>Total TVA :</span>
+              <span>{formatCurrency(totals.totalTva)}</span>
+            </div>
+            <div className="total-row total-ttc">
+              <span>Total TTC :</span>
+              <span>{formatCurrency(totals.totalTtc)}</span>
+            </div>
+          </div>
+
+          <div className="form-group full-width">
+            <label>Remarque</label>
+            <textarea {...register('remarque')} rows="2" />
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn-secondary" disabled={isSubmitting}>
+              Annuler
+            </button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Enregistrement...' : (isEdit ? 'Mettre à jour' : 'Créer')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const Sales = () => {
   const [tab, setTab] = useState('ventes');
@@ -64,31 +328,19 @@ const Sales = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState([]);
-  const [appliedFilters, setAppliedFilters] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [viewSale, setViewSale] = useState(null);
   const [viewBl, setViewBl] = useState(null);
   const [viewAvoir, setViewAvoir] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
-  const [editFormData, setEditFormData] = useState({ client_id: '', items: [], date: '', statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [saleActionLoading, setSaleActionLoading] = useState(false);
 
-  const [formData, setFormData] = useState({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
   const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
   const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
 
-  // Brouillons locaux (auto-save toutes les 5 s) des deux formulaires de vente
-  const createDraft = useFormDraft(showModal ? 'ventes:new' : null, formData, { enabled: showModal });
-  const editDraft = useFormDraft(
-    showEditModal && editingSale ? `ventes:${editingSale.id}` : null,
-    editFormData,
-    { enabled: showEditModal }
-  );
-
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -118,91 +370,9 @@ const Sales = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleAddItem = () => {
-    setFormData(prev => ({ ...prev, items: [...prev.items, { produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }] }));
   };
 
-  const handleRemoveItem = (index) => {
-    setFormData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
-  };
-
-  const handleItemChange = (index, field, value) => {
-    setFormData(prev => {
-      const items = [...prev.items];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, items };
-    });
-  };
-
-  // Lignes du formulaire d'édition (état distinct de la création)
-  const handleEditAddItem = () => {
-    setEditFormData(prev => ({ ...prev, items: [...prev.items, { produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }] }));
-  };
-
-  const handleEditRemoveItem = (index) => {
-    setEditFormData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
-  };
-
-  const handleEditItemChange = (index, field, value) => {
-    setEditFormData(prev => {
-      const items = [...prev.items];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, items };
-    });
-  };
-
-  const handleCreateSale = async (e) => {
-    e.preventDefault();
-    try {
-      const data = {
-        ...formData,
-        client_id: Number(formData.client_id),
-        lignes: formData.items.map(it => ({ produit_id: Number(it.produit_id), quantite: it.quantite ? Number(it.quantite) : 0, prix_unitaire: Number(it.prix_unitaire), taux_tva: Number(it.taux_tva) })),
-      };
-      await saleService.create(data);
-      toast.success('Vente créée');
-      createDraft.clear();
-      setFormData({ client_id: '', items: [], date: new Date().toISOString().split('T')[0], statut: 'en_attente', mode_paiement: 'especes', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleCreateDevis = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...devisForm, client_id: Number(devisForm.client_id), total_ht: Number(devisForm.total_ht), total_ttc: Number(devisForm.total_ttc) };
-      await devisService.create(data);
-      toast.success('Devis créé');
-      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleCreateBl = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
-      await bonLivraisonService.create(data);
-      toast.success('Bon de livraison créé');
-      setBlForm({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleCreateAvoir = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...avoirForm, vente_id: avoirForm.vente_id ? Number(avoirForm.vente_id) : null, facture_id: avoirForm.facture_id ? Number(avoirForm.facture_id) : null, client_id: Number(avoirForm.client_id), montant_ht: Number(avoirForm.montant_ht), montant_ttc: Number(avoirForm.montant_ttc) };
-      await avoirService.create(data);
-      toast.success('Avoir créé');
-      setAvoirForm({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
+  useEffect(() => { fetchData(); }, []);
 
   const handleConvertDevis = async (id) => {
     try {
@@ -252,356 +422,93 @@ const Sales = () => {
 
   const handleEditSale = (sale) => {
     setEditingSale(sale);
-    setEditFormData({
-      client_id: sale.client_id || '',
-      items: sale.lignes?.map(l => ({ produit_id: l.produit_id ?? '', quantite: l.quantite || 1, prix_unitaire: l.prix_unitaire || 0, taux_tva: l.taux_tva || 20 })) || [],
-      date: sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0],
-      statut: sale.statut || 'en_attente',
-      mode_paiement: sale.mode_paiement || 'especes',
-      remarque: sale.remarque || ''
-    });
     setShowEditModal(true);
   };
 
-  const handleUpdateSale = async (e) => {
-    e.preventDefault();
-    if (!editingSale) return;
+  const handleDeleteAvoir = async (id) => {
+    if (!window.confirm('Voulez-vous supprimer cet avoir ?')) return;
     try {
       setSaleActionLoading(true);
-      const data = {
-        ...editFormData,
-        client_id: Number(editFormData.client_id),
-        lignes: editFormData.items.map(it => ({ produit_id: Number(it.produit_id), quantite: Number(it.quantite), prix_unitaire: Number(it.prix_unitaire), taux_tva: Number(it.taux_tva) })),
-      };
-      await saleService.update(editingSale.id, data);
-      toast.success('Vente modifiée');
-      editDraft.clear();
-      setShowEditModal(false);
-      setEditingSale(null);
+      await avoirService.delete(id);
+      toast.success('Avoir supprimé');
       fetchData();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la modification';
+      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
       toast.error(msg);
-    } finally {
-      setSaleActionLoading(false);
+    } finally { setSaleActionLoading(false); }
+  };
+
+  const handleCreateDevis = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...devisForm, client_id: Number(devisForm.client_id), total_ht: Number(devisForm.total_ht), total_ttc: Number(devisForm.total_ttc) };
+      await devisService.create(data);
+      toast.success('Devis créé');
+      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const handleCreateBl = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
+      await bonLivraisonService.create(data);
+      toast.success('Bon de livraison créé');
+      setBlForm({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const handleCreateAvoir = async (e) => {
+    e.preventDefault();
+    try {
+      const data = { ...avoirForm, vente_id: avoirForm.vente_id ? Number(avoirForm.vente_id) : null, facture_id: avoirForm.facture_id ? Number(avoirForm.facture_id) : null, client_id: Number(avoirForm.client_id), montant_ht: Number(avoirForm.montant_ht), montant_ttc: Number(avoirForm.montant_ttc) };
+      await avoirService.create(data);
+      toast.success('Avoir créé');
+      setAvoirForm({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedFilteredData = (data, searchFields) => {
+    let result = [...data];
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(item =>
+        searchFields.some(field => {
+          const val = item[field];
+          return val && String(val).toLowerCase().includes(term);
+        })
+      );
     }
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+        if (typeof aVal === 'string') {
+          return sortConfig.direction === 'asc'
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        }
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      });
+    }
+    return result;
   };
 
-  const badgeCell = (value) => {
-    const badge = getStatutBadge(value);
-    return <span className={`badge ${badge.class}`}>{badge.label}</span>;
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return '';
+    return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
   };
-
-  /* ------------------------------------------------------ colonnes DataTable */
-
-  const salesColumns = useMemo(() => [
-    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
-    { key: 'client_nom', label: 'Client', width: 200, render: (v) => v || 'N/A' },
-    { key: 'date', label: 'Date', type: 'date', width: 120, render: (v) => formatDate(v) },
-    { key: 'total_ht', label: 'Total HT', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
-    { key: 'total_ttc', label: 'Total TTC', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
-    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
-    { key: 'mode_paiement', label: 'Mode', width: 130, render: (v) => getModePaiementLabel(v) },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: 130,
-      sortable: false,
-      resizable: false,
-      exportable: false,
-      align: 'center',
-      render: (_v, row) => (
-        <span className="dt-actions">
-          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(row)} disabled={saleActionLoading}>
-            <i className="ti ti-eye" />
-          </button>
-          <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(row)} disabled={saleActionLoading}>
-            <i className="ti ti-edit" />
-          </button>
-          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(row.id)} disabled={saleActionLoading}>
-            <i className="ti ti-trash" />
-          </button>
-        </span>
-      ),
-    },
-
-  ], [saleActionLoading]);
-
-  const devisColumns = useMemo(() => [
-    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
-    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
-    { key: 'date', label: 'Date', type: 'date', width: 115, accessor: (row) => row.date || row.created_at, render: (v) => formatDate(v) },
-    { key: 'total_ht', label: 'Total HT', type: 'number', align: 'right', width: 125, render: (v) => formatCurrency(v) },
-    { key: 'total_ttc', label: 'Total TTC', type: 'number', align: 'right', width: 125, render: (v) => formatCurrency(v) },
-    { key: 'date_validite', label: 'Validité', type: 'date', width: 115, render: (v) => formatDate(v) },
-    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: 100,
-      sortable: false,
-      resizable: false,
-      exportable: false,
-      align: 'center',
-      render: (_v, row) => (
-        <span className="dt-actions">
-          <button className="btn-small btn-edit" title="Convertir en vente" onClick={() => handleConvertDevis(row.id)} disabled={saleActionLoading}>
-            <i className="ti ti-refresh" />
-          </button>
-        </span>
-      ),
-    },
-
-  ], [saleActionLoading]);
-
-  const blColumns = useMemo(() => [
-    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
-    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
-    { key: 'vente_reference', label: 'Vente', width: 140, accessor: (row) => row.vente_reference || row.vente_id, render: (v) => v || 'N/A' },
-    { key: 'adresse_livraison', label: 'Adresse', width: 220, render: (v) => v || 'N/A' },
-    { key: 'date_livraison_prevue', label: 'Date livraison', type: 'date', width: 130, render: (v) => formatDate(v) },
-    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: 90,
-      sortable: false,
-      resizable: false,
-      exportable: false,
-      align: 'center',
-      render: (_v, row) => (
-        <span className="dt-actions">
-          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewBl(row)}>
-            <i className="ti ti-eye" />
-          </button>
-        </span>
-      ),
-    },
-
-  ], []);
-
-  const avoirColumns = useMemo(() => [
-    { key: 'reference', label: 'Référence', width: 150, render: (v) => v || 'N/A' },
-    { key: 'client_nom', label: 'Client', width: 190, render: (v) => v || 'N/A' },
-    { key: 'montant_ht', label: 'Montant HT', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
-    { key: 'montant_ttc', label: 'Montant TTC', type: 'number', align: 'right', width: 130, render: (v) => formatCurrency(v) },
-    { key: 'motif', label: 'Motif', width: 240, render: (v) => v || 'N/A' },
-    { key: 'statut', label: 'Statut', width: 120, align: 'center', render: badgeCell },
-    {
-      key: 'actions',
-      label: 'Actions',
-      width: 90,
-      sortable: false,
-      resizable: false,
-      exportable: false,
-      align: 'center',
-      render: (_v, row) => (
-        <span className="dt-actions">
-          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewAvoir(row)}>
-            <i className="ti ti-eye" />
-          </button>
-        </span>
-      ),
-    },
-
-  ], []);
-
-  /* --------------------------------------------------------------- filtres */
-
-  const clientOptions = useMemo(
-    () => [...new Set([...sales, ...devisList, ...bls, ...avoirs].map((r) => r.client_nom).filter(Boolean))],
-    [sales, devisList, bls, avoirs]
-  );
-
-  const salesFilterFields = useMemo(() => [
-    { key: 'reference', label: 'Référence', type: 'text' },
-    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
-    { key: 'date', label: 'Date', type: 'date' },
-    { key: 'total_ht', label: 'Total HT', type: 'number' },
-    { key: 'total_ttc', label: 'Total TTC', type: 'number' },
-    {
-      key: 'statut',
-      label: 'Statut',
-      type: 'select',
-      options: [
-        { value: 'en_attente', label: 'En attente' },
-        { value: 'payee', label: 'Payée' },
-        { value: 'partielle', label: 'Partielle' },
-        { value: 'annulee', label: 'Annulée' },
-      ],
-    },
-    {
-      key: 'mode_paiement',
-      label: 'Mode de paiement',
-      type: 'select',
-      options: PAYMENT_METHODS.map(m => ({ value: m.value, label: m.label })),
-    },
-  ], [clientOptions]);
-
-  const devisFilterFields = useMemo(() => [
-    { key: 'reference', label: 'Référence', type: 'text' },
-    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
-    { key: 'total_ttc', label: 'Total TTC', type: 'number' },
-    { key: 'date_validite', label: 'Validité', type: 'date' },
-    {
-      key: 'statut',
-      label: 'Statut',
-      type: 'select',
-      options: [
-        { value: 'en_attente', label: 'En attente' },
-        { value: 'accepte', label: 'Accepté' },
-        { value: 'refuse', label: 'Refusé' },
-        { value: 'converti', label: 'Converti' },
-        { value: 'expire', label: 'Expiré' },
-      ],
-    },
-  ], [clientOptions]);
-
-  const blFilterFields = useMemo(() => [
-    { key: 'reference', label: 'Référence', type: 'text' },
-    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
-    { key: 'adresse_livraison', label: 'Adresse', type: 'text' },
-    { key: 'date_livraison_prevue', label: 'Date livraison', type: 'date' },
-    {
-      key: 'statut',
-      label: 'Statut',
-      type: 'select',
-      options: [
-        { value: 'prepare', label: 'Préparé' },
-        { value: 'expedie', label: 'Expédié' },
-        { value: 'livre', label: 'Livré' },
-      ],
-    },
-  ], [clientOptions]);
-
-  const avoirFilterFields = useMemo(() => [
-    { key: 'reference', label: 'Référence', type: 'text' },
-    { key: 'client_nom', label: 'Client', type: 'select', options: clientOptions },
-    { key: 'montant_ttc', label: 'Montant TTC', type: 'number' },
-    { key: 'motif', label: 'Motif', type: 'text' },
-    {
-      key: 'statut',
-      label: 'Statut',
-      type: 'select',
-      options: [
-        { value: 'en_attente', label: 'En attente' },
-        { value: 'accepte', label: 'Accepté' },
-        { value: 'rembourse', label: 'Remboursé' },
-        { value: 'annule', label: 'Annulé' },
-      ],
-    },
-  ], [clientOptions]);
-
-  const tabConfig = useMemo(() => ({
-    ventes: { module: 'ventes', fields: salesFilterFields, searchFields: ['reference', 'client_nom', 'statut', 'mode_paiement'] },
-    devis: { module: 'ventes-devis', fields: devisFilterFields, searchFields: ['reference', 'client_nom', 'statut'] },
-    'bons-livraison': { module: 'ventes-bl', fields: blFilterFields, searchFields: ['reference', 'client_nom', 'statut'] },
-    avoirs: { module: 'ventes-avoirs', fields: avoirFilterFields, searchFields: ['reference', 'client_nom', 'motif', 'statut'] },
-  }), [salesFilterFields, devisFilterFields, blFilterFields, avoirFilterFields]);
-
-  const activeTabConfig = tabConfig[tab] || tabConfig.ventes;
-
-  const filterRows = useCallback((rows, fields, searchFields) => {
-    const searched = applySearch(rows, searchTerm, searchFields.map((key) => ({ key })));
-    return applyFilters(searched, appliedFilters, fields);
-  }, [appliedFilters, searchTerm]);
-
-  const filteredSales = useMemo(
-    () => filterRows(sales, salesFilterFields, tabConfig.ventes.searchFields),
-    [filterRows, sales, salesFilterFields, tabConfig]
-  );
-  const filteredDevis = useMemo(
-    () => filterRows(devisList, devisFilterFields, tabConfig.devis.searchFields),
-    [filterRows, devisList, devisFilterFields, tabConfig]
-  );
-  const filteredBls = useMemo(
-    () => filterRows(bls, blFilterFields, tabConfig['bons-livraison'].searchFields),
-    [filterRows, bls, blFilterFields, tabConfig]
-  );
-  const filteredAvoirs = useMemo(
-    () => filterRows(avoirs, avoirFilterFields, tabConfig.avoirs.searchFields),
-    [filterRows, avoirs, avoirFilterFields, tabConfig]
-  );
-
-  /* ------------------------------------------------------- actions groupées */
-
-  const makeExportAction = useCallback((prefix, columns, label) => ({
-    key: 'export',
-    label: 'Exporter CSV',
-    icon: 'ti-download',
-    onClick: (ids, rows) => {
-      const ok = exportRowsToCsv(timestampedFilename(prefix), columns, rows);
-      if (ok) toast.success(`${rows.length} ${label} exporté(s)`);
-      else toast.error("Échec de l'export CSV");
-    },
-  }), []);
-
-  const salesBulkActions = useMemo(() => [
-    makeExportAction('ventes', salesColumns, 'vente(s)'),
-    {
-      key: 'delete',
-      label: 'Supprimer',
-      icon: 'ti-trash',
-      variant: 'danger',
-      confirm: (count) => `Supprimer définitivement ${count} vente(s) ?`,
-      onClick: async (ids) => {
-        const results = await Promise.allSettled(ids.map((id) => saleService.delete(id)));
-        const failed = results.filter((r) => r.status === 'rejected').length;
-        const done = results.length - failed;
-        if (done > 0) toast.success(`${done} vente(s) supprimée(s)`);
-        if (failed > 0) toast.error(`${failed} suppression(s) en échec`);
-        fetchData();
-      },
-    },
-  ], [fetchData, makeExportAction, salesColumns]);
-
-  const devisBulkActions = useMemo(() => [
-    makeExportAction('devis', devisColumns, 'devis'),
-    {
-      key: 'convert',
-      label: 'Convertir en ventes',
-      icon: 'ti-refresh',
-      confirm: (count) => `Convertir ${count} devis en vente(s) ?`,
-      onClick: async (ids) => {
-        const results = await Promise.allSettled(ids.map((id) => devisService.convertir(id)));
-        const failed = results.filter((r) => r.status === 'rejected').length;
-        const done = results.length - failed;
-        if (done > 0) toast.success(`${done} devis converti(s)`);
-        if (failed > 0) toast.error(`${failed} conversion(s) en échec`);
-        fetchData();
-      },
-    },
-  ], [devisColumns, fetchData, makeExportAction]);
-
-  const blBulkActions = useMemo(
-    () => [makeExportAction('bons-livraison', blColumns, 'bon(s) de livraison')],
-    [blColumns, makeExportAction]
-  );
-
-  const avoirBulkActions = useMemo(
-    () => [makeExportAction('avoirs', avoirColumns, 'avoir(s)')],
-    [avoirColumns, makeExportAction]
-  );
-
-  const handleTabChange = (nextTab) => {
-    setTab(nextTab);
-    setSelectedIds([]);
-    setFilters([]);
-    setAppliedFilters([]);
-    setSearchTerm('');
-  };
-
-  const renderFilterPanel = () => (
-    <FilterPanel
-      key={tab}
-      module={activeTabConfig.module}
-      fields={activeTabConfig.fields}
-      filters={filters}
-      onFiltersChange={setFilters}
-      onApply={setAppliedFilters}
-      onReset={() => setAppliedFilters([])}
-    />
-  );
 
   if (loading && !sales.length && !products.length && !clients.length && !devisList.length && !bls.length && !avoirs.length) {
     return (
@@ -625,7 +532,10 @@ const Sales = () => {
     );
   }
 
-  const sortedSales = filteredSales;
+  const sortedSales = getSortedFilteredData(sales, ['reference', 'client_nom', 'statut', 'mode_paiement']);
+  const sortedDevis = getSortedFilteredData(devisList, ['reference', 'client_nom', 'statut']);
+  const sortedBls = getSortedFilteredData(bls, ['reference', 'client_nom', 'statut']);
+  const sortedAvoirs = getSortedFilteredData(avoirs, ['reference', 'client_nom', 'motif', 'statut']);
 
   return (
     <div className="page-container">
@@ -633,7 +543,9 @@ const Sales = () => {
         <h1>Ventes</h1>
         <div className="tabs">
           {['ventes', 'devis', 'bons-livraison', 'avoirs'].map(t => (
-            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => handleTabChange(t)}>{t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}</button>
+            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+              {t === 'bons-livraison' ? 'Bons de livraison' : t === 'avoirs' ? 'Avoirs' : t === 'devis' ? 'Devis' : 'Ventes'}
+            </button>
           ))}
         </div>
       </div>
@@ -653,112 +565,63 @@ const Sales = () => {
               />
             </div>
           </div>
-          {renderFilterPanel()}
-          <DataTable
-            module="ventes"
-            columns={salesColumns}
-            data={sortedSales}
-            rowKey="id"
-            loading={loading}
-            emptyMessage="Aucune vente trouvée"
-            defaultSort={[{ key: 'date', direction: 'desc' }]}
-            selectable
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            bulkActions={salesBulkActions}
-            rowHeight={46}
-            maxHeight={560}
-          />
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
+                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
+                  <th onClick={() => handleSort('date')} className="sortable">Date{getSortIndicator('date')}</th>
+                  <th onClick={() => handleSort('total_ttc')} className="sortable">Total TTC{getSortIndicator('total_ttc')}</th>
+                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
+                  <th onClick={() => handleSort('mode_paiement')} className="sortable">Mode{getSortIndicator('mode_paiement')}</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedSales.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center">Aucune vente trouvée</td>
+                  </tr>
+                ) : (
+                  sortedSales.map(s => {
+                    const badge = getStatutBadge(s.statut);
+                    return (
+                      <tr key={s.id}>
+                        <td>{s.reference || 'N/A'}</td>
+                        <td>{s.client_nom || 'N/A'}</td>
+                        <td>{formatDate(s.date)}</td>
+                        <td>{formatCurrency(s.total_ttc)}</td>
+                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                        <td>{getModePaiementLabel(s.mode_paiement)}</td>
+                        <td>
+                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(s)} disabled={saleActionLoading}>
+                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-eye" />}
+                          </button>
+                          <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(s)} disabled={saleActionLoading}>
+                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-edit" />}
+                          </button>
+                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(s.id)} disabled={saleActionLoading}>
+                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-trash" />}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
           {showModal && (
-            <div className="modal-overlay">
-              <div className="modal large" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Nouvelle vente</h2>
-                  <button onClick={() => setShowModal(false)} className="btn-close">×</button>
-                </div>
-                <form onSubmit={handleCreateSale} className="modal-form">
-                  <FormDraftBanner draft={createDraft} onRestore={(data) => setFormData(prev => ({ ...prev, ...data }))} />
-                  <FormGrid columns={2}>
-                    <FormField label="Client" required htmlFor="vente-client">
-                      <select id="vente-client" value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} required>
-                        <option value="">Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-                      </select>
-                    </FormField>
-                    <FormField label="Date" htmlFor="vente-date">
-                      <input id="vente-date" type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                    </FormField>
-                    <FormField label="Statut" htmlFor="vente-statut">
-                      <select id="vente-statut" value={formData.statut} onChange={e => setFormData({...formData, statut: e.target.value})}>
-                        <option value="en_attente">En attente</option>
-                        <option value="payee">Payée</option>
-                        <option value="annulee">Annulée</option>
-                      </select>
-                    </FormField>
-                    <FormField label="Mode de paiement" htmlFor="vente-mode">
-                      <select id="vente-mode" value={formData.mode_paiement} onChange={e => setFormData({...formData, mode_paiement: e.target.value})}>
-                        {PAYMENT_METHODS.map(m => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                      </select>
-                    </FormField>
-                    <FormField label="Remarque" span="full" htmlFor="vente-remarque">
-                      <textarea id="vente-remarque" value={formData.remarque} onChange={e => setFormData({...formData, remarque: e.target.value})} rows="2" />
-                    </FormField>
-                  </FormGrid>
-
-                  <div className="form-grid-section">
-                    <div className="form-grid-section-head">
-                      <h4 className="form-grid-section-title">Lignes de vente</h4>
-                      <div className="form-grid-section-actions">
-                        <span className="form-field-hint">Total TTC : {formatCurrency(computeItemsTotal(formData.items))}</span>
-                        <button type="button" className="btn-secondary" onClick={handleAddItem}>+ Ajouter ligne</button>
-                      </div>
-                    </div>
-                    {formData.items.length === 0 ? (
-                      <p className="form-field-hint">Aucune ligne — ajoutez au moins un produit.</p>
-                    ) : (
-                      formData.items.map((item, idx) => (
-                        <div key={idx} className="form-line-block">
-                          <FormGrid columns={3} dense>
-                            <FormField label={`Produit ${idx + 1}`} required>
-                              <select value={item.produit_id} onChange={e => handleItemChange(idx, 'produit_id', e.target.value)} required>
-                                <option value="">Produit</option>
-                                {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                              </select>
-                            </FormField>
-                            <FormField label="Quantité" required>
-                              <input type="number" min="1" value={item.quantite} onChange={e => handleItemChange(idx, 'quantite', e.target.value)} required />
-                            </FormField>
-                            <FormField label="Prix HT" required>
-                              <input type="number" min="0" step="0.01" value={item.prix_unitaire} onChange={e => handleItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                            </FormField>
-                            <FormField label="TVA %">
-                              <input type="number" min="0" value={item.taux_tva} onChange={e => handleItemChange(idx, 'taux_tva', e.target.value)} />
-                            </FormField>
-                            <FormField label="Total ligne" hint="TTC">
-                              <input type="text" value={formatCurrency(computeLineTotal(item))} readOnly tabIndex={-1} />
-                            </FormField>
-                            <FormField label="Action">
-                              <button type="button" className="btn-small btn-danger" onClick={() => handleRemoveItem(idx)}>Supprimer</button>
-                            </FormField>
-                          </FormGrid>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="modal-footer">
-                    <FormDraftStatus draft={createDraft} />
-                    <div className="modal-footer-actions">
-                      <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
-                      <button type="submit" className="btn-primary">Créer</button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
+            <SaleModal
+              products={products}
+              clients={clients}
+              onClose={() => setShowModal(false)}
+              onSuccess={() => { fetchData(); setShowModal(false); }}
+            />
           )}
+
           {viewSale && (
             <div className="modal-overlay" onClick={() => setViewSale(null)}>
               <div className="modal large" onClick={e => e.stopPropagation()}>
@@ -802,96 +665,16 @@ const Sales = () => {
               </div>
             </div>
           )}
-          {showEditModal && (
-            <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-              <div className="modal large" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Modifier la vente #{editingSale?.id}</h2>
-                  <button onClick={() => setShowEditModal(false)} className="btn-close">×</button>
-                </div>
-                <form onSubmit={handleUpdateSale} className="modal-form">
-                  <FormDraftBanner draft={editDraft} onRestore={(data) => setEditFormData(prev => ({ ...prev, ...data }))} />
-                  <FormGrid columns={2}>
-                    <FormField label="Client" required htmlFor="vente-edit-client">
-                      <select id="vente-edit-client" value={editFormData.client_id} onChange={e => setEditFormData({...editFormData, client_id: e.target.value})} required>
-                        <option value="">Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-                      </select>
-                    </FormField>
-                    <FormField label="Date" htmlFor="vente-edit-date">
-                      <input id="vente-edit-date" type="date" value={editFormData.date} onChange={e => setEditFormData({...editFormData, date: e.target.value})} />
-                    </FormField>
-                    <FormField label="Statut" htmlFor="vente-edit-statut">
-                      <select id="vente-edit-statut" value={editFormData.statut} onChange={e => setEditFormData({...editFormData, statut: e.target.value})}>
-                        <option value="en_attente">En attente</option>
-                        <option value="payee">Payée</option>
-                        <option value="partielle">Partielle</option>
-                        <option value="annulee">Annulée</option>
-                      </select>
-                    </FormField>
-                    <FormField label="Mode de paiement" htmlFor="vente-edit-mode">
-                      <select id="vente-edit-mode" value={editFormData.mode_paiement} onChange={e => setEditFormData({...editFormData, mode_paiement: e.target.value})}>
-                        {PAYMENT_METHODS.map(m => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                      </select>
-                    </FormField>
-                    <FormField label="Remarque" span="full" htmlFor="vente-edit-remarque">
-                      <textarea id="vente-edit-remarque" value={editFormData.remarque} onChange={e => setEditFormData({...editFormData, remarque: e.target.value})} rows="2" />
-                    </FormField>
-                  </FormGrid>
 
-                  <div className="form-grid-section">
-                    <div className="form-grid-section-head">
-                      <h4 className="form-grid-section-title">Lignes de vente</h4>
-                      <div className="form-grid-section-actions">
-                        <span className="form-field-hint">Total TTC : {formatCurrency(computeItemsTotal(editFormData.items))}</span>
-                        <button type="button" className="btn-secondary" onClick={handleEditAddItem}>+ Ajouter ligne</button>
-                      </div>
-                    </div>
-                    {editFormData.items.length === 0 ? (
-                      <p className="form-field-hint">Aucune ligne — ajoutez au moins un produit.</p>
-                    ) : (
-                      editFormData.items.map((item, idx) => (
-                        <div key={idx} className="form-line-block">
-                          <FormGrid columns={3} dense>
-                            <FormField label={`Produit ${idx + 1}`} required>
-                              <select value={item.produit_id} onChange={e => handleEditItemChange(idx, 'produit_id', e.target.value)} required>
-                                <option value="">Produit</option>
-                                {products.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                              </select>
-                            </FormField>
-                            <FormField label="Quantité" required>
-                              <input type="number" min="1" value={item.quantite} onChange={e => handleEditItemChange(idx, 'quantite', e.target.value)} required />
-                            </FormField>
-                            <FormField label="Prix HT" required>
-                              <input type="number" min="0" step="0.01" value={item.prix_unitaire} onChange={e => handleEditItemChange(idx, 'prix_unitaire', e.target.value)} required />
-                            </FormField>
-                            <FormField label="TVA %">
-                              <input type="number" min="0" value={item.taux_tva} onChange={e => handleEditItemChange(idx, 'taux_tva', e.target.value)} />
-                            </FormField>
-                            <FormField label="Total ligne" hint="TTC">
-                              <input type="text" value={formatCurrency(computeLineTotal(item))} readOnly tabIndex={-1} />
-                            </FormField>
-                            <FormField label="Action">
-                              <button type="button" className="btn-small btn-danger" onClick={() => handleEditRemoveItem(idx)}>Supprimer</button>
-                            </FormField>
-                          </FormGrid>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="modal-footer">
-                    <FormDraftStatus draft={editDraft} />
-                    <div className="modal-footer-actions">
-                      <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Fermer</button>
-                      <button type="submit" className="btn-primary" disabled={saleActionLoading}>Enregistrer</button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
+          {showEditModal && editingSale && (
+            <SaleModal
+              products={products}
+              clients={clients}
+              onClose={() => { setShowEditModal(false); setEditingSale(null); }}
+              onSuccess={() => { fetchData(); setShowEditModal(false); setEditingSale(null); }}
+              isEdit
+              initialData={editingSale}
+            />
           )}
         </div>
       )}
@@ -941,45 +724,49 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          {renderFilterPanel()}
-          <DataTable
-            module="ventes-devis"
-            columns={devisColumns}
-            data={filteredDevis}
-            rowKey="id"
-            loading={loading}
-            emptyMessage="Aucun devis trouvé"
-            defaultSort={[{ key: 'date', direction: 'desc' }]}
-            selectable
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            bulkActions={devisBulkActions}
-            rowHeight={46}
-            maxHeight={520}
-          />
-          {viewBl && (
-            <div className="modal-overlay" onClick={() => setViewBl(null)}>
-              <div className="modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Détails du bon de livraison</h2>
-                  <button onClick={() => setViewBl(null)} className="btn-close">×</button>
-                </div>
-                <div className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group"><label>Référence</label><div>{viewBl.reference || 'N/A'}</div></div>
-                    <div className="form-group"><label>Client</label><div>{viewBl.client_nom || 'N/A'}</div></div>
-                    <div className="form-group"><label>Vente Réf</label><div>{viewBl.vente_reference || viewBl.vente_id || 'N/A'}</div></div>
-                    <div className="form-group"><label>Adresse de livraison</label><div>{viewBl.adresse_livraison || 'N/A'}</div></div>
-                    <div className="form-group"><label>Date de livraison</label><div>{formatDate(viewBl.date_livraison_prevue)}</div></div>
-                    <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewBl.statut).class}`}>{getStatutBadge(viewBl.statut).label}</span></div></div>
-                  </div>
-                  {viewBl.remarque && (
-                    <div className="form-group full-width"><label>Remarque</label><div>{viewBl.remarque}</div></div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
+                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
+                  <th>Date</th>
+                  <th>Total HT</th>
+                  <th>Total TTC</th>
+                  <th>Validité</th>
+                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDevis.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center">Aucun devis trouvé</td>
+                  </tr>
+                ) : (
+                  sortedDevis.map(d => {
+                    const badge = getStatutBadge(d.statut);
+                    return (
+                      <tr key={d.id}>
+                        <td>{d.reference || 'N/A'}</td>
+                        <td>{d.client_nom || 'N/A'}</td>
+                        <td>{formatDate(d.date || d.created_at)}</td>
+                        <td>{formatCurrency(d.total_ht)}</td>
+                        <td>{formatCurrency(d.total_ttc)}</td>
+                        <td>{formatDate(d.date_validite)}</td>
+                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                        <td>
+                          <button className="btn-small btn-edit" title="Convertir" onClick={() => handleConvertDevis(d.id)}>
+                            <i className="ti ti-refresh" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1025,44 +812,47 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          {renderFilterPanel()}
-          <DataTable
-            module="ventes-bl"
-            columns={blColumns}
-            data={filteredBls}
-            rowKey="id"
-            loading={loading}
-            emptyMessage="Aucun bon de livraison trouvé"
-            defaultSort={[{ key: 'date_livraison_prevue', direction: 'desc' }]}
-            selectable
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            bulkActions={blBulkActions}
-            rowHeight={46}
-            maxHeight={520}
-          />
-          {viewAvoir && (
-            <div className="modal-overlay" onClick={() => setViewAvoir(null)}>
-              <div className="modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Détails de l'avoir</h2>
-                  <button onClick={() => setViewAvoir(null)} className="btn-close">×</button>
-                </div>
-                <div className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group"><label>Référence</label><div>{viewAvoir.reference || 'N/A'}</div></div>
-                    <div className="form-group"><label>Client</label><div>{viewAvoir.client_nom || 'N/A'}</div></div>
-                    <div className="form-group"><label>Montant HT</label><div>{formatCurrency(viewAvoir.montant_ht)}</div></div>
-                    <div className="form-group"><label>Montant TTC</label><div>{formatCurrency(viewAvoir.montant_ttc)}</div></div>
-                    <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewAvoir.statut).class}`}>{getStatutBadge(viewAvoir.statut).label}</span></div></div>
-                  </div>
-                  {viewAvoir.motif && (
-                    <div className="form-group full-width"><label>Motif</label><div>{viewAvoir.motif}</div></div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
+                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
+                  <th>Vente</th>
+                  <th>Adresse</th>
+                  <th>Date livraison</th>
+                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedBls.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center">Aucun bon de livraison trouvé</td>
+                  </tr>
+                ) : (
+                  sortedBls.map(b => {
+                    const badge = getStatutBadge(b.statut);
+                    return (
+                      <tr key={b.id}>
+                        <td>{b.reference || 'N/A'}</td>
+                        <td>{b.client_nom || 'N/A'}</td>
+                        <td>{b.vente_reference || b.vente_id || 'N/A'}</td>
+                        <td>{b.adresse_livraison || 'N/A'}</td>
+                        <td>{formatDate(b.date_livraison_prevue)}</td>
+                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                        <td>
+                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewBl(b)}>
+                            <i className="ti ti-eye" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1109,21 +899,97 @@ const Sales = () => {
               <button type="submit" className="btn-primary">Créer</button>
             </div>
           </form>
-          {renderFilterPanel()}
-          <DataTable
-            module="ventes-avoirs"
-            columns={avoirColumns}
-            data={filteredAvoirs}
-            rowKey="id"
-            loading={loading}
-            emptyMessage="Aucun avoir trouvé"
-            selectable
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            bulkActions={avoirBulkActions}
-            rowHeight={46}
-            maxHeight={520}
-          />
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('reference')} className="sortable">Référence{getSortIndicator('reference')}</th>
+                  <th onClick={() => handleSort('client_nom')} className="sortable">Client{getSortIndicator('client_nom')}</th>
+                  <th>Montant HT</th>
+                  <th>Montant TTC</th>
+                  <th>Motif</th>
+                  <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAvoirs.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center">Aucun avoir trouvé</td>
+                  </tr>
+                ) : (
+                  sortedAvoirs.map(a => {
+                    const badge = getStatutBadge(a.statut);
+                    return (
+                      <tr key={a.id}>
+                        <td>{a.reference || 'N/A'}</td>
+                        <td>{a.client_nom || 'N/A'}</td>
+                        <td>{formatCurrency(a.montant_ht)}</td>
+                        <td>{formatCurrency(a.montant_ttc)}</td>
+                        <td>{a.motif || 'N/A'}</td>
+                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                        <td>
+                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewAvoir(a)}>
+                            <i className="ti ti-eye" />
+                          </button>
+                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteAvoir(a.id)} disabled={saleActionLoading}>
+                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-trash" />}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {viewBl && (
+        <div className="modal-overlay" onClick={() => setViewBl(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Détails du bon de livraison</h2>
+              <button onClick={() => setViewBl(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-form">
+              <div className="form-grid">
+                <div className="form-group"><label>Référence</label><div>{viewBl.reference || 'N/A'}</div></div>
+                <div className="form-group"><label>Client</label><div>{viewBl.client_nom || 'N/A'}</div></div>
+                <div className="form-group"><label>Vente Réf</label><div>{viewBl.vente_reference || viewBl.vente_id || 'N/A'}</div></div>
+                <div className="form-group"><label>Adresse de livraison</label><div>{viewBl.adresse_livraison || 'N/A'}</div></div>
+                <div className="form-group"><label>Date de livraison</label><div>{formatDate(viewBl.date_livraison_prevue)}</div></div>
+                <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewBl.statut).class}`}>{getStatutBadge(viewBl.statut).label}</span></div></div>
+              </div>
+              {viewBl.remarque && (
+                <div className="form-group full-width"><label>Remarque</label><div>{viewBl.remarque}</div></div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewAvoir && (
+        <div className="modal-overlay" onClick={() => setViewAvoir(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Détails de l'avoir</h2>
+              <button onClick={() => setViewAvoir(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-form">
+              <div className="form-grid">
+                <div className="form-group"><label>Référence</label><div>{viewAvoir.reference || 'N/A'}</div></div>
+                <div className="form-group"><label>Client</label><div>{viewAvoir.client_nom || 'N/A'}</div></div>
+                <div className="form-group"><label>Montant HT</label><div>{formatCurrency(viewAvoir.montant_ht)}</div></div>
+                <div className="form-group"><label>Montant TTC</label><div>{formatCurrency(viewAvoir.montant_ttc)}</div></div>
+                <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewAvoir.statut).class}`}>{getStatutBadge(viewAvoir.statut).label}</span></div></div>
+              </div>
+              {viewAvoir.motif && (
+                <div className="form-group full-width"><label>Motif</label><div>{viewAvoir.motif}</div></div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

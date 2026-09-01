@@ -52,40 +52,79 @@ def _normalize_payment_data(data):
     return normalized
 
 
+def _recompute_facture_status(facture_id):
+    """Recalcule le statut d'une facture en fonction du cumul des paiements actifs."""
+    if not facture_id:
+        return
+    facture = db.session.get(Facture, facture_id)
+    if not facture:
+        return
+    total_paye = db.session.query(
+        db.func.sum(Paiement.montant)
+    ).filter(
+        Paiement.facture_id == facture_id,
+        Paiement.tenant_id == facture.tenant_id,
+        Paiement.is_active == True,
+    ).scalar() or 0
+    total_paye = float(total_paye or 0)
+    total_ttc = float(facture.total_ttc or 0)
+    if total_paye >= total_ttc and total_ttc > 0:
+        facture.statut = 'payee'
+    elif total_paye > 0:
+        facture.statut = 'payee_partiel'
+    else:
+        facture.statut = 'non_payee'
+    db.session.commit()
+
+
 def process_payment(data):
     tenant_id = get_current_tenant_id()
     normalized = _normalize_payment_data(data)
     if tenant_id:
         normalized['tenant_id'] = tenant_id
+
+    # Validation anti-overpayment : la somme des paiements actifs ne doit pas
+    # depasser le montant TTC de la facture. On verrouille la ligne facture
+    # le temps de l'operation pour eviter les races (sur SQLite, le verrou
+    # est ignore, mais la transaction reste atomique cote logique).
+    facture_id = normalized.get('facture_id')
+    if facture_id:
+        facture = Facture.query.filter_by(
+            id=facture_id, is_active=True,
+        )
+        if tenant_id is not None:
+            facture = facture.filter_by(tenant_id=tenant_id)
+        facture = facture.with_for_update().first()
+        if not facture:
+            db.session.rollback()
+            raise ValueError("Facture introuvable")
+        montant = float(normalized.get('montant') or 0)
+        if montant <= 0:
+            db.session.rollback()
+            raise ValueError("Le montant doit etre superieur a 0")
+        total_paye_actuel = db.session.query(
+            db.func.coalesce(db.func.sum(Paiement.montant), 0)
+        ).filter(
+            Paiement.facture_id == facture_id,
+            Paiement.tenant_id == facture.tenant_id,
+            Paiement.is_active == True,
+        ).scalar() or 0
+        total_paye_actuel = float(total_paye_actuel)
+        total_ttc = float(facture.total_ttc or 0)
+        if total_paye_actuel + montant > total_ttc + 0.01:
+            db.session.rollback()
+            raise ValueError(
+                f"Montant trop eleve : deja paye {total_paye_actuel:.2f} "
+                f"sur {total_ttc:.2f}"
+            )
+
     paiement = Paiement(**normalized)
     db.session.add(paiement)
     db.session.commit()
-    
-    facture_id = normalized.get('facture_id')
+
     if facture_id:
-        from app.security.tenant import get_current_tenant_id as _get_tid
-        tid = _get_tid()
-        query = Facture.query.filter_by(id=facture_id, is_active=True)
-        if tid is not None:
-            query = query.filter_by(tenant_id=tid)
-        facture = query.first()
-        if facture:
-            total_paye = db.session.query(
-                db.func.sum(Paiement.montant)
-            ).filter(
-                Paiement.facture_id == facture_id,
-                Paiement.tenant_id == facture.tenant_id,
-                Paiement.is_active == True
-            ).scalar() or 0
-            
-            if total_paye >= float(facture.total_ttc):
-                facture.statut = 'payee'
-            elif total_paye > 0:
-                facture.statut = 'payee_partiel'
-            else:
-                facture.statut = 'non_payee'
-            db.session.commit()
-    
+        _recompute_facture_status(facture_id)
+
     return paiement
 
 
@@ -118,10 +157,15 @@ def update(id, data):
     if not paiement:
         return None
     normalized = _normalize_payment_data(data)
+    PROTECTED = {'id', 'tenant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_active'}
     for key, value in normalized.items():
-        if hasattr(paiement, key) and key not in ('id', 'tenant_id', 'created_at'):
+        if key in PROTECTED:
+            continue
+        if hasattr(paiement, key):
             setattr(paiement, key, value)
     db.session.commit()
+    if paiement.facture_id:
+        _recompute_facture_status(paiement.facture_id)
     return paiement
 
 
@@ -129,5 +173,9 @@ def delete(id):
     paiement = get_by_id(id)
     if not paiement:
         return None
+    facture_id = paiement.facture_id
     paiement.delete()
+    db.session.commit()
+    if facture_id:
+        _recompute_facture_status(facture_id)
     return paiement

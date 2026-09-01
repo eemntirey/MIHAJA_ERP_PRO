@@ -36,16 +36,32 @@ export const useRealtimeSync = () => {
       );
     };
 
+    const handleUserUpdated = (data) => {
+      window.dispatchEvent(
+        new CustomEvent('realtime:user:updated', { detail: data })
+      );
+    };
+
+    const handleTenantUpdated = (data) => {
+      window.dispatchEvent(
+        new CustomEvent('realtime:tenant:updated', { detail: data })
+      );
+    };
+
     socketClient.on('favorite:updated', handleFavoriteUpdated);
     socketClient.on('column:updated', handleColumnUpdated);
     socketClient.on('filter:updated', handleFilterUpdated);
     socketClient.on('notification:new', handleNotificationNew);
+    socketClient.on('user:updated', handleUserUpdated);
+    socketClient.on('tenant:updated', handleTenantUpdated);
 
     return () => {
       socketClient.off('favorite:updated', handleFavoriteUpdated);
       socketClient.off('column:updated', handleColumnUpdated);
       socketClient.off('filter:updated', handleFilterUpdated);
       socketClient.off('notification:new', handleNotificationNew);
+      socketClient.off('user:updated', handleUserUpdated);
+      socketClient.off('tenant:updated', handleTenantUpdated);
     };
   }, []);
 

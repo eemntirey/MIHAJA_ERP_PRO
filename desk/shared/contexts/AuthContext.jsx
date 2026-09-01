@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { authService, subscriptionService } from '../services/api';
 import { authStorage, AUTH_KEYS } from '../storage/authStorage';
 import { runMigration } from '../utils/migrateLocalStorage';
+import { getDeviceId } from '../utils/deviceId';
 
 export const AuthContext = createContext();
 
@@ -157,9 +158,12 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         try {
             setLoading(true);
 
+            const deviceId = getDeviceId();
+
             const response = await authService.login({
                 username: email,
                 password: password,
+                device_id: deviceId,
             });
 
             const {
@@ -254,44 +258,53 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
     };
 
     const fetchSubscriptionStatus = useCallback(async () => {
-        try {
-            const response = await subscriptionService.getMonAbonnement();
-            const sub = response.data?.abonnement || null;
-            console.log('[AuthContext] fetchSubscriptionStatus', sub);
-            setSubscription(sub);
-            if (sub) {
-                authStorage.setSubscription(sub);
-            } else {
+        if (fetchSubscriptionStatus._inflight) {
+            return fetchSubscriptionStatus._inflight;
+        }
+        const inflight = (async () => {
+            try {
+                const response = await subscriptionService.getMonAbonnement();
+                const sub = response.data?.abonnement || null;
+                console.log('[AuthContext] fetchSubscriptionStatus', sub);
+                setSubscription(sub);
+                if (sub) {
+                    authStorage.setSubscription(sub);
+                } else {
+                    authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
+                }
+            } catch (err) {
+                console.error('[AuthContext] fetchSubscriptionStatus error', err);
+                setSubscription(null);
                 authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
             }
-        } catch (err) {
-            console.error('[AuthContext] fetchSubscriptionStatus error', err);
-            setSubscription(null);
-            authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
+        })();
+        fetchSubscriptionStatus._inflight = inflight;
+        try {
+            await inflight;
+        } finally {
+            fetchSubscriptionStatus._inflight = null;
         }
     }, []);
 
     useEffect(() => {
         if (isAuthenticated && fetchSubscriptionOnInit) {
-            fetchSubscriptionStatus();
+            const t = setTimeout(() => {
+                fetchSubscriptionStatus();
+            }, 50);
+            return () => clearTimeout(t);
         }
     }, [isAuthenticated, fetchSubscriptionStatus, fetchSubscriptionOnInit]);
 
     const getAllowedModules = () => {
         if (!subscription) {
-            console.log('[AuthContext] getAllowedModules -> null (no subscription)');
             return null;
         }
         if (Array.isArray(subscription.modules)) {
-            console.log('[AuthContext] getAllowedModules -> array', subscription.modules);
             return subscription.modules;
         }
         if (typeof subscription.modules === 'string') {
-            const mods = subscription.modules.split(',').map(m => m.trim()).filter(Boolean);
-            console.log('[AuthContext] getAllowedModules -> string', mods);
-            return mods;
+            return subscription.modules.split(',').map(m => m.trim()).filter(Boolean);
         }
-        console.log('[AuthContext] getAllowedModules -> null (no modules field)');
         return null;
     };
 

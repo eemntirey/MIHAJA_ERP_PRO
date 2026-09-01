@@ -6,6 +6,7 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
+import { tokenStore } from '../storage/tokenStore';
 
 const API_BASE_URL =
     typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
@@ -26,11 +27,9 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = typeof localStorage !== 'undefined'
-            ? localStorage.getItem('access_token')
-            : null;
+        const token = tokenStore.getAccessToken();
 
-        if (token && !config.headers.Authorization) {
+        if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
@@ -97,33 +96,23 @@ api.interceptors.response.use(
                     throw new Error('Nouveau access_token absent');
                 }
 
-                localStorage.setItem('access_token', newAccessToken);
-
-                if (refreshResponse.data.user) {
-                    localStorage.setItem('user', JSON.stringify(refreshResponse.data.user));
-                }
-
-                if (refreshResponse.data.tenant) {
-                    localStorage.setItem('tenant', JSON.stringify(refreshResponse.data.tenant));
-                }
-
-                if (refreshResponse.data.refresh_token) {
-                    localStorage.setItem('refresh_token', refreshResponse.data.refresh_token);
-                }
+                tokenStore.setSession({
+                    access_token: newAccessToken,
+                    refresh_token: refreshResponse.data.refresh_token,
+                    user: refreshResponse.data.user,
+                    tenant: refreshResponse.data.tenant,
+                });
 
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                 originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-                api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
 
                 return api(originalRequest);
 
             } catch (refreshError) {
                 console.error('Échec du renouvellement:', refreshError);
 
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
-                localStorage.removeItem('tenant');
+                tokenStore.clear();
+                delete api.defaults.headers.common.Authorization;
 
                 window.dispatchEvent(new Event('auth:logout'));
 
@@ -258,6 +247,11 @@ export const superAdminService = {
 // ======================================================
 // AUTHENTIFICATION
 // ======================================================
+
+export const plansService = {
+    getPublicPlans: () =>
+        api.get('/auth/plans'),
+};
 
 export const authService = {
 

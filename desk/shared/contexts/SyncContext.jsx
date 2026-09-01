@@ -120,6 +120,8 @@ export const SyncProvider = ({ children }) => {
     onFavoriteUpdate: handleRealtimeEvent,
     onColumnUpdate: handleRealtimeEvent,
     onFilterUpdate: handleRealtimeEvent,
+    onUserUpdate: handleRealtimeEvent,
+    onTenantUpdate: handleRealtimeEvent,
   });
 
   const value = {

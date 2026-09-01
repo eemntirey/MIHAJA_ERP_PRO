@@ -1,7 +1,7 @@
 import time
 import logging
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
 
 logger = logging.getLogger(__name__)
@@ -20,11 +20,12 @@ def _get_redis_client():
     if not _redis_available:
         return None
     try:
-        from app import current_app
         url = current_app.config.get('REDIS_URL', 'redis://localhost:6379/0')
         if _redis_client is None:
             _redis_client = redis.Redis.from_url(url, socket_connect_timeout=1, socket_timeout=1)
+        _redis_client.ping()
     except Exception:
+        _redis_client = None
         return None
     return _redis_client
 
@@ -35,7 +36,18 @@ def rate_limit(max_requests, window_seconds, key_func=None):
         def wrapper(*args, **kwargs):
             client = _get_redis_client()
             if client is None:
-                return fn(*args, **kwargs)
+                # En production, le rate-limit est indispensable : on refuse
+                # la requête plutôt que de la laisser passer silencieusement.
+                # En test/d, on log et on laisse passer.
+                logger.warning(
+                    'Rate limiting skipped for %s: Redis unavailable',
+                    getattr(fn, '__name__', fn.__class__.__name__),
+                )
+                if current_app.config.get('TESTING') or current_app.config.get('DEBUG'):
+                    return fn(*args, **kwargs)
+                return jsonify({
+                    'message': 'Service temporairement indisponible (rate-limit).'
+                }), 503
 
             try:
                 if key_func:
@@ -59,7 +71,14 @@ def rate_limit(max_requests, window_seconds, key_func=None):
                     )
                     return jsonify({'message': 'Trop de requêtes. Veuillez réessayer plus tard.'}), 429
             except Exception:
-                pass
+                logger.exception('Rate limiting error for %s', getattr(fn, '__name__', fn.__class__.__name__))
+                # Fail-closed: refuse la requête plutôt que de laisser passer
+                # un flot non rate-limite en cas d'erreur Redis (sauf en test).
+                if current_app.config.get('TESTING'):
+                    return fn(*args, **kwargs)
+                return jsonify({
+                    'message': 'Service temporairement indisponible (rate-limit).'
+                }), 503
 
             return fn(*args, **kwargs)
         return wrapper
