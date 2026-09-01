@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -10,7 +10,7 @@ class StatutPresence(enum.Enum):
     CONGE = 'conge'
     MALADIE = 'maladie'
 
-class Presence(BaseModel):
+class Presence(BaseTenantModel):
     __tablename__ = 'presences'
 
     employe_id = db.Column(db.Integer, db.ForeignKey('employes.id'), nullable=False, index=True)

@@ -457,11 +457,10 @@
 .auth-login__context {
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #f7f7f5 0%, #ffffff 100%);
+  min-height: 100vh;
   overflow: hidden;
   padding: 60px 50px;
+  background: linear-gradient(135deg, #f7f7f5 0%, #ffffff 100%);
 }
 
 .auth-login__context-divider {
@@ -498,6 +497,11 @@
   position: relative;
   z-index: 1;
   max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  justify-content: space-between;
 }
 
 .auth-login__brand-row {
@@ -541,10 +545,10 @@
 .auth-login__eyebrow {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--erp-gold-dark);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
@@ -554,6 +558,11 @@
   width: 20px;
   height: 1px;
   background: var(--erp-gold);
+}
+
+.auth-login__context-content {
+  padding: 96px 0 72px;
+  text-align: center;
 }
 
 .auth-login__context-content h1 {
@@ -620,15 +629,13 @@
 }
 
 .auth-login__context-footer {
-  position: absolute;
-  bottom: 30px;
-  left: 50px;
-  right: 50px;
   display: flex;
   align-items: center;
   gap: 16px;
   font-size: 11px;
   color: var(--erp-muted);
+  padding-top: 20px;
+  border-top: 1px solid var(--erp-line);
 }
 
 .auth-login__watermark {
@@ -662,13 +669,22 @@
 .auth-login__form-container {
   width: 100%;
   max-width: 420px;
+  margin: 0 auto;
 }
 
 .auth-login__form-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
+  gap: 18px;
+  margin-bottom: 48px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--erp-line);
+  color: var(--erp-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .auth-login__form-header span {
@@ -676,17 +692,29 @@
   font-weight: 700;
   color: var(--erp-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.2em;
+}
+
+.auth-login__back-link,
+.auth-login__inline-link,
+.auth-login__register-prompt a {
+  color: var(--erp-onyx);
+  text-decoration: underline;
+  text-decoration-color: var(--erp-gold);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .auth-login__back-link {
-  font-size: 12px;
-  color: var(--erp-muted);
-  text-decoration: none;
+  font-size: 14px;
   font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
-.auth-login__back-link:hover {
+.auth-login__back-link:hover,
+.auth-login__inline-link:hover,
+.auth-login__register-prompt a:hover {
   color: var(--erp-gold-dark);
 }
 
@@ -764,6 +792,28 @@
   color: var(--erp-subtle);
 }
 
+.auth-login__select-wrap select option {
+  background: #f5f5f4;
+  color: var(--erp-onyx);
+}
+
+.auth-login {
+  color-scheme: light;
+}
+
+.auth-login[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+.auth-login[data-theme='dark'] .auth-login__select-wrap select {
+  color-scheme: dark;
+}
+
+.auth-login[data-theme='dark'] .auth-login__select-wrap select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
 .auth-login__password-toggle {
   position: absolute;
   right: 12px;
@@ -782,6 +832,13 @@
   font-size: 12px;
   color: var(--erp-critical);
   margin-top: 4px;
+}
+
+.auth-login__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--erp-slate);
+  opacity: 0.8;
 }
 
 .auth-login__remember {
@@ -821,6 +878,7 @@
 .auth-login__submit:hover:not(:disabled) {
   background: var(--erp-onyx-soft);
   border-color: var(--erp-onyx-soft);
+  color: #ffffff;
 }
 
 .auth-login__submit:disabled {
@@ -925,7 +983,7 @@
 .auth-login__quit:hover {
   color: var(--erp-critical);
   border-color: var(--erp-critical);
-  background: rgba(185, 110, 85, 0.08);
+  background: var(--color-danger-soft);
 }
 
 .auth-login__quit i {
@@ -963,9 +1021,112 @@
   color: var(--erp-gold-dark);
 }
 
+/* ==================== REGISTER CHOICE ==================== */
+.register-choice-card {
+  max-width: 900px;
+}
+
+.register-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.register-choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background: var(--erp-white);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.register-choice-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
+  border-color: var(--erp-gold);
+}
+
+.register-choice-card__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #f7f3e3;
+  font-size: 24px;
+}
+
+.register-choice-card h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--erp-onyx);
+}
+
+.register-choice-card p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.register-choice-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--erp-gold);
+}
+
+.register-choice-card__cta i {
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  .register-choice-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .auth-login__layout { grid-template-columns: 1fr; }
   .auth-login__context { display: none; }
+}
+
+@media (min-width: 901px) {
+  .auth-register .auth-login {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__layout {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__context {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+   .auth-register .auth-login__form-panel {
+     display: block;
+     height: 100vh;
+     min-height: 0;
+     overflow-y: auto;
+     overflow-x: hidden;
+   }
 }
 
 /* Dark mode - auth-login layout */
@@ -1118,6 +1279,27 @@
 
 .auth-login[data-theme='dark'] .auth-login__security {
   color: #64748b;
+}
+
+.auth-login[data-theme='dark'] .register-choice-card {
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.auth-login[data-theme='dark'] .register-choice-card h3 {
+  color: #e2e8f0;
+}
+
+.auth-login[data-theme='dark'] .register-choice-card p {
+  color: #cbd5e1;
+}
+
+.auth-login[data-theme='dark'] .register-choice-card__icon {
+  background: #334155;
+}
+
+.auth-login[data-theme='dark'] .register-choice-card__cta {
+  color: var(--erp-gold);
 }
 
 .auth-login[data-theme='dark'] .auth-login__quit {

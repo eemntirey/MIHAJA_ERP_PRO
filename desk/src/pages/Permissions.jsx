@@ -81,98 +81,70 @@ const Permissions = () => {
     try {
       if (currentPermission) {
         await permissionService.update(currentPermission.id, formData);
-        toast.success('Permission mise à jour avec succès');
+        toast.success('Permission mise à jour');
       } else {
         await permissionService.create(formData);
-        toast.success('Permission créée avec succès');
+        toast.success('Permission créée');
       }
-      fetchPermissions();
       closeModal();
+      fetchPermissions();
     } catch (err) {
-      console.error('Error saving permission:', err);
-      const msg = err.response?.data?.message || 'Échec de la sauvegarde de la permission';
+      const msg = err.response?.data?.message || 'Erreur lors de l\'enregistrement';
       toast.error(msg);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette permission ?')) {
-      try {
-        await permissionService.delete(id);
-        toast.success('Permission supprimée avec succès');
-        fetchPermissions();
-      } catch (err) {
-        console.error('Error deleting permission:', err);
-        const msg = err.response?.data?.message || 'Échec de la suppression de la permission';
-        toast.error(msg);
-      }
+    if (!window.confirm('Supprimer cette permission ?')) return;
+    try {
+      await permissionService.delete(id);
+      toast.success('Permission supprimée');
+      fetchPermissions();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
+      toast.error(msg);
     }
   };
 
-  const grouped = permissions.reduce((acc, perm) => {
-    const module = perm.module || 'general';
-    if (!acc[module]) acc[module] = [];
-    acc[module].push(perm);
-    return acc;
-  }, {});
-
-  if (loading && permissions.length === 0) {
-    return (
-      <div className="page-container">
-        <div className="loading-screen">
-          <div className="spinner-large"></div>
-          <p>Chargement des permissions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page-container">
-        <div className="alert error">
-          <p>{error}</p>
-          <button onClick={fetchPermissions} className="btn-primary">Réessayer</button>
-        </div>
-      </div>
-    );
-  }
+  const modules = Array.from(new Set(permissions.map(p => p.module).filter(Boolean)));
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <div>
-          <h1>Gestion des Permissions</h1>
-          <p>Configurez les permissions disponibles dans le systeme</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn-primary" onClick={() => openModal()}>
-            <i className="ti ti-plus" /> Nouvelle Permission
-          </button>
-        </div>
+        <h1>Permissions</h1>
+        <button className="btn-primary" onClick={() => openModal()}>
+          Nouvelle permission
+        </button>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Liste des permissions ({permissions.length})</h3>
-          <div className="header-filters">
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <input
-              type="text"
-              placeholder="Filtrer par module..."
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
-              className="search-input"
-            />
-          </div>
+      <div className="filter-controls">
+        <div className="search-box">
+          <i className="ti ti-search search-icon" aria-hidden="true" />
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="card-body">
+        <select
+          value={moduleFilter}
+          onChange={(e) => setModuleFilter(e.target.value)}
+          className="form-select"
+        >
+          <option value="">Tous les modules</option>
+          {modules.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      </div>
+
+      {error && <div className="alert error">{error}</div>}
+
+      {loading ? (
+        <div className="loading">Chargement...</div>
+      ) : (
+        <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
@@ -184,81 +156,53 @@ const Permissions = () => {
               </tr>
             </thead>
             <tbody>
-              {permissions.map(perm => (
-                <tr key={perm.id}>
-                  <td><code>{perm.code}</code></td>
-                  <td>{perm.module || '-'}</td>
-                  <td>{perm.action || '-'}</td>
-                  <td>{perm.description || '-'}</td>
+              {permissions.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.code}</td>
+                  <td>{p.module}</td>
+                  <td>{p.action}</td>
+                  <td>{p.description}</td>
                   <td>
-                    <button className="btn-sm btn-secondary" onClick={() => openModal(perm)}>
-                      <i className="ti ti-edit" />
+                    <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal(p)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
                     </button>
-                    <button className="btn-sm btn-danger" onClick={() => handleDelete(perm.id)}>
-                      <i className="ti ti-trash" />
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete(p.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
                     </button>
                   </td>
                 </tr>
               ))}
-              {permissions.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="text-center text-muted">Aucune permission trouvee</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{currentPermission ? 'Modifier la permission' : 'Nouvelle permission'}</h2>
-              <button className="modal-close" onClick={closeModal}><i className="ti ti-x" /></button>
+              <h2>{currentPermission ? 'Modifier' : 'Nouvelle'} permission</h2>
+              <button onClick={closeModal} className="btn-close">×</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label>Code</label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleChange}
-                    required
-                    placeholder="ex: product.view"
-                    disabled={!!currentPermission}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Module</label>
-                  <input
-                    type="text"
-                    name="module"
-                    value={formData.module}
-                    onChange={handleChange}
-                    placeholder="ex: product"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Action</label>
-                  <input
-                    type="text"
-                    name="action"
-                    value={formData.action}
-                    onChange={handleChange}
-                    placeholder="ex: view, create, update, delete"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows="3"
-                  />
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Code</label>
+                    <input type="text" name="code" value={formData.code} onChange={handleChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Module</label>
+                    <input type="text" name="module" value={formData.module} onChange={handleChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Action</label>
+                    <input type="text" name="action" value={formData.action} onChange={handleChange} required />
+                  </div>
+                  <div className="form-group full-width">
+                    <label>Description</label>
+                    <textarea name="description" value={formData.description} onChange={handleChange} rows={3} />
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">

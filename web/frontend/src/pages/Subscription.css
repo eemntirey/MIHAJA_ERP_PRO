@@ -47,8 +47,29 @@
 
 .subscription-status-card__details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
+}
+
+.subscription-status-card__details .stat-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subscription-status-card__details .stat-value {
+  font-size: 18px;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+}
+
+.subscription-status-card__details .stat-label {
+  font-size: 11px;
+  margin-top: 0;
 }
 
 .subscription-status-card__actions {
@@ -155,12 +176,64 @@
     gap: 10px;
   }
 
+  .subscription-status-card__details {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .subscription-status-card__actions {
+    flex-direction: column;
+  }
+
+  .subscription-status-card__actions button {
+    width: 100%;
+  }
+
   .subscription-plans-grid {
     grid-template-columns: 1fr;
   }
 
   .payment-methods-grid {
     grid-template-columns: 1fr;
+  }
+
+  .subscription-plan-card {
+    padding: 18px;
+  }
+
+  .subscription-plan-card__amount {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-status-card__details {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .subscription-status-card__details .stat-card {
+    padding: 14px;
+  }
+
+  .subscription-status-card__details .stat-label {
+    font-size: 12px;
+  }
+
+  .subscription-status-card__details .stat-value {
+    font-size: 16px;
+  }
+
+  .subscription-plan-card {
+    padding: 14px;
+  }
+
+  .subscription-plan-card__amount {
+    font-size: 18px;
+  }
+
+  .subscription-plan-card__header h4 {
+    font-size: 14px;
   }
 }
 

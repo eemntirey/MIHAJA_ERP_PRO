@@ -415,7 +415,6 @@ const Home = () => {
                   <div className="card product-card" key={product.id}>
                     <div className="product-card__header">
                       <h3>{product.nom}</h3>
-                      <span className="badge success">En stock</span>
                     </div>
                     {product.tenant_nom && (
                       <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
@@ -423,9 +422,6 @@ const Home = () => {
                       </p>
                     )}
                     <p className="product-card__price">{Number(product.prix_vente_ht || product.prix || 0).toFixed(2)} Ar</p>
-                    <p className="text-muted" style={{ fontSize: '12px', marginBottom: '12px' }}>
-                      Stock: {product.quantite_stock ?? product.stock ?? 0}
-                    </p>
                     {product.description_courte && (
                       <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
                         {product.description_courte}

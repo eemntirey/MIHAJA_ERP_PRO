@@ -84,6 +84,29 @@
   --color-info-800: #1e40af;
   --color-info-900: #1e3a8a;
 
+  /* Onyx (dark text / soft bg) */
+  --color-onyx:           var(--color-neutral-900);
+  --color-onyx-soft:      var(--color-neutral-100);
+
+  /* White */
+  --color-white:          var(--color-neutral-0);
+
+  /* ERP Legacy Aliases (--erp-*) */
+  --erp-gold:                var(--color-primary);
+  --erp-gold-dark:           var(--color-primary-hover);
+  --erp-onyx:                var(--color-text-primary);
+  --erp-onyx-soft:           var(--color-neutral-100);
+  --erp-white:               var(--color-surface);
+  --erp-paper:               var(--color-background);
+  --erp-line:                var(--color-border);
+  --erp-line-strong:         var(--color-border-strong);
+  --erp-muted:               var(--color-text-secondary);
+  --erp-subtle:              var(--color-text-tertiary);
+  --erp-critical:            var(--color-danger);
+  --erp-success:             var(--color-success);
+  --erp-heading-font:        var(--font-family-heading);
+  --erp-body-font:           var(--font-family-body);
+
   /* =========================================================================
      COLOR — SEMANTIC ALIASES (Light Mode)
      Use these everywhere. They switch automatically in dark mode.
@@ -112,6 +135,10 @@
   --color-text-inverse:      var(--color-neutral-0);
   --color-text-disabled:     var(--color-neutral-400);
   --color-text-on-primary:   var(--color-neutral-950);
+
+  /* Convenience aliases */
+  --color-text:              var(--color-text-primary);
+  --color-text-muted:        var(--color-text-secondary);
 
   /* Border */
   --color-border:            var(--color-neutral-200);
@@ -167,6 +194,7 @@
   --text-body-lg:    16px;                     /* Large body */
   --text-body:       14px;                     /* Default body */
   --text-body-sm:    13px;                     /* Dense body */
+  --text-body-small: var(--text-body-sm);      /* Legacy alias */
   --text-caption:    12px;                     /* Labels, hints */
   --text-label:      11px;                     /* Form labels, badges */
   --text-micro:      10px;                     /* Table headers, timestamps */
@@ -361,6 +389,10 @@
   --color-text-disabled:     var(--color-neutral-600);
   --color-text-on-primary:   var(--color-neutral-950);
 
+  /* Convenience aliases */
+  --color-text:              var(--color-text-primary);
+  --color-text-muted:        var(--color-text-secondary);
+
   /* Border */
   --color-border:            var(--color-neutral-700);
   --color-border-strong:     var(--color-neutral-600);
@@ -395,6 +427,22 @@
   --color-info-soft:         rgba(59, 130, 246, 0.14);
   --color-info-text:         var(--color-info-300);
   --color-info-border:       var(--color-info-700);
+
+  /* ERP Legacy Aliases (dark) */
+  --erp-gold:                var(--color-primary);
+  --erp-gold-dark:           var(--color-primary-hover);
+  --erp-onyx:                var(--color-text-primary);
+  --erp-onyx-soft:           var(--color-neutral-800);
+  --erp-white:               var(--color-surface);
+  --erp-paper:               var(--color-background);
+  --erp-line:                var(--color-border);
+  --erp-line-strong:         var(--color-border-strong);
+  --erp-muted:               var(--color-text-secondary);
+  --erp-subtle:              var(--color-text-tertiary);
+  --erp-critical:            var(--color-danger);
+  --erp-success:             var(--color-success);
+  --erp-heading-font:        var(--font-family-heading);
+  --erp-body-font:           var(--font-family-body);
 
   /* Shadows — darker, more contrast */
   --shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.2);

@@ -12,7 +12,10 @@ class ClientService(BaseService):
     def _get_tenant_filter(cls, query):
         """Applique le filtre tenant à une requête"""
         from app.security.tenant import set_tenant_filter
-        return set_tenant_filter(query, cls.model)
+        query = set_tenant_filter(query, cls.model)
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
+        return query
     
     @classmethod
     def get_all(cls, page: int = 1, per_page: int = 20,
@@ -21,6 +24,8 @@ class ClientService(BaseService):
         """Récupère tous les clients avec filtres"""
         query = cls.model.query.filter_by(is_active=True)
         query = cls._get_tenant_filter(query)
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
         
         if filters:
             if filters.get('type'):
@@ -57,34 +62,33 @@ class ClientService(BaseService):
     @classmethod
     def create(cls, data: Dict[str, Any]) -> Client:
         """Crée un nouveau client"""
-        tenant_id = get_current_tenant_id()
-        
-        if not tenant_id:
-            raise ValueError("Aucun tenant associe a ce compte")
-        
         if 'code' not in data or not data['code']:
             raise ValueError("Le code client est requis")
         
-        data['tenant_id'] = tenant_id
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            raise ValueError("Aucun tenant associe a ce compte")
         
         q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
+        q = q.execution_options(_skip_tenant_filter=True)
         if q.first():
             raise ValueError(f"Le code {data['code']} existe déjà")
         
         if data.get('email'):
             q = cls.model.query.filter_by(email=data['email'], tenant_id=tenant_id)
+            q = q.execution_options(_skip_tenant_filter=True)
             if q.first():
                 raise ValueError(f"L'email {data['email']} existe déjà")
         
-        client = cls.model(**data)
-        client.save()
-        return client
+        data['tenant_id'] = tenant_id
+        return super().create(data)
     
     @classmethod
     def get_by_email(cls, email: str) -> Optional[Client]:
         """Récupère un client par son email"""
         query = cls.model.query.filter_by(email=email, is_active=True)
         query = cls._get_tenant_filter(query)
+        query = query.execution_options(_skip_tenant_filter=True)
         return query.first()
     
     @classmethod
@@ -92,6 +96,7 @@ class ClientService(BaseService):
         """Récupère les clients actifs"""
         query = cls.model.query.filter_by(is_active=True, est_actif=True)
         query = cls._get_tenant_filter(query)
+        query = query.execution_options(_skip_tenant_filter=True)
         return query.all()
     
     @classmethod
@@ -118,6 +123,9 @@ class ClientService(BaseService):
         
         if tenant_id:
             query = query.filter(Client.tenant_id == tenant_id)
+        
+        # Skip global tenant filter event listener to avoid duplicate filtering
+        query = query.execution_options(_skip_tenant_filter=True)
         
         results = query.group_by(
             Client.id
@@ -149,19 +157,19 @@ class ClientService(BaseService):
             is_active=True
         ).order_by(
             Vente.created_at.desc()
-        ).limit(5).all()
+        ).limit(5).execution_options(_skip_tenant_filter=True).all()
         
         # Factures
         factures = client.factures.filter_by(
             is_active=True
-        ).all()
+        ).execution_options(_skip_tenant_filter=True).all()
         
         # Paiements récents
         paiements_recents = client.paiements.filter_by(
             is_active=True
         ).order_by(
             Paiement.created_at.desc()
-        ).limit(10).all()
+        ).limit(10).execution_options(_skip_tenant_filter=True).all()
         
         return {
             'client': client.to_dict(),

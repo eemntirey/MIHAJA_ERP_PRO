@@ -1,90 +1,142 @@
-from flask import request, Response
+from flask import request, Response, g
 from flask_restx import Namespace, Resource
 from datetime import date
-from app.security.tenant import tenant_required
+from app import db
+from app.security.tenant import tenant_required_readonly
+from app.security.plan_limits import check_plan_limits, require_module
 from app.services.rh_service import EmployeService, PresenceService, SalaireService, PrimeService
+from app.services.stagiaire_service import StagiaireService
+from app.utils.audit import log_audit
+from app.models.audit_log import TypeActionAudit
 
 ns_employes = Namespace('employes', description='Gestion des employes')
 ns_presences = Namespace('presences', description='Gestion des presences')
 ns_salaires = Namespace('salaires', description='Gestion des salaires')
 ns_primes = Namespace('primes', description='Gestion des primes')
+ns_stagiaires = Namespace('stagiaires', description='Gestion des stagiaires')
+
+_MODULE_RH = 'rh'
 
 
 @ns_employes.route('/')
 class EmployeList(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
         employes, total = EmployeService.get_all()
         return {'employes': [e.to_dict() for e in employes], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    @check_plan_limits('employes')
     def post(self):
-        data = request.get_json()
+        data = request.get_json() or {}
         employe = EmployeService.create(data)
+        try:
+            log_audit(
+                TypeActionAudit.CREATION_EMPLOYE,
+                f"Création de l'employé {employe.nom_complet} (matricule={employe.matricule})",
+                tenant_id=getattr(g, 'current_tenant_id', None),
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'employe_id': employe.id, 'matricule': employe.matricule},
+            )
+        except Exception:
+            pass
         return employe.to_dict(), 201
 
 
 @ns_employes.route('/<int:id>')
 class EmployeResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self, id):
         employe = EmployeService.get_by_id(id)
         if not employe:
             return {'message': 'Employe non trouve'}, 404
         return employe.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def put(self, id):
-        data = request.get_json()
+        data = request.get_json() or {}
         employe = EmployeService.update(id, data)
         if not employe:
             return {'message': 'Employe non trouve'}, 404
+        try:
+            log_audit(
+                TypeActionAudit.MODIFICATION_EMPLOYE,
+                f"Modification de l'employe {employe.nom_complet} (matricule={employe.matricule})",
+                tenant_id=getattr(g, 'current_tenant_id', None),
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'employe_id': employe.id, 'matricule': employe.matricule},
+            )
+        except Exception:
+            pass
         return employe.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def delete(self, id):
         success = EmployeService.delete(id)
         if not success:
             return {'message': 'Employe non trouve'}, 404
+        try:
+            log_audit(
+                TypeActionAudit.SUPPRESSION_EMPLOYE,
+                f"Suppression de l'employe id={id}",
+                tenant_id=getattr(g, 'current_tenant_id', None),
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'employe_id': id},
+            )
+        except Exception:
+            pass
         return {'message': 'Employe supprime'}, 200
 
 
 @ns_presences.route('/')
 class PresenceList(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
         presences, total = PresenceService.get_all()
         return {'presences': [p.to_dict() for p in presences], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def post(self):
-        data = request.get_json()
+        data = request.get_json() or {}
         presence = PresenceService.create(data)
         return presence.to_dict(), 201
 
 
 @ns_presences.route('/registre')
 class PresenceRegistre(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
-        """Registre des présences pour un mois (ou mois courant)."""
         mois = request.args.get('mois')
         annee = request.args.get('annee')
-        mois = int(mois) if mois else None
-        annee = int(annee) if annee else None
+        try:
+            mois = int(mois) if mois else None
+            annee = int(annee) if annee else None
+        except (ValueError, TypeError):
+            return {'message': 'Parametres mois/annee invalides (entiers attendus)'}, 400
         presences = PresenceService.get_registre(mois, annee)
         return {'presences': presences, 'count': len(presences)}, 200
 
 
 @ns_presences.route('/registre/export')
 class PresenceRegistreExport(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
-        """Export CSV du registre de présence."""
         mois = request.args.get('mois')
         annee = request.args.get('annee')
-        mois = int(mois) if mois else None
-        annee = int(annee) if annee else None
+        try:
+            mois = int(mois) if mois else None
+            annee = int(annee) if annee else None
+        except (ValueError, TypeError):
+            return {'message': 'Parametres mois/annee invalides (entiers attendus)'}, 400
         csv = PresenceService.get_registre_export(mois, annee)
         return Response(
             csv, mimetype='text/csv',
@@ -94,22 +146,25 @@ class PresenceRegistreExport(Resource):
 
 @ns_presences.route('/<int:id>')
 class PresenceResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self, id):
         presence = PresenceService.get_by_id(id)
         if not presence:
             return {'message': 'Presence non trouvee'}, 404
         return presence.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def put(self, id):
-        data = request.get_json()
+        data = request.get_json() or {}
         presence = PresenceService.update(id, data)
         if not presence:
             return {'message': 'Presence non trouvee'}, 404
         return presence.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def delete(self, id):
         success = PresenceService.delete(id)
         if not success:
@@ -119,28 +174,25 @@ class PresenceResource(Resource):
 
 @ns_salaires.route('/')
 class SalaireList(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
         salaires, total = SalaireService.get_all()
         return {'salaires': [s.to_dict() for s in salaires], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def post(self):
-        data = request.get_json()
+        data = request.get_json() or {}
         salaire = SalaireService.create(data)
         return salaire.to_dict(), 201
 
 
 @ns_salaires.route('/generer')
 class SalaireGenerer(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def post(self):
-        """Génère automatiquement les bulletins de salaire pour un mois donné.
-
-        Le salaire de base provient de la fiche employé et les primes sont
-        agrégées depuis le registre des primes du même mois. Les bulletins
-        déjà existants pour ce mois sont conservés.
-        """
         data = request.get_json() or {}
         mois = data.get('mois')
         annee = data.get('annee')
@@ -148,8 +200,11 @@ class SalaireGenerer(Resource):
             today = date.today()
             mois = mois or today.month
             annee = annee or today.year
-        mois = int(mois)
-        annee = int(annee)
+        try:
+            mois = int(mois)
+            annee = int(annee)
+        except (ValueError, TypeError):
+            return {'message': 'Parametres mois/annee invalides (entiers attendus)'}, 400
         salaires = SalaireService.generate_salaries(mois, annee)
         return {
             'message': f"{len(salaires)} bulletins de salaire générés pour {mois}/{annee}",
@@ -160,7 +215,8 @@ class SalaireGenerer(Resource):
 
 @ns_salaires.route('/<int:id>/payer')
 class SalairePayer(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def post(self, id):
         data = request.get_json() or {}
         salaire = SalaireService.marquer_paye(
@@ -177,7 +233,8 @@ class SalairePayer(Resource):
 
 @ns_salaires.route('/export')
 class SalaireExport(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
         salaires, _ = SalaireService.get_all()
         headers = ['id', 'employe_id', 'employe_nom', 'mois', 'annee',
@@ -216,22 +273,25 @@ class SalaireExport(Resource):
 
 @ns_salaires.route('/<int:id>')
 class SalaireResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self, id):
         salaire = SalaireService.get_by_id(id)
         if not salaire:
             return {'message': 'Salaire non trouve'}, 404
         return salaire.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def put(self, id):
-        data = request.get_json()
+        data = request.get_json() or {}
         salaire = SalaireService.update(id, data)
         if not salaire:
             return {'message': 'Salaire non trouve'}, 404
         return salaire.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def delete(self, id):
         success = SalaireService.delete(id)
         if not success:
@@ -241,38 +301,128 @@ class SalaireResource(Resource):
 
 @ns_primes.route('/')
 class PrimeList(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self):
         primes, total = PrimeService.get_all()
         return {'primes': [p.to_dict() for p in primes], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def post(self):
-        data = request.get_json()
+        data = request.get_json() or {}
         prime = PrimeService.create(data)
         return prime.to_dict(), 201
 
 
 @ns_primes.route('/<int:id>')
 class PrimeResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def get(self, id):
         prime = PrimeService.get_by_id(id)
         if not prime:
             return {'message': 'Prime non trouvee'}, 404
         return prime.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def put(self, id):
-        data = request.get_json()
+        data = request.get_json() or {}
         prime = PrimeService.update(id, data)
         if not prime:
             return {'message': 'Prime non trouvee'}, 404
         return prime.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
     def delete(self, id):
         success = PrimeService.delete(id)
         if not success:
             return {'message': 'Prime non trouvee'}, 404
         return {'message': 'Prime supprimee'}, 200
+
+
+@ns_stagiaires.route('/')
+class StagiaireList(Resource):
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def get(self):
+        stagiaires, total = StagiaireService.get_all()
+        return {'stagiaires': [s.to_dict() for s in stagiaires], 'total': total}, 200
+
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    @check_plan_limits('stagiaires')
+    def post(self):
+        data = request.get_json() or {}
+        try:
+            stagiaire = StagiaireService.create(data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        try:
+            log_audit(
+                TypeActionAudit.CREATION_STAGIAIRE,
+                f"Création du stagiaire {stagiaire.nom_complet} (matricule={stagiaire.matricule})",
+                tenant_id=stagiaire.tenant_id,
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'stagiaire_id': stagiaire.id, 'matricule': stagiaire.matricule},
+            )
+        except Exception:
+            pass
+        return stagiaire.to_dict(), 201
+
+
+@ns_stagiaires.route('/<int:id>')
+class StagiaireResource(Resource):
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def get(self, id):
+        stagiaire = StagiaireService.get_by_id(id)
+        if not stagiaire:
+            return {'message': 'Stagiaire non trouve'}, 404
+        return stagiaire.to_dict(), 200
+
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def put(self, id):
+        stagiaire = StagiaireService.get_by_id(id)
+        if not stagiaire:
+            return {'message': 'Stagiaire non trouve'}, 404
+        data = request.get_json() or {}
+        try:
+            stagiaire = StagiaireService.update(id, data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        if not stagiaire:
+            return {'message': 'Stagiaire non trouve'}, 404
+        try:
+            log_audit(
+                TypeActionAudit.MODIFICATION_STAGIAIRE,
+                f"Modification du stagiaire {stagiaire.nom_complet} (matricule={stagiaire.matricule})",
+                tenant_id=getattr(g, 'current_tenant_id', None),
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'stagiaire_id': stagiaire.id, 'matricule': stagiaire.matricule},
+            )
+        except Exception:
+            pass
+        return stagiaire.to_dict(), 200
+
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def delete(self, id):
+        stagiaire = StagiaireService.get_by_id(id)
+        if not stagiaire:
+            return {'message': 'Stagiaire non trouve'}, 404
+        stagiaire.delete()
+        try:
+            log_audit(
+                TypeActionAudit.SUPPRESSION_STAGIAIRE,
+                f"Suppression du stagiaire id={id}",
+                tenant_id=getattr(g, 'current_tenant_id', None),
+                utilisateur_id=getattr(g, 'current_user', None) and g.current_user.id,
+                metadata={'stagiaire_id': id},
+            )
+        except Exception:
+            pass
+        return {'message': 'Stagiaire supprime'}, 200

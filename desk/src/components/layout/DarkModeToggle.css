@@ -3,28 +3,35 @@
 @import '../../styles/tokens.css';
 
 .dark-mode-toggle {
+  position: fixed;
+  right: var(--space-6);
+  bottom: 110px;
+  z-index: 210;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-background);
-  color: var(--color-text);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-primary-ring);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  color: var(--color-onyx);
   font-weight: 600;
-  font-size: var(--text-body-small);
+  font-size: var(--text-body);
   cursor: pointer;
-  font-family: var(--font-body);
-  transition: all 180ms ease;
-  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
 .dark-mode-toggle:hover {
-  background: var(--color-border);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary);
 }
 
 .dark-mode-icon {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -32,36 +39,20 @@
   line-height: 1;
 }
 
-/* Fixed floating variant (kept for any remaining usage) */
-.dark-mode-toggle--floating {
-  position: fixed;
-  right: 24px;
-  bottom: 110px;
-  z-index: 210;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-primary-ring);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-md);
-  font-size: var(--text-body);
-}
-
-.dark .dark-mode-toggle--floating {
+.main-layout[data-theme='dark'] .dark-mode-toggle {
   background: rgba(30, 41, 59, 0.85);
+  color: var(--color-text);
   border-color: var(--color-primary-ring);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.dark-mode-toggle--floating:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+.main-layout[data-theme='dark'] .dark-mode-toggle:hover {
   border-color: var(--color-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 @media (max-width: 768px) {
-  .dark-mode-toggle--floating {
-    right: 16px;
+  .dark-mode-toggle {
+    right: var(--space-4);
     bottom: calc(100px + env(safe-area-inset-bottom, 0px));
     padding: var(--space-1) var(--space-3);
     font-size: var(--text-body-small);

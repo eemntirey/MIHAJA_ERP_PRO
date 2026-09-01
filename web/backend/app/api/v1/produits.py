@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource
 from app.services.produit_service import ProduitService
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 from app.security.plan_limits import check_plan_limits
 
 ns = Namespace('produits', description='Gestion des produits')
@@ -8,7 +8,7 @@ ns = Namespace('produits', description='Gestion des produits')
 @ns.route('/')
 class ProduitListResource(Resource):
     @ns.doc('list_produits')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste tous les produits"""
         try:
@@ -18,7 +18,7 @@ class ProduitListResource(Resource):
             return {'produits': [], 'total': 0, 'message': str(e)}, 500
     
     @ns.doc('create_produit')
-    @tenant_required
+    @tenant_required_readonly
     @check_plan_limits('produits')
     def post(self):
         """Cree un nouveau produit"""
@@ -30,7 +30,7 @@ class ProduitListResource(Resource):
 @ns.route('/<int:produit_id>')
 class ProduitResource(Resource):
     @ns.doc('get_produit')
-    @tenant_required
+    @tenant_required_readonly
     def get(self, produit_id):
         """Recupere un produit par son ID"""
         produit = ProduitService.get_by_id(produit_id)
@@ -39,7 +39,7 @@ class ProduitResource(Resource):
         return produit.to_dict(), 200
     
     @ns.doc('update_produit')
-    @tenant_required
+    @tenant_required_readonly
     def put(self, produit_id):
         """Met a jour un produit"""
         from flask import request
@@ -50,7 +50,7 @@ class ProduitResource(Resource):
         return produit.to_dict(), 200
     
     @ns.doc('delete_produit')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, produit_id):
         """Supprime un produit"""
         success = ProduitService.delete(produit_id)

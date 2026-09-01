@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric
 
-class LigneVente(BaseModel):
+class LigneVente(BaseTenantModel):
     __tablename__ = 'lignes_vente'
     
     vente_id = db.Column(db.Integer, db.ForeignKey('ventes.id'), nullable=False, index=True)

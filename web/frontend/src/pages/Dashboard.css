@@ -878,21 +878,53 @@
   gap: 6px;
   padding: 0 12px;
   border-radius: 999px;
-  background: var(--color-onyx);
-  box-shadow: 0 10px 28px rgba(17, 17, 17, 0.18);
+  background: #ffffff;
   color: var(--color-primary);
   text-decoration: none;
-  transition: background-color 180ms ease, transform 180ms ease;
-}
-
-.dashboard-assistant:hover {
-  background: var(--color-onyx-soft);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-assistant i {
   flex: 0 0 auto;
   font-size: 20px;
+}
+
+.dashboard-assistant__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
+
+.dashboard-assistant__stars i {
+  font-size: 9px;
+  color: #ffffff;
+  opacity: 1;
+  animation: starPulse 2s ease-in-out infinite;
+  text-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
+}
+
+.dashboard-assistant__stars i:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.dashboard-assistant__stars i:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.dashboard-assistant__stars i:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes starPulse {
+  0%, 100% {
+    transform: scale(0.8);
+    filter: brightness(0.7);
+  }
+  50% {
+    transform: scale(1.15);
+    filter: brightness(1.3);
+  }
 }
 
 .dashboard-assistant__label {
@@ -941,7 +973,45 @@
   }
 
   .dashboard-revenue-hero,
-  .dashboard-kpi-strip {
+.dashboard-revenue-hero--empty {
+  background: var(--color-neutral-50);
+  border: var(--dashboard-border-width) solid var(--color-border);
+}
+
+.dashboard-revenue-hero--empty h2 {
+  color: var(--color-text);
+}
+
+.dashboard-revenue-hero--empty .dashboard-overline--dark {
+  color: var(--color-text-muted);
+}
+
+.dashboard-revenue-hero--empty .dashboard-revenue-hero__amount {
+  color: var(--color-text);
+}
+
+.dashboard-revenue-hero--empty .dashboard-revenue-hero__trend {
+  color: var(--color-text-secondary);
+}
+
+.dashboard-revenue-hero--empty .dashboard-trend--muted {
+  color: var(--color-text-tertiary);
+}
+
+.dashboard-revenue-hero--empty .dashboard-revenue-hero__icon {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.dashboard-revenue-hero--empty .dashboard-revenue-hero__sparkline path {
+  stroke: var(--color-text-muted);
+}
+
+.dashboard-revenue-hero--empty .dashboard-revenue-hero__sparkline circle {
+  fill: var(--color-text-muted);
+}
+
+.dashboard-kpi-strip {
     grid-column: auto;
   }
 
@@ -1261,10 +1331,7 @@
 .main-layout[data-theme='dark'] .dashboard-assistant {
   background: var(--color-onyx);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-}
-
-.main-layout[data-theme='dark'] .dashboard-assistant:hover {
-  background: var(--color-onyx-soft);
+  color: var(--color-primary);
 }
 
 .main-layout[data-theme='dark'] .dashboard-page--loading {
@@ -1274,6 +1341,44 @@
 .main-layout[data-theme='dark'] .dashboard-loading__spinner {
   border-color: var(--color-border);
   border-top-color: var(--color-primary);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty {
+  background: var(--color-neutral-800);
+  border-color: var(--color-border);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty h2 {
+  color: var(--color-text);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-overline--dark {
+  color: var(--color-text-muted);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-revenue-hero__amount {
+  color: var(--color-text);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-revenue-hero__trend {
+  color: var(--color-text-secondary);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-trend--muted {
+  color: var(--color-text-tertiary);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-revenue-hero__icon {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-revenue-hero__sparkline path {
+  stroke: var(--color-text-muted);
+}
+
+.main-layout[data-theme='dark'] .dashboard-revenue-hero--empty .dashboard-revenue-hero__sparkline circle {
+  fill: var(--color-text-muted);
 }
 
 .main-layout[data-theme='dark'] .dashboard-subscription-widget {

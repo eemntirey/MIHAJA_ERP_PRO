@@ -1,8 +1,7 @@
 // src/pages/Contact.jsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Icon } from '../components/common/Icon';
-import './Pages.css';
+import '../styles/landing.css';
 
 const Contact = () => {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
@@ -24,42 +23,44 @@ const Contact = () => {
   };
 
   return (
-    <div className="home-page">
-      <div className="home-content page-container">
-        <div className="page-header">
-          <div>
-            <h1>Contact</h1>
-            <p>Une question ? Notre équipe vous répond dans les plus brefs délais.</p>
-          </div>
+    <div className="landing-contact">
+      <div className="landing-container">
+        <div className="landing-section-header">
+          <h2 className="landing-section-title" id="contact-titre">Contact</h2>
+          <p className="landing-section-subtitle">
+            Une question ? Notre équipe vous répond dans les plus brefs délais.
+          </p>
         </div>
 
-        <div className="card" style={{ maxWidth: 720 }}>
-          <form className="form-grid" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="contact-name">Nom complet</label>
-              <input
-                id="contact-name"
-                name="name"
-                type="text"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Jean Rakoto"
-                required
-              />
+        <div className="landing-contact-card">
+          <form className="landing-contact-form" onSubmit={handleSubmit}>
+            <div className="landing-form-row">
+              <div className="landing-form-group">
+                <label htmlFor="contact-name">Nom complet</label>
+                <input
+                  id="contact-name"
+                  name="name"
+                  type="text"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Jean Rakoto"
+                  required
+                />
+              </div>
+              <div className="landing-form-group">
+                <label htmlFor="contact-email">Email</label>
+                <input
+                  id="contact-email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="jean@hotel.fr"
+                  required
+                />
+              </div>
             </div>
-            <div className="form-group">
-              <label htmlFor="contact-email">Email</label>
-              <input
-                id="contact-email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="jean@hotel.fr"
-                required
-              />
-            </div>
-            <div className="form-group full-width">
+            <div className="landing-form-group">
               <label htmlFor="contact-message">Message</label>
               <textarea
                 id="contact-message"
@@ -71,38 +72,10 @@ const Contact = () => {
                 required
               />
             </div>
-            <div className="form-group full-width">
-              <button type="submit" className="btn-primary" disabled={sending}>
-                {sending ? 'Envoi...' : 'Envoyer le message'}
-              </button>
-            </div>
+            <button type="submit" className="landing-btn landing-btn-primary" disabled={sending}>
+              {sending ? 'Envoi...' : 'Envoyer le message'}
+            </button>
           </form>
-
-          <hr className="public-divider" />
-
-          <div className="public-list">
-            <div className="public-list-item">
-              <Icon name="mail" />
-              <div>
-                <div className="public-list-item__primary">Email</div>
-                <div className="public-list-item__secondary">contact@erppro.mg</div>
-              </div>
-            </div>
-            <div className="public-list-item">
-              <Icon name="phone" />
-              <div>
-                <div className="public-list-item__primary">Téléphone</div>
-                <div className="public-list-item__secondary">+261 34 12 345 67</div>
-              </div>
-            </div>
-            <div className="public-list-item">
-              <Icon name="map-pin" />
-              <div>
-                <div className="public-list-item__primary">Adresse</div>
-                <div className="public-list-item__secondary">Antananarivo, Madagascar</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

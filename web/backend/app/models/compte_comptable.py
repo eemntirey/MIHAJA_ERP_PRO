@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Index, Numeric
 import enum
@@ -9,7 +9,7 @@ class TypeCompte(enum.Enum):
     CHARGE = 'charge'
     PRODUIT = 'produit'
 
-class CompteComptable(BaseModel):
+class CompteComptable(BaseTenantModel):
     __tablename__ = 'comptes_comptables'
 
     numero = db.Column(db.String(20), unique=True, nullable=False, index=True)

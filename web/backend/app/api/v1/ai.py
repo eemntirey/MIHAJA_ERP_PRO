@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 from app.ai import (
     predict_sales,
     detect_stock_anomalies,
@@ -44,7 +44,7 @@ recommendation_model = ns.model('Recommendation', {
 @ns.route('/previsions')
 @ns.doc(responses={200: 'Prévisions récupérées avec succès', 400: 'Requête invalide'})
 class PrevisionsResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Obtenir les prévisions de ventes pour une période donnée"""
         try:
@@ -52,18 +52,22 @@ class PrevisionsResource(Resource):
             product_id = request.args.get('product_id', default=None, type=int)
 
             if periods <= 0 or periods > 365:
-                return {'error': 'La période doit être entre 1 et 365 jours'}, 400
+                return {'message': 'La période doit être entre 1 et 365 jours'}, 400
 
             data = predict_sales(periods=periods, product_id=product_id)
             return data, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la prédiction: {str(e)}'}, 500
+            current_app.logger.exception('AI previsions error: %s', e)
+            return {
+                'message': 'Erreur lors de la prédiction',
+                'error': 'Erreur lors de la prédiction',
+            }, 500
 
 
 @ns.route('/anomalies')
 @ns.doc(responses={200: 'Anomalies détectées avec succès', 500: 'Erreur serveur'})
 class AnomaliesResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Détecter les anomalies de stock, de ventes et de paiements"""
         try:
@@ -90,13 +94,14 @@ class AnomaliesResource(Resource):
 
             return result, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la détection des anomalies: {str(e)}'}, 500
+            current_app.logger.exception('AI anomalies error: %s', e)
+            return {'message': 'Erreur lors de la détection des anomalies'}, 500
 
 
 @ns.route('/recommendations')
 @ns.doc(responses={200: 'Recommandations récupérées avec succès', 500: 'Erreur serveur'})
 class RecommendationsResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Obtenir les recommandations de réapprovisionnement, d'ajustement de prix et de vente croisée"""
         try:
@@ -126,13 +131,14 @@ class RecommendationsResource(Resource):
 
             return result, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la génération des recommandations: {str(e)}'}, 500
+            current_app.logger.exception('AI recommendations error: %s', e)
+            return {'message': 'Erreur lors de la génération des recommandations'}, 500
 
 
 @ns.route('/assistant')
 @ns.doc(responses={200: 'Réponse de l\'assistant', 400: 'Requête invalide'})
 class AssistantResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Interroger l'assistant virtuel ERP avec une question en langage naturel"""
         try:
@@ -141,18 +147,19 @@ class AssistantResource(Resource):
             conversation = body.get('conversation', [])
 
             if not prompt or not isinstance(prompt, str) or len(prompt.strip()) < 3:
-                return {'error': 'Veuillez fournir une question valide (minimum 3 caractères)'}, 400
+                return {'message': 'Veuillez fournir une question valide (minimum 3 caractères)'}, 400
 
             response_text = ask_assistant(prompt=prompt, conversation=conversation)
             return {'prompt': prompt, 'response': response_text}, 200
         except Exception as e:
-            return {'error': f'Erreur avec l\'assistant: {str(e)}'}, 500
+            current_app.logger.exception('AI assistant error: %s', e)
+            return {'message': 'Erreur avec l\'assistant'}, 500
 
 
 @ns.route('/train')
 @ns.doc(responses={200: 'Modèles entraînés avec succès', 400: 'Requête invalide', 500: 'Erreur lors de l\'entraînement'})
 class TrainResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Entraîner/Réactualiser les modèles IA avec les dernières données"""
         try:
@@ -163,13 +170,14 @@ class TrainResource(Resource):
             res = train_models(force_retrain=force_retrain, model_type=model_type)
             return res, 200
         except Exception as e:
-            return {'error': f'Erreur lors de l entrainement des modeles: {str(e)}'}, 500
+            current_app.logger.exception('AI train error: %s', e)
+            return {'message': 'Erreur lors de l entrainement des modeles'}, 500
 
 
 @ns.route('/stock-ruptures')
 @ns.doc(responses={200: 'Prédictions de rupture de stock récupérées', 500: 'Erreur serveur'})
 class StockRuptureResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Prédire les ruptures de stock pour les produits"""
         try:
@@ -180,13 +188,14 @@ class StockRuptureResource(Resource):
                 'count': data.get('count', 0)
             }, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la prediction des ruptures: {str(e)}'}, 500
+            current_app.logger.exception('AI stock rupture error: %s', e)
+            return {'message': 'Erreur lors de la prediction des ruptures'}, 500
 
 
 @ns.route('/health')
 @ns.doc(responses={200: 'Statut du module IA'})
 class AIHealthResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Vérifier le statut du module IA"""
         try:
@@ -213,12 +222,13 @@ class AIHealthResource(Resource):
                 ]
             }, 200
         except Exception as e:
-            return {'error': f'Erreur: {str(e)}'}, 500
+            current_app.logger.exception('AI health error: %s', e)
+            return {'message': 'Erreur'}, 500
 
 
 @ns.route('/search')
 class AISearchResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Recherche web externe pour enrichir une réponse IA"""
         try:
@@ -227,17 +237,18 @@ class AISearchResource(Resource):
             max_results = int(body.get('max_results', 5))
 
             if not query or not isinstance(query, str) or len(query.strip()) < 2:
-                return {'error': 'Requête de recherche invalide'}, 400
+                return {'message': 'Requête de recherche invalide'}, 400
 
             results = web_search.search(query, max_results=max_results)
             return {'query': query, 'results': results}, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la recherche web: {str(e)}'}, 500
+            current_app.logger.exception('AI search error: %s', e)
+            return {'message': 'Erreur lors de la recherche web'}, 500
 
 
 @ns.route('/context')
 class AIContextResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Met à jour le contexte conversationnel de l'assistant"""
         try:
@@ -246,10 +257,11 @@ class AIContextResource(Resource):
             current_prompt = body.get('prompt', '')
 
             if not isinstance(conversation, list):
-                return {'error': 'conversation doit être une liste'}, 400
+                return {'message': 'conversation doit être une liste'}, 400
 
             messages = context_manager.build_messages(conversation, current_prompt)
             return {'messages': messages}, 200
         except Exception as e:
-            return {'error': f'Erreur lors de la mise à jour du contexte: {str(e)}'}, 500
+            current_app.logger.exception('AI context error: %s', e)
+            return {'message': 'Erreur lors de la mise à jour du contexte'}, 500
 

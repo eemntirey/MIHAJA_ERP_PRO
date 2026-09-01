@@ -131,6 +131,7 @@ class TestWorkflowVenteComplet:
                 ville_livraison='Antananarivo',
                 code_postal_livraison='101',
                 pays_livraison='Madagascar',
+                tenant_id=tenant_id,
             )
             db.session.add(client)
             db.session.commit()
@@ -276,6 +277,7 @@ class TestWorkflowAchatComplet:
                 pays='Madagascar',
                 type='fournisseur_local',
                 est_actif=True,
+                tenant_id=tenant_id,
             )
             db.session.add(fournisseur)
             db.session.commit()
@@ -388,6 +390,7 @@ class TestInterfaceFormulaires:
                 ville_livraison='Antananarivo',
                 code_postal_livraison='101',
                 pays_livraison='Madagascar',
+                tenant_id=tenant_id,
             )
             db.session.add(client)
             db.session.commit()
@@ -450,6 +453,7 @@ class TestInterfaceFormulaires:
                     ville_livraison=city,
                     code_postal_livraison=cp,
                     pays_livraison='Madagascar',
+                    tenant_id=tenant_id,
                 )
                 db.session.add(c)
                 created_clients.append(c)

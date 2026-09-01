@@ -16,29 +16,32 @@
     "react-router-dom": "^7.18.2",
     "react-scripts": "5.0.1",
     "react-toastify": "^11.1.0",
+    "socket.io-client": "^4.7.5",
     "yup": "^1.7.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.5.4",
     "concurrently": "^9.1.0",
     "cross-env": "^7.0.3",
+    "customize-cra": "^1.0.0",
     "electron": "^38.8.6",
     "electron-builder": "^26.0.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "postcss": "^8.5.26",
+    "react-app-rewired": "^2.2.1",
     "tailwindcss": "^3.4.19",
     "wait-on": "^8.0.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
     "eject": "react-scripts eject",
     "electron": "node electron/run.js",
-    "electron:dev": "concurrently -k -n WEB,ELECTRON \"cross-env BROWSER=none PORT=3001 react-scripts start\" \"wait-on http://localhost:3001 && node electron/run.js\"",
+    "electron:dev": "concurrently -k -n WEB,ELECTRON \"cross-env BROWSER=none PORT=3001 react-app-rewired start\" \"wait-on http://localhost:3001 && node electron/run.js\"",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "release": "react-scripts build && electron-builder"
+    "release": "react-app-rewired build && electron-builder"
   },
   "build": {
     "appId": "com.erppro.desk",
@@ -72,5 +75,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@shared/(.*)$": "<rootDir>/../shared/$1"
+    }
   }
 }

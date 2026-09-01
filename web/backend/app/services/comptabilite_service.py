@@ -57,8 +57,9 @@ class CompteComptableService:
     @classmethod
     def create(cls, data):
         tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
-            data['tenant_id'] = tenant_id
+        if not tenant_id:
+            raise ValueError("tenant_id est obligatoire pour cette ressource")
+        data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()
@@ -357,8 +358,9 @@ class TresorerieService:
     @classmethod
     def create(cls, data):
         tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
-            data['tenant_id'] = tenant_id
+        if not tenant_id:
+            raise ValueError("tenant_id est obligatoire pour cette ressource")
+        data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
         db.session.commit()

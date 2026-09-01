@@ -163,8 +163,12 @@ const Permissions = () => {
                   <td>{p.action}</td>
                   <td>{p.description}</td>
                   <td>
-                    <button className="btn-small" onClick={() => openModal(p)}>Modifier</button>
-                    <button className="btn-small btn-danger" onClick={() => handleDelete(p.id)}>Supprimer</button>
+                    <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal(p)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
+                    </button>
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete(p.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button>
                   </td>
                 </tr>
               ))}

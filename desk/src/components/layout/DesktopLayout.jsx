@@ -10,6 +10,7 @@ import FAB from '../desktop/FAB';
 import { useDesktop } from '../../contexts/DesktopContext';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useAuth } from '../../contexts/AuthContext';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
@@ -21,6 +22,7 @@ const SPLIT_MODULES = ['/products', '/clients', '/sales', '/invoices', '/invento
 const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
+  const { user } = useAuth();
 
   const { commandPaletteOpen, setCommandPaletteOpen, splitView, setSplitWidth } = useDesktop();
 
@@ -60,7 +62,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   useEffect(() => {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute('content', darkMode ? '#0f172a' : '#f8fafc');
+      meta.setAttribute('content', darkMode ? '#0f172a' : '#fafafa');
     }
   }, [darkMode]);
 
@@ -71,6 +73,8 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   }, [isMobile]);
 
   useEffect(() => {
+    if (!user) return;
+
     let active = true;
 
     const safeCount = (value) => {
@@ -113,7 +117,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user]);
 
   const sidebarClassName = [
     'desktop-sidebar',
@@ -124,6 +128,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   return (
     <div
       className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}`}
+      data-theme={darkMode ? 'dark' : undefined}
       data-ai={isAIView ? 'true' : undefined}
     >
       {IS_ELECTRON && <TitleBar />}

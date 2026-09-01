@@ -1,0 +1,233 @@
+/* src/components/desktop/FilterPanel.css */
+
+.filter-panel {
+  margin-bottom: 16px;
+}
+
+.filter-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  font-family: var(--erp-body-font);
+  transition: border-color 180ms ease;
+}
+
+.filter-panel-toggle:hover {
+  border-color: var(--erp-gold);
+}
+
+.filter-panel-count {
+  padding: 2px 8px;
+  background: var(--erp-gold);
+  color: var(--erp-onyx);
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 0;
+}
+
+/* ------------------------------------------------------- presets (chips) */
+
+.filter-preset-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-preset-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--erp-line-strong);
+  background: var(--erp-white);
+  transition: border-color 180ms ease;
+}
+
+.filter-preset-chip:hover {
+  border-color: var(--erp-gold);
+}
+
+.filter-preset-chip.is-active {
+  border-color: var(--erp-gold);
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.filter-preset-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  font-family: var(--erp-body-font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--erp-onyx);
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-preset-chip-label i {
+  color: var(--erp-gold);
+  font-size: 12px;
+}
+
+.filter-preset-chip-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--erp-line);
+  color: var(--erp-subtle);
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.filter-preset-chip-action:hover {
+  color: var(--erp-onyx);
+  background: var(--erp-paper);
+}
+
+.filter-preset-chip-action.is-danger:hover {
+  color: var(--erp-critical);
+}
+
+/* ------------------------------------------------------------------ corps */
+
+.filter-panel-body {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--erp-white);
+  border: 1px solid var(--erp-line);
+  border-radius: 0;
+}
+
+.filter-panel-error {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--erp-critical);
+  color: var(--erp-critical);
+  font-size: 12px;
+}
+
+.filter-panel-empty {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--erp-muted);
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-row-prefix {
+  flex: 0 0 26px;
+  font-family: var(--erp-heading-font);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--erp-subtle);
+}
+
+.filter-select,
+.filter-input {
+  padding: 8px 10px;
+  border: 1px solid var(--erp-line-strong);
+  border-radius: 0;
+  font-size: 13px;
+  font-family: var(--erp-body-font);
+  background: var(--erp-white);
+  color: var(--erp-onyx);
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: var(--erp-gold);
+}
+
+.filter-select {
+  min-width: 150px;
+}
+
+.filter-value {
+  flex: 1;
+  min-width: 140px;
+}
+
+.filter-input:disabled {
+  background: var(--erp-paper);
+  color: var(--erp-subtle);
+}
+
+.filter-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: var(--erp-muted);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.filter-remove-btn:hover {
+  background: var(--erp-paper);
+  border-color: var(--erp-critical);
+  color: var(--erp-critical);
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--erp-line);
+}
+
+.filter-actions-left,
+.filter-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-save-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-save-form .filter-input {
+  min-width: 170px;
+}

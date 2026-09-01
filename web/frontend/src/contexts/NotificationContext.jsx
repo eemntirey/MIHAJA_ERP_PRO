@@ -3,6 +3,7 @@
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { notificationService } from '../services/api';
+import { tokenStore } from '../../../../shared/storage/tokenStore';
 
 const NotificationContext = createContext();
 
@@ -19,6 +20,10 @@ export const NotificationProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
+        if (!tokenStore.getAccessToken()) {
+            setLoading(false);
+            return;
+        }
         try {
             const res = await notificationService.getAll();
             const data = res?.data || [];
@@ -31,7 +36,20 @@ export const NotificationProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
+        let active = true;
+        const handleLogout = () => {
+            active = false;
+            setNotifications([]);
+            setLoading(false);
+        };
+        window.addEventListener('auth:logout', handleLogout);
+
         load();
+
+        return () => {
+            active = false;
+            window.removeEventListener('auth:logout', handleLogout);
+        };
     }, [load]);
 
     const addNotification = useCallback(async (notification) => {

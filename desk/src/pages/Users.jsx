@@ -1,8 +1,20 @@
 // src/pages/Users.jsx
 import React, { useState, useEffect } from 'react';
-import { userService, roleService } from '../services/api';
+import { userService, roleService, subscriptionService } from '../services/api';
 import { toast } from 'react-toastify';
 import './Pages.css';
+
+const ROLE_LABELS = {
+  manager: 'Manager',
+  sales: 'Commercial',
+  stock: 'Stock',
+  accountant: 'Comptable',
+  user: 'Utilisateur',
+  rh: 'RH',
+};
+
+const EMPLOYEE_ROLES = ['user', 'sales', 'stock', 'accountant', 'rh', 'manager'];
+const isEmployeeRole = (role) => EMPLOYEE_ROLES.includes(role);
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -11,6 +23,7 @@ const Users = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [tenantSummary, setTenantSummary] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -25,6 +38,12 @@ const Users = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+
+  const isEmployeeLimitReached = () => {
+    if (!tenantSummary || !isEmployeeRole(formData.role)) return false;
+    if (tenantSummary.max_employees === -1) return false;
+    return (tenantSummary.employees_count ?? 0) >= (tenantSummary.max_employees ?? 0);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -54,10 +73,33 @@ const Users = () => {
     }
   };
 
+  const fetchTenantSummary = async () => {
+    try {
+      const response = await subscriptionService.getMonAbonnement();
+      setTenantSummary(response.data?.tenant || null);
+    } catch (err) {
+      console.error('Error fetching tenant summary:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    fetchTenantSummary();
   }, []);
+
+  useEffect(() => {
+    const handleUserUpdated = (e) => {
+      const updated = e.detail;
+      if (updated && updated.id) {
+        setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+      } else {
+        fetchUsers();
+      }
+    };
+    window.addEventListener('realtime:user:updated', handleUserUpdated);
+    return () => window.removeEventListener('realtime:user:updated', handleUserUpdated);
+  }, [fetchUsers]);
 
   useEffect(() => {
     fetchUsers();
@@ -81,7 +123,7 @@ const Users = () => {
         mobile: user.mobile || '',
         role: user.role || 'user',
         statut: user.statut || 'actif',
-        custom_role_id: user.custom_role?.id || '',
+        custom_role_id: user.custom_role_id || '',
       });
     } else {
       setFormData({
@@ -108,287 +150,191 @@ const Users = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (currentUser) {
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password;
-        if (!updateData.custom_role_id) delete updateData.custom_role_id;
-        await userService.update(currentUser.id, updateData);
-        toast.success('Utilisateur mis à jour avec succès');
-      } else {
-        await userService.create(formData);
-        toast.success('Utilisateur créé avec succès');
+      const data = { ...formData };
+      if (!data.password) delete data.password;
+      if (EMPLOYEE_ROLES.includes(data.role) && tenantSummary) {
+        const remaining = (tenantSummary.max_employees === -1 ? Infinity : (tenantSummary.max_employees ?? 0)) - (tenantSummary.employees_count ?? 0);
+        if (remaining <= 0) {
+          toast.error('Limite d\'employés atteinte pour votre abonnement actuel.');
+          return;
+        }
       }
-      fetchUsers();
+      if (currentUser) {
+        const response = await userService.update(currentUser.id, data);
+        toast.success('Employé mis à jour');
+        if (response.data && response.data.id) {
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? response.data : u));
+        }
+      } else {
+        const response = await userService.create(data);
+        toast.success('Employé créé');
+        if (response.data && response.data.id) {
+          setUsers(prev => [...prev, response.data]);
+        }
+      }
       closeModal();
+      fetchUsers();
     } catch (err) {
-      console.error('Error saving user:', err);
-      const msg = err.response?.data?.message || 'Échec de la sauvegarde de l\'utilisateur';
+      const msg = err.response?.data?.message || 'Erreur lors de l\'enregistrement';
       toast.error(msg);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir desactiver cet utilisateur ?')) {
-      try {
-        await userService.delete(id);
-        toast.success('Utilisateur désactivé avec succès');
-        fetchUsers();
-      } catch (err) {
-        console.error('Error deleting user:', err);
-        const msg = err.response?.data?.message || 'Échec de la suppression de l\'utilisateur';
-        toast.error(msg);
-      }
+    if (!window.confirm('Supprimer cet employé ?')) return;
+    try {
+      await userService.delete(id);
+      toast.success('Employé supprimé');
+      fetchUsers();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
+      toast.error(msg);
     }
   };
-
-  const getRoleBadge = (role) => {
-    const colors = {
-      super_admin: 'badge--danger',
-      admin: 'badge--warning',
-      manager: 'badge--info',
-      sales: 'badge--success',
-      stock: 'badge--primary',
-      accountant: 'badge--secondary',
-      user: 'badge--default',
-    };
-    return colors[role] || 'badge--default';
-  };
-
-  const getStatutBadge = (statut) => {
-    const colors = {
-      actif: 'badge--success',
-      inactif: 'badge--secondary',
-      bloque: 'badge--danger',
-      en_attente: 'badge--warning',
-    };
-    return colors[statut] || 'badge--default';
-  };
-
-  if (loading && users.length === 0) {
-    return (
-      <div className="page-container">
-        <div className="loading-screen">
-          <div className="spinner-large"></div>
-          <p>Chargement des utilisateurs...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page-container">
-        <div className="alert error">
-          <p>{error}</p>
-          <button onClick={fetchUsers} className="btn-primary">Réessayer</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <div>
-          <h1>Gestion des Utilisateurs</h1>
-          <p>Gerez les comptes utilisateurs et leurs roles</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn-primary" onClick={() => openModal()}>
-            <i className="ti ti-plus" /> Nouvel Utilisateur
-          </button>
-        </div>
+        <h1>Employés</h1>
+        <button className="btn-primary" onClick={() => openModal()}>
+          Nouvel employé
+        </button>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Liste des utilisateurs ({users.length})</h3>
-          <div className="header-filters">
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="search-input"
-            >
-              <option value="">Tous les roles</option>
-              {roles.map(role => (
-                <option key={role.id} value={role.name}>{role.display_name || role.name}</option>
-              ))}
-            </select>
-          </div>
+      <div className="filter-controls">
+        <div className="search-box">
+          <i className="ti ti-search search-icon" aria-hidden="true" />
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="card-body">
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="form-select"
+        >
+          <option value="">Tous les rôles</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.name}>
+              {r.display_name || r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {error && <div className="alert error">{error}</div>}
+
+      {loading ? (
+        <div className="loading">Chargement...</div>
+      ) : (
+        <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Utilisateur</th>
+                <th>Nom</th>
+                <th>Prénom</th>
                 <th>Email</th>
-                <th>Role</th>
+                <th>Rôle</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map(user => (
-                <tr key={user.id}>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.nom}</td>
+                  <td>{u.prenom}</td>
+                  <td>{u.email}</td>
+                  <td>{u.custom_role?.display_name || ROLE_LABELS[u.role] || u.role}</td>
                   <td>
-                    <div className="user-cell">
-                      <div className="user-avatar">
-                        {user.prenom?.[0] || user.username?.[0] || 'U'}
-                      </div>
-                      <div>
-                        <strong>{user.prenom} {user.nom}</strong>
-                        <div className="text-muted text-sm">@{user.username}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{user.email}</td>
-                  <td>
-                    <span className={`badge ${getRoleBadge(user.role)}`}>
-                      {user.role}
+                    <span className={`statut-badge ${u.statut === 'actif' ? 'statut-success' : 'statut-danger'}`}>
+                      {u.statut}
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${getStatutBadge(user.statut)}`}>
-                      {user.statut}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn-sm btn-secondary" onClick={() => openModal(user)}>
-                      <i className="ti ti-edit" />
+                    <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal(u)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
                     </button>
-                    {user.role !== 'super_admin' && (
-                      <button className="btn-sm btn-danger" onClick={() => handleDelete(user.id)}>
-                        <i className="ti ti-trash" />
-                      </button>
-                    )}
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete(u.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button>
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="text-center text-muted">Aucun utilisateur trouve</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{currentUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}</h2>
-              <button className="modal-close" onClick={closeModal}><i className="ti ti-x" /></button>
+              <h2>{currentUser ? 'Modifier' : 'Nouvel'} employé</h2>
+              <button onClick={closeModal} className="btn-close">×</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-row">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Nom</label>
+                    <input type="text" name="nom" value={formData.nom} onChange={handleChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Prénom</label>
+                    <input type="text" name="prenom" value={formData.prenom} onChange={handleChange} required />
+                  </div>
                   <div className="form-group">
                     <label>Username</label>
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      required
-                      disabled={!!currentUser}
-                    />
+                    <input type="text" name="username" value={formData.username} onChange={handleChange} required />
                   </div>
                   <div className="form-group">
                     <label>Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      disabled={!!currentUser}
-                    />
-                  </div>
-                </div>
-                {!currentUser && (
-                  <div className="form-group">
-                    <label>Mot de passe</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                )}
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Nom</label>
-                    <input
-                      type="text"
-                      name="nom"
-                      value={formData.nom}
-                      onChange={handleChange}
-                    />
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} required />
                   </div>
                   <div className="form-group">
-                    <label>Prenom</label>
-                    <input
-                      type="text"
-                      name="prenom"
-                      value={formData.prenom}
-                      onChange={handleChange}
-                    />
+                    <label>Mot de passe {currentUser ? '(laisser vide pour ne pas changer)' : ''}</label>
+                    <input type="password" name="password" value={formData.password} onChange={handleChange} required={!currentUser} />
                   </div>
-                </div>
-                <div className="form-row">
                   <div className="form-group">
-                    <label>Telephone</label>
-                    <input
-                      type="text"
-                      name="telephone"
-                      value={formData.telephone}
-                      onChange={handleChange}
-                    />
+                    <label>Téléphone</label>
+                    <input type="text" name="telephone" value={formData.telephone} onChange={handleChange} />
                   </div>
                   <div className="form-group">
                     <label>Mobile</label>
-                    <input
-                      type="text"
-                      name="mobile"
-                      value={formData.mobile}
-                      onChange={handleChange}
-                    />
+                    <input type="text" name="mobile" value={formData.mobile} onChange={handleChange} />
                   </div>
-                </div>
-                <div className="form-row">
                   <div className="form-group">
-                    <label>Role</label>
+                    <label>Rôle</label>
                     <select name="role" value={formData.role} onChange={handleChange}>
-                      {roles.map(role => (
-                        <option key={role.id} value={role.name}>{role.display_name || role.name}</option>
-                      ))}
+                      <option value="user">Utilisateur</option>
+                      <option value="manager">Manager</option>
+                      <option value="sales">Commercial</option>
+                      <option value="stock">Stock</option>
+                      <option value="accountant">Comptable</option>
+                      <option value="rh">RH</option>
                     </select>
+                    {EMPLOYEE_ROLES.includes(formData.role) && tenantSummary && (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
+                        Employés restants : {(tenantSummary.max_employees === -1 ? 'Illimité' : ((tenantSummary.max_employees ?? 0) - (tenantSummary.employees_count ?? 0)))}
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Statut</label>
                     <select name="statut" value={formData.statut} onChange={handleChange}>
                       <option value="actif">Actif</option>
                       <option value="inactif">Inactif</option>
-                      <option value="bloque">Bloque</option>
-                      <option value="en_attente">En attente</option>
                     </select>
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-primary">Enregistrer</button>
+                <button type="submit" className="btn-primary" disabled={isEmployeeLimitReached()}>Enregistrer</button>
               </div>
             </form>
           </div>

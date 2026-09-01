@@ -1,4 +1,4 @@
-from flask import request, current_app
+from flask import request, current_app, g
 from flask_restx import Namespace, Resource
 from app.models.produit import Produit
 from app.models.tenant import Tenant
@@ -6,10 +6,34 @@ from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.commande_client import CommandeClient
 from app.services.commande_service import CommandeService
 from app import db
+from app.security.rate_limit import rate_limit
 from datetime import datetime
+
+MAX_PUBLIC_ORDER_TOTAL = 500000
 
 ns_public = Namespace('public', description='API publique (catalogue, commandes, notifications)')
 ns = ns_public
+
+
+def _resolve_public_tenant():
+    """Résout un tenant côté public via les en-têtes X-Tenant-Slug / X-Tenant-Domaine.
+
+    Sans tenant, l'accès au catalogue public reste possible (cas "landing"
+    multi-tenant), mais la création de commande exige un tenant connu.
+    """
+    tenant_slug = request.headers.get('X-Tenant-Slug')
+    tenant_domaine = request.headers.get('X-Tenant-Domaine')
+    if not tenant_slug and not tenant_domaine:
+        return None
+    query = Tenant.query.filter_by(is_active=True)
+    if tenant_slug:
+        tenant = query.filter_by(slug=tenant_slug).first()
+    else:
+        tenant = query.filter_by(domaine=tenant_domaine).first()
+    if tenant:
+        g.current_tenant = tenant
+        g.current_tenant_id = tenant.id
+    return tenant
 
 
 def _get_active_tenant_ids():
@@ -31,21 +55,24 @@ def _get_active_tenant_ids():
 class PublicProduitList(Resource):
     def get(self):
         active_tenant_ids = _get_active_tenant_ids()
+        query = Produit.query.filter(
+            Produit.is_active == True,
+            Produit.published == True,
+            Produit.quantite_stock > 0,
+            Produit.quantite_stock > Produit.seuil_alerte,
+        )
         if active_tenant_ids:
-            produits = Produit.query.filter(
-                Produit.is_active == True,
-                Produit.tenant_id.in_(active_tenant_ids)
-            ).all()
+            query = query.filter(Produit.tenant_id.in_(active_tenant_ids))
         else:
-            produits = []
-        # Joindre le nom du tenant vendeur pour l'affichage public
+            query = query.filter(Produit.tenant_id == -1)
+        produits = query.all()
         tenant_map = {}
         if active_tenant_ids:
             tenants = Tenant.query.filter(Tenant.id.in_(active_tenant_ids)).all()
             tenant_map = {t.id: t.nom for t in tenants}
         result = []
         for p in produits:
-            d = p.to_dict()
+            d = p.to_public_dict()
             d['tenant_nom'] = tenant_map.get(p.tenant_id, '')
             result.append(d)
         return {'produits': result}, 200
@@ -55,17 +82,22 @@ class PublicProduitList(Resource):
 class PublicProduitDetail(Resource):
     def get(self, produit_id):
         active_tenant_ids = _get_active_tenant_ids()
-        if not active_tenant_ids:
-            return {'message': 'Produit non trouve'}, 404
         produit = Produit.query.filter(
             Produit.id == produit_id,
             Produit.is_active == True,
-            Produit.tenant_id.in_(active_tenant_ids)
-        ).first()
+            Produit.published == True,
+            Produit.quantite_stock > 0,
+            Produit.quantite_stock > Produit.seuil_alerte,
+        )
+        if active_tenant_ids:
+            produit = produit.filter(Produit.tenant_id.in_(active_tenant_ids))
+        else:
+            produit = produit.filter(Produit.tenant_id == -1)
+        produit = produit.first()
         if not produit:
             return {'message': 'Produit non trouve'}, 404
-        data = produit.to_dict()
-        if produit.tenant_id and produit.tenant_id in active_tenant_ids:
+        data = produit.to_public_dict()
+        if produit.tenant_id and produit.tenant_id in (active_tenant_ids or set()):
             tenant = db.session.get(Tenant, produit.tenant_id)
             if tenant:
                 data['tenant_nom'] = tenant.nom
@@ -80,16 +112,35 @@ class PublicTenantDetail(Resource):
         tenant = Tenant.query.filter_by(id=tenant_id, is_active=True).first()
         if not tenant:
             return {'message': 'Vendeur non trouve'}, 404
-        return tenant.to_dict(), 200
+        data = {
+            'id': tenant.id,
+            'nom': tenant.nom,
+            'slug': tenant.slug,
+            'ville': tenant.ville,
+            'pays': tenant.pays,
+            'statut': tenant.statut.value if hasattr(tenant.statut, 'value') else tenant.statut,
+            'plan': tenant.plan,
+        }
+        return data, 200
 
 
 @ns_public.route('/commandes')
 class PublicCommandeCreate(Resource):
+    @rate_limit(3, 300)
     def post(self):
         data = request.get_json() or {}
 
-        # Le frontend Checkout envoie un objet "client" imbriqué, mais on
-        # accepte également les champs plats (nom_client / email_client).
+        data.pop('tenant_id', None)
+        data.pop('is_active', None)
+
+        # Résolution du tenant via les en-têtes publics (slug ou domaine)
+        tenant = _resolve_public_tenant()
+        if not tenant:
+            return {
+                'message': 'Tenant requis (X-Tenant-Slug ou X-Tenant-Domaine)'
+            }, 400
+        data['tenant_id'] = tenant.id
+
         client = data.get('client') or {}
         nom_client = data.get('nom_client') or client.get('nom')
         email_client = data.get('email_client') or client.get('email')
@@ -110,6 +161,10 @@ class PublicCommandeCreate(Resource):
 
         try:
             commande = CommandeService.create_commande(data)
+            if commande.total_ttc > MAX_PUBLIC_ORDER_TOTAL:
+                db.session.delete(commande)
+                db.session.commit()
+                return {'message': 'Montant de commande trop eleve pour un achat public'}, 403
             return commande.to_dict(), 201
         except ValueError as e:
             return {'message': str(e)}, 400
@@ -125,7 +180,16 @@ class PublicCommandeTracking(Resource):
         commande = CommandeService.get_by_reference(ref)
         if not commande:
             return {'message': 'Commande non trouvee'}, 404
-        return commande.to_dict(), 200
+        statut_value = (
+            commande.statut.value
+            if hasattr(commande.statut, 'value')
+            else commande.statut
+        )
+        return {
+            'reference': commande.reference,
+            'statut': statut_value,
+            'updated_at': commande.updated_at.isoformat() if commande.updated_at else None,
+        }, 200
 
 
 @ns_public.route('/notifications')

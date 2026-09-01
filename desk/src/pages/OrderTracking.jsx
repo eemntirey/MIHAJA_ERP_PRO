@@ -1,7 +1,8 @@
+// src/pages/OrderTracking.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/publicApi';
+import { publicCatalogueService } from '../services/api';
 import './Pages.css';
 
 const OrderTracking = () => {
@@ -87,7 +88,7 @@ const OrderTracking = () => {
             <button onClick={fetchNotifications} className="btn-secondary" disabled={notifLoading}>
               {notifLoading ? 'Actualisation...' : 'Actualiser les notifications'}
             </button>
-             <Link to="/" className="btn-primary">Retour à l'accueil</Link>
+            <Link to="/" className="btn-primary">Retour à l'accueil</Link>
           </div>
         </div>
       </div>
@@ -143,7 +144,7 @@ const OrderTracking = () => {
                 {ref}
               </p>
             </div>
-            <div style={{ flex: 1, minWidth: '200px' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
               <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Code barre texte
               </p>
