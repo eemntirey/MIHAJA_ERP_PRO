@@ -1,57 +1,52 @@
 // src/pages/Subscription.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { subscriptionService, papiService } from '../services/api';
+import { subscriptionService, papiService, plansService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import './Subscription.css';
 
-const PLANS = [
-  {
-    id: 'gratuit',
-    nom: 'Gratuit',
-    prix: 0,
-    periode: 'pour toujours',
-    limites: '1 produit, 10 clients/mois',
-    couleur: '#6e9b79',
-    features: ['Catalogue limité', 'Support email', '1 utilisateur'],
-  },
-  {
-    id: 'starter',
-    nom: 'Starter',
-    prix: 29,
-    periode: '/ mois',
-    limites: '50 produits, 100 clients/mois',
-    couleur: '#3b82f6',
-    features: ['Catalogue étendu', 'Support prioritaire', '3 utilisateurs', 'Statistiques basiques'],
-  },
-  {
-    id: 'pro',
-    nom: 'Pro',
-    prix: 79,
-    periode: '/ mois',
-    limites: '200 produits, clients illimités',
-    couleur: '#d4af37',
-    features: ['Catalogue illimité', 'Support dédié', '10 utilisateurs', 'IA incluse', 'API access'],
-  },
-  {
-    id: 'enterprise',
-    nom: 'Enterprise',
-    prix: 199,
-    periode: '/ mois',
-    limites: 'Produits illimités, tout inclus',
-    couleur: '#111111',
-    features: ['Tout Pro inclus', 'Support 24/7', 'Utilisateurs illimités', 'SLA garanti', 'Formation'],
-  },
-];
+const formatPlanPrice = (prix) => {
+  if (prix === 0) return 'Gratuit';
+  return `${Number(prix).toLocaleString('fr-FR')} Ar`;
+};
 
-// Outils de paiement PAPI : espèces, virement, chèque et portefeuilles mobiles
+const formatPlanDuration = (duree_jours) => {
+  if (duree_jours === -1) return 'pour toujours';
+  return `/ ${duree_jours} jours`;
+};
+
+const formatPlanLimits = (max_utilisateurs, max_employees) => {
+  const fmt = (v) => (v === -1 ? 'Illimité' : v);
+  if (max_utilisateurs === -1 && max_employees === -1) {
+    return 'Utilisateurs et employés illimités';
+  }
+  if (max_employees === 0) {
+    return `${fmt(max_utilisateurs)} utilisateur`;
+  }
+  return `${fmt(max_utilisateurs)} utilisateur${max_utilisateurs > 1 ? 's' : ''} / ${fmt(max_employees)} employé${max_employees > 1 ? 's' : ''}`;
+};
+
+const PLAN_COLORS = {
+  gratuit: '#6e9b79',
+  starter: '#3b82f6',
+  pro: '#d4af37',
+  enterprise: '#111111',
+};
+
+const PLAN_FEATURES = {
+  gratuit: ['1 utilisateur', 'Support email'],
+  starter: ['3 employés', 'Support prioritaire', 'Statistiques basiques'],
+  pro: ['7 employés', 'Support dédié', 'Modules presque complets', 'IA incluse'],
+  enterprise: ['Employés illimités', 'Support 24/7', 'Tous modules', 'SLA garanti', 'Formation'],
+};
+
 const PAYMENT_METHODS = [
-  { id: 'especes', value: 'ESPECES', nom: 'Espèces', icon: '💵' },
-  { id: 'virement', value: 'VIREMENT', nom: 'Virement bancaire', icon: '🏦' },
-  { id: 'cheque', value: 'CHEQUE', nom: 'Chèque', icon: '📝' },
-  { id: 'mvola', value: 'MVOLA', nom: 'MVola', icon: '📱' },
-  { id: 'orange_money', value: 'ORANGE_MONEY', nom: 'Orange Money', icon: '🍊' },
-  { id: 'airtel_money', value: 'AIRTEL_MONEY', nom: 'Airtel Money', icon: '🔴' },
+  { id: 'especes', value: 'ESPECES', nom: 'Espèces' },
+  { id: 'virement', value: 'VIREMENT', nom: 'Virement bancaire' },
+  { id: 'cheque', value: 'CHEQUE', nom: 'Chèque' },
+  { id: 'mvola', value: 'MVOLA', nom: 'MVola' },
+  { id: 'orange_money', value: 'ORANGE_MONEY', nom: 'Orange Money' },
+  { id: 'airtel_money', value: 'AIRTEL_MONEY', nom: 'Airtel Money' },
 ];
 
 const getStatusBadge = (statut) => {
@@ -74,7 +69,7 @@ const getPaymentStatusBadge = (statut) => {
 };
 
 const Subscription = () => {
-  const { user, fetchSubscriptionStatus } = useAuth();
+  const { user, tenant, fetchSubscriptionStatus } = useAuth();
   const [subscription, setSubscription] = useState(null);
   const [historique, setHistorique] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +82,11 @@ const Subscription = () => {
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   const [offlinePayment, setOfflinePayment] = useState(null);
 
+  const [canRenew, setCanRenew] = useState(false);
+  const [tenantSummary, setTenantSummary] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
   const paymentWindowRef = useRef(null);
   const messageHandlerRef = useRef(null);
 
@@ -98,11 +98,27 @@ const Subscription = () => {
         subscriptionService.getMonHistorique().catch(() => ({ data: [] })),
       ]);
       setSubscription(subRes.data?.abonnement ?? null);
+      setCanRenew(Boolean(subRes.data?.can_renew));
+      setTenantSummary(subRes.data?.tenant || null);
       setHistorique(histRes.data?.abonnements || histRes.data || []);
+      fetchSubscriptionStatus();
     } catch (err) {
       console.error('Error fetching subscription data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      setPlansLoading(true);
+      const response = await plansService.getPublicPlans();
+      const list = response?.data?.plans || response?.plans || [];
+      setPlans(list);
+    } catch (err) {
+      console.error('Error fetching plans:', err);
+    } finally {
+      setPlansLoading(false);
     }
   };
 
@@ -117,6 +133,7 @@ const Subscription = () => {
 
   useEffect(() => {
     fetchData();
+    fetchPlans();
     fetchPapiPayments();
   }, []);
 
@@ -249,7 +266,12 @@ const Subscription = () => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('mg-MG');
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   const normalizedStatus = (subscription?.statut || '').toUpperCase();
@@ -297,14 +319,46 @@ const Subscription = () => {
               <div className="stat-label">Date de fin</div>
               <div className="stat-value">{formatDate(subscription.date_fin)}</div>
             </div>
-            {subscription.montant && (
+            {subscription.montant != null && (
               <div className="stat-card">
                 <div className="stat-label">Montant</div>
-                <div className="stat-value">{Number(subscription.montant).toFixed(2)} Ar</div>
+                <div className="stat-value">{Number(subscription.montant).toLocaleString('mg-MG')} Ar</div>
+              </div>
+            )}
+            {subscription.max_utilisateurs != null && (
+              <div className="stat-card">
+                <div className="stat-label">Limite utilisateurs</div>
+                <div className="stat-value">
+                  {subscription.max_utilisateurs === -1 ? 'Illimité' : subscription.max_utilisateurs}
+                </div>
+              </div>
+            )}
+            {subscription.max_employees != null && (
+              <div className="stat-card">
+                <div className="stat-label">Limite employés</div>
+                <div className="stat-value">
+                  {subscription.max_employees === -1 ? 'Illimité' : subscription.max_employees}
+                </div>
+              </div>
+            )}
+            {tenantSummary && subscription.max_utilisateurs != null && (
+              <div className="stat-card">
+                <div className="stat-label">Utilisateurs utilisés</div>
+                <div className="stat-value">
+                  {tenantSummary.users_count ?? '-'} / {subscription.max_utilisateurs === -1 ? 'Illimité' : subscription.max_utilisateurs}
+                </div>
+              </div>
+            )}
+            {tenantSummary && subscription.max_employees != null && (
+              <div className="stat-card">
+                <div className="stat-label">Employés utilisés</div>
+                <div className="stat-value">
+                  {tenantSummary.employees_count ?? '-'} / {subscription.max_employees === -1 ? 'Illimité' : subscription.max_employees}
+                </div>
               </div>
             )}
           </div>
-          {isPending && (
+          {isPending && canRenew && (
             <div className="subscription-status-card__actions">
               <button
                 className="btn-primary"
@@ -315,7 +369,7 @@ const Subscription = () => {
               </button>
             </div>
           )}
-          {(isExpired || isActive) && (
+          {(isExpired || isActive) && canRenew && (
             <div className="subscription-status-card__actions">
               <button
                 className="btn-secondary"
@@ -329,40 +383,52 @@ const Subscription = () => {
         </div>
       )}
 
-      {!subscription || isExpired ? (
+      {(!subscription || isExpired) && canRenew ? (
         <section className="subscription-plans-section">
           <h3 style={{ marginBottom: '18px', fontSize: '18px', fontWeight: 700 }}>
             {isExpired ? 'Choisissez un nouveau plan' : 'Choisissez votre plan'}
           </h3>
-          <div className="subscription-plans-grid">
-            {PLANS.map((plan) => (
-              <div key={plan.id} className="subscription-plan-card" style={{ borderTop: `3px solid ${plan.couleur}` }}>
-                <div className="subscription-plan-card__header">
-                  <h4>{plan.nom}</h4>
-                  <div className="subscription-plan-card__price">
-                    <span className="subscription-plan-card__amount">{plan.prix === 0 ? 'Gratuit' : `${plan.prix} Ar`}</span>
-                    {plan.prix > 0 && <span className="subscription-plan-card__period">{plan.periode}</span>}
-                  </div>
-                </div>
-                <p className="subscription-plan-card__limits">{plan.limites}</p>
-                <ul className="subscription-plan-card__features">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx}>{feature}</li>
-                  ))}
-                </ul>
-                <button
-                  className="btn-primary subscription-plan-card__cta"
-                  onClick={() => handleDemander(plan.id)}
-                  disabled={actionLoading || selectedPlan === plan.id}
-                  style={{ backgroundColor: plan.couleur }}
-                >
-                  {selectedPlan === plan.id ? 'Traitement...' : plan.prix === 0 ? 'Commencer' : 'S\'abonner'}
-                </button>
+          {plansLoading ? (
+            <div className="loading-screen">
+              <div className="spinner-large"></div>
+              <p>Chargement des plans...</p>
+            </div>
+          ) : (
+            <div className="subscription-plans-grid">
+                {plans.map((plan) => {
+                  const couleur = PLAN_COLORS[plan.code] || '#6e9b79';
+                  const features = PLAN_FEATURES[plan.code] || [];
+                  return (
+                    <div key={plan.code} className="subscription-plan-card" style={{ borderTop: `3px solid ${couleur}` }}>
+                      <div className="subscription-plan-card__header">
+                        <h4>{plan.label}</h4>
+                        <div className="subscription-plan-card__price">
+                          <span className="subscription-plan-card__amount">{formatPlanPrice(plan.prix)}</span>
+                          {plan.prix > 0 && <span className="subscription-plan-card__period">{formatPlanDuration(plan.duree_jours)}</span>}
+                        </div>
+                      </div>
+                      <p className="subscription-plan-card__limits">{formatPlanLimits(plan.max_utilisateurs, plan.max_employees)}</p>
+                      <ul className="subscription-plan-card__features">
+                        {features.map((feature, idx) => (
+                          <li key={idx}>{feature}</li>
+                        ))}
+                      </ul>
+                      <button
+                        className="btn-primary subscription-plan-card__cta"
+                        onClick={() => handleDemander(plan.code)}
+                        disabled={actionLoading || selectedPlan === plan.code}
+                        style={{ backgroundColor: couleur }}
+                      >
+                        {selectedPlan === plan.code ? 'Traitement...' : plan.prix === 0 ? 'Commencer' : 'S\'abonner'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+            )}
+          </section>
+        )
+      : null}
 
       {papiPayments.length > 0 && (
         <div className="card full-width" style={{ marginTop: '32px' }}>
@@ -411,7 +477,7 @@ const Subscription = () => {
               {subscription && (
                 <div style={{ marginBottom: '20px', padding: '12px', background: '#f8f9fa', borderRadius: '8px' }}>
                   <p><strong>Plan:</strong> {subscription.plan}</p>
-                  <p><strong>Montant:</strong> {Number(subscription.montant).toFixed(2)} Ar</p>
+                  <p><strong>Montant:</strong> {Number(subscription.montant).toLocaleString('mg-MG')} Ar</p>
                 </div>
               )}
               <div className="form-group">
@@ -420,16 +486,22 @@ const Subscription = () => {
                   {PAYMENT_METHODS.map((method) => (
                     <div
                       key={method.id}
-                      className={`payment-method-card ${selectedPaymentMethod === method.value ? 'payment-method-card--selected' : ''}`}
                       onClick={() => setSelectedPaymentMethod(method.value)}
+                      style={{
+                        padding: '12px',
+                        border: `2px solid ${selectedPaymentMethod === method.value ? '#3b82f6' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        background: selectedPaymentMethod === method.value ? '#eff6ff' : '#fff',
+                      }}
                     >
-                      <div className="payment-method-card__icon">{method.icon}</div>
-                      <div className="payment-method-card__name">{method.nom}</div>
+                      <div style={{ fontWeight: 600, fontSize: '14px' }}>{method.nom}</div>
                     </div>
                   ))}
                 </div>
               </div>
-              <p className="payment-methods-hint">
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>
                 Vous serez redirigé vers la page de paiement sécurisée de Papi.
               </p>
             </div>
@@ -469,7 +541,7 @@ const Subscription = () => {
                 </div>
                 <div className="offline-bulletin__row">
                   <span>Montant</span>
-                  <strong>{Number(offlinePayment.payment?.montant || subscription?.montant || 0).toFixed(2)} Ar</strong>
+                  <strong>{Number(offlinePayment.payment?.montant || subscription?.montant || 0).toLocaleString('mg-MG')} Ar</strong>
                 </div>
                 <p className="offline-bulletin__instructions">
                   {offlinePayment.instructions}

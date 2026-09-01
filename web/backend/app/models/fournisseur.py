@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Index, Numeric
 import enum
@@ -12,7 +12,7 @@ class TypeFournisseur(enum.Enum):
     FOURNISSEUR_LOCAL = 'fournisseur_local'
     FOURNISSEUR_INTERNATIONAL = 'fournisseur_international'
 
-class Fournisseur(BaseModel):
+class Fournisseur(BaseTenantModel):
     __tablename__ = 'fournisseurs'
     
     code = db.Column(db.String(20), unique=True, nullable=False, index=True)

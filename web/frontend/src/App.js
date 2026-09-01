@@ -3,7 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
+import { SyncProvider } from '../../../shared/contexts/SyncContext';
+import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
+import { authStorage } from '../../../shared/storage/authStorage';
 
 // Composants d'authentification
 import Login from './components/auth/Login';
@@ -53,11 +56,34 @@ import Roles from './pages/Roles';
 import Permissions from './pages/Permissions';
 
 // Composant de protection utilisant AuthContext
+const PATH_MODULE_MAP = {
+  '/dashboard': 'dashboard',
+  '/products': 'produits',
+  '/clients': 'clients',
+  '/sales': 'ventes',
+  '/invoices': 'factures',
+  '/payments': 'paiements',
+  '/inventory': 'stocks',
+  '/suppliers': null,
+  '/purchases': 'achats',
+  '/delivery': 'livraison',
+  '/hr': 'rh',
+  '/accounting': 'comptabilite',
+  '/documents': 'documents',
+  '/ai': 'ia',
+  '/super-admin': null,
+  '/users': null,
+  '/roles': null,
+  '/permissions': null,
+};
+
+const ADMIN_PATHS = ['/super-admin', '/users', '/roles', '/permissions'];
+
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, user, subscription } = useAuth();
+  const { isAuthenticated, loading, user, subscription, subscriptionLoading, getAllowedModules } = useAuth();
   const location = useLocation();
 
-  const hasToken = !!localStorage.getItem('access_token');
+  const hasToken = !!authStorage.getAccessToken();
   const shouldAllow = isAuthenticated || hasToken;
 
   if (loading) {
@@ -69,11 +95,10 @@ const ProtectedRoute = ({ children }) => {
   }
 
   const role = (user?.role || '').toLowerCase();
-  if (role === 'user') {
+  if (role === 'user' && !user?.tenant_id) {
     return <Navigate to="/" replace />;
   }
 
-  // SUPER_ADMIN can access everything
   if (role === 'super_admin') {
     return children;
   }
@@ -82,14 +107,26 @@ const ProtectedRoute = ({ children }) => {
   const hasActiveSubscription = subscription && 
     (subscription.statut === 'actif' || subscription.statut === 'ACTIF' || subscription.statut === 'ACTIVE');
 
-  if (!isSubscriptionPage && !hasActiveSubscription) {
+  const isAdminPath = ADMIN_PATHS.includes(location.pathname);
+
+  if (!isAdminPath && !isSubscriptionPage && !subscriptionLoading && !hasActiveSubscription) {
     return <Navigate to="/subscription" replace />;
+  }
+
+  if (!isAdminPath) {
+    const allowedModules = getAllowedModules();
+    const requiredModule = PATH_MODULE_MAP[location.pathname];
+
+    if (requiredModule && allowedModules !== null && !allowedModules.includes(requiredModule)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;
 };
 
 function App() {
+  useRealtimeSync();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
   useEffect(() => {
@@ -101,111 +138,111 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
+    <SyncProvider>
       <NotificationProvider>
-        <CartProvider>
-          <BrowserRouter>
-            <div className="app">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/register/simple" element={<RegisterUser />} />
-              <Route path="/register/company" element={<RegisterCompany />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <CartProvider>
+            <BrowserRouter>
+              <div className="app">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/register/simple" element={<RegisterUser />} />
+                <Route path="/register/company" element={<RegisterCompany />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <MainLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="products" element={<Products />} />
-                <Route path="clients" element={<Clients />} />
-                <Route path="sales" element={<Sales />} />
-                <Route path="inventory" element={<Inventory />} />
-                <Route path="suppliers" element={<Suppliers />} />
-                <Route path="invoices" element={<Invoices />} />
-                <Route path="payments" element={<Payments />} />
-                <Route path="ai" element={<AI />} />
-                <Route path="documentation" element={<Documentation />} />
-                <Route path="subscription" element={<Subscription />} />
-                <Route path="delivery" element={<Delivery />} />
-                <Route path="hr" element={<HR />} />
-                <Route path="accounting" element={<Accounting />} />
-                <Route path="documents" element={<Documents />} />
-                <Route path="purchases" element={<Purchases />} />
-                <Route path="super-admin" element={<SuperAdmin />} />
-                <Route path="super-admin/profile" element={<SuperAdminProfile />} />
-                <Route path="users" element={<Users />} />
-                <Route path="roles" element={<Roles />} />
-                <Route path="permissions" element={<Permissions />} />
-              </Route>
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="products" element={<Products />} />
+                  <Route path="clients" element={<Clients />} />
+                  <Route path="sales" element={<Sales />} />
+                  <Route path="inventory" element={<Inventory />} />
+                  <Route path="suppliers" element={<Suppliers />} />
+                  <Route path="invoices" element={<Invoices />} />
+                  <Route path="payments" element={<Payments />} />
+                  <Route path="ai" element={<AI />} />
+                  <Route path="documentation" element={<Documentation />} />
+                  <Route path="subscription" element={<Subscription />} />
+                  <Route path="delivery" element={<Delivery />} />
+                  <Route path="hr" element={<HR />} />
+                  <Route path="accounting" element={<Accounting />} />
+                  <Route path="documents" element={<Documents />} />
+                  <Route path="purchases" element={<Purchases />} />
+                  <Route path="super-admin" element={<SuperAdmin />} />
+                  <Route path="super-admin/profile" element={<SuperAdminProfile />} />
+                  <Route path="users" element={<Users />} />
+                  <Route path="roles" element={<Roles />} />
+                  <Route path="permissions" element={<Permissions />} />
+                </Route>
 
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-tracking/:ref" element={<OrderTracking />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/order-tracking/:ref" element={<OrderTracking />} />
 
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/produits/:id" element={<ProductDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/produits/:id" element={<ProductDetail />} />
 
-              <Route path="/catalogue" element={<Catalogue />} />
-              <Route path="/suivi" element={<Suivi />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/mes-commandes" element={<UserOrders />} />
+                <Route path="/catalogue" element={<Catalogue />} />
+                <Route path="/suivi" element={<Suivi />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/mes-commandes" element={<UserOrders />} />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-              theme="light"
-            />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+              <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+              />
 
-            {planLimitModal.open && (
-              <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
-                <div className="modal" onClick={(e) => e.stopPropagation()}>
-                  <div className="modal-header">
-                    <h2>Limite du plan atteinte</h2>
-                    <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
-                  </div>
-                  <div className="modal-body">
-                    <p>{planLimitModal.message}</p>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.href = '/subscription'; }}
-                      className="btn-primary"
-                    >
-                      Modifier mon abonnement
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPlanLimitModal({ open: false, message: '' })}
-                      className="btn-secondary"
-                    >
-                      Fermer
-                    </button>
+              {planLimitModal.open && (
+                <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
+                  <div className="modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h2>Limite du plan atteinte</h2>
+                      <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
+                    </div>
+                    <div className="modal-body">
+                      <p>{planLimitModal.message}</p>
+                    </div>
+                    <div className="modal-footer">
+                      <button
+                        type="button"
+                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.href = '/subscription'; }}
+                        className="btn-primary"
+                      >
+                        Modifier mon abonnement
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); }}
+                        className="btn-secondary"
+                      >
+                        Fermer
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </BrowserRouter>
-      </CartProvider>
+              )}
+            </div>
+          </BrowserRouter>
+        </CartProvider>
       </NotificationProvider>
-    </AuthProvider>
-  );
+    </SyncProvider>
+);
 }
 
 export default App;

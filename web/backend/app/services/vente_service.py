@@ -1,3 +1,4 @@
+from flask import current_app
 from datetime import datetime
 from decimal import Decimal
 from app import db
@@ -58,7 +59,14 @@ def create_with_lignes(data):
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         random_part = ''.join(random.choices(string.digits, k=4))
         data['reference'] = f"{prefix}-{timestamp}-{random_part}"
+        # Collision avoidance via uniqueness check on reference (tenant scope).
+        # We commit-flush the vente a bit later so two concurrent creations
+        # will see each other's reference as taken via the DB unique index.
+        attempts = 0
         while Vente.query.filter_by(reference=data['reference']).first():
+            attempts += 1
+            if attempts > 10:
+                raise ValueError("Impossible de generer une reference unique")
             random_part = ''.join(random.choices(string.digits, k=4))
             data['reference'] = f"{prefix}-{timestamp}-{random_part}"
 
@@ -66,7 +74,13 @@ def create_with_lignes(data):
         raise ValueError("Le client est requis")
 
     if 'date' in data and isinstance(data['date'], str):
-        data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
+        try:
+            data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
+        except ValueError:
+            try:
+                data['date'] = datetime.fromisoformat(data['date'])
+            except ValueError:
+                raise ValueError("Format de date invalide (attendu YYYY-MM-DD)")
 
     total_ht = 0
     total_ttc = 0
@@ -102,21 +116,31 @@ def create_with_lignes(data):
             qty = float(quantite)
             if qty > 0:
                 tenant_id = sale.tenant_id
+                # Verrouillage optimiste de la ligne produit pour eviter les
+                # races conditions (deux ventes concurrentes decrémentant
+                # le stock en parallele). Sur SQLite (mode dev/test),
+                # with_for_update est ignore : on compense par un SELECT
+                # immediat et le check de stock dans la meme transaction.
                 produit_query = Produit.query.filter_by(id=produit_id)
                 if tenant_id:
                     produit_query = produit_query.filter_by(tenant_id=tenant_id)
-                produit = produit_query.first()
+                produit = produit_query.with_for_update().first()
                 if produit:
                     try:
                         qty_decimal = Decimal(str(qty))
                         if produit.quantite_stock < qty_decimal:
                             raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
+                        stock_avant = Decimal(str(produit.quantite_stock or 0))
                         produit.quantite_stock -= qty_decimal
+                        stock_apres = Decimal(str(produit.quantite_stock or 0))
                         mouvement = MouvementStock(
                             produit_id=produit.id,
                             type_mouvement='sortie',
                             quantite=qty_decimal,
+                            stock_avant=stock_avant,
+                            stock_apres=stock_apres,
                             raison=f'Vente {sale.reference}',
+                            reference=sale.reference,
                             tenant_id=produit.tenant_id,
                         )
                         db.session.add(mouvement)
@@ -138,24 +162,36 @@ def get_by_client(client_id):
 
 
 def get_stats():
-    tenant_id = get_current_tenant_id()
-    query = Vente.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    ventes = query.all()
-    count = len(ventes)
-    total = sum(float(v.total_ttc) for v in ventes)
-    average = total / count if count > 0 else 0
-    by_status = {}
-    for vente in ventes:
-        statut = vente.statut
-        if statut not in by_status:
-            by_status[statut] = {'count': 0, 'total': 0}
-        by_status[statut]['count'] += 1
-        by_status[statut]['total'] += float(vente.total_ttc)
-    return {
-        'total': total,
-        'count': count,
-        'average': average,
-        'by_status': by_status
-    }
+    try:
+        tenant_id = get_current_tenant_id()
+        query = Vente.query.filter_by(is_active=True)
+        if tenant_id:
+            query = query.filter_by(tenant_id=tenant_id)
+        ventes = query.all()
+        count = len(ventes)
+        total = sum(float(v.total_ttc) for v in ventes if v.total_ttc is not None)
+        average = total / count if count > 0 else 0
+        by_status = {}
+        for vente in ventes:
+            statut = vente.statut
+            if statut not in by_status:
+                by_status[statut] = {'count': 0, 'total': 0.0}
+            by_status[statut]['count'] += 1
+            try:
+                by_status[statut]['total'] += float(vente.total_ttc) if vente.total_ttc is not None else 0.0
+            except (ValueError, TypeError):
+                pass
+        return {
+            'total': total,
+            'count': count,
+            'average': average,
+            'by_status': by_status
+        }
+    except Exception as e:
+        current_app.logger.exception('Error in get_stats')
+        return {
+            'total': 0,
+            'count': 0,
+            'average': 0,
+            'by_status': {}
+        }

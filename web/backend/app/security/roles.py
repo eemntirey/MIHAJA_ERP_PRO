@@ -6,6 +6,34 @@ from app.models.utilisateur import Utilisateur, Role
 from app.models.role_permission import RoleModel
 
 
+ROLE_HIERARCHY = {
+    Role.SUPER_ADMIN: 100,
+    Role.ADMIN: 80,
+    Role.MANAGER: 60,
+    Role.SALES: 40,
+    Role.STOCK: 40,
+    Role.ACCOUNTANT: 40,
+    Role.RH: 40,
+    Role.LIVREUR: 30,
+    Role.USER: 20,
+}
+
+
+def get_role_level(role_value):
+    normalized = normalize_role(role_value)
+    if normalized is None:
+        return 0
+    return ROLE_HIERARCHY.get(normalized, 0)
+
+
+def can_manage_role(creator_role, target_role):
+    creator_level = get_role_level(creator_role)
+    target_level = get_role_level(target_role)
+    if target_role == Role.SUPER_ADMIN:
+        return creator_level >= get_role_level(Role.SUPER_ADMIN)
+    return creator_level >= target_level
+
+
 def normalize_role(role_value):
     """Normalize role value for case-insensitive comparison.
     
@@ -59,44 +87,10 @@ def has_role(role_value, *allowed_roles):
     return normalized in allowed_normalized
 
 
-PERMISSIONS = {
-    'super_admin': ['*'],
-    'admin': ['*'],
-    'manager': [
-        'product.create', 'product.update', 'product.delete',
-        'stock.view', 'stock.update',
-        'sale.view', 'sale.create', 'sale.update',
-        'user.view', 'user.create', 'user.update',
-        'report.view'
-    ],
-    'sales': [
-        'product.view',
-        'sale.view', 'sale.create',
-        'client.view', 'client.create', 'client.update',
-        'quote.view', 'quote.create'
-    ],
-    'stock': [
-        'product.view',
-        'stock.view', 'stock.update',
-        'supplier.view', 'supplier.create', 'supplier.update',
-        'purchase_order.view', 'purchase_order.create'
-    ],
-    'accountant': [
-        'product.view',
-        'invoice.view', 'invoice.create', 'invoice.update',
-        'payment.view', 'payment.create',
-        'report.view',
-        'sale.view',
-        'client.view',
-        'compte.view', 'compte.create', 'compte.update', 'compte.delete',
-        'ecriture.view', 'ecriture.create', 'ecriture.update', 'ecriture.delete',
-        'tresorerie.view', 'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
-    ],
-    'user': [
-        'product.view',
-        'profile.view', 'profile.update'
-    ]
-}
+from app.security.permission_matrix import ROLE_PERMISSIONS
+
+PERMISSIONS = ROLE_PERMISSIONS
+
 
 def has_permission(user_id, permission):
     user = db.session.get(Utilisateur, user_id)

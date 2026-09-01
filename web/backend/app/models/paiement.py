@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Numeric
 import enum
@@ -29,7 +29,7 @@ class ProviderPaiement(enum.Enum):
     AUTRE = 'autre'
 
 
-class Paiement(BaseModel):
+class Paiement(BaseTenantModel):
     __tablename__ = 'paiements'
 
     facture_id = db.Column(db.Integer, db.ForeignKey('factures.id'), index=True)

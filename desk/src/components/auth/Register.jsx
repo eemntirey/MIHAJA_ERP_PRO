@@ -3,10 +3,9 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import DarkModeToggle from '../../components/layout/DarkModeToggle';
 import './Auth.css';
 
-const Register = ({ darkMode, onToggleDarkMode }) => {
+const Register = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -24,7 +23,6 @@ const Register = ({ darkMode, onToggleDarkMode }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="auth-login"
-      data-theme={darkMode ? 'dark' : undefined}
     >
       <main className="auth-login__layout">
         <section
@@ -37,7 +35,7 @@ const Register = ({ darkMode, onToggleDarkMode }) => {
 
           <div className="auth-login__context-inner">
             <div className="auth-login__brand-row">
-              <Link to="/login" className="auth-login__brand" aria-label="ERP Pro accueil">
+              <Link to="/" className="auth-login__brand" aria-label="ERP Pro accueil">
                 <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
                 <span className="auth-login__brand-name">ERP Pro</span>
               </Link>
@@ -74,12 +72,9 @@ const Register = ({ darkMode, onToggleDarkMode }) => {
           <div className="auth-login__form-container">
             <div className="auth-login__form-header">
               <span>Création de compte</span>
-               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
-               <Link to="/login" className="auth-login__back-link">
-                 Retour à la connexion
-               </Link>
-              </div>
+              <Link to="/" className="auth-login__back-link">
+                Retour à l'accueil
+              </Link>
             </div>
 
             <div className="auth-login__form-intro">

@@ -572,11 +572,13 @@
   max-width: 560px;
   margin-top: auto;
   padding: 96px 0 72px;
+  text-align: center;
 }
 
 .auth-login__eyebrow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   margin: 0 0 24px;
   color: var(--auth-gold);
@@ -854,6 +856,38 @@
   outline-offset: 2px;
 }
 
+.auth-login__select-wrap select option {
+  background: #f5f5f4;
+  color: var(--auth-onyx);
+}
+
+.auth-login {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .auth-login__select-wrap select option {
+    background: #1e293b;
+    color: #e2e8f0;
+  }
+  .auth-login {
+    color-scheme: dark;
+  }
+}
+
+.dark-mode .auth-login {
+  color-scheme: dark;
+}
+
+.dark-mode .auth-login__select-wrap select {
+  color-scheme: dark;
+}
+
+.dark-mode .auth-login__select-wrap select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
 .auth-login__input-wrap input[aria-invalid='true'] {
   color: #8b2d2d;
 }
@@ -888,6 +922,13 @@
   color: #8b2d2d;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.auth-login__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--auth-slate);
+  opacity: 0.8;
 }
 
 .auth-login__remember {
@@ -1075,6 +1116,33 @@
   }
 }
 
+@media (min-width: 901px) {
+  .auth-register .auth-login {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__layout {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-register .auth-login__context {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+   .auth-register .auth-login__form-panel {
+     display: block;
+     height: 100vh;
+     min-height: 0;
+     overflow-y: auto;
+     overflow-x: hidden;
+   }
+}
+
 @media (max-width: 560px) {
   .auth-login__context-orbit {
     right: -180px;
@@ -1215,7 +1283,7 @@
   font-size: 24px;
 }
 
-.register-choice-card h2 {
+.register-choice-card h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 800;
@@ -1335,7 +1403,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.dark-mode .register-choice-card h2 {
+.dark-mode .register-choice-card h3 {
   color: #e2e8f0;
 }
 
@@ -1465,6 +1533,10 @@
 
 .dark-mode .auth-login__form-intro > p:last-child {
   color: var(--auth-muted);
+}
+
+.dark-mode .auth-login__form-intro h2 {
+  color: #f1f5f9;
 }
 
 .dark-mode .auth-login__field > label,
@@ -1619,7 +1691,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
-  .register-choice-card h2 {
+  .register-choice-card h3 {
     color: #e2e8f0;
   }
 
@@ -1749,6 +1821,10 @@
 
   .auth-login__form-intro > p:last-child {
     color: var(--auth-muted);
+  }
+
+  .auth-login__form-intro h2 {
+    color: #f1f5f9;
   }
 
   .auth-login__field > label,

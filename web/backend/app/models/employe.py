@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -19,9 +19,10 @@ class StatutEmploye(enum.Enum):
     EN_CONGE = 'en_conges'
     DEPART = 'depart'
 
-class Employe(BaseModel):
+class Employe(BaseTenantModel):
     __tablename__ = 'employes'
 
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
     matricule = db.Column(db.String(30), unique=True, nullable=False, index=True)
     nom = db.Column(db.String(100), nullable=False)
     prenom = db.Column(db.String(100), nullable=False)
@@ -56,6 +57,8 @@ class Employe(BaseModel):
     presences = db.relationship('Presence', back_populates='employe', lazy='dynamic')
     salaires = db.relationship('Salaire', back_populates='employe', lazy='dynamic')
     primes = db.relationship('Prime', back_populates='employe', lazy='dynamic')
+
+    tenant = db.relationship('Tenant', back_populates='employes', lazy='select')
 
     __table_args__ = (
         Index('idx_employe_matricule', 'matricule'),

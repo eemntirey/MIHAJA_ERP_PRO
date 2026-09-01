@@ -10,33 +10,24 @@
   width: calc(100% - 48px);
   max-width: 800px;
   z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .chat-input-form {
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #e6e6e1);
   border-radius: 0;
   padding: 10px 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px var(--shadow, rgba(0, 0, 0, 0.08));
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .chat-input-form:focus-within {
-  border-color: var(--color-primary);
+  border-color: #D4AF37;
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08), 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.dark .chat-input-form,
-.main-layout[data-theme='dark'] .chat-input-form {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-.dark .chat-input-form:focus-within,
-.main-layout[data-theme='dark'] .chat-input-form:focus-within {
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12), 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .chat-input-field {
@@ -46,7 +37,7 @@
   resize: none;
   font-size: 14px;
   font-family: 'DM Sans', sans-serif;
-  color: var(--color-text);
+  color: var(--color-text, #111111);
   background: transparent;
   max-height: 120px;
   min-height: 24px;
@@ -55,13 +46,13 @@
 }
 
 .chat-input-field::placeholder {
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #9a9a92);
 }
 
 .chat-input-send {
-  background: var(--color-onyx);
-  color: var(--color-primary);
-  border: 1px solid var(--color-onyx);
+  background: #111111;
+  color: #D4AF37;
+  border: 1px solid #111111;
   border-radius: 0;
   padding: 8px 16px;
   font-weight: 700;
@@ -73,8 +64,8 @@
 }
 
 .chat-input-send:hover:not(:disabled) {
-  background: var(--color-onyx-soft);
-  border-color: var(--color-onyx-soft);
+  background: #2a2a2a;
+  border-color: #2a2a2a;
 }
 
 .chat-input-send:disabled {
@@ -82,10 +73,14 @@
   cursor: not-allowed;
 }
 
+.main-layout[data-theme='dark'] .chat-input-form {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
 @media (max-width: 768px) {
   .chat-input-bar {
     width: calc(100% - 24px);
-    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 
   .chat-input-form {

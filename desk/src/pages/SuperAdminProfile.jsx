@@ -62,7 +62,6 @@ const SuperAdminProfile = () => {
       const updated = response.data?.user || response.data || {};
       const mergedUser = { ...(user || {}), ...updated };
       setUser(mergedUser);
-      try { localStorage.setItem('user', JSON.stringify(mergedUser)); } catch {}
       toast.success('Profil mis à jour');
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -93,7 +92,7 @@ const SuperAdminProfile = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px', width: '100%' }}>
         <div className="form-grid">
           <div className="form-group">
             <label htmlFor="nom">Nom</label>

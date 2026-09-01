@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const STORAGE_KEY = 'dark_mode';
-const THEME_COLORS = { dark: '#0f172a', light: '#f8fafc' };
+const THEME_COLORS = { dark: '#0f172a', light: '#fafafa' };
 
 /**
  * @param {boolean|undefined} initialValue - Force un thème initial (utile en tests).

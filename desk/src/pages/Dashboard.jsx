@@ -90,6 +90,7 @@ const DashboardHeader = ({ periodLabel, periodCaption, onExport, onRefresh, load
 );
 
 const RevenueHero = ({ stats, evolution, trendPercentage, shouldReduceMotion }) => {
+  const isEmpty = trendPercentage === null && stats.revenue === 0;
   const sparklinePath = useMemo(
     () => buildSparklinePath(evolution.map((day) => day.total)),
     [evolution]
@@ -97,7 +98,7 @@ const RevenueHero = ({ stats, evolution, trendPercentage, shouldReduceMotion }) 
 
   return (
     <motion.article
-      className="dashboard-revenue-hero"
+      className={`dashboard-revenue-hero${isEmpty ? ' dashboard-revenue-hero--empty' : ''}`}
       initial={shouldReduceMotion ? false : 'hidden'}
       animate="visible"
       variants={fadeUp}
@@ -377,35 +378,46 @@ const ActivityTimeline = ({ activity }) => (
   </article>
 );
 
-const PriorityPanel = ({ priorities }) => (
-  <aside className="dashboard-panel dashboard-priority-panel" aria-labelledby="dashboard-priorities-title">
-    <div className="dashboard-panel__header">
-      <div>
-        <p className="dashboard-overline">Priorités</p>
-        <h2 id="dashboard-priorities-title">À traiter cette semaine</h2>
-      </div>
-      <span className="dashboard-priority-panel__count">{String(priorities.length).padStart(2, '0')}</span>
-    </div>
+const PriorityPanel = ({ priorities }) => {
+  const getActionLabel = (href, tone, index) => {
+    if (index === 0 && tone === 'critical') return 'Voir le stock';
+    if (href === '/inventory') return 'Voir le stock';
+    if (href === '/invoices') return 'Voir les factures';
+    if (href === '/sales') return 'Voir les ventes';
+    if (href === '/dashboard') return 'Retour au tableau de bord';
+    return 'Ouvrir le suivi';
+  };
 
-    <div className="dashboard-priorities">
-      {priorities.map((priority, index) => (
-        <div className={`dashboard-priority dashboard-priority--${priority.tone}`} key={priority.id}>
-          <span className="dashboard-priority__icon" aria-hidden="true">
-            <i className={`ti ${priority.icon}`} />
-          </span>
-          <div>
-            <p className="dashboard-priority__title">{priority.title}</p>
-            <p className="dashboard-priority__description">{priority.description}</p>
-            <Link className="dashboard-priority__action" to={priority.href}>
-              {index === 0 && priority.tone === 'critical' ? 'Voir le stock' : 'Ouvrir le suivi'}
-              <i className="ti ti-arrow-up-right" aria-hidden="true" />
-            </Link>
-          </div>
+  return (
+    <aside className="dashboard-panel dashboard-priority-panel" aria-labelledby="dashboard-priorities-title">
+      <div className="dashboard-panel__header">
+        <div>
+          <p className="dashboard-overline">Priorités</p>
+          <h2 id="dashboard-priorities-title">À traiter cette semaine</h2>
         </div>
-      ))}
-    </div>
-  </aside>
-);
+        <span className="dashboard-priority-panel__count">{String(priorities.length).padStart(2, '0')}</span>
+      </div>
+
+      <div className="dashboard-priorities">
+        {priorities.map((priority, index) => (
+          <div className={`dashboard-priority dashboard-priority--${priority.tone}`} key={priority.id}>
+            <span className="dashboard-priority__icon" aria-hidden="true">
+              <i className={`ti ${priority.icon}`} />
+            </span>
+            <div>
+              <p className="dashboard-priority__title">{priority.title}</p>
+              <p className="dashboard-priority__description">{priority.description}</p>
+              <Link className="dashboard-priority__action" to={priority.href}>
+                {getActionLabel(priority.href, priority.tone, index)}
+                <i className="ti ti-arrow-up-right" aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -420,6 +432,8 @@ const Dashboard = () => {
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -485,20 +499,23 @@ const Dashboard = () => {
       setLoading(false);
       setHasLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   const fetchSubscription = useCallback(async () => {
+    if (!user) return;
+
     try {
       setSubscriptionLoading(true);
       const response = await subscriptionService.getMonAbonnement();
-      setSubscription(response.data?.abonnement || response.data || null);
+      const sub = response.data?.abonnement || response.data || null;
+      setSubscription(sub);
     } catch (err) {
       console.error('Error fetching subscription:', err);
       setSubscription(null);
     } finally {
       setSubscriptionLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchSubscription();
@@ -531,7 +548,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const [isEditingName, setIsEditingName] = useState(false);
@@ -557,7 +574,6 @@ const Dashboard = () => {
       });
       const updatedUser = response.data?.user || response.data;
       setUser((prev) => ({ ...(prev || {}), ...updatedUser }));
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       setIsEditingName(false);
       toast.success('Profil mis à jour');
     } catch (err) {
@@ -706,6 +722,11 @@ const Dashboard = () => {
 
       <Link className="dashboard-assistant" to="/ai" aria-label="Ouvrir l’assistant IA" title="Assistant IA">
         <i className="ti ti-sparkles" aria-hidden="true" />
+        <span className="dashboard-assistant__stars" aria-hidden="true">
+          <i className="ti ti-star-filled" />
+          <i className="ti ti-star-filled" />
+          <i className="ti ti-star-filled" />
+        </span>
         <span className="dashboard-assistant__label" aria-hidden="true">IA</span>
       </Link>
     </div>

@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Index, Numeric
 import enum
@@ -25,7 +25,7 @@ class SecteurActivite(enum.Enum):
     SERVICES = 'services'
     AUTRE = 'autre'
 
-class Client(BaseModel):
+class Client(BaseTenantModel):
     __tablename__ = 'clients'
     
     code = db.Column(db.String(20), unique=True, nullable=False, index=True)

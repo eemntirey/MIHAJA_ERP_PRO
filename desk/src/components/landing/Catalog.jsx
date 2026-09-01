@@ -5,13 +5,6 @@ import '../../styles/landing.css';
 
 const SKELETON_COUNT = 8;
 
-const fmtStock = (qty) => {
-  const n = Number(qty || 0);
-  if (n <= 0) return 'Rupture';
-  if (n < 10) return `Stock faible (${n})`;
-  return `Stock: ${n}`;
-};
-
 const getImage = (produit) => {
   return produit.image_url || produit.image || produit.photo || null;
 };
@@ -80,8 +73,6 @@ const Catalog = () => {
           <>
             <div className="landing-catalog-grid">
               {produits.map((produit) => {
-                const stock = Number(produit.quantite_stock ?? produit.stock ?? 0);
-                const inStock = stock > 0;
                 const category = produit.categorie_nom || produit.categorie || 'Général';
                 const seller = produit.tenant_nom || produit.vendeur || 'Vendeur';
                 const price = Number(produit.prix_vente_ht || produit.prix || 0);
@@ -100,7 +91,6 @@ const Catalog = () => {
                     <div className="landing-product-body">
                       <div className="landing-product-header">
                         <span className="landing-product-badge">{category}</span>
-                        {inStock && <span className="landing-product-stock">{fmtStock(stock)}</span>}
                       </div>
 
                       <h3 className="landing-product-name">{produit.nom || produit.name || 'Produit'}</h3>

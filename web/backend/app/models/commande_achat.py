@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -11,7 +11,7 @@ class StatutCommandeAchat(enum.Enum):
     PARTIELLEMENT_RECUE = 'partiellement_recue'
     ANNULEE = 'annulee'
 
-class CommandeAchat(BaseModel):
+class CommandeAchat(BaseTenantModel):
     __tablename__ = 'commandes_achat'
 
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)
@@ -38,13 +38,13 @@ class CommandeAchat(BaseModel):
         if self.statut:
             data['statut'] = self.statut.value
         if self.fournisseur:
-            data['fournisseur_nom'] = self.fournisseur.nom
+            data['fournisseur_nom'] = self.fournisseur.nom_complet
         return data
 
     def __repr__(self):
         return f'<CommandeAchat {self.reference}>'
 
-class ReceptionAchat(BaseModel):
+class ReceptionAchat(BaseTenantModel):
     __tablename__ = 'receptions_achat'
 
     commande_achat_id = db.Column(db.Integer, db.ForeignKey('commandes_achat.id'), nullable=False, index=True)
@@ -65,7 +65,7 @@ class ReceptionAchat(BaseModel):
     def __repr__(self):
         return f'<ReceptionAchat {self.reference}>'
 
-class QualiteAchat(BaseModel):
+class QualiteAchat(BaseTenantModel):
     __tablename__ = 'qualites_achat'
 
     reception_id = db.Column(db.Integer, db.ForeignKey('receptions_achat.id'), nullable=False, index=True)

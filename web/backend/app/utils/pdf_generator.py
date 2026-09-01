@@ -210,7 +210,6 @@ def _try_load_logo(logo_path_or_url, max_width_cm=4):
             return Image(path, width=w, height=h)
     except Exception:
         return None
-    return None
 
 
 def _build_table_header(styles):

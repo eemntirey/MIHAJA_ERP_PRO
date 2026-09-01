@@ -2,7 +2,7 @@ from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.models.utilisateur import Utilisateur, Role
-from .roles import has_permission, PERMISSIONS
+from .roles import has_permission
 
 
 def permission_required(permission):

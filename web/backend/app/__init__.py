@@ -4,19 +4,22 @@
 from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from flask_restx import Api
 from flask_jwt_extended import JWTManager
 
 
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+
+logger = logging.getLogger(__name__)
 
 
 def create_app():
@@ -52,6 +55,15 @@ def create_app():
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
         seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
     )
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(
+        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 30))
+    )
+
+    # flask-restx intercepts non-HTTPException errors in RESTX routes.
+    # Setting PROPAGATE_EXCEPTIONS=True makes flask-restx re-raise them
+    # so Flask's own error handlers (registered by flask_jwt_extended and
+    # elsewhere) can produce proper responses instead of a generic 500.
+    app.config['PROPAGATE_EXCEPTIONS'] = True
 
     # Accepter /route et /route/
     app.url_map.strict_slashes = False
@@ -139,6 +151,25 @@ def create_app():
         return {'message': 'Token JWT révoqué'}, 401
 
     # ==========================================================
+    # ROUTES PRINCIPALES
+    # ==========================================================
+
+    @app.route('/')
+    @app.route('/index')
+    def index():
+        return {
+            'message': 'ERP Commercial API',
+            'status': 'running'
+        }, 200
+
+    @app.route('/health')
+    def health():
+        return {
+            'status': 'healthy',
+            'database': 'connected'
+        }, 200
+
+    # ==========================================================
     # FLASK-RESTX
     # ==========================================================
 
@@ -146,8 +177,18 @@ def create_app():
         app,
         title='ERP Commercial API',
         version='1.0',
-        doc='/docs/'
+        doc='/docs/',
+        decorators=[cross_origin()]
     )
+
+    # flask-restx monkey-patches Flask's error handling, intercepting
+    # exceptions raised in RESTX routes.  Register the same JWT error
+    # handlers with the RESTX Api so 401 responses are returned instead
+    # of a generic 500.
+    api.errorhandler(NoAuthorizationError)(handle_no_auth_error)
+    api.errorhandler(InvalidHeaderError)(handle_invalid_header_error)
+    api.errorhandler(JWTDecodeError)(handle_decode_error)
+    api.errorhandler(RevokedTokenError)(handle_revoked_token_error)
 
     # ==========================================================
     # NAMESPACES
@@ -167,7 +208,7 @@ def create_app():
     from app.api.v1.tenants import ns as tenants_ns
     from app.api.v1.abonnements import ns as abonnements_ns
     from app.api.v1.livraisons import ns_livreurs as livreurs_ns, ns_vehicules as vehicules_ns, ns_itineraires as itineraires_ns, ns_livraisons as livraisons_ns
-    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns
+    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
     from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns
     from app.api.v1.documents import ns_modeles as modeles_documents_ns, ns_documents as documents_ns
     from app.api.v1.achats_devis import ns_commandes_achat as commandes_achat_ns, ns_receptions as receptions_ns, ns_devis as devis_ns, ns_bons_livraison as bons_livraison_ns, ns_avoirs as avoirs_ns
@@ -177,7 +218,20 @@ def create_app():
     from app.api.v1.papi import ns as papi_ns
     from app.api.v1.notifications import ns as notifications_ns
 
-    # Register test namespace only in DEBUG/TESTING mode
+    from app.api.v1.super_admin import ns as super_admin_ns
+    from app.api.v1.admin_devices import ns as admin_devices_ns
+
+    # Synchronisation desktop/web (favoris, colonnes, filtres, sync incrémental)
+    from app.api.v1.desk import desk_bp
+
+    api.add_namespace(
+        super_admin_ns,
+        path='/api/v1/super-admin'
+    )
+    api.add_namespace(
+        admin_devices_ns,
+        path='/api/v1/admin/devices'
+    )
     if app.config.get('DEBUG', False) or app.config.get('TESTING', False):
         from app.api.v1.test import ns as test_ns
         api.add_namespace(
@@ -276,6 +330,11 @@ def create_app():
     )
 
     api.add_namespace(
+        stagiaires_ns,
+        path='/api/v1/stagiaires'
+    )
+
+    api.add_namespace(
         presences_ns,
         path='/api/v1/presences'
     )
@@ -365,24 +424,8 @@ def create_app():
         path='/api/v1/notifications'
     )
 
-    # ==========================================================
-    # ROUTES PRINCIPALES
-    # ==========================================================
-
-    @app.route('/')
-    @app.route('/index')
-    def index():
-        return {
-            'message': 'ERP Commercial API',
-            'status': 'running'
-        }, 200
-
-    @app.route('/health')
-    def health():
-        return {
-            'status': 'healthy',
-            'database': 'connected'
-        }, 200
+    # Blueprint de synchronisation desktop/web (JWT standard, compatible tiers).
+    app.register_blueprint(desk_bp)
 
     # ==========================================================
     # TENANT CONTEXT
@@ -390,7 +433,6 @@ def create_app():
 
     @app.before_request
     def before_request():
-
         from flask import g
 
         from app.security.tenant import (
@@ -402,23 +444,105 @@ def create_app():
         g.current_user = None
 
         try:
+            from flask_jwt_extended import verify_jwt_in_request_optional, get_jwt
+            verify_jwt_in_request_optional()
+            claims = get_jwt()
+            if claims:
+                tenant_id = claims.get('tenant_id')
+                if tenant_id:
+                    from app.models.tenant import Tenant
+                    tenant = db.session.get(Tenant, tenant_id)
+                    if tenant:
+                        g.current_tenant = tenant
+                        return
+        except Exception:
+            pass
 
+        try:
             tenant = resolve_tenant_from_header()
-
             if tenant:
                 g.current_tenant = tenant
 
         except Exception:
-            pass
+            logger.warning(
+                "Impossible de résoudre le tenant depuis les headers HTTP",
+                exc_info=True,
+            )
+            g.current_tenant = None
 
     # ==========================================================
     # AUTO-SEEDING: Desactive en production. A appeler explicitement
     # via le endpoint ou une commande CLI.
     # ==========================================================
 
+    def _seed_roles():
+        try:
+            with app.app_context():
+                from app.models.role_permission import RoleModel, Permission
+                from app.security.permission_matrix import ROLE_PERMISSIONS
+
+                DEFAULT_ROLES = [
+                    {'name': 'super_admin', 'display_name': 'Super Admin', 'description': 'Acces complet a toutes les fonctionnalites', 'is_default': True, 'is_system': True},
+                    {'name': 'admin', 'display_name': 'Admin', 'description': 'Acces administratif a toutes les ressources', 'is_default': True, 'is_system': True},
+                    {'name': 'manager', 'display_name': 'Manager', 'description': 'Gestion des produits, stock, ventes, utilisateurs et rapports', 'is_default': True, 'is_system': True},
+                    {'name': 'sales', 'display_name': 'Commercial', 'description': 'Gestion des ventes, clients et devis', 'is_default': True, 'is_system': True},
+                    {'name': 'stock', 'display_name': 'Stock', 'description': 'Gestion des stocks, produits et fournisseurs', 'is_default': True, 'is_system': True},
+                    {'name': 'accountant', 'display_name': 'Comptable', 'description': 'Gestion comptable, factures et paiements', 'is_default': True, 'is_system': True},
+                    {'name': 'rh', 'display_name': 'RH', 'description': 'Gestion des ressources humaines', 'is_default': True, 'is_system': True},
+                    {'name': 'user', 'display_name': 'Utilisateur', 'description': 'Utilisateur standard avec acces limite', 'is_default': True, 'is_system': True},
+                    {'name': 'support', 'display_name': 'Support', 'description': 'Assistance et support aux utilisateurs et clients', 'is_default': False, 'is_system': True},
+                    {'name': 'livreur', 'display_name': 'Livreur', 'description': 'Acces aux livraisons propres', 'is_default': False, 'is_system': True},
+                ]
+
+                for role_data in DEFAULT_ROLES:
+                    existing = RoleModel.query.filter_by(name=role_data['name']).first()
+                    if existing:
+                        existing.display_name = role_data['display_name']
+                        existing.description = role_data['description']
+                        existing.is_default = role_data['is_default']
+                        existing.is_system = role_data['is_system']
+                        existing.permissions = []
+                    else:
+                        existing = RoleModel(
+                            name=role_data['name'],
+                            display_name=role_data['display_name'],
+                            description=role_data['description'],
+                            is_default=role_data['is_default'],
+                            is_system=role_data['is_system'],
+                        )
+                        db.session.add(existing)
+                        db.session.flush()
+
+                    for perm_code in ROLE_PERMISSIONS.get(role_data['name'], []):
+                        if perm_code == '*':
+                            continue
+                        perm = Permission.query.filter_by(code=perm_code).first()
+                        if not perm:
+                            parts = perm_code.split('.')
+                            perm = Permission(
+                                code=perm_code,
+                                module=parts[0] if parts else 'general',
+                                action=parts[1] if len(parts) > 1 else 'access',
+                                description=perm_code,
+                            )
+                            db.session.add(perm)
+                            db.session.flush()
+                        if perm not in existing.permissions:
+                            existing.permissions.append(perm)
+
+                db.session.commit()
+        except Exception as e:
+            app.logger.exception("Erreur pendant le seed des roles: %s", e)
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
     def _seed_initial_data(app):
         try:
             with app.app_context():
+                _seed_roles()
+
                 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
                 from app.models.tenant import Tenant, StatutTenant
                 from app.models.abonnement import Abonnement, StatutAbonnement
@@ -430,7 +554,16 @@ def create_app():
                 user_count = Utilisateur.query.count()
 
                 if user_count == 0:
-                    default_password = "Test1234!"
+                    # Les mots de passe sont generes aleatoirement et JAMAIS
+                    # envoyes dans une reponse HTTP. Ils sont emis une seule
+                    # fois dans les logs au niveau INFO avec un marqueur
+                    # `[SEED-PASSWORD]` afin qu'un operateur puisse les
+                    # recuperer depuis la console de deploiement. En
+                    # production, le seed est desactive par defaut (voir
+                    # `if os.getenv('FLASK_ENV') in ...` plus bas).
+                    def _new_password():
+                        env_value = os.getenv('DEFAULT_ADMIN_PASSWORD')
+                        return env_value or os.urandom(16).hex()
 
                     entreprises = [
                         {
@@ -451,7 +584,7 @@ def create_app():
                             'user': {
                                 'username': 'mada',
                                 'email': 'mada@erp.com',
-                                'password': default_password,
+                                'password': _new_password(),
                                 'nom': 'Rakotondrainibe',
                                 'prenom': 'Hery',
                                 'telephone': '+261 34 12 345 67',
@@ -490,7 +623,7 @@ def create_app():
                             'user': {
                                 'username': 'tana',
                                 'email': 'tana@erp.com',
-                                'password': default_password,
+                                'password': _new_password(),
                                 'nom': 'Razafindramanana',
                                 'prenom': 'Voahangy',
                                 'telephone': '+261 34 98 765 32',
@@ -514,21 +647,31 @@ def create_app():
                     ]
 
                     for item in entreprises:
-                        tenant = Tenant(item['tenant'])
+                        tenant = Tenant(**item['tenant'])
                         db.session.add(tenant)
                         db.session.flush()
 
                         user_data = item['user']
                         user_data['tenant_id'] = tenant.id
-                        password = user_data.pop('password')
-                        user_data['password_hash'] = hash_password(password)
-                        user = Utilisateur(user_data)
+                        generated_password = user_data.pop('password')
+                        user_data['password_hash'] = hash_password(generated_password)
+                        user = Utilisateur(**user_data)
                         db.session.add(user)
                         db.session.flush()
+                        # Trace unique au niveau INFO, marquee explicitement.
+                        # Aucun mot de passe n'est jamais renvoye dans une
+                        # reponse HTTP, mais doit rester recuperable par un
+                        # operateur lors du bootstrap.
+                        app.logger.info(
+                            '[SEED-PASSWORD] tenant=%s user=%s password=%s',
+                            item['tenant']['slug'],
+                            user_data['username'],
+                            generated_password,
+                        )
 
                         abonnement_data = item['abonnement']
                         abonnement_data['tenant_id'] = tenant.id
-                        abonnement = Abonnement(abonnement_data)
+                        abonnement = Abonnement(**abonnement_data)
                         db.session.add(abonnement)
                         db.session.flush()
 
@@ -548,8 +691,8 @@ def create_app():
                         for prod in item.get('produits', []):
                             produit = Produit(
                                 tenant_id=tenant.id,
-                                reference=f"{tenant.slug}-{prod['nom'].split('#')[1].strip()}",
-                                code_barre=f"{tenant.id}-{prod['nom'].split('#')[1].strip()}",
+                                reference=f"{tenant.slug}-{prod['nom'].split('#')[-1].strip()}",
+                                code_barre=f"{tenant.id}-{prod['nom'].split('#')[-1].strip()}",
                                 nom=prod['nom'],
                                 description_courte=f"Description du produit pour {tenant.nom}",
                                 prix_achat_ht=float(prod['prix_vente_ht']) * 0.6,
@@ -571,8 +714,18 @@ def create_app():
             except Exception:
                 pass
 
-    if os.getenv('FLASK_ENV') in ('development', 'testing'):
-        _seed_initial_data(app)
+    with app.app_context():
+        if app.config.get('DEBUG', False) or app.config.get('TESTING', False):
+            db.create_all()
+            _seed_roles()
+
+    # L'auto-seed (donnees de demonstration) ne s'execute qu'en developpement
+    # ou testing sous opt-in explicite (AUTO_SEED_DATA=1). On force la creation
+    # prealable des tables pour eviter une OperationalError au premier SELECT.
+    if os.getenv('FLASK_ENV') in ('development', 'testing') and os.getenv('AUTO_SEED_DATA') == '1':
+        with app.app_context():
+            db.create_all()
+            _seed_initial_data(app)
 
     # ==========================================================
     # JWT IDENTITY
@@ -597,7 +750,6 @@ def create_app():
         )
 
         if user:
-
             return {
                 'username': user.username,
                 'email': user.email,
@@ -611,4 +763,16 @@ def create_app():
 
         return {}
 
+    # ==========================================================
+    # TEMPS RÉEL (Socket.IO) - optionnel, activé par ENABLE_SOCKETIO=1
+    # ==========================================================
+    socketio = None
+    if os.getenv('ENABLE_SOCKETIO') == '1':
+        try:
+            from app.websockets.socket_events import init_socketio
+            socketio = init_socketio(app)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("SocketIO non initialisé : %s", exc)
+
+    app.socketio = socketio
     return app

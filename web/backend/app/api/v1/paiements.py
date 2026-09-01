@@ -1,5 +1,5 @@
 from flask_restx import Namespace, Resource
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 from app.services.paiement_service import process_payment
 from app import db
 
@@ -7,7 +7,7 @@ ns = Namespace('paiements', description='Gestion des paiements')
 
 @ns.route('/')
 class PaiementList(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste tous les paiements"""
         from app.models.paiement import Paiement
@@ -19,7 +19,7 @@ class PaiementList(Resource):
         paiements = query.all()
         return {'paiements': [p.to_dict() for p in paiements]}, 200
 
-    @tenant_required
+    @tenant_required_readonly
     def post(self):
         """Creation de paiement"""
         from flask import request
@@ -49,7 +49,7 @@ class PaiementList(Resource):
 
 @ns.route('/<int:id>')
 class PaiementResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self, id):
         """Details d'un paiement"""
         from app.models.paiement import Paiement
@@ -59,7 +59,7 @@ class PaiementResource(Resource):
             return {'message': 'Paiement non trouve'}, 404
         return paiement.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     def put(self, id):
         """Met a jour un paiement"""
         from app.models.paiement import Paiement
@@ -74,16 +74,23 @@ class PaiementResource(Resource):
             return {'message': 'Donnees requises'}, 400
         try:
             normalized = _normalize_payment_data(data)
+            PROTECTED = {'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id', 'is_active'}
             for key, value in normalized.items():
-                if key not in ['id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id']:
+                if key in PROTECTED:
+                    continue
+                if hasattr(paiement, key):
                     setattr(paiement, key, value)
             db.session.commit()
+            # Reclalculer le statut de la facture associée en fonction du cumul payé
+            if paiement.facture_id:
+                from app.services.paiement_service import _recompute_facture_status
+                _recompute_facture_status(paiement.facture_id)
             return paiement.to_dict(), 200
         except Exception as e:
             db.session.rollback()
             return {'message': str(e)}, 400
 
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, id):
         """Supprime un paiement"""
         from app.models.paiement import Paiement
@@ -101,7 +108,7 @@ class PaiementResource(Resource):
 
 @ns.route('/facture/<int:facture_id>')
 class PaiementFactureResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     def get(self, facture_id):
         """Liste les paiements d'une facture"""
         from app.models.paiement import Paiement
