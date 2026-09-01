@@ -6,6 +6,7 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
+import { tokenStore } from '../storage/tokenStore';
 
 const API_BASE_URL =
     typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
@@ -26,11 +27,9 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = typeof localStorage !== 'undefined'
-            ? localStorage.getItem('access_token')
-            : null;
+        const token = tokenStore.getAccessToken();
 
-        if (token && !config.headers.Authorization) {
+        if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
@@ -42,6 +41,20 @@ api.interceptors.request.use(
 // ======================================================
 // INTERCEPTEUR RESPONSE
 // ======================================================
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
 
 api.interceptors.response.use(
     (response) => {
@@ -71,15 +84,34 @@ api.interceptors.response.use(
         ) {
             originalRequest._retry = true;
 
+            const refreshToken = tokenStore.getRefreshToken();
+
+            // Aucun refresh token : on ne tente pas le renouvellement,
+            // on nettoie et on notifie la déconnexion.
+            if (!refreshToken) {
+                tokenStore.clear();
+                delete api.defaults.headers.common.Authorization;
+                window.dispatchEvent(new Event('auth:logout'));
+                return Promise.reject(error);
+            }
+
+            // Un renouvellement est déjà en cours : on place la requête
+            // en file d'attente pour la relancer après le rafraîchissement.
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({
+                        resolve: (token) => {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            resolve(api(originalRequest));
+                        },
+                        reject,
+                    });
+                });
+            }
+
+            isRefreshing = true;
+
             try {
-                const refreshToken = typeof localStorage !== 'undefined'
-                    ? localStorage.getItem('refresh_token')
-                    : null;
-
-                if (!refreshToken) {
-                    throw new Error('Refresh token absent');
-                }
-
                 const refreshResponse = await api.post(
                     '/auth/refresh',
                     null,
@@ -97,37 +129,32 @@ api.interceptors.response.use(
                     throw new Error('Nouveau access_token absent');
                 }
 
-                localStorage.setItem('access_token', newAccessToken);
-
-                if (refreshResponse.data.user) {
-                    localStorage.setItem('user', JSON.stringify(refreshResponse.data.user));
-                }
-
-                if (refreshResponse.data.tenant) {
-                    localStorage.setItem('tenant', JSON.stringify(refreshResponse.data.tenant));
-                }
-
-                if (refreshResponse.data.refresh_token) {
-                    localStorage.setItem('refresh_token', refreshResponse.data.refresh_token);
-                }
+                tokenStore.setSession({
+                    access_token: newAccessToken,
+                    refresh_token: refreshResponse.data.refresh_token,
+                    user: refreshResponse.data.user,
+                    tenant: refreshResponse.data.tenant,
+                });
 
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-                api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+
+                processQueue(null, newAccessToken);
 
                 return api(originalRequest);
 
             } catch (refreshError) {
                 console.error('Échec du renouvellement:', refreshError);
 
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
-                localStorage.removeItem('tenant');
+                tokenStore.clear();
+                delete api.defaults.headers.common.Authorization;
 
                 window.dispatchEvent(new Event('auth:logout'));
 
+                processQueue(refreshError);
+
                 return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
             }
         }
 
@@ -177,6 +204,10 @@ export const publicApi = axios.create({
     },
 });
 
+export const publicPlanService = {
+    getAll: () => api.get('/auth/plans'),
+};
+
 // ======================================================
 // SERVICE PUBLIC (catalogue, commandes, suivi)
 // ======================================================
@@ -223,41 +254,139 @@ export const notificationService = {
 };
 
 // ======================================================
-// TENANTS (SUPER_ADMIN)
-// ======================================================
-
-export const tenantService = {
-    getAll: () =>
-        api.get('/tenants/'),
-
-    getById: (id) =>
-        api.get(`/tenants/${id}`),
-
-    create: (data) =>
-        api.post('/tenants/', data),
-
-    update: (id, data) =>
-        api.put(`/tenants/${id}`, data),
-
-    suspend: (id) =>
-        api.post(`/tenants/${id}/suspend`),
-};
-
-// ======================================================
-// SUPER ADMIN
+// SUPER ADMIN AUTH
 // ======================================================
 
 export const superAdminService = {
-    getMe: () =>
-        api.get('/auth/super-admin/me'),
+  getMe: () =>
+    api.get('/auth/super-admin/me'),
 
-    updateMe: (data) =>
-        api.put('/auth/super-admin/me', data),
+  updateMe: (data) =>
+    api.put('/auth/super-admin/me', data),
+};
+
+// ======================================================
+// SUPER ADMIN TENANTS
+// ======================================================
+
+export const superAdminTenantService = {
+  getAll: (params) =>
+    api.get('/super-admin/tenants', { params }),
+
+  getById: (id) =>
+    api.get(`/super-admin/tenants/${id}`),
+
+  create: (data) =>
+    api.post('/tenants/', data),
+
+  update: (id, data) =>
+    api.put(`/tenants/${id}`, data),
+
+  suspend: (id) =>
+    api.post(`/super-admin/tenants/${id}/suspend`),
+
+  activate: (id) =>
+    api.post(`/super-admin/tenants/${id}/activate`),
+
+  reactivate: (id) =>
+    api.post(`/super-admin/tenants/${id}/reactivate`),
+
+  delete: (id) =>
+    api.post(`/super-admin/tenants/${id}/delete`),
+
+  extendSubscription: (id, days) =>
+    api.post(`/super-admin/tenants/${id}/subscription/extend`, { days }),
+
+  changeSubscription: (id, plan, days) =>
+    api.post(`/super-admin/tenants/${id}/subscription/change`, { plan, days }),
+};
+
+// ======================================================
+// SUPER ADMIN SUBSCRIPTIONS
+// ======================================================
+
+export const superAdminSubscriptionService = {
+  getAll: (params) =>
+    api.get('/super-admin/subscriptions', { params }),
+
+  getHistoriqueByTenant: (tenantId, params) =>
+    api.get(`/abonnements/historique/${tenantId}`, { params }),
+};
+
+// ======================================================
+// SUPER ADMIN DASHBOARD
+// ======================================================
+
+export const superAdminDashboardService = {
+  getStats: () =>
+    api.get('/super-admin/dashboard'),
+};
+
+// ======================================================
+// SUPER ADMIN AUDIT
+// ======================================================
+
+export const superAdminAuditService = {
+  getLogs: (params) =>
+    api.get('/super-admin/audit', { params }),
+};
+
+// ======================================================
+// SUPER ADMIN PLANS
+// ======================================================
+
+export const superAdminPlanService = {
+  getAll: () =>
+    api.get('/super-admin/plans'),
+
+  update: (code, data) =>
+    api.put('/super-admin/plans', { code, ...data }),
+};
+
+// ======================================================
+// SUPER ADMIN USERS
+// ======================================================
+
+export const superAdminUserService = {
+  getAll: (params) =>
+    api.get('/super-admin/users', { params }),
+
+  getById: (id) =>
+    api.get(`/super-admin/users/${id}`),
+
+  delete: (id) =>
+    api.delete(`/super-admin/users/${id}`),
+};
+
+// ======================================================
+// TENANTS (SUPER_ADMIN) — aliases pour compatibilite
+// ======================================================
+
+export const tenantService = {
+  getAll: (params) =>
+    api.get('/super-admin/tenants', { params }),
+
+  getById: (id) =>
+    api.get(`/super-admin/tenants/${id}`),
+
+  create: (data) =>
+    api.post('/tenants/', data),
+
+  update: (id, data) =>
+    api.put(`/tenants/${id}`, data),
+
+  suspend: (id) =>
+    api.post(`/super-admin/tenants/${id}/suspend`),
 };
 
 // ======================================================
 // AUTHENTIFICATION
 // ======================================================
+
+export const plansService = {
+    getPublicPlans: () =>
+        api.get('/auth/plans'),
+};
 
 export const authService = {
 
@@ -302,6 +431,7 @@ export const userService = {
 export const roleService = {
     getAll: (params) => api.get('/roles', { params }),
     getById: (id) => api.get(`/roles/${id}`),
+    getPresets: () => api.get('/roles/presets'),
     create: (data) => api.post('/roles', data),
     update: (id, data) => api.put(`/roles/${id}`, data),
     delete: (id) => api.delete(`/roles/${id}`),
@@ -522,6 +652,9 @@ export const subscriptionService = {
     getAll: () =>
         api.get('/abonnements/'),
 
+    getAllForSuperAdmin: () =>
+        api.get('/super-admin/subscriptions'),
+
     demander: (data) =>
         api.post('/abonnements/demander', data),
 
@@ -539,6 +672,9 @@ export const subscriptionService = {
 
     getHistoriqueByTenant: (tenantId) =>
         api.get(`/abonnements/historique/${tenantId}`),
+
+    getHistoriqueByTenantForSuperAdmin: (tenantId) =>
+        api.get(`/super-admin/tenants/${tenantId}/subscription/historique`),
 };
 
 // ======================================================

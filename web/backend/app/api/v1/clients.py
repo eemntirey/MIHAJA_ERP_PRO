@@ -1,10 +1,10 @@
 from flask_restx import Namespace, Resource, fields
 from app.services.client_service import ClientService
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 from app.security.plan_limits import check_plan_limits
 from app.security.permissions import permission_required
 from sqlalchemy.exc import IntegrityError
-from flask import request
+from flask import request, current_app
 from app import db
 
 ns = Namespace('clients', description='Gestion des clients')
@@ -55,7 +55,7 @@ client_model = ns.model('Client', {
 @ns.route('/')
 class ClientListResource(Resource):
     @ns.doc('list_clients')
-    @tenant_required
+    @tenant_required_readonly
     def get(self):
         """Liste tous les clients"""
         try:
@@ -66,7 +66,7 @@ class ClientListResource(Resource):
             return {'clients': [], 'total': 0}, 500
     
     @ns.doc('create_client')
-    @tenant_required
+    @tenant_required_readonly
     @check_plan_limits('clients')
     @permission_required('client.create')
     @ns.expect(client_model)
@@ -94,7 +94,7 @@ class ClientListResource(Resource):
 @ns.route('/<int:client_id>')
 class ClientResource(Resource):
     @ns.doc('get_client')
-    @tenant_required
+    @tenant_required_readonly
     def get(self, client_id):
         """Récupère un client par son ID"""
         client = ClientService.get_by_id(client_id)
@@ -103,7 +103,7 @@ class ClientResource(Resource):
         return client.to_dict(), 200
     
     @ns.doc('update_client')
-    @tenant_required
+    @tenant_required_readonly
     def put(self, client_id):
         """Met à jour un client"""
         from flask import request
@@ -114,7 +114,7 @@ class ClientResource(Resource):
         return client.to_dict(), 200
     
     @ns.doc('delete_client')
-    @tenant_required
+    @tenant_required_readonly
     def delete(self, client_id):
         """Supprime un client"""
         success = ClientService.delete(client_id)

@@ -1,16 +1,31 @@
 // src/pages/Users.jsx
 import React, { useState, useEffect } from 'react';
-import { userService, roleService } from '../services/api';
+import { userService, roleService, subscriptionService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import './Pages.css';
 
+const ROLE_LABELS = {
+  manager: 'Manager',
+  sales: 'Commercial',
+  stock: 'Stock',
+  accountant: 'Comptable',
+  user: 'Utilisateur',
+  rh: 'RH',
+};
+
+const EMPLOYEE_ROLES = ['user', 'sales', 'stock', 'accountant', 'rh', 'manager'];
+const isEmployeeRole = (role) => EMPLOYEE_ROLES.includes(role);
+
 const Users = () => {
+  const { user, hasPermission, hasRole } = useAuth();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [tenantSummary, setTenantSummary] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -25,6 +40,15 @@ const Users = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const canCreateUser = Boolean(
+    hasRole && (hasRole('super_admin') || hasRole('admin') || hasRole('manager'))
+  ) || (hasPermission && hasPermission('user.create'));
+
+  const isEmployeeLimitReached = () => {
+    if (!tenantSummary || !isEmployeeRole(formData.role)) return false;
+    if (tenantSummary.max_employees === -1) return false;
+    return (tenantSummary.employees_count ?? 0) >= (tenantSummary.max_employees ?? 0);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -54,10 +78,33 @@ const Users = () => {
     }
   };
 
+  const fetchTenantSummary = async () => {
+    try {
+      const response = await subscriptionService.getMonAbonnement();
+      setTenantSummary(response.data?.tenant || null);
+    } catch (err) {
+      console.error('Error fetching tenant summary:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    fetchTenantSummary();
   }, []);
+
+  useEffect(() => {
+    const handleUserUpdated = (e) => {
+      const updated = e.detail;
+      if (updated && updated.id) {
+        setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+      } else {
+        fetchUsers();
+      }
+    };
+    window.addEventListener('realtime:user:updated', handleUserUpdated);
+    return () => window.removeEventListener('realtime:user:updated', handleUserUpdated);
+  }, [fetchUsers]);
 
   useEffect(() => {
     fetchUsers();
@@ -110,12 +157,25 @@ const Users = () => {
     try {
       const data = { ...formData };
       if (!data.password) delete data.password;
+      if (EMPLOYEE_ROLES.includes(data.role) && tenantSummary) {
+        const remaining = (tenantSummary.max_employees === -1 ? Infinity : (tenantSummary.max_employees ?? 0)) - (tenantSummary.employees_count ?? 0);
+        if (remaining <= 0) {
+          toast.error('Limite d\'employés atteinte pour votre abonnement actuel.');
+          return;
+        }
+      }
       if (currentUser) {
-        await userService.update(currentUser.id, data);
-        toast.success('Utilisateur mis à jour');
+        const response = await userService.update(currentUser.id, data);
+        toast.success('Employé mis à jour');
+        if (response.data && response.data.id) {
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? response.data : u));
+        }
       } else {
-        await userService.create(data);
-        toast.success('Utilisateur créé');
+        const response = await userService.create(data);
+        toast.success('Employé créé');
+        if (response.data && response.data.id) {
+          setUsers(prev => [...prev, response.data]);
+        }
       }
       closeModal();
       fetchUsers();
@@ -126,10 +186,10 @@ const Users = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer cet utilisateur ?')) return;
+    if (!window.confirm('Supprimer cet employé ?')) return;
     try {
       await userService.delete(id);
-      toast.success('Utilisateur supprimé');
+      toast.success('Employé supprimé');
       fetchUsers();
     } catch (err) {
       const msg = err.response?.data?.message || 'Erreur lors de la suppression';
@@ -140,10 +200,12 @@ const Users = () => {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Utilisateurs</h1>
-        <button className="btn-primary" onClick={() => openModal()}>
-          Nouvel utilisateur
-        </button>
+        <h1>Employés</h1>
+        {canCreateUser && (
+          <button className="btn-primary" onClick={() => openModal()}>
+            Nouvel employé
+          </button>
+        )}
       </div>
 
       <div className="filter-controls">
@@ -193,15 +255,19 @@ const Users = () => {
                   <td>{u.nom}</td>
                   <td>{u.prenom}</td>
                   <td>{u.email}</td>
-                  <td>{u.role}</td>
+                  <td>{u.custom_role?.display_name || ROLE_LABELS[u.role] || u.role}</td>
                   <td>
                     <span className={`statut-badge ${u.statut === 'actif' ? 'statut-success' : 'statut-danger'}`}>
                       {u.statut}
                     </span>
                   </td>
                   <td>
-                    <button className="btn-small" onClick={() => openModal(u)}>Modifier</button>
-                    <button className="btn-small btn-danger" onClick={() => handleDelete(u.id)}>Supprimer</button>
+                    <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal(u)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
+                    </button>
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete(u.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -214,7 +280,7 @@ const Users = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{currentUser ? 'Modifier' : 'Nouvel'} utilisateur</h2>
+              <h2>{currentUser ? 'Modifier' : 'Nouvel'} employé</h2>
               <button onClick={closeModal} className="btn-close">×</button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -251,10 +317,18 @@ const Users = () => {
                   <div className="form-group">
                     <label>Rôle</label>
                     <select name="role" value={formData.role} onChange={handleChange}>
-                      <option value="user">User</option>
-                      <option value="super_admin">Super Admin</option>
-                      <option value="admin">Admin</option>
+                      <option value="user">Utilisateur</option>
+                      <option value="manager">Manager</option>
+                      <option value="sales">Commercial</option>
+                      <option value="stock">Stock</option>
+                      <option value="accountant">Comptable</option>
+                      <option value="rh">RH</option>
                     </select>
+                    {EMPLOYEE_ROLES.includes(formData.role) && tenantSummary && (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
+                        Employés restants : {(tenantSummary.max_employees === -1 ? 'Illimité' : ((tenantSummary.max_employees ?? 0) - (tenantSummary.employees_count ?? 0)))}
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Statut</label>
@@ -267,7 +341,7 @@ const Users = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-primary">Enregistrer</button>
+                <button type="submit" className="btn-primary" disabled={isEmployeeLimitReached()}>Enregistrer</button>
               </div>
             </form>
           </div>

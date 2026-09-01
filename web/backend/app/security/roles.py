@@ -6,6 +6,34 @@ from app.models.utilisateur import Utilisateur, Role
 from app.models.role_permission import RoleModel
 
 
+ROLE_HIERARCHY = {
+    Role.SUPER_ADMIN: 100,
+    Role.ADMIN: 80,
+    Role.MANAGER: 60,
+    Role.SALES: 40,
+    Role.STOCK: 40,
+    Role.ACCOUNTANT: 40,
+    Role.RH: 40,
+    Role.LIVREUR: 30,
+    Role.USER: 20,
+}
+
+
+def get_role_level(role_value):
+    normalized = normalize_role(role_value)
+    if normalized is None:
+        return 0
+    return ROLE_HIERARCHY.get(normalized, 0)
+
+
+def can_manage_role(creator_role, target_role):
+    creator_level = get_role_level(creator_role)
+    target_level = get_role_level(target_role)
+    if target_role == Role.SUPER_ADMIN:
+        return creator_level >= get_role_level(Role.SUPER_ADMIN)
+    return creator_level >= target_level
+
+
 def normalize_role(role_value):
     """Normalize role value for case-insensitive comparison.
     

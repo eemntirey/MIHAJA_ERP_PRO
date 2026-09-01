@@ -425,6 +425,19 @@ const Sales = () => {
     setShowEditModal(true);
   };
 
+  const handleDeleteAvoir = async (id) => {
+    if (!window.confirm('Voulez-vous supprimer cet avoir ?')) return;
+    try {
+      setSaleActionLoading(true);
+      await avoirService.delete(id);
+      toast.success('Avoir supprimé');
+      fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
+      toast.error(msg);
+    } finally { setSaleActionLoading(false); }
+  };
+
   const handleCreateDevis = async (e) => {
     e.preventDefault();
     try {
@@ -754,29 +767,6 @@ const Sales = () => {
               </tbody>
             </table>
           </div>
-          {viewBl && (
-            <div className="modal-overlay" onClick={() => setViewBl(null)}>
-              <div className="modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Détails du bon de livraison</h2>
-                  <button onClick={() => setViewBl(null)} className="btn-close">×</button>
-                </div>
-                <div className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group"><label>Référence</label><div>{viewBl.reference || 'N/A'}</div></div>
-                    <div className="form-group"><label>Client</label><div>{viewBl.client_nom || 'N/A'}</div></div>
-                    <div className="form-group"><label>Vente Réf</label><div>{viewBl.vente_reference || viewBl.vente_id || 'N/A'}</div></div>
-                    <div className="form-group"><label>Adresse de livraison</label><div>{viewBl.adresse_livraison || 'N/A'}</div></div>
-                    <div className="form-group"><label>Date de livraison</label><div>{formatDate(viewBl.date_livraison_prevue)}</div></div>
-                    <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewBl.statut).class}`}>{getStatutBadge(viewBl.statut).label}</span></div></div>
-                  </div>
-                  {viewBl.remarque && (
-                    <div className="form-group full-width"><label>Remarque</label><div>{viewBl.remarque}</div></div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -863,28 +853,6 @@ const Sales = () => {
               </tbody>
             </table>
           </div>
-          {viewAvoir && (
-            <div className="modal-overlay" onClick={() => setViewAvoir(null)}>
-              <div className="modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Détails de l'avoir</h2>
-                  <button onClick={() => setViewAvoir(null)} className="btn-close">×</button>
-                </div>
-                <div className="modal-form">
-                  <div className="form-grid">
-                    <div className="form-group"><label>Référence</label><div>{viewAvoir.reference || 'N/A'}</div></div>
-                    <div className="form-group"><label>Client</label><div>{viewAvoir.client_nom || 'N/A'}</div></div>
-                    <div className="form-group"><label>Montant HT</label><div>{formatCurrency(viewAvoir.montant_ht)}</div></div>
-                    <div className="form-group"><label>Montant TTC</label><div>{formatCurrency(viewAvoir.montant_ttc)}</div></div>
-                    <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewAvoir.statut).class}`}>{getStatutBadge(viewAvoir.statut).label}</span></div></div>
-                  </div>
-                  {viewAvoir.motif && (
-                    <div className="form-group full-width"><label>Motif</label><div>{viewAvoir.motif}</div></div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -964,6 +932,9 @@ const Sales = () => {
                           <button className="btn-small btn-view" title="Voir" onClick={() => handleViewAvoir(a)}>
                             <i className="ti ti-eye" />
                           </button>
+                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteAvoir(a.id)} disabled={saleActionLoading}>
+                            {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-trash" />}
+                          </button>
                         </td>
                       </tr>
                     );
@@ -971,6 +942,53 @@ const Sales = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {viewBl && (
+        <div className="modal-overlay" onClick={() => setViewBl(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Détails du bon de livraison</h2>
+              <button onClick={() => setViewBl(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-form">
+              <div className="form-grid">
+                <div className="form-group"><label>Référence</label><div>{viewBl.reference || 'N/A'}</div></div>
+                <div className="form-group"><label>Client</label><div>{viewBl.client_nom || 'N/A'}</div></div>
+                <div className="form-group"><label>Vente Réf</label><div>{viewBl.vente_reference || viewBl.vente_id || 'N/A'}</div></div>
+                <div className="form-group"><label>Adresse de livraison</label><div>{viewBl.adresse_livraison || 'N/A'}</div></div>
+                <div className="form-group"><label>Date de livraison</label><div>{formatDate(viewBl.date_livraison_prevue)}</div></div>
+                <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewBl.statut).class}`}>{getStatutBadge(viewBl.statut).label}</span></div></div>
+              </div>
+              {viewBl.remarque && (
+                <div className="form-group full-width"><label>Remarque</label><div>{viewBl.remarque}</div></div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewAvoir && (
+        <div className="modal-overlay" onClick={() => setViewAvoir(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Détails de l'avoir</h2>
+              <button onClick={() => setViewAvoir(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-form">
+              <div className="form-grid">
+                <div className="form-group"><label>Référence</label><div>{viewAvoir.reference || 'N/A'}</div></div>
+                <div className="form-group"><label>Client</label><div>{viewAvoir.client_nom || 'N/A'}</div></div>
+                <div className="form-group"><label>Montant HT</label><div>{formatCurrency(viewAvoir.montant_ht)}</div></div>
+                <div className="form-group"><label>Montant TTC</label><div>{formatCurrency(viewAvoir.montant_ttc)}</div></div>
+                <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewAvoir.statut).class}`}>{getStatutBadge(viewAvoir.statut).label}</span></div></div>
+              </div>
+              {viewAvoir.motif && (
+                <div className="form-group full-width"><label>Motif</label><div>{viewAvoir.motif}</div></div>
+              )}
+            </div>
           </div>
         </div>
       )}

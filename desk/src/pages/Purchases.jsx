@@ -7,7 +7,8 @@ export default function Purchases() {
     const [tab, setTab] = useState('commandes');
     const [commandes, setCommandes] = useState([]);
     const [receptions, setReceptions] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
 
     const [cmdForm, setCmdForm] = useState({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' });
     const [recForm, setRecForm] = useState({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
@@ -17,37 +18,68 @@ export default function Purchases() {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [c, r] = await Promise.all([commandeAchatService.getAll(), receptionService.getAll()]);
-            setCommandes(c.data.commandes || []);
-            setReceptions(r.data.receptions || []);
+            const [c, r] = await Promise.allSettled([commandeAchatService.getAll(), receptionService.getAll()]);
+            const failed = [c, r].filter(r => r.status === 'rejected');
+            if (failed.length > 0) {
+              const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
+              toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
+            }
+            setCommandes((c.status === 'fulfilled' ? c.value?.data?.commandes || c.value?.data || [] : []));
+            setReceptions((r.status === 'fulfilled' ? r.value?.data?.receptions || r.value?.data || [] : []));
         } catch (err) { toast.error('Erreur chargement'); }
         finally { setLoading(false); }
     };
 
     useEffect(() => { fetchAll(); }, []);
 
+    if (loading && commandes.length === 0 && receptions.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des achats...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleSubmitCmd = async (e) => {
         e.preventDefault();
+        setSubmitting(true);
         try {
             let lignes = [];
-            try { lignes = JSON.parse(cmdForm.lignes); } catch { toast.error('JSON invalide pour les lignes'); return; }
-            const data = { ...cmdForm, fournisseur_id: Number(cmdForm.fournisseur_id), total_ht: Number(cmdForm.total_ht) || 0, total_ttc: Number(cmdForm.total_ttc) || 0, lignes };
+            try { lignes = JSON.parse(cmdForm.lignes); } catch { toast.error('JSON invalide pour les lignes'); setSubmitting(false); return; }
+            const data = {
+                ...cmdForm,
+                fournisseur_id: cmdForm.fournisseur_id ? Number(cmdForm.fournisseur_id) : null,
+                total_ht: Number(cmdForm.total_ht) || 0,
+                total_ttc: Number(cmdForm.total_ttc) || 0,
+                lignes
+            };
             if (editingId) { await commandeAchatService.update(editingId, data); toast.success('Commande modifiée'); }
             else { await commandeAchatService.create(data); toast.success('Commande créée'); }
             setCmdForm({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' });
             setEditingId(null); fetchAll();
         } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
+        finally { setSubmitting(false); }
     };
 
     const handleSubmitRec = async (e) => {
         e.preventDefault();
+        setSubmitting(true);
         try {
-            const data = { ...recForm, commande_achat_id: Number(recForm.commande_achat_id), quantite_recue: Number(recForm.quantite_recue), quantite_commandee: Number(recForm.quantite_commandee) };
+            const data = {
+                ...recForm,
+                commande_achat_id: recForm.commande_achat_id ? Number(recForm.commande_achat_id) : null,
+                quantite_recue: Number(recForm.quantite_recue),
+                quantite_commandee: Number(recForm.quantite_commandee)
+            };
             await receptionService.create(data);
             toast.success('Réception créée');
             setRecForm({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
             fetchAll();
         } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
+        finally { setSubmitting(false); }
     };
 
     const handleEditCmd = (c) => {
@@ -131,13 +163,18 @@ export default function Purchases() {
                             <textarea value={cmdForm.lignes} onChange={e => setCmdForm({...cmdForm, lignes: e.target.value})} rows={2} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">{editingId ? 'Modifier' : 'Créer'}</button>
-                            {editingId && <button type="button" className="btn-secondary" onClick={() => { setEditingId(null); setCmdForm({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' }); }}>Annuler</button>}
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingId ? 'Modifier' : 'Créer')}</button>
+                            {editingId && <button type="button" className="btn-secondary" onClick={() => { setEditingId(null); setCmdForm({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' }); }} disabled={submitting}>Annuler</button>}
                         </div>
                     </form>
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Référence</th><th>Fournisseur</th><th>Total HT</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>{commandes.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune commande</td></tr> : commandes.map(c => <tr key={c.id}><td>{c.reference}</td><td>{c.fournisseur_nom}</td><td>{c.total_ht}</td><td><span className={`badge ${c.statut}`}>{c.statut}</span></td><td><button className="btn-small btn-edit" onClick={() => handleEditCmd(c)}>Modifier</button> <button className="btn-small btn-danger" onClick={() => handleDelete('commande', c.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{commandes.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune commande</td></tr> : commandes.map(c => <tr key={c.id}><td>{c.reference}</td><td>{c.fournisseur_nom}</td><td>{c.total_ht}</td><td><span className={`badge ${c.statut}`}>{c.statut}</span></td><td>                    <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditCmd(c)}>
+                      <i className="ti ti-edit" aria-hidden="true" />
+                    </button>
+                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('commande', c.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -170,12 +207,14 @@ export default function Purchases() {
                             <textarea value={recForm.remarque} onChange={e => setRecForm({...recForm, remarque: e.target.value})} />
                         </div>
                         <div className="form-group">
-                            <button type="submit" className="btn-primary">Créer</button>
+                            <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Créer'}</button>
                         </div>
                     </form>
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Référence</th><th>Commande</th><th>Qté reçue</th><th>Qté cmd</th><th>Actions</th></tr></thead>
-                        <tbody>{receptions.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune réception</td></tr> : receptions.map(r => <tr key={r.id}><td>{r.reference}</td><td>{r.commande_achat_id}</td><td>{r.quantite_recue}</td><td>{r.quantite_commandee}</td><td><button className="btn-small btn-danger" onClick={() => handleDelete('reception', r.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{receptions.length === 0 ? <tr><td colSpan="5" className="empty-row">Aucune réception</td></tr> : receptions.map(r => <tr key={r.id}><td>{r.reference}</td><td>{r.commande_achat_id}</td><td>{r.quantite_recue}</td><td>{r.quantite_commandee}</td><td>                    <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('reception', r.id)}>
+                      <i className="ti ti-trash" aria-hidden="true" />
+                    </button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}

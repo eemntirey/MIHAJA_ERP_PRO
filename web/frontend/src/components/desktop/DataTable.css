@@ -88,7 +88,8 @@ body.dt-resizing-cursor {
   padding: 6px 0;
   background: var(--erp-white);
   border: 1px solid var(--erp-line);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dropdown);
 }
 
 .dt-column-option {

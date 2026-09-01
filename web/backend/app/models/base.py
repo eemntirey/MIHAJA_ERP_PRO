@@ -1,6 +1,8 @@
 from decimal import Decimal
 from datetime import datetime, date
+from sqlalchemy.orm import validates
 from app import db
+
 
 class BaseModel(db.Model):
     __abstract__ = True
@@ -12,6 +14,17 @@ class BaseModel(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'))
     updated_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'))
+    
+    @validates('tenant_id')
+    def validate_tenant_id(self, key, value):
+        if value is None:
+            column = self.__table__.columns.get('tenant_id')
+            if column is not None and not column.nullable:
+                raise ValueError(
+                    f"tenant_id ne peut pas etre NULL sur {self.__tablename__} "
+                    f"(id={getattr(self, 'id', 'nouveau')})"
+                )
+        return value
     
     def save(self):
         db.session.add(self)

@@ -508,3 +508,133 @@ class TestIdempotence:
                 is_active=True,
             ).count()
             assert count == 1
+
+
+class TestPapiProductionTestModeGuard:
+    """Garantit que is_test_mode=True ne peut jamais passer en production."""
+
+    @pytest.fixture
+    def production_app(self):
+        from app import create_app, db as _db
+        import os
+        os.environ['PAPI_ENVIRONMENT'] = 'production'
+        os.environ['PAPI_ALLOW_TEST_MODE'] = '0'
+        os.environ.pop('PAPI_ALLOW_TEST_MODE_FORCE', None)
+        application = create_app()
+        application.config['TESTING'] = False
+        application.config['DEBUG'] = False
+        with application.app_context():
+            _db.drop_all()
+            _db.create_all()
+            from scripts.seed_roles import seed_roles
+            seed_roles()
+            yield application
+            _db.session.remove()
+            _db.drop_all()
+
+    @pytest.fixture
+    def production_env(self, monkeypatch, production_app):
+        monkeypatch.setitem(production_app.config, 'TESTING', False)
+        monkeypatch.setitem(production_app.config, 'DEBUG', False)
+        monkeypatch.setenv('PAPI_ENVIRONMENT', 'production')
+        monkeypatch.setenv('PAPI_ALLOW_TEST_MODE', '0')
+        monkeypatch.delenv('PAPI_ALLOW_TEST_MODE_FORCE', raising=False)
+
+    def _build_tenant_sub(self, app):
+        from datetime import datetime, timedelta
+        from app import db
+        from app.models.tenant import Tenant, StatutTenant
+        from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        from app.security.auth import hash_password
+
+        with app.app_context():
+            tenant = Tenant(
+                nom='Prod Tenant',
+                slug=f'prod-{uuid.uuid4().hex[:8]}',
+                statut=StatutTenant.ACTIF,
+                plan='starter',
+            )
+            db.session.add(tenant)
+            db.session.flush()
+
+            user = Utilisateur(
+                username=f'prod-{uuid.uuid4().hex[:8]}',
+                email=f'prod-{uuid.uuid4().hex[:8]}@example.com',
+                password_hash=hash_password('password123'),
+                role=Role.ADMIN,
+                tenant_id=tenant.id,
+                statut=StatutUtilisateur.ACTIF,
+            )
+            db.session.add(user)
+            db.session.flush()
+
+            sub = Abonnement(
+                tenant_id=tenant.id,
+                montant=15000.0,
+                devise='MGA',
+                date_debut=datetime.utcnow(),
+                date_fin=datetime.utcnow() + timedelta(days=30),
+                statut=StatutAbonnement.EN_ATTENTE,
+                plan='starter',
+            )
+            db.session.add(sub)
+            db.session.commit()
+
+            from flask_jwt_extended import create_access_token
+            token = create_access_token(
+                identity=user.id,
+                additional_claims={
+                    'role': user.role.value,
+                    'tenant_id': tenant.id,
+                },
+            )
+            return {
+                'Authorization': f'Bearer {token}',
+                'tenant_id': tenant.id,
+                'sub_id': sub.id,
+            }
+
+    def test_is_test_mode_ignored_in_production(self, production_env, production_app, monkeypatch):
+        headers = self._build_tenant_sub(production_app)
+        client = production_app.test_client()
+        captured = {}
+
+        class _CaptureClient:
+            def __init__(self, real):
+                self._real = real
+
+            def create_payment_link(self, payload):
+                captured['payload'] = payload
+                ref = payload.get('reference')
+                return {
+                    'paymentLink': 'https://pay.papi.mg/payment/abc',
+                    'paymentReference': ref,
+                    'notificationToken': 'tok',
+                }
+
+        import app.services.papi.client as client_module
+        monkeypatch.setattr(client_module.PapiClient, 'create_payment_link',
+                            lambda self, payload: _CaptureClient(None).create_payment_link(payload))
+
+        response = client.post(
+            f'/api/v1/papi/payments/subscription/{headers["sub_id"]}',
+            headers={'Authorization': headers['Authorization'], 'Content-Type': 'application/json'},
+            json={'payment_method': 'MVOLA', 'is_test_mode': True},
+        )
+
+        assert response.status_code == 200, response.get_json()
+        assert captured['payload']['isTestMode'] is False
+
+    def test_helper_returns_false_in_production(self, production_app, production_env):
+        from app.api.v1.papi import _resolve_is_test_mode
+        with production_app.app_context():
+            assert _resolve_is_test_mode({'is_test_mode': True}) is False
+            assert _resolve_is_test_mode({'is_test_mode': False}) is False
+            assert _resolve_is_test_mode({}) is False
+
+    def test_default_test_mode_disabled_when_no_opt_in(self, app):
+        from app.api.v1.papi import _resolve_is_test_mode
+        with app.app_context():
+            # Sandbox + TESTING mais sans PAPI_ALLOW_TEST_MODE => False
+            assert _resolve_is_test_mode({'is_test_mode': True}) is False

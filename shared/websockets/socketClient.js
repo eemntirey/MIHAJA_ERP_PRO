@@ -1,36 +1,38 @@
-// shared/websockets/socketClient.js
-// Client Socket.IO partagé pour web et desktop.
-// Nécessite le paquet npm: socket.io-client
+﻿// shared/websockets/socketClient.js
+// Client Socket.IO partagÃ© pour web et desktop.
+// NÃ©cessite le paquet npm: socket.io-client
 
 import { io } from 'socket.io-client';
+import { tokenStore } from '../storage/tokenStore';
 
 const SOCKET_URL =
   process.env.REACT_APP_SOCKET_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : '');
+  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
+    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+    : 'http://localhost:5000');
 
 let socket = null;
 const listeners = new Map();
 
 const getSocket = () => {
   if (!socket) {
+    const token = tokenStore.getAccessToken();
     socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+        upgrade: false,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,
       reconnectionDelayMax: 10000,
+      auth: token ? { token } : undefined,
     });
 
     socket.on('connect', () => {
-      console.log('[Socket] Connecté:', socket.id);
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null;
-      if (token) {
-        socket.emit('authenticate', { token });
-      }
+      console.log('[Socket] Connecte:', socket.id);
     });
 
     socket.on('disconnect', () => {
-      console.log('[Socket] Déconnecté');
+      console.log('[Socket] Deconnecte');
     });
 
     socket.on('connect_error', (err) => {

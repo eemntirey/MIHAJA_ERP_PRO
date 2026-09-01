@@ -3,10 +3,17 @@
 Source unique de vérité pour :
 - les limites (utilisateurs, admins, employés, stagiaires, produits, clients)
 - les modules accessibles par plan
+- les prix et durées
 
 Toute limite est dérivée de l'abonnement actif du tenant ; en l'absence
 d'abonnement (période d'essai), on retombe sur la configuration du plan
 associé au tenant.
+
+HIERARCHIE :
+- SUPER_ADMIN ≠ Tenant (le super admin est séparé des tenants, pas d'abonnement)
+- ADMIN = Employé du tenant (l'admin est le premier utilisateur du tenant)
+- Les plans s'appliquent au TENANT, pas au super admin
+- Les paiements d'abonnement vont au SUPER_ADMIN
 """
 
 # Règle absolue : peu importe le plan, le nombre d'administrateurs ne peut
@@ -37,46 +44,73 @@ _EXTENDED = _BASIC + ['stocks', 'documents']
 _ALL = _EXTENDED + ['comptabilite', 'livraison', 'ia', 'achats']
 
 # Limites par plan. -1 signifie "illimité".
+#
+# NB : `max_tenants` n'est PAS un plafond global du nombre de tenants hébergés
+# par la plateforme (un SaaS multi-locataire doit pouvoir en accueillir
+# autant que nécessaire). Il représente le nombre de filiales/sous-entreprises
+# qu'un tenant peut créer sous son propre compte. En l'absence de relation
+# parent->enfant entre tenants, la valeur est fixée à -1 (illimité) pour ne
+# jamais bloquer l'inscription d'un nouveau tenant.
+#
+# LOGIQUE DES PLANS :
+# - max_utilisateurs = nombre total d'employés que le tenant peut créer
+#   (le premier utilisateur est l'admin qui est aussi un employé)
+# - Gratuit : 1 employé (l'admin seul, ne peut pas créer d'autres employés)
+# - Starter : 3 employés (admin + 2 employés)
+# - Pro : 7 employés (admin + 6 employés), modules presque complets
+# - Enterprise : employés illimités, tous modules
 PLAN_CONFIG = {
     'gratuit': {
+        'label': 'Gratuit',
         'max_utilisateurs': 1,
         'max_produits': 10,
         'max_clients': 10,
         'max_admins': 1,
-        'max_employees': 5,
-        'max_interns': 2,
-        'max_tenants': 1,
+        'max_employees': 0,
+        'max_interns': 0,
+        'max_tenants': -1,
         'modules': _BASIC,
+        'prix': 0,
+        'duree_jours': -1,  # Illimité
     },
     'starter': {
+        'label': 'Starter',
         'max_utilisateurs': 3,
         'max_produits': 50,
         'max_clients': 100,
-        'max_admins': 2,
-        'max_employees': 20,
-        'max_interns': 5,
-        'max_tenants': 1,
+        'max_admins': 1,
+        'max_employees': 2,
+        'max_interns': 0,
+        'max_tenants': -1,
         'modules': _EXTENDED,
+        'prix': 5000,
+        'duree_jours': 30,
     },
     'pro': {
-        'max_utilisateurs': 10,
+        'label': 'Pro',
+        'max_utilisateurs': 7,
         'max_produits': 200,
         'max_clients': 1000,
-        'max_admins': 5,
-        'max_employees': 100,
-        'max_interns': 20,
-        'max_tenants': 2,
+        'max_admins': 1,
+        'max_employees': 6,
+        'max_interns': 0,
+        'max_tenants': -1,
         'modules': _ALL,
+        'prix': 15000,
+        'duree_jours': 30,
     },
     'enterprise': {
+        'label': 'Enterprise',
         'max_utilisateurs': -1,
         'max_produits': -1,
         'max_clients': -1,
-        'max_admins': 5,
+        'max_admins': 1,
         'max_employees': -1,
         'max_interns': -1,
-        'max_tenants': 5,
+        'max_tenants': -1,
         'modules': _ALL,
+        'prix': 25000,
+        'duree_jours': 30,
     },
 }
 
@@ -98,6 +132,18 @@ def get_plan_config(plan):
     if not plan:
         return PLAN_CONFIG[DEFAULT_PLAN]
     return PLAN_CONFIG.get(plan, PLAN_CONFIG[DEFAULT_PLAN])
+
+
+def get_plan_duration_days(plan):
+    """Retourne la durée en jours pour un plan. -1 signifie illimité."""
+    cfg = get_plan_config(plan)
+    return cfg.get('duree_jours', 30)
+
+
+def get_plan_price(plan):
+    """Retourne le prix pour un plan."""
+    cfg = get_plan_config(plan)
+    return cfg.get('prix', 0)
 
 
 def is_unlimited(value):
@@ -167,11 +213,9 @@ def count_active_tenants_for_plan(plan):
 def check_tenant_limit(plan):
     """Vérifie si la limite de tenants pour un plan est atteinte.
 
+    Aucune limite n'est appliquée : l'inscription d'un nouveau tenant est
+    toujours autorisée.
+
     Retourne un tuple (allowed, message).
     """
-    from app.models.tenant import Tenant
-    limit = get_tenant_limit(plan)
-    current = count_active_tenants_for_plan(plan)
-    if current >= limit:
-        return False, f'Limite de tenants atteinte pour le plan "{plan}" ({current}/{limit}).'
     return True, None

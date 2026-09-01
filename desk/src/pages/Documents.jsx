@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { api, modeleDocumentService, documentService } from '../services/api';
-import { authStorage } from '../../../shared/storage/authStorage';
+import api, { modeleDocumentService, documentService } from '../services/api';
+import { authStorage } from '../../shared/storage/authStorage';
+import './Documents.css';
 
 export default function Documents() {
     const [tab, setTab] = useState('documents');
@@ -48,7 +49,7 @@ export default function Documents() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const data = { ...modeleForm, est_actif: true };
+            const data = { ...modeleForm, is_active: true };
             if (editingId) { await modeleDocumentService.update(editingId, data); toast.success('Modèle modifié'); }
             else { await modeleDocumentService.create(data); toast.success('Modèle créé'); }
             setModeleForm({ nom: '', type_document: 'facture', contenu_modele: '', est_defaut: false, logo_url: '', mention_legales: '', conditions_generales: '' });
@@ -97,11 +98,11 @@ export default function Documents() {
     const getPdfUrl = (doc) => {
         if (doc.pdf_url) {
             if (doc.pdf_url.startsWith('http')) return doc.pdf_url;
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}${doc.pdf_url}`;
         }
         if (doc.contenu_pdf_path) {
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}/api/v1/documents/${doc.id}/pdf`;
         }
         return '#';
@@ -203,7 +204,7 @@ export default function Documents() {
                     </form>
                     <div className="table-container" style={{marginTop: 24}}>
                         <table className="data-table"><thead><tr><th>Nom</th><th>Type</th><th>Défaut</th><th>Actions</th></tr></thead>
-                        <tbody>{modeles.length === 0 ? <tr><td colSpan="4" className="text-muted" style={{textAlign: 'center'}}>Aucun modèle</td></tr> : modeles.map(m => <tr key={m.id}><td>{m.nom}</td><td>{typeLabels[m.type_document] || m.type_document}</td><td>{m.est_defaut ? 'Oui' : 'Non'}</td><td><button className="btn-small btn-edit" onClick={() => handleEditModele(m)} title="Modifier">&#9998;</button> <button className="btn-small btn-delete" onClick={() => handleDelete('modele', m.id)} title="Supprimer">&#10005;</button></td></tr>)}</tbody></table>
+                        <tbody>{modeles.map(m => <tr key={m.id}><td>{m.nom}</td><td>{typeLabels[m.type_document] || m.type_document}</td><td>{m.est_defaut ? 'Oui' : 'Non'}</td><td><button className="btn-small btn-edit" onClick={() => handleEditModele(m)} title="Modifier">&#9998;</button> <button className="btn-small btn-delete" onClick={() => handleDelete('modele', m.id)} title="Supprimer">&#10005;</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -283,6 +284,7 @@ export default function Documents() {
                     </div>
                 </div>
             )}
+
             {previewDoc && (
                 <div className="modal-overlay" onClick={closePreview}>
                     <div className="modal xlarge" onClick={(e) => e.stopPropagation()}>

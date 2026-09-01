@@ -1,10 +1,8 @@
-// src/pages/UserOrders.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/publicApi';
+import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Icon } from '../components/common/Icon';
 import './Pages.css';
 
 const getNotifKind = (notif) => {
@@ -76,7 +74,7 @@ const UserOrders = () => {
       <div className="orders-card">
         <form onSubmit={handleTrack} className="orders-track">
           <div className="orders-track__field">
-            <Icon name="search" className="orders-track__icon" />
+            <i className="ti ti-search orders-track__icon" aria-hidden="true" />
             <input
               type="text"
               placeholder="Suivre une commande par référence..."
@@ -85,7 +83,7 @@ const UserOrders = () => {
             />
           </div>
           <button type="submit" className="btn-primary orders-track__btn" disabled={searching}>
-            <Icon name="search" />
+            <i className="ti ti-search" aria-hidden="true" />
             {searching ? 'Recherche...' : 'Rechercher'}
           </button>
         </form>
@@ -93,7 +91,7 @@ const UserOrders = () => {
         {notifications.length === 0 ? (
           <div className="orders-empty">
             <span className="orders-empty__icon" aria-hidden="true">
-              <Icon name="bell-off" />
+              <i className="ti ti-bell-off" />
             </span>
             <p className="orders-empty__text">Aucune notification pour le moment.</p>
             <span className="orders-empty__hint">
@@ -110,14 +108,14 @@ const UserOrders = () => {
                     className={`orders-list__status orders-list__status--${type}`}
                     aria-hidden="true"
                   >
-                    <Icon
-                      name={
+                    <i
+                      className={`ti ${
                         type === 'success'
-                          ? 'circle-check'
+                          ? 'ti-circle-check'
                           : type === 'warning'
-                            ? 'alert-triangle'
-                            : 'bell'
-                      }
+                            ? 'ti-alert-triangle'
+                            : 'ti-bell'
+                      }`}
                     />
                   </span>
                   <div className="orders-list__body">

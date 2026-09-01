@@ -3,7 +3,6 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useCart } from '../contexts/CartContext';
-import { Icon } from '../components/common/Icon';
 import './Pages.css';
 
 const Cart = () => {
@@ -28,7 +27,7 @@ const Cart = () => {
         </div>
         <div className="card full-width" style={{ marginTop: '24px', textAlign: 'center', padding: '48px' }}>
           <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-            Aucun articles dans le panier. Découvrez nos produits publics.
+            Aucun article dans le panier. Découvrez nos produits publics.
           </p>
           <Link to="/" className="btn-primary">Découvrir le catalogue</Link>
         </div>
@@ -85,7 +84,7 @@ const Cart = () => {
                       value={qty}
                       onChange={(e) => updateQuantity(item, Math.max(1, parseInt(e.target.value, 10) || 1))}
                       className="qty-input"
-                      style={{ width: '60px', textAlign: 'center' }}
+                      style={{ width: '100%', maxWidth: '80px', textAlign: 'center' }}
                       aria-label={`Quantité de ${item.nom}`}
                     />
                   </td>
@@ -98,7 +97,7 @@ const Cart = () => {
                       onClick={() => removeItem(item)}
                       aria-label={`Retirer ${item.nom}`}
                     >
-                      <Icon name="x" />
+                      <i className="ti ti-x" aria-hidden="true" />
                     </button>
                   </td>
                 </tr>

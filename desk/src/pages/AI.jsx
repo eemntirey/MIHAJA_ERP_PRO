@@ -269,7 +269,7 @@ const AI = () => {
       }, 400);
     } catch (err) {
       console.error('Erreur assistant IA:', err);
-      const msg = err.response?.data?.error || 'Échec de la connexion à l\'assistant IA';
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Échec de la connexion à l\'assistant IA';
 
       const errorMessage = {
         id: Date.now() + 1,

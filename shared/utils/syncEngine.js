@@ -69,17 +69,18 @@ const memoryQueue = [];
 const getQueue = () => {
   try {
     const raw = localStorage.getItem(SYNC_QUEUE_KEY);
-    if (raw === null) return [];
+    if (raw === null) return memoryQueue.slice();
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed : memoryQueue.slice();
   } catch {
-    return [];
+    return memoryQueue.slice();
   }
 };
 
 const persistQueue = (queue) => {
   try {
     localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+    memoryQueue.length = 0;
   } catch {
     memoryQueue.length = 0;
     memoryQueue.push(...queue);

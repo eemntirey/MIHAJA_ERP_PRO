@@ -20,5 +20,7 @@ from . import roles
 from . import permissions
 from . import users
 from . import papi
+from . import admin_devices
+from . import notifications
 
 # Note: test namespace is imported conditionally in app/__init__.py during API registration

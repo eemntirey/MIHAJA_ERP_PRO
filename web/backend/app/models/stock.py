@@ -13,8 +13,13 @@ class TypeMouvement(enum.Enum):
 
 class MouvementStock(BaseTenantModel):
     __tablename__ = 'mouvements_stock'
-    
-    produit_id = db.Column(db.Integer, db.ForeignKey('produits.id'), nullable=False, index=True)
+
+    produit_id = db.Column(
+        db.Integer,
+        db.ForeignKey('produits.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
     type_mouvement = db.Column(
         Enum(
             TypeMouvement,

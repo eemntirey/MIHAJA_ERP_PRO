@@ -3,6 +3,7 @@
 # Blueprint monté sur /api/v1/desk. Compatible mobile/tiers (JWT Bearer standard).
 
 import json
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
@@ -20,6 +21,13 @@ def _user_id():
 
 def _tenant_id():
     return get_current_tenant_id()
+
+
+def _get_validated_json():
+    data = request.get_json()
+    if data is None:
+        return jsonify({'message': 'Corps de requête JSON invalide ou manquant.'}), 400
+    return data
 
 
 def _record_event(entity, module, payload):
@@ -49,6 +57,25 @@ def _record_event(entity, module, payload):
         return None
 
 
+def _parse_json_body():
+    """Lecture stricte du JSON : 400 si corps absent ou invalide.
+    """
+    if not request.is_json:
+        if not request.content_length:
+            return None, (jsonify({"message": "Corps de requête JSON requis"}), 400)
+        return None, (jsonify({"message": "Content-Type application/json requis"}), 415)
+    try:
+        data = request.get_json(silent=False)
+    except Exception:
+        current_app.logger.warning("JSON invalide reçu: %s", request.data[:200])
+        return None, (jsonify({"message": "JSON invalide"}), 400)
+    if data is None:
+        return None, (jsonify({"message": "JSON invalide"}), 400)
+    if not isinstance(data, dict):
+        return None, (jsonify({"message": "Le corps doit être un objet JSON"}), 400)
+    return data, None
+
+
 # ============================ FAVORIS =====================================
 @desk_bp.route("/favorites", methods=["GET"])
 @jwt_required()
@@ -64,7 +91,9 @@ def list_favorites():
 @desk_bp.route("/favorites", methods=["POST"])
 @jwt_required()
 def upsert_favorite():
-    data = request.get_json(force=True, silent=True) or {}
+    data, err = _parse_json_body()
+    if err:
+        return err
     path = data.get("path")
     if not path:
         return jsonify({"message": "path requis"}), 400
@@ -83,7 +112,12 @@ def upsert_favorite():
             data=data.get("data"),
         )
         db.session.add(fav)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.warning("Erreur enregistrement favori: %s", exc)
+        return jsonify({"message": "Erreur lors de l'enregistrement du favori"}), 500
     _record_event("favorite", None, fav.to_public())
     return jsonify({"favorites": [r.to_public() for r in
                DeskFavorite.query.filter_by(user_id=_user_id(), is_active=True).all()]}), 200
@@ -97,7 +131,12 @@ def delete_favorite(key):
     ).first()
     if fav:
         fav.is_active = False
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.warning("Erreur suppression favori: %s", exc)
+            return jsonify({"message": "Erreur lors de la suppression du favori"}), 500
         _record_event("favorite", None, {"id": fav.id, "path": key, "deleted": True})
     return jsonify({"favorites": [r.to_public() for r in
                DeskFavorite.query.filter_by(user_id=_user_id(), is_active=True).all()]}), 200
@@ -116,7 +155,9 @@ def list_filters(module):
 @desk_bp.route("/filters/<module>", methods=["POST"])
 @jwt_required()
 def upsert_filter(module):
-    data = request.get_json(force=True, silent=True) or {}
+    data, err = _parse_json_body()
+    if err:
+        return err
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"message": "name requis"}), 400
@@ -148,7 +189,12 @@ def upsert_filter(module):
         DeskFilterPreset.query.filter_by(
             user_id=_user_id(), module=module, is_active=True
         ).filter(DeskFilterPreset.id != preset.id).update({"is_default": False})
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.warning("Erreur enregistrement filtre: %s", exc)
+        return jsonify({"message": "Erreur lors de l'enregistrement du filtre"}), 500
     _record_event("filter", module, preset.to_public())
     rows = DeskFilterPreset.query.filter_by(
         user_id=_user_id(), module=module, is_active=True
@@ -164,7 +210,12 @@ def delete_filter(module, fid):
     ).first()
     if preset:
         preset.is_active = False
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.warning("Erreur suppression filtre: %s", exc)
+            return jsonify({"message": "Erreur lors de la suppression du filtre"}), 500
         _record_event("filter", module, {"id": fid, "deleted": True})
     rows = DeskFilterPreset.query.filter_by(
         user_id=_user_id(), module=module, is_active=True
@@ -187,7 +238,9 @@ def get_columns(module):
 @desk_bp.route("/columns/<module>", methods=["POST"])
 @jwt_required()
 def save_columns(module):
-    data = request.get_json(force=True, silent=True) or {}
+    data, err = _parse_json_body()
+    if err:
+        return err
     cfg = DeskColumnConfig.query.filter_by(
         user_id=_user_id(), module=module, is_active=True
     ).first()
@@ -207,7 +260,12 @@ def save_columns(module):
             version=data.get("version", 1),
         )
         db.session.add(cfg)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.warning("Erreur enregistrement colonnes: %s", exc)
+        return jsonify({"message": "Erreur lors de l'enregistrement des colonnes"}), 500
     _record_event("column", module, cfg.to_public())
     return jsonify(cfg.to_public()), 200
 
@@ -220,7 +278,12 @@ def reset_columns(module):
     ).first()
     if cfg:
         cfg.is_active = False
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.warning("Erreur reset colonnes: %s", exc)
+            return jsonify({"message": "Erreur lors de la réinitialisation des colonnes"}), 500
     empty = {"widths": {}, "hidden": [], "sort": []}
     _record_event("column", module, {"module": module, "config": empty})
     return jsonify({"module": module, "config": empty}), 200
@@ -238,58 +301,65 @@ def sync_mutations():
 @jwt_required()
 def sync_push():
     """Applique un batch de mutations (provenant de la file hors-ligne d'un client)."""
-    body = request.get_json(force=True, silent=True) or {}
+    body, err = _parse_json_body()
+    if err:
+        return err
     mutations = body.get("mutations", [])
     revision = None
-    for m in mutations:
-        entity = m.get("entity")
-        op = m.get("op")
-        p = m.get("payload", {})
-        if entity == "favorite":
-            if op == "delete":
-                fav = DeskFavorite.query.filter_by(user_id=_user_id(), path=p.get("key"), is_active=True).first()
-                if fav:
-                    fav.is_active = False
-            else:
-                fav = DeskFavorite.query.filter_by(user_id=_user_id(), path=p.get("path"), is_active=True).first()
-                if fav:
-                    fav.label = p.get("label", fav.label); fav.data = p.get("data", fav.data)
+    try:
+        for m in mutations:
+            entity = m.get("entity")
+            op = m.get("op")
+            p = m.get("payload", {})
+            if entity == "favorite":
+                if op == "delete":
+                    fav = DeskFavorite.query.filter_by(user_id=_user_id(), path=p.get("key"), is_active=True).first()
+                    if fav:
+                        fav.is_active = False
                 else:
-                    fav = DeskFavorite(tenant_id=_tenant_id(), user_id=_user_id(),
-                                       path=p.get("path"), label=p.get("label"), data=p.get("data"))
-                    db.session.add(fav)
-        elif entity == "column":
-            mod = p.get("module")
-            if op == "delete":
-                c = DeskColumnConfig.query.filter_by(user_id=_user_id(), module=mod, is_active=True).first()
-                if c: c.is_active = False
-            else:
-                c = DeskColumnConfig.query.filter_by(user_id=_user_id(), module=mod, is_active=True).first()
-                cfg = p.get("config", {})
-                if c:
-                    c.widths = cfg.get("widths", c.widths); c.hidden = cfg.get("hidden", c.hidden); c.sort = cfg.get("sort", c.sort)
+                    fav = DeskFavorite.query.filter_by(user_id=_user_id(), path=p.get("path"), is_active=True).first()
+                    if fav:
+                        fav.label = p.get("label", fav.label); fav.data = p.get("data", fav.data)
+                    else:
+                        fav = DeskFavorite(tenant_id=_tenant_id(), user_id=_user_id(),
+                                           path=p.get("path"), label=p.get("label"), data=p.get("data"))
+                        db.session.add(fav)
+            elif entity == "column":
+                mod = p.get("module")
+                if op == "delete":
+                    c = DeskColumnConfig.query.filter_by(user_id=_user_id(), module=mod, is_active=True).first()
+                    if c: c.is_active = False
                 else:
-                    c = DeskColumnConfig(tenant_id=_tenant_id(), user_id=_user_id(), module=mod,
-                                         widths=cfg.get("widths", {}), hidden=cfg.get("hidden", []), sort=cfg.get("sort", []))
-                    db.session.add(c)
-        elif entity == "filter":
-            mod = p.get("module")
-            if op == "delete":
-                fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, id=p.get("id"), is_active=True).first()
-                if fp: fp.is_active = False
-            else:
-                fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, id=p.get("id"), is_active=True).first()
-                if not fp:
-                    fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, name=p.get("name"), is_active=True).first()
-                if fp:
-                    fp.name = p.get("name", fp.name); fp.filters = p.get("filters", fp.filters)
+                    c = DeskColumnConfig.query.filter_by(user_id=_user_id(), module=mod, is_active=True).first()
+                    cfg = p.get("config", {})
+                    if c:
+                        c.widths = cfg.get("widths", c.widths); c.hidden = cfg.get("hidden", c.hidden); c.sort = cfg.get("sort", c.sort)
+                    else:
+                        c = DeskColumnConfig(tenant_id=_tenant_id(), user_id=_user_id(), module=mod,
+                                             widths=cfg.get("widths", {}), hidden=cfg.get("hidden", []), sort=cfg.get("sort", []))
+                        db.session.add(c)
+            elif entity == "filter":
+                mod = p.get("module")
+                if op == "delete":
+                    fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, id=p.get("id"), is_active=True).first()
+                    if fp: fp.is_active = False
                 else:
-                    fp = DeskFilterPreset(tenant_id=_tenant_id(), user_id=_user_id(), module=mod,
-                                           name=p.get("name", "Sans nom"), filters=p.get("filters", []))
-                    db.session.add(fp)
+                    fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, id=p.get("id"), is_active=True).first()
+                    if not fp:
+                        fp = DeskFilterPreset.query.filter_by(user_id=_user_id(), module=mod, name=p.get("name"), is_active=True).first()
+                    if fp:
+                        fp.name = p.get("name", fp.name); fp.filters = p.get("filters", fp.filters)
+                    else:
+                        fp = DeskFilterPreset(tenant_id=_tenant_id(), user_id=_user_id(), module=mod,
+                                               name=p.get("name", "Sans nom"), filters=p.get("filters", []))
+                        db.session.add(fp)
         db.session.commit()
-        revision = _record_event(entity, p.get("module"), p)
-    return jsonify({"revision": revision or 0, "applied": len(mutations)}), 200
+        revision = _record_event("sync", None, {"mutations": len(mutations)})
+        return jsonify({"revision": revision or 0, "applied": len(mutations)}), 200
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.warning("Erreur sync push: %s", exc)
+        return jsonify({"message": "Erreur lors de la synchronisation"}), 500
 
 
 @desk_bp.route("/sync/pull", methods=["GET"])
@@ -333,7 +403,6 @@ def events_poll():
     q = SyncEvent.query.filter_by(user_id=_user_id())
     if since:
         # compare with created_at epoch ms
-        from datetime import datetime, timezone
         dt = datetime.fromtimestamp(since / 1000.0, tz=timezone.utc)
         q = q.filter(SyncEvent.created_at > dt)
     events = q.order_by(SyncEvent.id.asc()).limit(200).all()

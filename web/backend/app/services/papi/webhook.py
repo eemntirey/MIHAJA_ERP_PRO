@@ -1,4 +1,6 @@
 
+import hashlib
+import hmac
 import logging
 from datetime import datetime
 
@@ -12,15 +14,44 @@ from app.services.papi.errors import (
     PapiDuplicateWebhookError,
     PapiInvalidStatusError,
 )
+from app.config.settings import Config
 
 logger = logging.getLogger(__name__)
 
 
-def process_papi_webhook(payload: dict) -> dict:
+def _verify_webhook_signature(payload: dict, headers) -> bool:
+    secret = getattr(Config, 'PAPI_WEBHOOK_SECRET', None)
+    if not secret:
+        logger.warning('PAPI_WEBHOOK_SECRET not configured; signature verification skipped')
+        return True
+    signature_headers = [
+        headers.get('X-Papi-Signature'),
+        headers.get('X-Hub-Signature-256'),
+        headers.get('X-Webhook-Signature'),
+        headers.get('X-Papi-Hub-Signature'),
+    ]
+    received_sig = next((s for s in signature_headers if s), None)
+    if not received_sig:
+        logger.error('Papi webhook missing signature header')
+        return False
+    raw_body = str(payload)
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        raw_body.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected, received_sig):
+        logger.error('Papi webhook signature mismatch')
+        return False
+    return True
+
+
+def process_papi_webhook(payload: dict, headers=None) -> dict:
     """Process an incoming Papi webhook notification.
 
     Args:
         payload: The JSON body from Papi webhook.
+        headers: HTTP headers for signature verification.
 
     Returns:
         Dict with processing result.
@@ -30,6 +61,12 @@ def process_papi_webhook(payload: dict) -> dict:
         PapiDuplicateWebhookError: If event already processed.
         PapiInvalidStatusError: If status is unexpected.
     """
+    if headers is None:
+        headers = {}
+
+    if not _verify_webhook_signature(payload, headers):
+        raise PapiWebhookError('Signature du webhook invalide')
+
     payment_reference = payload.get('paymentReference')
     notification_token = payload.get('notificationToken')
     payment_status = payload.get('paymentStatus')
@@ -84,6 +121,12 @@ def process_papi_webhook(payload: dict) -> dict:
             notification_token,
         )
         raise PapiWebhookError('Token de notification invalide')
+
+    if paiement.tenant_id:
+        tenant = db.session.get(Tenant, paiement.tenant_id)
+        if not tenant or not tenant.is_active or tenant.statut in (StatutTenant.INACTIF, StatutTenant.BLOQUE):
+            logger.error('Papi webhook for inactive tenant: tenant_id=%s', paiement.tenant_id)
+            raise PapiWebhookError('Tenant inactif ou bloque')
 
     if amount is not None and float(amount) != float(paiement.montant or 0):
         logger.error(

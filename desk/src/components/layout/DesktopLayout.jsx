@@ -128,6 +128,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
   return (
     <div
       className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}`}
+      data-theme={darkMode ? 'dark' : undefined}
       data-ai={isAIView ? 'true' : undefined}
     >
       {IS_ELECTRON && <TitleBar />}

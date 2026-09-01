@@ -6,6 +6,7 @@ from app.models.tenant import Tenant, StatutTenant
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.audit_log import AuditLog, TypeActionAudit
+from app.models.admin_device import AdminDevice, StatutDevice
 from app.security.auth import hash_password
 
 
@@ -77,12 +78,11 @@ class TestUsersApiTenantIsolation:
         assert r.status_code == 200, r.get_json()
         users = r.get_json()['users']
         usernames = {u['username'] for u in users}
-        # Seuls les utilisateurs du tenant A (et l'admin) sont visibles
-        assert 'admin_a' in usernames
+        # Seuls les employes du tenant A sont visibles (pas les admins)
         assert 'user_a' in usernames
-        # Pas de fuite cross-tenant ni de super admin global
-        assert 'user_b' not in usernames
+        assert 'admin_a' not in usernames
         assert 'super' not in usernames
+        assert 'user_b' not in usernames
 
     def test_admin_tenant_ne_peut_pas_lire_user_autre_tenant(self, app):
         _make_context()
@@ -114,7 +114,7 @@ class TestUsersApiTenantIsolation:
                               'password': 'Pass123!', 'role': 'super_admin', 'statut': 'actif'})
         assert r.status_code == 403, r.get_json()
 
-    def test_super_admin_voit_tous_les_utilisateurs(self, app):
+    def test_super_admin_ne_voit_que_les_admins(self, app):
         _make_context()
         client = app.test_client()
         headers = _login(client, 'super', 'Super123!')
@@ -123,7 +123,24 @@ class TestUsersApiTenantIsolation:
         assert r.status_code == 200, r.get_json()
         users = r.get_json()['users']
         usernames = {u['username'] for u in users}
-        assert {'admin_a', 'super', 'user_a', 'user_b'} <= usernames
+        assert 'admin_a' in usernames
+        assert 'super' in usernames
+        assert 'user_a' not in usernames
+        assert 'user_b' not in usernames
+
+    def test_admin_tenant_ne_voit_que_ses_employes(self, app):
+        _make_context()
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        r = client.get('/api/v1/users', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        users = r.get_json()['users']
+        usernames = {u['username'] for u in users}
+        assert 'user_a' in usernames
+        assert 'admin_a' not in usernames
+        assert 'super' not in usernames
+        assert 'user_b' not in usernames
 
     def test_roles_accessibles_par_admin_tenant(self, app):
         # Le module utilisateur charge aussi la liste des rôles pour les filtres/formulaires
@@ -249,3 +266,135 @@ class TestUsersApiSecurity:
                               'password': 'Pass123!', 'tenant_id': ta.id})
         assert r.status_code == 201, r.get_json()
         assert r.get_json()['tenant_id'] == ta.id
+
+    def test_delete_user_cascade_admin_devices(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        device = AdminDevice(user_id=user_a.id, device_id='dev-1', device_name='Phone', statut=StatutDevice.ACTIVE)
+        db.session.add(device)
+        db.session.commit()
+
+        r = client.delete(f'/api/v1/users/{user_a.id}', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+        assert Utilisateur.query.get(user_a.id).is_active is False
+        assert AdminDevice.query.get(device.id).is_active is False
+
+    def test_delete_tenant_principal_admin_clears_reference(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        ta.admin_principal_id = admin_a.id
+        db.session.add(ta)
+        db.session.commit()
+
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        r = client.delete(f'/api/v1/users/{admin_a.id}', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+        assert Tenant.query.get(ta.id).admin_principal_id is None
+
+
+class TestSuperAdminTenantDeletion:
+    def test_delete_tenant_cascades_to_users_and_devices(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        device = AdminDevice(user_id=user_a.id, device_id='dev-1', device_name='Phone', statut=StatutDevice.ACTIVE)
+        db.session.add(device)
+        db.session.commit()
+
+        ta_id = ta.id
+        user_a_id = user_a.id
+        admin_a_id = admin_a.id
+        device_id = device.id
+
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.delete(f'/api/v1/super-admin/tenants/{ta_id}', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+        db.session.expunge_all()
+        assert Tenant.query.filter_by(id=ta_id).first() is None
+        assert Utilisateur.query.filter_by(id=user_a_id).first() is None
+        assert Utilisateur.query.filter_by(id=admin_a_id).first() is None
+        assert AdminDevice.query.filter_by(id=device_id).first() is None
+
+    def test_delete_tenant_clears_admin_principal(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        ta.admin_principal_id = admin_a.id
+        db.session.add(ta)
+        db.session.commit()
+
+        ta_id = ta.id
+
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.delete(f'/api/v1/super-admin/tenants/{ta_id}', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+        db.session.expunge_all()
+        assert Tenant.query.filter_by(id=ta_id).first() is None
+
+    def test_delete_tenant_updates_list_count(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        tb = Tenant.query.filter_by(slug='tenant-b').first()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.delete(f'/api/v1/super-admin/tenants/{ta.id}', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+        r = client.get('/api/v1/super-admin/tenants', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        data = r.get_json()
+        assert data['total'] == 1
+        assert len(data['tenants']) == 1
+        assert data['tenants'][0]['id'] == tb.id
+
+
+class TestSuperAdminUsersList:
+    def test_super_admin_can_list_all_users(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.get('/api/v1/super-admin/users?role=all', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        data = r.get_json()
+        assert 'users' in data
+        assert 'total' in data
+        assert 'pages' in data
+        assert data['total'] == 4
+
+    def test_super_admin_users_filter_by_role_admins(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.get('/api/v1/super-admin/users?role=admins', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        data = r.get_json()
+        assert data['total'] == 2
+        roles = {u['role'] for u in data['users']}
+        assert roles == {'admin', 'super_admin'}
+
+    def test_super_admin_users_filter_by_role_all(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.get('/api/v1/super-admin/users?role=all', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        data = r.get_json()
+        assert data['total'] == 4
+
+    def test_tenant_admin_cannot_access_super_admin_users(self, app):
+        ta, admin_a, super_admin, user_a, user_b = _make_context()
+        client = app.test_client()
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+
+        r = client.get('/api/v1/super-admin/users', headers=headers)
+        assert r.status_code == 403, r.get_json()

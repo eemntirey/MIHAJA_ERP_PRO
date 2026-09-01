@@ -3,10 +3,14 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { tenantService, subscriptionService } from '../services/api';
 import { VILLES_MADAGASCAR } from '../constants/erpConstants';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './SuperAdmin.css';
 import './Pages.css';
 
 const SuperAdmin = () => {
+  const { hasRole } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('tenants');
   const [tenants, setTenants] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -18,6 +22,12 @@ const SuperAdmin = () => {
   const [editingTenant, setEditingTenant] = useState(null);
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const [subFilter, setSubFilter] = useState('');
+
+  useEffect(() => {
+    if (!hasRole('SUPER_ADMIN')) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [hasRole, navigate]);
 
   const [formData, setFormData] = useState({
     nom: '',
@@ -47,7 +57,7 @@ const SuperAdmin = () => {
   const fetchSubscriptions = async () => {
     try {
       setSubLoading(true);
-      const response = await subscriptionService.getAll();
+      const response = await subscriptionService.getAllForSuperAdmin();
       setSubscriptions(response.data?.abonnements || response.data?.subscriptions || response.data || []);
     } catch (err) {
       console.error('Error fetching subscriptions:', err);
@@ -78,6 +88,19 @@ const SuperAdmin = () => {
   useEffect(() => {
     fetchTenants();
   }, []);
+
+  useEffect(() => {
+    const handleTenantUpdated = (e) => {
+      const updated = e.detail;
+      if (updated && updated.id) {
+        setTenants(prev => prev.map(t => t.id === updated.id ? updated : t));
+      } else {
+        fetchTenants();
+      }
+    };
+    window.addEventListener('realtime:tenant:updated', handleTenantUpdated);
+    return () => window.removeEventListener('realtime:tenant:updated', handleTenantUpdated);
+  }, [fetchTenants]);
 
   useEffect(() => {
     if (activeTab === 'subscriptions') {
@@ -129,11 +152,17 @@ const SuperAdmin = () => {
     e.preventDefault();
     try {
       if (editingTenant) {
-        await tenantService.update(editingTenant.id, formData);
+        const response = await tenantService.update(editingTenant.id, formData);
         toast.success('Tenant mis à jour');
+        if (response.data && response.data.id) {
+          setTenants(prev => prev.map(t => t.id === editingTenant.id ? response.data : t));
+        }
       } else {
-        await tenantService.create(formData);
+        const response = await tenantService.create(formData);
         toast.success('Tenant créé');
+        if (response.data && response.data.id) {
+          setTenants(prev => [...prev, response.data]);
+        }
       }
       closeModal();
       fetchTenants();
@@ -149,6 +178,7 @@ const SuperAdmin = () => {
     try {
       await tenantService.suspend(id);
       toast.success('Tenant suspendu');
+      setTenants(prev => prev.map(t => t.id === id ? { ...t, statut: 'inactif' } : t));
       fetchTenants();
     } catch (err) {
       console.error('Error suspending tenant:', err);

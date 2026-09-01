@@ -1,7 +1,8 @@
 from functools import wraps
 from flask import request, g
 from app.models.tenant import Tenant, StatutTenant
-from app.models.utilisateur import Utilisateur, Role
+from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur, StatutAdmin
+from app.models.admin_device import AdminDevice, StatutDevice
 from app import db
 from sqlalchemy import event
 import logging
@@ -132,7 +133,7 @@ def tenant_required(fn):
         tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Tenant introuvable'}, 401
-        if not tenant.is_active:
+        if not tenant.is_active or tenant.statut in (StatutTenant.INACTIF, StatutTenant.BLOQUE):
             return {'message': 'Tenant inactif'}, 401
 
         if not utilisateur:
@@ -154,13 +155,58 @@ def tenant_required(fn):
                 if tenant.statut != StatutTenant.EN_ESSAI:
                     return {'message': 'Abonnement requis'}, 403
         
+        if utilisateur.role == Role.ADMIN:
+            if utilisateur.admin_statut is not None and utilisateur.admin_statut != StatutAdmin.ACTIVE:
+                return {'message': 'Administrateur suspendu ou revoque'}, 403
+
+            has_any_device = AdminDevice.query.filter_by(user_id=utilisateur.id).first() is not None
+            if not has_any_device:
+                pass
+            else:
+                if not utilisateur.device_id:
+                    return {'message': 'Appareil non enregistre'}, 403
+                device = AdminDevice.query.filter_by(
+                    user_id=utilisateur.id,
+                    device_id=utilisateur.device_id,
+                    statut=StatutDevice.ACTIVE
+                ).first()
+                if not device:
+                    return {'message': 'Appareil non autorise'}, 403
+                # Mise a jour last_seen sans commit immediat : le commit
+                # sera declenche par la transaction en cours, ce qui
+                # elimine une requete par appel authentifie.
+                device.last_seen = datetime.utcnow()
+        
         g.current_tenant = tenant
         g.current_tenant_id = tenant_id
         g.current_user = utilisateur
-        
+
         return fn(*args, **kwargs)
-    
+
     return wrapper
+
+
+READONLY_METHODS = {'POST', 'PUT', 'PATCH', 'DELETE'}
+
+
+def super_admin_readonly(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        from flask_jwt_extended import get_jwt
+        from app.security.roles import is_super_admin
+
+        claims = get_jwt() or {}
+        role = claims.get('role')
+
+        if is_super_admin(role):
+            if request.method in READONLY_METHODS:
+                return {'message': 'Acces en lecture seule pour le super administrateur'}, 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def tenant_required_readonly(fn):
+    return tenant_required(super_admin_readonly(fn))
 
 
 def tenant_admin_required(fn):

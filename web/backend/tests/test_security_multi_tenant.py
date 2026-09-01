@@ -26,6 +26,8 @@ from app.models.notification import Notification
 from app.models.password_reset_token import PasswordResetToken
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.security.auth import hash_password
+from app.models.admin_device import AdminDevice, StatutDevice
+from app.models.utilisateur import Role, StatutUtilisateur, StatutAdmin
 
 
 @pytest.fixture(autouse=True)
@@ -75,15 +77,35 @@ def _make_context():
             username='admin_a', email='admin@a.mg',
             password_hash=hash_password('Admin123!'), role=Role.ADMIN,
             statut=StatutUtilisateur.ACTIF, tenant_id=ta.id,
+            admin_statut=StatutAdmin.ACTIVE,
         )
         db.session.add(admin_a)
+        db.session.flush()
+        device_a = AdminDevice(
+            user_id=admin_a.id,
+            device_id='device-a-123',
+            device_name='Device A',
+            statut=StatutDevice.ACTIVE,
+        )
+        db.session.add(device_a)
+        admin_a.device_id = 'device-a-123'
     if not admin_b:
         admin_b = Utilisateur(
             username='admin_b', email='admin@b.mg',
             password_hash=hash_password('Admin123!'), role=Role.ADMIN,
             statut=StatutUtilisateur.ACTIF, tenant_id=tb.id,
+            admin_statut=StatutAdmin.ACTIVE,
         )
         db.session.add(admin_b)
+        db.session.flush()
+        device_b = AdminDevice(
+            user_id=admin_b.id,
+            device_id='device-b-456',
+            device_name='Device B',
+            statut=StatutDevice.ACTIVE,
+        )
+        db.session.add(device_b)
+        admin_b.device_id = 'device-b-456'
     if not super_admin:
         super_admin = Utilisateur(
             username='super', email='super@x.mg',
@@ -95,10 +117,12 @@ def _make_context():
     return ta, tb, admin_a, admin_b, super_admin
 
 
-def _login(client, identifier, password, tenant_slug=None):
+def _login(client, identifier, password, tenant_slug=None, device_id=None):
     payload = {'username': identifier, 'password': password}
     if tenant_slug:
         payload['tenant_slug'] = tenant_slug
+    if device_id:
+        payload['device_id'] = device_id
     r = client.post('/api/v1/auth/login', json=payload)
     assert r.status_code == 200, r.get_json()
     return {'Authorization': 'Bearer ' + r.get_json()['access_token']}
@@ -115,7 +139,7 @@ class TestSecurityMultiTenancy:
     def test_jwt_contains_tenant_claims(self, app):
         _make_context()
         client = app.test_client()
-        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
         r = client.get('/api/v1/auth/me', headers=headers)
         assert r.status_code == 200
         data = r.get_json()
@@ -145,8 +169,8 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_produits_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
-        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b', device_id='device-b-456')
 
         with app.app_context():
             p_a = Produit(nom='Produit A', reference='PA', tenant_id=ta.id, prix_achat_ht=10, prix_vente_ht=15)
@@ -167,8 +191,8 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_clients_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
-        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b', device_id='device-b-456')
 
         with app.app_context():
             c_b = Client(code='CLI-B', nom='Client B', tenant_id=tb.id)
@@ -188,8 +212,8 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_fournisseurs_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
-        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b', device_id='device-b-456')
 
         with app.app_context():
             f_b = Fournisseur(code='FOU-B', raison_sociale='Fournisseur B', tenant_id=tb.id)
@@ -209,8 +233,8 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_ventes_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
-        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b', device_id='device-b-456')
 
         with app.app_context():
             c_a = Client(code='CLI-A', nom='Client A', tenant_id=ta.id)
@@ -234,7 +258,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_factures_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             c_b = Client(code='CLI-B', nom='Client B', tenant_id=tb.id)
@@ -260,7 +284,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_paiements_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             c_b = Client(code='CLI-B', nom='Client B', tenant_id=tb.id)
@@ -289,7 +313,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_employes_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             e_b = Employe(nom='Employe B', prenom='B', matricule='EMP-B', tenant_id=tb.id, salaire_base=1000)
@@ -309,7 +333,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_comptes_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             c_b = CompteComptable(numero='401B', nom='Compte B', type_compte='passif', tenant_id=tb.id)
@@ -324,12 +348,12 @@ class TestSecurityMultiTenancy:
         assert r.status_code == 404, r.get_json()
 
         r = client.delete(f'/api/v1/comptes/{cid_b}', headers=headers_a)
-        assert r.status_code == 404, r.get_json()
+        assert r.status_code == 403, r.get_json()
 
     def test_cross_tenant_ecritures_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             c_a = CompteComptable(numero='401A', nom='Compte A', type_compte='passif', tenant_id=ta.id)
@@ -348,12 +372,12 @@ class TestSecurityMultiTenancy:
         assert r.status_code == 404, r.get_json()
 
         r = client.delete(f'/api/v1/ecritures/{eid_b}', headers=headers_a)
-        assert r.status_code == 404, r.get_json()
+        assert r.status_code == 403, r.get_json()
 
     def test_cross_tenant_tresorerie_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             t_b = Tresorerie(tenant_id=tb.id, montant=100, libelle='Tresorerie B', type_operation='entree', date=datetime.utcnow())
@@ -368,12 +392,12 @@ class TestSecurityMultiTenancy:
         assert r.status_code == 404, r.get_json()
 
         r = client.delete(f'/api/v1/tresorerie/{tid_b}', headers=headers_a)
-        assert r.status_code == 404, r.get_json()
+        assert r.status_code == 403, r.get_json()
 
     def test_cross_tenant_commandes_achat_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             f_b = Fournisseur(code='FOU-B', raison_sociale='Fournisseur B', tenant_id=tb.id)
@@ -396,7 +420,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_livraisons_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             l_b = Livraison(tenant_id=tb.id, statut='en_attente', adresse_livraison='Addr B')
@@ -416,7 +440,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_documents_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             md_b = ModeleDocument(nom='Modele B', type_document='facture', contenu_modele='<html></html>', tenant_id=tb.id)
@@ -436,7 +460,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_notifications_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             n_b = Notification(title='Notif B', tenant_id=tb.id)
@@ -453,7 +477,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_list_no_leak(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             p_a = Produit(nom='Produit A', reference='PA', tenant_id=ta.id, prix_achat_ht=10, prix_vente_ht=15)
@@ -471,7 +495,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_stocks_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             p_b = Produit(nom='Produit B', reference='PB', tenant_id=tb.id, prix_achat_ht=20, prix_vente_ht=30, quantite_stock=5, seuil_alerte=10)
@@ -500,8 +524,8 @@ class TestSecurityMultiTenancy:
     def test_dashboard_tenant_scoped(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
-        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+        headers_b = _login(client, 'admin_b', 'Admin123!', 'tenant-b', device_id='device-b-456')
 
         with app.app_context():
             c_a = Client(code='CLI-A', nom='Client A', tenant_id=ta.id, est_actif=True)
@@ -549,7 +573,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_ventes_list_no_leak(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             c_a = Client(code='CLI-A', nom='Client A', tenant_id=ta.id)
@@ -571,7 +595,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_commandes_fournisseurs_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             f_b = Fournisseur(code='FOU-B', raison_sociale='Fournisseur B', tenant_id=tb.id)
@@ -588,7 +612,7 @@ class TestSecurityMultiTenancy:
     def test_cross_tenant_factures_fournisseurs_denied(self, app):
         ta, tb, admin_a, admin_b, _ = _make_context()
         client = app.test_client()
-        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             f_b = Fournisseur(code='FOU-B', raison_sociale='Fournisseur B', tenant_id=tb.id)
@@ -605,7 +629,7 @@ class TestSecurityMultiTenancy:
     def test_create_without_tenant_id_is_rejected(self, app):
         _make_context()
         client = app.test_client()
-        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         with app.app_context():
             from app.services.client_service import ClientService
@@ -615,7 +639,7 @@ class TestSecurityMultiTenancy:
     def test_create_with_valid_tenant_id_succeeds(self, app):
         ta, _, admin_a, _, _ = _make_context()
         client = app.test_client()
-        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
+        headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
 
         r = client.post('/api/v1/clients', json={
             'code': 'CLI-OK',
@@ -647,3 +671,122 @@ class TestSecurityMultiTenancy:
             client.get('/api/v1/auth/login', json={'username': 'x', 'password': 'y'})
 
         assert any('Impossible de résoudre le tenant' in record.getMessage() for record in caplog.records)
+
+    def test_super_admin_readonly_cannot_create_vente(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        r = client.post('/api/v1/ventes', json={
+            'client_id': 1,
+            'date': '2024-01-01',
+            'lignes': []
+        }, headers=headers_super)
+        assert r.status_code == 403, r.get_json()
+        assert 'lecture seule' in r.get_json()['message'].lower()
+
+    def test_super_admin_readonly_cannot_update_produit(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        with app.app_context():
+            p = Produit(nom='Produit A', reference='PA', tenant_id=ta.id, prix_achat_ht=10, prix_vente_ht=15)
+            db.session.add(p)
+            db.session.commit()
+            pid = p.id
+
+        r = client.put(f'/api/v1/produits/{pid}', json={'nom': 'Hacked'}, headers=headers_super)
+        assert r.status_code == 403, r.get_json()
+
+    def test_super_admin_readonly_cannot_delete_client(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        with app.app_context():
+            c = Client(code='CLI-A', nom='Client A', tenant_id=ta.id)
+            db.session.add(c)
+            db.session.commit()
+            cid = c.id
+
+        r = client.delete(f'/api/v1/clients/{cid}', headers=headers_super)
+        assert r.status_code == 403, r.get_json()
+
+    def test_super_admin_readonly_can_read_cross_tenant_ventes(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        with app.app_context():
+            c_b = Client(code='CLI-B', nom='Client B', tenant_id=tb.id)
+            db.session.add(c_b)
+            db.session.flush()
+            v_b = Vente(client_id=c_b.id, tenant_id=tb.id, total_ht=100, total_ttc=120, reference='VB')
+            db.session.add(v_b)
+            db.session.commit()
+            vid_b = v_b.id
+
+        r = client.get(f'/api/v1/ventes/{vid_b}', headers=headers_super)
+        assert r.status_code == 200, r.get_json()
+        assert r.get_json()['reference'] == 'VB'
+
+    def test_super_admin_can_list_all_employes(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        with app.app_context():
+            e_a = Employe(nom='Employe A', prenom='A', matricule='EMP-A', tenant_id=ta.id, salaire_base=1000)
+            e_b = Employe(nom='Employe B', prenom='B', matricule='EMP-B', tenant_id=tb.id, salaire_base=2000)
+            db.session.add_all([e_a, e_b])
+            db.session.commit()
+
+        r = client.get('/api/v1/super-admin/employes', headers=headers_super)
+        assert r.status_code == 200, r.get_json()
+        data = r.get_json()
+        assert data['total'] == 2
+        matricules = {e['matricule'] for e in data['employes']}
+        assert 'EMP-A' in matricules
+        assert 'EMP-B' in matricules
+
+    def test_super_admin_can_get_employe_from_other_tenant(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+
+        with app.app_context():
+            e_b = Employe(nom='Employe B', prenom='B', matricule='EMP-B', tenant_id=tb.id, salaire_base=2000)
+            db.session.add(e_b)
+            db.session.commit()
+            eid_b = e_b.id
+
+        r = client.get(f'/api/v1/super-admin/employes/{eid_b}', headers=headers_super)
+        assert r.status_code == 200, r.get_json()
+        assert r.get_json()['matricule'] == 'EMP-B'
+
+    def test_super_admin_can_delete_employe_from_tenant(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_super = _login(client, 'super', 'Super123!')
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+
+        with app.app_context():
+            e_b = Employe(nom='Employe B', prenom='B', matricule='EMP-B', tenant_id=tb.id, salaire_base=2000)
+            db.session.add(e_b)
+            db.session.commit()
+            eid_b = e_b.id
+
+        r = client.delete(f'/api/v1/super-admin/employes/{eid_b}', headers=headers_super)
+        assert r.status_code == 200, r.get_json()
+
+        r = client.get(f'/api/v1/employes/{eid_b}', headers=headers_a)
+        assert r.status_code == 404
+
+    def test_tenant_cannot_access_super_admin_employes(self, app):
+        ta, tb, admin_a, admin_b, super_admin = _make_context()
+        client = app.test_client()
+        headers_a = _login(client, 'admin_a', 'Admin123!', 'tenant-a', device_id='device-a-123')
+
+        r = client.get('/api/v1/super-admin/employes', headers=headers_a)
+        assert r.status_code == 403, r.get_json()

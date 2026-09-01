@@ -1,3 +1,5 @@
+import os
+
 from flask import request, current_app
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
@@ -9,7 +11,11 @@ from app.services.papi.payment import (
     create_subscription_payment,
     create_subscription_offline_payment,
     PAPER_METHODS,
+    ELECTRONIC_METHODS,
+    METHOD_ALIASES,
+    normalize_payment_method,
 )
+from app.config.settings import Config
 from app.services.papi.webhook import process_papi_webhook
 from app.services.papi.errors import (
     PapiError,
@@ -22,33 +28,51 @@ from app.services.papi.errors import (
 
 ns = Namespace('papi', description='Intégration Papi (paiements en ligne et hors ligne)')
 
-# Alias d'entrée acceptés (frontend) -> valeurs canoniques backend
-METHOD_ALIASES = {
-    'mvola': 'MVOLA',
-    'orange_money': 'ORANGE_MONEY',
-    'orange money': 'ORANGE_MONEY',
-    'airtel_money': 'ARTEL_MONEY',
-    'airtel money': 'ARTEL_MONEY',
-    'bred': 'BRED',
-    'especes': 'ESPECES',
-    'espèces': 'ESPECES',
-    'cash': 'ESPECES',
-    'virement': 'VIREMENT',
-    'bank_transfer': 'VIREMENT',
-    'cheque': 'CHEQUE',
-    'chèque': 'CHEQUE',
-    'check': 'CHEQUE',
-}
-
-ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'ARTEL_MONEY', 'BRED')
 VALID_METHODS = ELECTRONIC_METHODS + PAPER_METHODS
 
+PRODUCTION_ENVIRONMENTS = {'production', 'prod', 'live'}
+ALLOW_TEST_MODE_KEY = 'PAPI_ALLOW_TEST_MODE'
 
-def _normalize_payment_method(payment_method):
-    raw = (payment_method or '').strip()
-    if not raw:
-        return None
-    return METHOD_ALIASES.get(raw.lower(), raw.upper())
+
+def _is_production_environment():
+    env = (Config.PAPI_ENVIRONMENT or '').lower()
+    flask_env = (os.getenv('FLASK_ENV') or '').lower()
+    debug = current_app.config.get('DEBUG', False)
+    testing = current_app.config.get('TESTING', False)
+    if testing:
+        return False
+    if debug and flask_env not in ('production', 'prod'):
+        return False
+    if env in PRODUCTION_ENVIRONMENTS:
+        return True
+    if flask_env in ('production', 'prod'):
+        return True
+    return False
+
+
+def _resolve_is_test_mode(data):
+    """Determine is_test_mode.
+
+    Production rule: never honor client-supplied ``is_test_mode``. Even if
+    the gateway is configured against a sandbox, real payments must go
+    through ``isTestMode=false`` in production.
+    """
+    if _is_production_environment():
+        return False
+
+    testing = current_app.config.get('TESTING', False)
+    env_value = str(os.getenv(ALLOW_TEST_MODE_KEY, '')).lower()
+    if testing:
+        # In test runs default to "client choice allowed" so existing
+        # integration tests keep working.
+        if env_value in ('0', 'false', 'no'):
+            return False
+        return bool(data.get('is_test_mode', False))
+
+    if env_value not in ('1', 'true', 'yes'):
+        return False
+
+    return bool(data.get('is_test_mode', False))
 
 
 def _get_tenant_id_from_jwt():
@@ -66,8 +90,8 @@ class CreatePapiPayment(Resource):
             return {'message': 'Aucun tenant associe'}, 401
 
         data = request.get_json() or {}
-        payment_method = _normalize_payment_method(data.get('payment_method', 'MVOLA'))
-        is_test_mode = data.get('is_test_mode', True)
+        payment_method = normalize_payment_method(data.get('payment_method', 'MVOLA'))
+        is_test_mode = _resolve_is_test_mode(data)
 
         if not payment_method or payment_method not in VALID_METHODS:
             return {
@@ -161,7 +185,7 @@ class PapiWebhook(Resource):
         )
 
         try:
-            result = process_papi_webhook(payload)
+            result = process_papi_webhook(payload, headers=dict(request.headers))
             status_code = 200
             if result.get('status') == 'already_processed':
                 status_code = 200

@@ -5,9 +5,10 @@
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { authService, subscriptionService } from '../services/api';
+import api, { authService, subscriptionService } from '../services/api';
 import { authStorage, AUTH_KEYS } from '../storage/authStorage';
 import { runMigration } from '../utils/migrateLocalStorage';
+import { getDeviceId } from '../utils/deviceId';
 
 export const AuthContext = createContext();
 
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [subscription, setSubscription] = useState(null);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
     useEffect(() => {
         const handleForcedLogout = () => {
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             setTenant(null);
             setIsAuthenticated(false);
             setSubscription(null);
+            setSubscriptionLoading(false);
         };
 
         window.addEventListener('auth:logout', handleForcedLogout);
@@ -60,18 +63,22 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
 
                 if (subscriptionData) {
                     setSubscription(subscriptionData);
+                } else if (fetchSubscriptionOnInit) {
+                    setSubscriptionLoading(true);
                 }
             } catch (error) {
                 authStorage.clear();
                 setUser(null);
                 setTenant(null);
                 setSubscription(null);
+                setSubscriptionLoading(false);
                 setIsAuthenticated(false);
             }
         } else {
             setUser(null);
             setTenant(null);
             setSubscription(null);
+            setSubscriptionLoading(false);
             setIsAuthenticated(false);
         }
 
@@ -94,11 +101,15 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             return '/super-admin';
         }
 
+        if (role === 'livreur') {
+            return '/delivery';
+        }
+
         if (['admin', 'manager', 'sales', 'stock', 'accountant'].includes(role) || hasTenant) {
             return '/dashboard';
         }
 
-        if (role === 'user') {
+        if (role === 'user' && !hasTenant) {
             return '/';
         }
 
@@ -128,9 +139,8 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
 
             setUser(userData);
             setIsAuthenticated(true);
-
-            if (fetchSubscriptionOnInit && (tenantData || userData?.tenant_id)) {
-                await fetchSubscriptionStatus();
+            if (userData?.tenant_id || userData?.tenant?.id) {
+                setSubscriptionLoading(true);
             }
 
             toast.success('Compte créé avec succès !');
@@ -192,12 +202,11 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             setUser(userData);
             setTenant(tenantData || null);
             setIsAuthenticated(true);
+            if (userData?.tenant_id || userData?.tenant?.id) {
+                setSubscriptionLoading(true);
+            }
 
             const redirectPath = getRedirectPath(userData);
-
-            if (fetchSubscriptionOnInit && (tenantData || userData?.tenant_id)) {
-                await fetchSubscriptionStatus();
-            }
 
             toast.success('Connexion réussie !');
 
@@ -245,53 +254,74 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
 
         authStorage.clear();
 
+        delete api.defaults.headers.common.Authorization;
+
         setUser(null);
         setTenant(null);
         setSubscription(null);
+        setSubscriptionLoading(false);
         setIsAuthenticated(false);
+
+        window.dispatchEvent(new Event('auth:logout'));
 
         toast.info('Déconnexion réussie');
     };
 
     const fetchSubscriptionStatus = useCallback(async () => {
-        try {
-            const response = await subscriptionService.getMonAbonnement();
-            const sub = response.data?.abonnement || null;
-            console.log('[AuthContext] fetchSubscriptionStatus', sub);
-            setSubscription(sub);
-            if (sub) {
-                authStorage.setSubscription(sub);
-            } else {
-                authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
-            }
-        } catch (err) {
-            console.error('[AuthContext] fetchSubscriptionStatus error', err);
+        if (fetchSubscriptionStatus._inflight) {
+            return fetchSubscriptionStatus._inflight;
+        }
+        const inflight = (async () => {
+            try {
+                const response = await subscriptionService.getMonAbonnement();
+                const sub = response.data?.abonnement || null;
+                console.log('[AuthContext] fetchSubscriptionStatus', sub);
+                setSubscription(sub);
+                if (sub) {
+                    authStorage.setSubscription(sub);
+                } else {
+                    authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
+                }
+            } catch (err) {
+                const status = err.response?.status;
+                // Ne pas déconnecter sur erreur serveur (500), garder l'abonnement existant
+                if (status && status >= 500) {
+                    console.warn('[AuthContext] fetchSubscriptionStatus server error, keeping cached subscription:', status);
+                    return;
+                }
+                console.error('[AuthContext] fetchSubscriptionStatus error', err);
             setSubscription(null);
             authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
         }
-    }, []);
+    })();
+    fetchSubscriptionStatus._inflight = inflight;
+    try {
+        await inflight;
+    } finally {
+        fetchSubscriptionStatus._inflight = null;
+        setSubscriptionLoading(false);
+    }
+}, []);
 
     useEffect(() => {
-        if (isAuthenticated && fetchSubscriptionOnInit) {
-            fetchSubscriptionStatus();
+        if (isAuthenticated && fetchSubscriptionOnInit && (user?.tenant_id || user?.tenant?.id)) {
+            const t = setTimeout(() => {
+                fetchSubscriptionStatus();
+            }, 50);
+            return () => clearTimeout(t);
         }
-    }, [isAuthenticated, fetchSubscriptionStatus, fetchSubscriptionOnInit]);
+    }, [isAuthenticated, fetchSubscriptionStatus, fetchSubscriptionOnInit, user]);
 
     const getAllowedModules = () => {
         if (!subscription) {
-            console.log('[AuthContext] getAllowedModules -> null (no subscription)');
             return null;
         }
         if (Array.isArray(subscription.modules)) {
-            console.log('[AuthContext] getAllowedModules -> array', subscription.modules);
             return subscription.modules;
         }
         if (typeof subscription.modules === 'string') {
-            const mods = subscription.modules.split(',').map(m => m.trim()).filter(Boolean);
-            console.log('[AuthContext] getAllowedModules -> string', mods);
-            return mods;
+            return subscription.modules.split(',').map(m => m.trim()).filter(Boolean);
         }
-        console.log('[AuthContext] getAllowedModules -> null (no modules field)');
         return null;
     };
 
@@ -320,6 +350,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         isAuthenticated,
         subscription,
         setSubscription,
+        subscriptionLoading,
         login,
         register,
         logout,

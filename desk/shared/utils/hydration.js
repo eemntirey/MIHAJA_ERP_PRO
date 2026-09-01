@@ -39,7 +39,7 @@ export async function hydrateApp(options = {}) {
   try {
     const backendState = await HYDRATION_ENDPOINTS.favorites();
     if (backendState && backendState.favorites) {
-      const localFavorites = favoriteService.getAllSync?.() || [];
+      const localFavorites = favoriteService.getAll?.() || [];
       const backendFavorites = backendState.favorites || [];
 
       const merged = mergeFavorites(localFavorites, backendFavorites);

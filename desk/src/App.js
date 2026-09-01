@@ -1,20 +1,25 @@
 // src/App.js
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './contexts/AuthContext';
-import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from '../../shared/contexts/SyncContext';
+import { useRealtimeSync } from '../../shared/hooks/useRealtimeSync';
 import { DesktopProvider } from './contexts/DesktopContext';
 import { CartProvider } from './contexts/CartContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { authStorage } from '../../shared/storage/authStorage';
 
 // Layout
 import DesktopLayout from './components/layout/DesktopLayout';
 import LandingLayout from './components/landing/LandingLayout';
+
+// Error boundary (évite l'écran blanc en cas d'erreur React)
+import ErrorBoundary from './components/common/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages publiques
 const Catalogue = React.lazy(() => import('./pages/Catalogue'));
@@ -157,27 +162,37 @@ const RequireRole = ({ children, role }) => {
 };
 
 const App = () => {
+  useRealtimeSync();
+  const { logout } = useAuth();
   // Gestion centralisée du thème : synchronise la classe `.dark` sur <html>,
   // persiste dans localStorage et met à jour le meta theme-color.
   const [darkMode, toggleDarkMode] = useTheme();
+  const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
-      authStorage.clear();
+      await logout();
     } catch {
       // ignore
     }
-    // HashRouter : naviguer via hash évite le rechargement complet en Electron (file://)
     window.location.hash = '/login';
   };
 
+  useEffect(() => {
+    const handler = (e) => {
+      setPlanLimitModal({ open: true, message: e.detail?.message || 'Limite du plan atteinte' });
+    };
+    window.addEventListener('plan-limit-reached', handler);
+    return () => window.removeEventListener('plan-limit-reached', handler);
+  }, []);
 
   return (
-    <SyncProvider>
-      <AuthProvider>
+    <ErrorBoundary>
+      <SyncProvider>
         <DesktopProvider>
-          <CartProvider>
-            <Routes>
+          <NotificationProvider>
+            <CartProvider>
+              <Routes>
                {/* Pages publiques (vitrine) avec LandingLayout */}
               <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
                   <Route path="/" element={<Navigate to="/catalogue" replace />} />
@@ -186,7 +201,7 @@ const App = () => {
                  <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
                  <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
                  <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
-               </Route>
+                </Route>
 
               {/* Authentification */}
               <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
@@ -208,53 +223,84 @@ const App = () => {
                  </ProtectedRoute>
                )}
              >
-               <Route path="dashboard" element={<PageSuspense><Dashboard /></PageSuspense>} />
-               <Route path="products" element={<PageSuspense><Products /></PageSuspense>} />
-               <Route path="clients" element={<PageSuspense><Clients /></PageSuspense>} />
-               <Route path="sales" element={<PageSuspense><Sales /></PageSuspense>} />
-               <Route path="invoices" element={<PageSuspense><Invoices /></PageSuspense>} />
-               <Route path="payments" element={<PageSuspense><Payments /></PageSuspense>} />
-               <Route path="inventory" element={<PageSuspense><Inventory /></PageSuspense>} />
-               <Route path="suppliers" element={<PageSuspense><Suppliers /></PageSuspense>} />
-               <Route path="purchases" element={<PageSuspense><Purchases /></PageSuspense>} />
-               <Route path="delivery" element={<PageSuspense><Delivery /></PageSuspense>} />
-               <Route path="hr" element={<PageSuspense><HR /></PageSuspense>} />
-               <Route path="accounting" element={<PageSuspense><Accounting /></PageSuspense>} />
-               <Route path="documents" element={<PageSuspense><Documents /></PageSuspense>} />
-               <Route path="ai" element={<PageSuspense><AI /></PageSuspense>} />
-               <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
-               <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
-               <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
-               <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
-               <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
-               <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
+                <Route path="dashboard" element={<PageSuspense><Dashboard /></PageSuspense>} />
+                <Route path="products" element={<PageSuspense><Products /></PageSuspense>} />
+                <Route path="clients" element={<PageSuspense><Clients /></PageSuspense>} />
+                <Route path="sales" element={<PageSuspense><Sales /></PageSuspense>} />
+                <Route path="invoices" element={<PageSuspense><Invoices /></PageSuspense>} />
+                <Route path="payments" element={<PageSuspense><Payments /></PageSuspense>} />
+                <Route path="inventory" element={<PageSuspense><Inventory /></PageSuspense>} />
+                <Route path="suppliers" element={<PageSuspense><Suppliers /></PageSuspense>} />
+                <Route path="purchases" element={<PageSuspense><Purchases /></PageSuspense>} />
+                <Route path="delivery" element={<PageSuspense><Delivery /></PageSuspense>} />
+                <Route path="hr" element={<PageSuspense><HR /></PageSuspense>} />
+                <Route path="accounting" element={<PageSuspense><Accounting /></PageSuspense>} />
+                <Route path="documents" element={<PageSuspense><Documents /></PageSuspense>} />
+                <Route path="ai" element={<PageSuspense><AI /></PageSuspense>} />
+                <Route path="subscription" element={<PageSuspense><Subscription /></PageSuspense>} />
+                <Route path="super-admin" element={<PageSuspense><SuperAdmin /></PageSuspense>} />
+                <Route path="super-admin/profile" element={<PageSuspense><SuperAdminProfile /></PageSuspense>} />
+                <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
+                <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
+                <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
 
-               {/* Boutique connectée (utilisateurs simples + autres rôles) */}
-               <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
-               <Route path="checkout" element={<PageSuspense><Checkout /></PageSuspense>} />
-               <Route path="order-tracking/:ref" element={<PageSuspense><OrderTracking /></PageSuspense>} />
-               <Route path="mes-commandes" element={<PageSuspense><UserOrders /></PageSuspense>} />
-             </Route>
+                {/* Boutique connectée (utilisateurs simples + autres rôles) */}
+                <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
+                <Route path="checkout" element={<PageSuspense><Checkout /></PageSuspense>} />
+                <Route path="order-tracking/:ref" element={<PageSuspense><OrderTracking /></PageSuspense>} />
+                <Route path="mes-commandes" element={<PageSuspense><UserOrders /></PageSuspense>} />
+              </Route>
 
-             <Route path="*" element={<Navigate to="/login" replace />} />
-           </Routes>
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
 
-           <ToastContainer
-             position="top-right"
-             autoClose={5000}
-             hideProgressBar={false}
-             newestOnTop
-             closeOnClick
-             rtl={false}
-             pauseOnFocusLoss
-             draggable
-             pauseOnHover
-             theme={darkMode ? "dark" : "light"}
-           />
-         </CartProvider>
-       </DesktopProvider>
-     </AuthProvider>
-   </SyncProvider>
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme={darkMode ? "dark" : "light"}
+            />
+
+            {planLimitModal.open && (
+              <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>Limite du plan atteinte</h2>
+                    <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
+                  </div>
+                  <div className="modal-body">
+                    <p>{planLimitModal.message}</p>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.hash = '/subscription'; }}
+                      className="btn-primary"
+                    >
+                      Modifier mon abonnement
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPlanLimitModal({ open: false, message: '' }); }}
+                      className="btn-secondary"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CartProvider>
+        </NotificationProvider>
+      </DesktopProvider>
+    </SyncProvider>
+    </ErrorBoundary>
   );
 };
 

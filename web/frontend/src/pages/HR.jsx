@@ -328,7 +328,7 @@ export default function HR() {
 
       <div className="stats-grid mini">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--color-onyx)' }}><i className="ti ti-users" aria-hidden="true" /></div>
+          <div className="stat-icon" style={{ background: 'var(--color-primary)' }}><i className="ti ti-users" aria-hidden="true" /></div>
           <div className="stat-content">
             <span className="stat-value">{summary.total}</span>
             <span className="stat-label">Employés ({summary.actifs} actifs)</span>

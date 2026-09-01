@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource
-from flask import request, Response
-from app.security.tenant import tenant_required
+from flask import request, Response, current_app
+from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
 from app.services.comptabilite_service import CompteComptableService, EcritureComptableService, TresorerieService, ComptaImportService
 from datetime import date
@@ -13,13 +13,13 @@ ns_tresorerie = Namespace('tresorerie', description='Gestion de la tresorerie')
 
 @ns_comptes.route('/')
 class CompteList(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.view')
     def get(self):
         comptes, total = CompteComptableService.get_all()
         return {'comptes': [c.to_dict() for c in comptes], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.create')
     def post(self):
         from flask import request
@@ -30,7 +30,7 @@ class CompteList(Resource):
 
 @ns_comptes.route('/<int:id>')
 class CompteResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.view')
     def get(self, id):
         compte = CompteComptableService.get_by_id(id)
@@ -38,7 +38,7 @@ class CompteResource(Resource):
             return {'message': 'Compte non trouve'}, 404
         return compte.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.update')
     def put(self, id):
         from flask import request
@@ -48,7 +48,7 @@ class CompteResource(Resource):
             return {'message': 'Compte non trouve'}, 404
         return compte.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.delete')
     def delete(self, id):
         success = CompteComptableService.delete(id)
@@ -59,7 +59,7 @@ class CompteResource(Resource):
 
 @ns_comptes.route('/export')
 class CompteExport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.view')
     def get(self):
         csv = ComptaImportService.export_comptes()
@@ -71,13 +71,13 @@ class CompteExport(Resource):
 
 @ns_ecritures.route('/')
 class EcritureList(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.view')
     def get(self):
         ecritures, total = EcritureComptableService.get_all()
         return {'ecritures': [e.to_dict() for e in ecritures], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.create')
     def post(self):
         from flask import request
@@ -93,7 +93,7 @@ class EcritureList(Resource):
 
 @ns_ecritures.route('/<int:id>')
 class EcritureResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.view')
     def get(self, id):
         ecriture = EcritureComptableService.get_by_id(id)
@@ -101,7 +101,7 @@ class EcritureResource(Resource):
             return {'message': 'Ecriture non trouvee'}, 404
         return ecriture.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.update')
     def put(self, id):
         from flask import request
@@ -111,7 +111,7 @@ class EcritureResource(Resource):
             return {'message': 'Ecriture non trouvee'}, 404
         return ecriture.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.delete')
     def delete(self, id):
         success = EcritureComptableService.delete(id)
@@ -122,7 +122,7 @@ class EcritureResource(Resource):
 
 @ns_ecritures.route('/<int:id>/valider')
 class EcritureValider(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.update')
     def post(self, id):
         ecriture = EcritureComptableService.valider_ecriture(id)
@@ -133,7 +133,7 @@ class EcritureValider(Resource):
 
 @ns_ecritures.route('/<int:id>/annuler')
 class EcritureAnnuler(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.update')
     def post(self, id):
         ecriture = EcritureComptableService.annuler_ecriture(id)
@@ -144,7 +144,7 @@ class EcritureAnnuler(Resource):
 
 @ns_ecritures.route('/journal')
 class EcritureJournal(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.view')
     def get(self):
         from flask import request
@@ -167,7 +167,7 @@ class EcritureJournal(Resource):
 
 @ns_ecritures.route('/export')
 class EcritureExport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.view')
     def get(self):
         csv = ComptaImportService.export_ecritures()
@@ -179,13 +179,13 @@ class EcritureExport(Resource):
 
 @ns_tresorerie.route('/')
 class TresorerieList(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.view')
     def get(self):
         tresoreries, total = TresorerieService.get_all()
         return {'tresoreries': [t.to_dict() for t in tresoreries], 'total': total}, 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.create')
     def post(self):
         from flask import request
@@ -196,7 +196,7 @@ class TresorerieList(Resource):
 
 @ns_tresorerie.route('/<int:id>')
 class TresorerieResource(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.view')
     def get(self, id):
         entree = TresorerieService.get_by_id(id)
@@ -204,7 +204,7 @@ class TresorerieResource(Resource):
             return {'message': 'Entree de tresorerie non trouvee'}, 404
         return entree.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.update')
     def put(self, id):
         from flask import request
@@ -214,7 +214,7 @@ class TresorerieResource(Resource):
             return {'message': 'Entree de tresorerie non trouvee'}, 404
         return entree.to_dict(), 200
 
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.delete')
     def delete(self, id):
         success = TresorerieService.delete(id)
@@ -225,7 +225,7 @@ class TresorerieResource(Resource):
 
 @ns_tresorerie.route('/solde')
 class TresorerieSolde(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.view')
     def get(self):
         from flask import request
@@ -243,7 +243,7 @@ class TresorerieSolde(Resource):
 
 @ns_tresorerie.route('/mouvements')
 class TresorerieMouvements(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.view')
     def get(self):
         from flask import request
@@ -261,7 +261,7 @@ class TresorerieMouvements(Resource):
 
 @ns_tresorerie.route('/export')
 class TresorerieExport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.view')
     def get(self):
         csv = ComptaImportService.export_tresorerie()
@@ -273,7 +273,7 @@ class TresorerieExport(Resource):
 
 @ns_comptes.route('/import')
 class CompteImport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('compte.create')
     def post(self):
         if 'file' not in request.files:
@@ -298,7 +298,7 @@ class CompteImport(Resource):
 
 @ns_ecritures.route('/import')
 class EcritureImport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('ecriture.create')
     def post(self):
         if 'file' not in request.files:
@@ -323,7 +323,7 @@ class EcritureImport(Resource):
 
 @ns_tresorerie.route('/import')
 class TresorerieImport(Resource):
-    @tenant_required
+    @tenant_required_readonly
     @permission_required('tresorerie.create')
     def post(self):
         if 'file' not in request.files:

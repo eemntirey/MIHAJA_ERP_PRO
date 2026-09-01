@@ -92,7 +92,7 @@ const SuperAdminProfile = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px', width: '100%' }}>
         <div className="form-grid">
           <div className="form-group">
             <label htmlFor="nom">Nom</label>

@@ -20,7 +20,7 @@ api.interceptors.request.use(
   (config) => {
     config.headers = config.headers || {};
     const token = tokenStore.getAccessToken();
-    if (token && !config.headers.Authorization) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -66,10 +66,10 @@ api.interceptors.response.use(
         });
 
         originalRequest.headers.Authorization = `Bearer ${newAccess}`;
-        api.defaults.headers.common.Authorization = `Bearer ${newAccess}`;
         return api(originalRequest);
       } catch (refreshError) {
         tokenStore.clear();
+        delete api.defaults.headers.common.Authorization;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('auth:logout'));
         }

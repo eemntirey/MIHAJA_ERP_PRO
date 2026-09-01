@@ -97,8 +97,8 @@ export default function Delivery() {
       let data;
       if (type === 'livreur') data = { ...livreurForm };
       else if (type === 'vehicule') data = { ...vehiculeForm, capacite_charge: vehiculeForm.capacite_charge ? Number(vehiculeForm.capacite_charge) : null, capacite_volume: vehiculeForm.capacite_volume ? Number(vehiculeForm.capacite_volume) : null };
-      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: Number(itineraireForm.livreur_id), vehicule_id: Number(itineraireForm.vehicule_id), points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
-      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: Number(livraisonForm.livreur_id), vehicule_id: Number(livraisonForm.vehicule_id), itineraire_id: Number(livraisonForm.itineraire_id) || null, vente_id: Number(livraisonForm.vente_id) || null, commande_client_id: Number(livraisonForm.commande_client_id) || null };
+      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: itineraireForm.livreur_id ? Number(itineraireForm.livreur_id) : null, vehicule_id: itineraireForm.vehicule_id ? Number(itineraireForm.vehicule_id) : null, points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
+      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: livraisonForm.livreur_id ? Number(livraisonForm.livreur_id) : null, vehicule_id: livraisonForm.vehicule_id ? Number(livraisonForm.vehicule_id) : null, itineraire_id: livraisonForm.itineraire_id ? Number(livraisonForm.itineraire_id) : null, vente_id: livraisonForm.vente_id ? Number(livraisonForm.vente_id) : null, commande_client_id: livraisonForm.commande_client_id ? Number(livraisonForm.commande_client_id) : null };
       const svc = type === 'livreur' ? livreurService : type === 'vehicule' ? vehiculeService : type === 'itineraire' ? itineraireService : livraisonService;
       if (editingType === type && editingId) {
         await svc.update(editingId, data);
@@ -133,7 +133,7 @@ export default function Delivery() {
     setEditingType(type);
     if (type === 'livreur') setLivreurForm({ nom: item.nom || '', prenom: item.prenom || '', telephone: item.telephone || '', email: item.email || '', numero_permis: item.numero_permis || '', statut: item.statut || 'actif' });
     else if (type === 'vehicule') setVehiculeForm({ marque: item.marque || '', modele: item.modele || '', plaque_immatriculation: item.plaque_immatriculation || '', type: item.type || 'camion', capacite_charge: item.capacite_charge || '', capacite_volume: item.capacite_volume || '', statut: item.statut || 'disponible' });
-    else if (type === 'itineraire') setItineraireForm({ nom: item.nom || '', description: item.description || '', date_depart: item.date_depart ? item.date_depart.slice(0, 16) : '', date_retour: item.date_retour ? item.date_retour.slice(0, 16) : '', points_intermediaires: Array.isArray(item.points_intermediaires) ? item.points_intermediaires.join('\n') : (item.points_intermediaires || ''), livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', statut: item.statut || 'planifie' });
+    else if (type === 'itineraire') setItineraireForm({ nom: item.nom || '', description: item.description || '', date_depart: item.date_depart ? item.date_depart.slice(0, 16) : '', date_retour: item.date_retour ? item.date_retour.slice(0, 16) : '', points_intermediaires: (() => { try { const arr = JSON.parse(item.points_intermediaires || '[]'); return Array.isArray(arr) ? arr.join('\n') : (item.points_intermediaires || ''); } catch { return item.points_intermediaires || ''; } })(), livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', statut: item.statut || 'planifie' });
     else if (type === 'livraison') setLivraisonForm({ vente_id: item.vente_id || '', commande_client_id: item.commande_client_id || '', itineraire_id: item.itineraire_id || '', livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', adresse_livraison: item.adresse_livraison || '', ville_livraison: item.ville_livraison || '', telephone_livraison: item.telephone_livraison || '', nom_destinataire: item.nom_destinataire || '', date_livraison_prevue: item.date_livraison_prevue ? item.date_livraison_prevue.slice(0, 16) : '', statut: item.statut || 'en_attente', notes: item.notes || '' });
     setTab(type);
   };
@@ -248,8 +248,6 @@ export default function Delivery() {
           </button>
         ))}
       </div>
-
-      {loading && <p className="text-muted">Chargement…</p>}
 
       {tab === 'livreurs' && (
         <div className="card">

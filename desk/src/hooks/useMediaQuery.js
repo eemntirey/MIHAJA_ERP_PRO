@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 
+// Hook declaratif pour réagir aux media queries (ex: min-width: 1280px).
 export const useMediaQuery = (query) => {
   const getMatch = () =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'

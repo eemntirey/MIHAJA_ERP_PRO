@@ -269,13 +269,17 @@ export default function Accounting() {
                             <button className="btn-primary" disabled={importing || !importFile} onClick={() => handleImport('compte')}>{importing ? 'Import...' : 'Importer comptes'}</button>
                         </div>
                         {importPreview.length > 0 && (
-                            <pre style={{fontSize: 11, background: '#f5f5f5', padding: 8, marginTop: 8}}>{importPreview.join('\n')}</pre>
+                            <pre className="import-preview">{importPreview.join('\n')}</pre>
                         )}
                     </div>
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Numéro</th><th>Nom</th><th>Type</th><th>Solde</th><th>Actions</th></tr></thead>
-                        <tbody>{comptes.length === 0 ? <tr><td colSpan="5" className="text-muted" style={{textAlign: 'center'}}>Aucun compte comptable</td></tr> : comptes.map(c => <tr key={c.id}><td>{c.numero}</td><td>{c.nom}</td><td>{c.type_compte}</td><td>{c.solde}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(c, 'compte')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('compte', c.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{comptes.length === 0 ? <tr><td colSpan="5" className="text-muted" style={{textAlign: 'center'}}>Aucun compte comptable</td></tr> : comptes.map(c => <tr key={c.id}><td>{c.numero}</td><td>{c.nom}</td><td>{c.type_compte}</td><td>{c.solde}</td><td><button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(c, 'compte')}>
+  <i className="ti ti-edit" aria-hidden="true" />
+</button> <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('compte', c.id)}>
+  <i className="ti ti-trash" aria-hidden="true" />
+</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -333,13 +337,19 @@ export default function Accounting() {
                             <button className="btn-primary" disabled={importing || !importFile} onClick={() => handleImport('ecriture')}>{importing ? 'Import...' : 'Importer écritures'}</button>
                         </div>
                         {importPreview.length > 0 && (
-                            <pre style={{fontSize: 11, background: '#f5f5f5', padding: 8, marginTop: 8}}>{importPreview.join('\n')}</pre>
+                            <pre className="import-preview">{importPreview.join('\n')}</pre>
                         )}
                     </div>
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Date</th><th>Compte</th><th>Débit</th><th>Crédit</th><th>Libellé</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>{ecritures.length === 0 ? <tr><td colSpan="7" className="text-muted" style={{textAlign: 'center'}}>Aucune écriture comptable</td></tr> : ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td><td><button className="btn-small btn-primary" onClick={() => handleValider(ec.id)}>Valider</button> <button className="btn-small btn-secondary" onClick={() => handleAnnuler(ec.id)}>Annuler</button> <button className="btn-small btn-delete" onClick={() => handleDelete('ecriture', ec.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{ecritures.length === 0 ? <tr><td colSpan="7" className="text-muted" style={{textAlign: 'center'}}>Aucune écriture comptable</td></tr> : ecritures.map(ec => <tr key={ec.id}><td>{ec.date}</td><td>{ec.compte_numero} - {ec.compte_nom}</td><td>{ec.montant_debit}</td><td>{ec.montant_credit}</td><td>{ec.libelle}</td><td><span className={`badge ${STATUT_ECRITURES[ec.statut]?.class || 'neutral'}`}>{STATUT_ECRITURES[ec.statut]?.label || ec.statut}</span></td><td><button className="btn-small btn-primary" title="Valider" onClick={() => handleValider(ec.id)}>
+  <i className="ti ti-check" aria-hidden="true" />
+</button> <button className="btn-small btn-secondary" title="Annuler" onClick={() => handleAnnuler(ec.id)}>
+  <i className="ti ti-x" aria-hidden="true" />
+</button> <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('ecriture', ec.id)}>
+  <i className="ti ti-trash" aria-hidden="true" />
+</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}
@@ -396,13 +406,17 @@ export default function Accounting() {
                             <button className="btn-primary" disabled={importing || !importFile} onClick={() => handleImport('tresorerie')}>{importing ? 'Import...' : 'Importer trésorerie'}</button>
                         </div>
                         {importPreview.length > 0 && (
-                            <pre style={{fontSize: 11, background: '#f5f5f5', padding: 8, marginTop: 8}}>{importPreview.join('\n')}</pre>
+                            <pre className="import-preview">{importPreview.join('\n')}</pre>
                         )}
                     </div>
 
                     <div className="table-container">
                         <table className="data-table"><thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Mode</th><th>Libellé</th><th>Actions</th></tr></thead>
-                        <tbody>{tresoreries.length === 0 ? <tr><td colSpan="6" className="text-muted" style={{textAlign: 'center'}}>Aucune entrée de trésorerie</td></tr> : tresoreries.map(t => <tr key={t.id}><td>{t.date}</td><td>{t.type_operation}</td><td>{t.montant}</td><td>{t.mode_paiement}</td><td>{t.libelle}</td><td><button className="btn-small btn-edit" onClick={() => handleEdit(t, 'tresorerie')}>Modifier</button> <button className="btn-small btn-delete" onClick={() => handleDelete('tresorerie', t.id)}>Supprimer</button></td></tr>)}</tbody></table>
+                        <tbody>{tresoreries.length === 0 ? <tr><td colSpan="6" className="text-muted" style={{textAlign: 'center'}}>Aucune entrée de trésorerie</td></tr> : tresoreries.map(t => <tr key={t.id}><td>{t.date}</td><td>{t.type_operation}</td><td>{t.montant}</td><td>{t.mode_paiement}</td><td>{t.libelle}</td><td><button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(t, 'tresorerie')}>
+  <i className="ti ti-edit" aria-hidden="true" />
+</button> <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('tresorerie', t.id)}>
+  <i className="ti ti-trash" aria-hidden="true" />
+</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
             )}

@@ -54,10 +54,31 @@ class LivreurService:
         return query.first()
 
     @classmethod
+    def get_by_user(cls, user_id):
+        return cls.model.query.filter_by(
+            utilisateur_id=user_id,
+            is_active=True,
+        ).first()
+
+    @classmethod
+    def _validate_utilisateur_tenant(cls, utilisateur_id, tenant_id):
+        if not utilisateur_id:
+            return
+        from app.models.utilisateur import Utilisateur
+        user = db.session.get(Utilisateur, utilisateur_id)
+        if not user:
+            raise ValueError(f"Utilisateur id={utilisateur_id} introuvable")
+        if user.tenant_id != tenant_id:
+            raise ValueError(
+                "Cross-tenant interdit : le livreur et l'utilisateur doivent appartenir au meme tenant"
+            )
+
+    @classmethod
     def create(cls, data):
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
+        cls._validate_utilisateur_tenant(data.get('utilisateur_id'), tenant_id)
         data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
@@ -69,6 +90,8 @@ class LivreurService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        tenant_id = get_current_tenant_id()
+        cls._validate_utilisateur_tenant(data.get('utilisateur_id'), tenant_id)
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
@@ -229,6 +252,23 @@ class LivraisonService:
         query = cls.model.query.filter_by(id=id, is_active=True)
         query = cls._get_tenant_filter(query)
         return query.first()
+
+    @classmethod
+    def get_for_livreur(cls, livreur_id, page=1, per_page=20):
+        query = cls.model.query.filter_by(
+            livreur_id=livreur_id,
+            is_active=True,
+        )
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+        return paginated.items, paginated.total
+
+    @classmethod
+    def get_for_livreur_by_id(cls, livreur_id, livraison_id):
+        return cls.model.query.filter_by(
+            id=livraison_id,
+            livreur_id=livreur_id,
+            is_active=True,
+        ).first()
 
     @classmethod
     def create(cls, data):

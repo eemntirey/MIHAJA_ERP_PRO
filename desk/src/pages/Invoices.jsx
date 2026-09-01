@@ -90,14 +90,18 @@ const Invoices = () => {
   };
 
   const handleSaleChange = (e) => {
-    const saleId = parseInt(e.target.value, 10) || '';
+    const saleId = parseInt(e.target.value, 10);
     setSelectedSaleId(saleId);
     const sale = sales.find(s => s.id === saleId);
     if (sale) {
+      const clientId = sale.client_id || sale.client?.id || '';
+      if (!clientId) {
+        toast.error('Cette vente n\'est pas associée à un client');
+      }
       setFormData(prev => ({
         ...prev,
         vente_id: saleId,
-        client_id: sale.client_id || sale.client?.id || '',
+        client_id: clientId,
         total_ttc: sale.total_ttc || 0,
       }));
     }
@@ -123,7 +127,8 @@ const Invoices = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await factureService.create(formData);
+      const reference = `FAC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      await factureService.create({ ...formData, reference });
       toast.success('Facture créée avec succès');
       fetchInvoices();
       closeModal();

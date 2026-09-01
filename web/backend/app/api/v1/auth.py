@@ -8,20 +8,43 @@ from flask_jwt_extended import (
     create_refresh_token,
 )
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.security.auth import authenticate_user, hash_password, _validate_password, verify_password
-from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
+from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur, StatutAdmin
 from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import is_super_admin
+from app.security.plans import check_tenant_limit
+from app.services.abonnement_service import AbonnementService
 
 
 from app.security.rate_limit import rate_limit
-from app.security.plans import check_tenant_limit
 
 api = Namespace(
     'auth',
     description='Authentification et JWT'
 )
+
+
+@api.route('/plans')
+class PublicPlans(Resource):
+    def get(self):
+        from app.security.plans import PLAN_CONFIG
+        return {
+            'plans': [
+                {
+                    'code': code,
+                    'label': config.get('label', code.replace('_', ' ').title()),
+                    'prix': config.get('prix', 0),
+                    'duree_jours': config.get('duree_jours', 30),
+                    'max_utilisateurs': config.get('max_utilisateurs', 1),
+                    'max_employees': config.get('max_employees', 0),
+                    'modules': config.get('modules', []),
+                }
+                for code, config in PLAN_CONFIG.items()
+            ]
+        }, 200
+
 
 @api.route('/login')
 class AuthLogin(Resource):
@@ -33,6 +56,7 @@ class AuthLogin(Resource):
         identifier = data.get('username') or data.get('email')
         password = data.get('password')
         tenant_slug = data.get('tenant_slug')
+        device_id = data.get('device_id')
 
         if not identifier or not password:
             return {
@@ -43,7 +67,8 @@ class AuthLogin(Resource):
             result, error = authenticate_user(
                 identifier,
                 password,
-                tenant_slug=tenant_slug
+                tenant_slug=tenant_slug,
+                device_id=device_id,
             )
         except Exception:
             current_app.logger.exception(
@@ -51,7 +76,7 @@ class AuthLogin(Resource):
                 identifier
             )
             return {
-                'message': 'Erreur interne du service d’authentification'
+                'message': 'Erreur interne du service d\'authentification'
             }, 500
 
         if error:
@@ -67,7 +92,7 @@ class AuthLogin(Resource):
                 identifier
             )
             return {
-                'message': 'Le service d’authentification n’a pas généré une session valide'
+                'message':                 'Le service d\u2019authentification n\u2019a pas généré une session valide'
             }, 500
 
         return result, 200
@@ -92,9 +117,11 @@ class AuthMe(Resource):
         if user.tenant_id:
             tenant = db.session.get(Tenant, user.tenant_id)
 
+        tenant_data = tenant.to_dict(include_subscription=True) if tenant else None
+
         return {
             'user': user.to_dict(),
-            'tenant': tenant.to_dict() if tenant else None,
+            'tenant': tenant_data,
         }, 200
 
     @jwt_required()
@@ -151,7 +178,13 @@ class AuthRegister(Resource):
         if pwd_error:
             return {'message': pwd_error}, 400
 
+        # Réinscription après suppression : un compte désactivé (soft-delete)
+        # peut encore occuper l'email/username ; on libère ces identifiants
+        # afin qu'une nouvelle inscription utilise le même email.
+        Utilisateur.free_inactive_credentials(email=email, username=username)
+
         if Utilisateur.query.filter(
+            Utilisateur.is_active == True,
             (Utilisateur.email == email) | (Utilisateur.username == username)
         ).first():
             return {
@@ -174,9 +207,9 @@ class AuthRegister(Resource):
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
 
-            allowed, message = check_tenant_limit(plan)
+            allowed, limit_message = check_tenant_limit(plan)
             if not allowed:
-                return {'message': message}, 403
+                return {'message': limit_message}, 403
 
             base_slug = nom_entreprise.lower().replace(' ', '-').replace('.', '-')
             slug = base_slug
@@ -185,36 +218,67 @@ class AuthRegister(Resource):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
 
-            tenant = Tenant(
-                nom=nom_entreprise,
-                slug=slug,
-                domaine=domaine,
-                email_contact=email_contact,
-                telephone=telephone_entreprise or telephone,
-                adresse=adresse,
-                ville=ville,
-                code_postal=code_postal,
-                pays=pays,
-                statut=StatutTenant.EN_ESSAI,
-                plan=plan,
-            )
-            db.session.add(tenant)
-            db.session.flush()
+            try:
+                tenant = Tenant(
+                    nom=nom_entreprise,
+                    slug=slug,
+                    domaine=domaine,
+                    email_contact=email_contact,
+                    telephone=telephone_entreprise or telephone,
+                    adresse=adresse,
+                    ville=ville,
+                    code_postal=code_postal,
+                    pays=pays,
+                    statut=StatutTenant.EN_ESSAI,
+                    plan=plan,
+                )
+                db.session.add(tenant)
+                db.session.flush()
 
-            user = Utilisateur(
-                username=username,
-                email=email,
-                password_hash=hashed_password,
-                nom=nom,
-                prenom=prenom,
-                telephone=telephone,
-                role=Role.ADMIN,
-                tenant_id=tenant.id,
-            )
-            db.session.add(user)
-            db.session.flush()
+                user = Utilisateur(
+                    username=username,
+                    email=email,
+                    password_hash=hashed_password,
+                    nom=nom,
+                    prenom=prenom,
+                    telephone=telephone,
+                    role=Role.ADMIN,
+                    statut=StatutUtilisateur.ACTIF,
+                    admin_statut=StatutAdmin.ACTIVE,
+                    tenant_id=tenant.id,
+                    is_principal_admin=True,
+                )
+                db.session.add(user)
+                db.session.flush()
 
-            db.session.commit()
+                tenant.admin_principal_id = user.id
+                db.session.add(tenant)
+                db.session.flush()
+
+                AbonnementService.create_abonnement({
+                    'tenant_id': tenant.id,
+                    'plan': plan,
+                })
+
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                current_app.logger.exception(
+                    'Erreur d\'integrite lors de la creation du tenant pour %s',
+                    email
+                )
+                return {
+                    'message': 'Une entreprise avec ce nom ou ce domaine existe deja. Veuillez choisir un nom ou domaine different.'
+                }, 409
+            except Exception as exc:
+                db.session.rollback()
+                current_app.logger.exception(
+                    'Erreur inattendue lors de la creation du tenant pour %s: %s',
+                    email, exc
+                )
+                return {
+                    'message': 'Erreur lors de la creation de l\'entreprise. Verifiez les champs (slug/domaine uniques) et reessayez.'
+                }, 500
 
             access_token = create_access_token(
                 identity=user.id,
@@ -328,9 +392,6 @@ class AuthRefresh(Resource):
 class AuthLogout(Resource):
 
     def post(self):
-        # Avec JWT stateless, la déconnexion est généralement
-        # effectuée côté client en supprimant le token.
-
         return {
             'message': 'Deconnexion reussie'
         }, 200
@@ -396,17 +457,8 @@ class AuthResetPassword(Resource):
         from app.models.password_reset_token import PasswordResetToken
         from app.security.auth import hash_password, _validate_password
 
-        reset_tokens = PasswordResetToken.query.filter_by(
-            used=False
-        ).all()
-
-        reset_token = None
-        for t in reset_tokens:
-            if PasswordResetToken.verify_token(token, t.token):
-                reset_token = t
-                break
-
-        if not reset_token or reset_token.is_expired:
+        reset_token = PasswordResetToken.find_by_raw_token(token)
+        if not reset_token:
             return {'message': 'Token invalide ou expiré'}, 400
 
         pwd_error = _validate_password(new_password)

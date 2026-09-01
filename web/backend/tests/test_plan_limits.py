@@ -268,3 +268,86 @@ class TestMultiTenantIsolation:
                               'password': 'Pass123!', 'role': 'user'})
         assert r.status_code == 201, r.get_json()
         assert r.get_json()['tenant_id'] == tenant_a.id
+
+
+class TestEmployeeUserLimits:
+    def test_cannot_create_more_employee_users_than_limit(self, app):
+        tenant, admin = _make_tenant_with_abonnement(max_employees=2)
+        client = app.test_client()
+        headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp2', 'email': 'emp2@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp3', 'email': 'emp3@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 403, r.get_json()
+        assert 'employés' in r.get_json()['message']
+
+    def test_can_create_employee_user_under_limit(self, app):
+        tenant, admin = _make_tenant_with_abonnement(max_employees=3)
+        client = app.test_client()
+        headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+    def test_can_still_create_admin_when_employee_limit_reached(self, app):
+        tenant, admin = _make_tenant_with_abonnement(max_employees=1, max_admins=2)
+        client = app.test_client()
+        headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'admin2', 'email': 'admin2@test.mg',
+                              'password': 'Pass123!', 'role': 'admin'})
+        assert r.status_code == 201, r.get_json()
+
+    def test_cannot_change_user_to_employee_when_limit_reached(self, app):
+        tenant, admin = _make_tenant_with_abonnement(max_employees=1)
+        client = app.test_client()
+        headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp2', 'email': 'emp2@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 403, r.get_json()
+
+    def test_super_admin_bypasses_employee_limit(self, app):
+        tenant, admin = _make_tenant_with_abonnement(max_employees=1)
+        super_admin = Utilisateur(
+            username='super',
+            email='super@x.mg',
+            password_hash=hash_password('Super123!'),
+            role=Role.SUPER_ADMIN,
+            statut=StatutUtilisateur.ACTIF,
+        )
+        db.session.add(super_admin)
+        db.session.commit()
+        client = app.test_client()
+        headers = _login(client, 'super', 'Super123!')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user',
+                              'tenant_id': tenant.id})
+        assert r.status_code == 201, r.get_json()
