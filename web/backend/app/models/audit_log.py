@@ -32,6 +32,13 @@ class TypeActionAudit(enum.Enum):
     ADMIN_SUSPENDED = 'admin_suspended'
     ADMIN_REACTIVATED = 'admin_reactivated'
     SUPPRESSION_UTILISATEUR = 'suppression_utilisateur'
+    # Événements liés à la gestion des mots de passe
+    PASSWORD_CREATED_TEMPORARY = 'password_created_temporary'
+    PASSWORD_FIRST_CHANGE = 'password_first_change'
+    PASSWORD_CHANGED = 'password_changed'
+    PASSWORD_RESET_REQUESTED = 'password_reset_requested'
+    PASSWORD_RESET_COMPLETED = 'password_reset_completed'
+    PASSWORD_RESET_FAILED = 'password_reset_failed'
 
 
 class AuditLog(BaseModel):

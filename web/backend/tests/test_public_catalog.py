@@ -100,7 +100,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         ids = [p['id'] for p in data.get('produits', [])]
@@ -122,7 +122,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         ids = [p['id'] for p in data.get('produits', [])]
@@ -144,7 +144,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         ids = [p['id'] for p in data.get('produits', [])]
@@ -166,7 +166,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         ids = [p['id'] for p in data.get('produits', [])]
@@ -188,7 +188,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         ids = [p['id'] for p in data.get('produits', [])]
@@ -213,7 +213,7 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         produits = data.get('produits', [])
@@ -248,14 +248,14 @@ class TestPublicCatalogStockFiltering:
         db.session.add(produit)
         db.session.commit()
 
-        r = client.get('/public/produits')
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
         assert r.status_code == 200
         data = r.get_json()
         produits = data.get('produits', [])
         assert produit.id not in [p['id'] for p in produits]
 
         # Le détail individuel doit aussi retourner 404
-        r2 = client.get(f'/public/produits/{produit.id}')
+        r2 = client.get(f'/public/produits/{produit.id}', headers={'X-Tenant-Slug': tenant.slug})
         assert r2.status_code == 404
 
     def test_public_product_detail_respects_stock_rule(self, app):
@@ -284,9 +284,158 @@ class TestPublicCatalogStockFiltering:
         db.session.add_all([produit_visible, produit_cache])
         db.session.commit()
 
-        r_visible = client.get(f'/public/produits/{produit_visible.id}')
+        r_visible = client.get(f'/public/produits/{produit_visible.id}', headers={'X-Tenant-Slug': tenant.slug})
         assert r_visible.status_code == 200
         assert 'quantite_stock' not in r_visible.get_json()
 
-        r_cache = client.get(f'/public/produits/{produit_cache.id}')
+        r_cache = client.get(f'/public/produits/{produit_cache.id}', headers={'X-Tenant-Slug': tenant.slug})
         assert r_cache.status_code == 404
+
+    def test_newly_created_product_default_is_published(self, app):
+        """Régression : un produit créé sans préciser `published` doit être publié par défaut.
+
+        Couvre le bug d'origine : le défaut `published=False` rendait les
+        produits invisibles du catalogue public tant qu'aucun back-office
+        ne les activait explicitement.
+        """
+        from app.models.tenant import Tenant, StatutTenant
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        tenant = Tenant(
+            nom='Tenant Default Pub',
+            slug='tenant-default-pub',
+            domaine='tenant-default-pub.test',
+            statut=StatutTenant.ACTIF,
+            plan='starter',
+        )
+        db.session.add(tenant)
+        db.session.flush()
+        db.session.add(Abonnement(
+            tenant_id=tenant.id,
+            montant=0,
+            plan='starter',
+            date_debut=datetime.utcnow(),
+            date_fin=datetime.utcnow() + timedelta(days=30),
+            statut=StatutAbonnement.ACTIF,
+        ))
+        produit = Produit(
+            nom='Produit Sans Flag',
+            reference='NOFLAG-001',
+            tenant_id=tenant.id,
+            quantite_stock=50,
+            seuil_alerte=5,
+            prix_vente_ht=1000,
+        )
+        db.session.add(produit)
+        db.session.commit()
+        db.session.refresh(produit)
+        assert produit.published is True
+
+    def test_product_created_without_published_field_is_visible_in_catalog(self, app):
+        """Régression : produit créé via le modèle (comme le fait ProduitService.create)
+        sans champ `published` doit apparaître dans /public/produits si le stock le permet.
+        """
+        client = app.test_client()
+        tenant, _ = _make_tenant_and_admin(client, 'Tenant Nouveau', 'tnouv@test.mg')
+
+        produit = Produit(
+            nom='Produit Auto Pub',
+            reference='AUTO-001',
+            tenant_id=tenant.id,
+            quantite_stock=50,
+            seuil_alerte=5,
+            prix_vente_ht=1500,
+        )
+        db.session.add(produit)
+        db.session.commit()
+        assert produit.published is True
+
+        r = client.get('/public/produits', headers={'X-Tenant-Slug': tenant.slug})
+        assert r.status_code == 200
+        data = r.get_json()
+        ids = [p['id'] for p in data.get('produits', [])]
+        assert produit.id in ids
+        produit_data = next(p for p in data['produits'] if p['id'] == produit.id)
+        assert produit_data['nom'] == 'Produit Auto Pub'
+        assert produit_data['tenant_nom'] == tenant.nom
+
+    def test_tenant_b_cannot_see_tenant_a_products_in_public_catalog(self, app):
+        """Isolation multi-tenant : un produit du tenant A ne doit JAMAIS
+        apparaître dans le catalogue public destiné aux visiteurs du tenant B.
+        """
+        client = app.test_client()
+        tenant_a, _ = _make_tenant_and_admin(client, 'Tenant Alpha', 'alpha@test.mg')
+        tenant_b, _ = _make_tenant_and_admin(client, 'Tenant Beta', 'beta@test.mg')
+
+        produit_a = Produit(
+            nom='Produit Secret A',
+            reference='SECRET-A-001',
+            tenant_id=tenant_a.id,
+            published=True,
+            quantite_stock=100,
+            seuil_alerte=5,
+            prix_vente_ht=2000,
+        )
+        produit_b = Produit(
+            nom='Produit Public B',
+            reference='PUBLIC-B-001',
+            tenant_id=tenant_b.id,
+            published=True,
+            quantite_stock=100,
+            seuil_alerte=5,
+            prix_vente_ht=3000,
+        )
+        db.session.add_all([produit_a, produit_b])
+        db.session.commit()
+
+        r_a = client.get('/public/produits', headers={'X-Tenant-Slug': tenant_a.slug})
+        assert r_a.status_code == 200
+        ids_a = [p['id'] for p in r_a.get_json().get('produits', [])]
+        assert produit_a.id in ids_a
+        assert produit_b.id not in ids_a
+
+        r_b = client.get('/public/produits', headers={'X-Tenant-Slug': tenant_b.slug})
+        assert r_b.status_code == 200
+        ids_b = [p['id'] for p in r_b.get_json().get('produits', [])]
+        assert produit_b.id in ids_b
+        assert produit_a.id not in ids_b
+
+        r_detail_a = client.get(
+            f'/public/produits/{produit_a.id}',
+            headers={'X-Tenant-Slug': tenant_b.slug},
+        )
+        assert r_detail_a.status_code == 404
+
+    def test_tenant_without_active_subscription_products_hidden(self, app):
+        """Un tenant sans abonnement actif ne doit voir AUCUN produit dans
+        le catalogue public, même si ses produits sont publiés et en stock.
+        """
+        client = app.test_client()
+        tenant_payant, _ = _make_tenant_and_admin(
+            client, 'Tenant Payant', 'payant@test.mg',
+        )
+        tenant_essai = Tenant(
+            nom='Tenant Essai',
+            slug='tenant-essai',
+            domaine='tenant-essai.test',
+            statut=StatutTenant.EN_ESSAI,
+            plan='starter',
+        )
+        db.session.add(tenant_essai)
+        db.session.commit()
+
+        produit_essai = Produit(
+            nom='Produit Essai',
+            reference='ESSAI-001',
+            tenant_id=tenant_essai.id,
+            published=True,
+            quantite_stock=100,
+            seuil_alerte=5,
+            prix_vente_ht=500,
+        )
+        db.session.add(produit_essai)
+        db.session.commit()
+
+        r = client.get('/public/produits')
+        assert r.status_code == 200
+        ids = [p['id'] for p in r.get_json().get('produits', [])]
+        assert produit_essai.id not in ids

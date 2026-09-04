@@ -152,8 +152,8 @@ const Roles = () => {
     return result;
   }, [groupedPermissions, permSearch]);
 
-  const formatDescription = (text = '') =>
-    text
+  const formatDescription = (text) =>
+    (text || '')
       .replace(/([a-zà-ÿ])([A-Z])/g, '$1 $2')
       .replace(/([.!?])([A-ZÀ-Ú])/g, '$1 $2')
       .replace(/\s+/g, ' ')
@@ -194,24 +194,56 @@ const Roles = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Validation minimale côté UI : on évite les requêtes vouées à l'échec
+    // (le backend les rejetterait de toute façon, mais sans feedback utile).
+    if (!formData.name || !formData.name.trim()) {
+      toast.error('Le nom du rôle est requis');
+      return;
+    }
+    if (!formData.display_name || !formData.display_name.trim()) {
+      toast.error('Le nom affiché est requis');
+      return;
+    }
     // Défense en profondeur côté UI : un tenant ne peut ni créer ni éditer
     // le rôle SUPER_ADMIN. L'API rejette aussi cette opération.
     if (!isSuperAdmin && (formData.name || '').toLowerCase() === SUPER_ADMIN_ROLE_NAME) {
       toast.error("Ce rôle est réservé au super administrateur");
       return;
     }
+    if (!currentRole && (!Array.isArray(formData.permission_ids) || formData.permission_ids.length === 0)) {
+      // Pas bloquant : on peut créer un rôle vide de permissions,
+      // mais on prévient l'utilisateur pour qu'il ne soit pas surpris
+      // par un rôle qui ne donne aucun accès.
+      console.info('Rôle créé sans aucune permission');
+    }
     try {
+      const payload = {
+        ...formData,
+        name: formData.name.trim().toLowerCase(),
+        display_name: formData.display_name.trim(),
+        description: formData.description ? formData.description.trim() : '',
+        permission_ids: Array.isArray(formData.permission_ids) ? formData.permission_ids : [],
+      };
       if (currentRole) {
-        await roleService.update(currentRole.id, formData);
+        await roleService.update(currentRole.id, payload);
         toast.success('Rôle mis à jour');
       } else {
-        await roleService.create(formData);
+        await roleService.create(payload);
         toast.success('Rôle créé');
       }
       closeModal();
       fetchRoles();
     } catch (err) {
-      const msg = err.response?.data?.message || "Erreur lors de l'enregistrement";
+      const status = err.response?.status;
+      const backendMsg = err.response?.data?.message;
+      let msg = backendMsg || "Erreur lors de l'enregistrement";
+      if (status === 403) {
+        msg = backendMsg || "Action non autorisée : droits administrateur requis";
+      } else if (status === 409) {
+        msg = backendMsg || "Un rôle avec ce nom existe déjà";
+      } else if (!err.response) {
+        msg = 'Erreur réseau : impossible de joindre le serveur';
+      }
       toast.error(msg);
     }
   };

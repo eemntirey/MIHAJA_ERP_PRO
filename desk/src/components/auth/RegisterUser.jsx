@@ -78,7 +78,7 @@ const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
     const result = await registerAuth(payload);
 
     if (result && result.success) {
-      navigate(result.redirectPath || '/catalogue');
+      navigate(result.redirectPath || '/mes-commandes');
     }
   };
 

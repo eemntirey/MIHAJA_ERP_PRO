@@ -105,8 +105,11 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
       };
 
       if (dash.status === 'fulfilled') {
-        const d = dash.value?.data || {};
-        next.salesToday = safeCount(d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today);
+        // L'API renvoie { message, stats: { ventes_aujourdhui, ... } }.
+        const d = dash.value?.data?.stats || dash.value?.data || {};
+        next.salesToday = safeCount(
+          d.ventes_aujourdhui ?? d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today
+        );
       }
 
       setCounters(next);
@@ -127,11 +130,11 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
 
   return (
     <div
-      className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}`}
+      className={`main-layout desktop-layout${collapsed && !isMobile ? ' is-collapsed' : ''}${IS_ELECTRON ? ' electron' : ''}`}
       data-theme={darkMode ? 'dark' : undefined}
       data-ai={isAIView ? 'true' : undefined}
     >
-      {IS_ELECTRON && <TitleBar />}
+      {IS_ELECTRON && false && <TitleBar />}
       <DesktopSidebar
         className={sidebarClassName}
         collapsed={collapsed}

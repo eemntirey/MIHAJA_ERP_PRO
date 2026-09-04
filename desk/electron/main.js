@@ -108,6 +108,18 @@ function createWindow() {
   ipcMain.on('window:quit', () => app.quit());
   ipcMain.handle('window:is-maximized', () => win.isMaximized());
 
+  // Déplacement de fenêtre depuis une zone drag custom (topbar).
+  // startDragging() bloque jusqu'au mouseup et reproduit le comportement
+  // natif d'un drag de barre de titre (compatible Windows/Linux/macOS).
+  ipcMain.on('window:start-move', () => {
+    if (!win || win.isMaximized()) return;
+    try {
+      win.startDragging();
+    } catch {
+      /* startDragging indisponible (rare) */
+    }
+  });
+
   // Synchronise l'état maximisé/restauré vers la barre personnalisée.
   win.on('maximize', () => win.webContents.send('window:maximize-changed', true));
   win.on('unmaximize', () => win.webContents.send('window:maximize-changed', false));

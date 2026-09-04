@@ -80,12 +80,19 @@
 }
 
 [data-theme='dark'] {
-  --btn-primary-bg:       var(--color-surface);
-  --btn-primary-fg:       var(--color-text);
-  --btn-primary-hover:    var(--color-onyx-soft);
-  --btn-primary-border:   var(--color-border);
+  /* Primary button: use gold/brand color for visibility in dark mode */
+  --btn-primary-bg:       var(--color-primary);
+  --btn-primary-fg:       var(--color-text-on-primary);
+  --btn-primary-hover:    var(--color-primary-hover);
+  --btn-primary-border:   var(--color-primary);
 
   --btn-secondary-fg:     var(--color-text);
+  --btn-secondary-bg:     var(--color-surface-elevated);
+  --btn-secondary-hover-bg: var(--color-surface-hover);
+  --btn-secondary-border: var(--color-border-strong);
 
+  --btn-danger-bg:        var(--color-danger);
   --btn-danger-fg:        #ffffff;
+  --btn-danger-hover:     var(--color-danger-hover);
+  --btn-danger-border:    var(--color-danger);
 }

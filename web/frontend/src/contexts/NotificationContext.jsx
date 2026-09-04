@@ -52,6 +52,17 @@ export const NotificationProvider = ({ children }) => {
         };
     }, [load]);
 
+    // Polling léger (30s) : garde le badge et la liste de la boîte de
+    // notification à jour sans rechargement de la page.
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+                load();
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [load]);
+
     const addNotification = useCallback(async (notification) => {
         try {
             const res = await notificationService.create(notification);

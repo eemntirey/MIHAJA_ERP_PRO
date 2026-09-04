@@ -3,6 +3,7 @@ from flask_restx import Namespace, Resource, fields
 from app.models.notification import Notification
 from app import db
 from app.security.tenant import tenant_required_readonly, get_current_tenant_id_or_none
+from app.security.permissions import permission_required
 from datetime import datetime
 
 ns = Namespace('notifications', description='Gestion des notifications')
@@ -27,9 +28,19 @@ notification_model = ns.model('Notification', {
 class NotificationList(Resource):
     @ns.doc('list_notifications')
     @ns.marshal_list_with(notification_model)
+    @permission_required('notification.view', 'profile.view')
     @tenant_required_readonly
     def get(self):
         tenant_id = get_current_tenant_id_or_none()
+
+        # Synchronise les alertes métier (stock faible, factures impayées)
+        # avant de lister : la boîte de notification reflète l'état réel.
+        try:
+            from app.services.notification_service import sync_alert_notifications
+            sync_alert_notifications(tenant_id)
+        except Exception:
+            pass
+
         query = Notification.query.filter_by(is_active=True)
         if tenant_id is not None:
             query = query.filter_by(tenant_id=tenant_id)
@@ -39,6 +50,7 @@ class NotificationList(Resource):
     @ns.doc('create_notification')
     @ns.expect(notification_model, validate=True)
     @ns.marshal_with(notification_model, code=201)
+    @permission_required('notification.manage', 'admin.access')
     @tenant_required_readonly
     def post(self):
         data = request.get_json() or {}
@@ -70,6 +82,7 @@ class NotificationList(Resource):
 class NotificationDetail(Resource):
     @ns.doc('get_notification')
     @ns.marshal_with(notification_model)
+    @permission_required('notification.view', 'profile.view')
     @tenant_required_readonly
     def get(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
@@ -82,6 +95,7 @@ class NotificationDetail(Resource):
         return notification.to_dict(), 200
 
     @ns.doc('delete_notification')
+    @permission_required('notification.manage', 'admin.access')
     @tenant_required_readonly
     def delete(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
@@ -100,6 +114,7 @@ class NotificationDetail(Resource):
 class NotificationRead(Resource):
     @ns.doc('mark_notification_as_read')
     @ns.marshal_with(notification_model)
+    @permission_required('notification.update', 'profile.update')
     @tenant_required_readonly
     def patch(self, notification_id):
         tenant_id = get_current_tenant_id_or_none()
@@ -118,6 +133,7 @@ class NotificationRead(Resource):
 @ns.route('/read-all')
 class NotificationReadAll(Resource):
     @ns.doc('mark_all_notifications_as_read')
+    @permission_required('notification.update', 'profile.update')
     @tenant_required_readonly
     def patch(self):
         tenant_id = get_current_tenant_id_or_none()

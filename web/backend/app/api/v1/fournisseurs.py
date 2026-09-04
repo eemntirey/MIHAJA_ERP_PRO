@@ -1,12 +1,14 @@
 from flask_restx import Namespace, Resource
 from app.services.fournisseur_service import FournisseurService
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 
 ns = Namespace('fournisseurs', description='Gestion des fournisseurs')
 
 @ns.route('/')
 class FournisseurListResource(Resource):
     @ns.doc('list_fournisseurs')
+    @permission_required('supplier.view')
     @tenant_required_readonly
     def get(self):
         """Liste tous les fournisseurs"""
@@ -14,6 +16,7 @@ class FournisseurListResource(Resource):
         return {'fournisseurs': [f.to_dict() for f in fournisseurs], 'total': total}, 200
 
     @ns.doc('create_fournisseur')
+    @permission_required('supplier.create')
     @tenant_required_readonly
     def post(self):
         """Cree un nouveau fournisseur"""
@@ -25,6 +28,7 @@ class FournisseurListResource(Resource):
 @ns.route('/<int:fournisseur_id>')
 class FournisseurResource(Resource):
     @ns.doc('get_fournisseur')
+    @permission_required('supplier.view')
     @tenant_required_readonly
     def get(self, fournisseur_id):
         """Recupere un fournisseur par son ID"""
@@ -34,6 +38,7 @@ class FournisseurResource(Resource):
         return fournisseur.to_dict(), 200
 
     @ns.doc('update_fournisseur')
+    @permission_required('supplier.update')
     @tenant_required_readonly
     def put(self, fournisseur_id):
         """Met a jour un fournisseur"""
@@ -45,6 +50,7 @@ class FournisseurResource(Resource):
         return fournisseur.to_dict(), 200
 
     @ns.doc('delete_fournisseur')
+    @permission_required('supplier.update')
     @tenant_required_readonly
     def delete(self, fournisseur_id):
         """Supprime un fournisseur"""
@@ -56,6 +62,7 @@ class FournisseurResource(Resource):
 @ns.route('/commandes')
 class CommandeFournisseurListResource(Resource):
     @ns.doc('list_commandes_fournisseurs')
+    @permission_required('purchase_order.view')
     @tenant_required_readonly
     def get(self):
         """Liste des commandes fournisseurs"""
@@ -69,6 +76,7 @@ class CommandeFournisseurListResource(Resource):
         return {'commandes': [c.to_dict() for c in commandes]}, 200
 
     @ns.doc('create_commande_fournisseur')
+    @permission_required('purchase_order.create')
     @tenant_required_readonly
     def post(self):
         """Cree une commande fournisseur"""
@@ -94,6 +102,7 @@ class CommandeFournisseurListResource(Resource):
 @ns.route('/commandes/<int:id>')
 class CommandeFournisseurResource(Resource):
     @ns.doc('get_commande_fournisseur')
+    @permission_required('purchase_order.view')
     @tenant_required_readonly
     def get(self, id):
         """Recupere une commande fournisseur par ID"""
@@ -105,6 +114,7 @@ class CommandeFournisseurResource(Resource):
         return commande.to_dict(), 200
 
     @ns.doc('update_commande_fournisseur')
+    @permission_required('purchase_order.create')
     @tenant_required_readonly
     def put(self, id):
         """Met a jour une commande fournisseur"""
@@ -125,6 +135,7 @@ class CommandeFournisseurResource(Resource):
         return commande.to_dict(), 200
 
     @ns.doc('delete_commande_fournisseur')
+    @permission_required('purchase_order.create')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une commande fournisseur"""
@@ -139,6 +150,7 @@ class CommandeFournisseurResource(Resource):
 @ns.route('/factures')
 class FactureFournisseurListResource(Resource):
     @ns.doc('list_factures_fournisseurs')
+    @permission_required('invoice.view')
     @tenant_required_readonly
     def get(self):
         """Liste des factures fournisseurs"""
@@ -152,6 +164,7 @@ class FactureFournisseurListResource(Resource):
         return {'factures': [f.to_dict() for f in factures]}, 200
 
     @ns.doc('create_facture_fournisseur')
+    @permission_required('invoice.create')
     @tenant_required_readonly
     def post(self):
         """Cree une facture fournisseur"""
@@ -177,6 +190,7 @@ class FactureFournisseurListResource(Resource):
 @ns.route('/factures/<int:id>')
 class FactureFournisseurResource(Resource):
     @ns.doc('get_facture_fournisseur')
+    @permission_required('invoice.view')
     @tenant_required_readonly
     def get(self, id):
         """Recupere une facture fournisseur par ID"""
@@ -188,6 +202,7 @@ class FactureFournisseurResource(Resource):
         return facture.to_dict(), 200
 
     @ns.doc('update_facture_fournisseur')
+    @permission_required('invoice.update')
     @tenant_required_readonly
     def put(self, id):
         """Met a jour une facture fournisseur"""
@@ -208,6 +223,7 @@ class FactureFournisseurResource(Resource):
         return facture.to_dict(), 200
 
     @ns.doc('delete_facture_fournisseur')
+    @permission_required('invoice.update')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture fournisseur"""

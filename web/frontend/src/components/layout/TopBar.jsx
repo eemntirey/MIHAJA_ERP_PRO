@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { buildBreadcrumb, findNavItem } from './navConfig';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import './TopBar.css';
 
 const CONTEXT_ACTIONS = {
@@ -19,10 +20,20 @@ const CONTEXT_ACTIONS = {
 };
 
 const describeNotification = (n) => {
-  if (!n) return { title: 'Notification', detail: '' };
+  if (!n) return { title: 'Notification', detail: '', time: '' };
+  const date = n.created_at ? new Date(n.created_at) : null;
+  let time = '';
+  if (date && !Number.isNaN(date.getTime())) {
+    const diff = (Date.now() - date.getTime()) / 1000;
+    if (diff < 60) time = "à l'instant";
+    else if (diff < 3600) time = `il y a ${Math.floor(diff / 60)} min`;
+    else if (diff < 86400) time = `il y a ${Math.floor(diff / 3600)} h`;
+    else time = date.toLocaleDateString();
+  }
   return {
     title: n.titre || n.title || n.message || n.type || 'Alerte',
-    detail: n.detail || n.description || n.montant || '',
+    detail: n.message || n.detail || n.description || n.montant || '',
+    time,
   };
 };
 
@@ -131,15 +142,8 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
             onClick={() => {
               if (!notifOpen && notifButtonRef.current) {
                 const rect = notifButtonRef.current.getBoundingClientRect();
-                const dropdownWidth = 300;
-                let left = rect.left;
-                if (left + dropdownWidth > window.innerWidth - 8) {
-                  left = window.innerWidth - dropdownWidth - 8;
-                }
-                left = Math.max(8, left);
                 notifPosition.current = {
                   top: rect.bottom + 10,
-                  left,
                 };
               }
               setNotifOpen((o) => !o);
@@ -152,7 +156,7 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
           </button>
 
           {notifOpen && (
-            <div className="desktop-topbar__dropdown" role="menu" style={{ position: 'fixed', top: notifPosition.current.top, left: notifPosition.current.left }}>
+            <div className="desktop-topbar__dropdown" role="menu" style={{ top: notifPosition.current.top }}>
               <div className="desktop-topbar__dropdown-head">
                 <strong>Notifications</strong>
                 <div className="desktop-topbar__dropdown-actions">

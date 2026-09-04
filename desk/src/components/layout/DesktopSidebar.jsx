@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { favoriteService } from '../../services/desktopApi';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
+import { canAccessNavItem, filterNavGroups } from '@shared/utils/navPermissions';
 import ThemeToggle from './ThemeToggle';
 import './DesktopSidebar.css';
 
@@ -38,13 +39,22 @@ const DesktopSidebar = ({
   onToggleDarkMode,
   className,
 }) => {
-  const { user, hasRole, getAllowedModules } = useAuth();
+  const { user, hasRole, hasAnyPermission, hasPermission, isModuleEnabled, getAllowedModules } = useAuth();
   const location = useLocation();
-  const isSuperAdmin = hasRole('SUPER_ADMIN');
-  const isAdminPrincipal = hasRole('admin') || hasRole('super_admin');
+  const isSuperAdmin = hasRole('super_admin');
+  const isAdminPrincipal = hasRole('admin') || isSuperAdmin;
   const allowedModules = getAllowedModules();
 
-  const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
+  // Contexte RBAC effectif partagé : source unique de vérité pour la
+  // visibilité des items (canAccessNavItem) et des groupes (filterNavGroups).
+  const authCtx = {
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    allowedModules,
+    isSuperAdmin,
+    isModuleEnabled,
+  };
 
   const [favorites, setFavorites] = useState(readFavorites);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -111,15 +121,29 @@ const DesktopSidebar = ({
     return null;
   };
 
-  const favoriteItems = NAV_ITEMS.filter((item) => favorites.some((f) => f.path === item.path));
-  const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g)
+  // Decide si un item de nav est visible pour l'utilisateur courant.
+  // Source unique de vérité : shared/utils/navPermissions.js::canAccessNavItem
+  // (permissions effectives + module du plan + roleFallback déclaratif).
+  const isItemVisible = (item) => {
+    if (!user) return false;
+    if (!isSuperAdmin && !Array.isArray(user.permissions)) return false;
+    return canAccessNavItem(item, authCtx);
+  };
+
+  const visibleGroups = filterNavGroups(
+    NAV_GROUPS.map((label) => ({
+      label,
+      items: NAV_ITEMS.filter((item) => item.group === label),
+    })),
+    authCtx,
+  ).map((g) => g.label);
+
+  const favoriteItems = NAV_ITEMS.filter(
+    (item) => favorites.some((f) => f.path === item.path) && isItemVisible(item)
   );
 
   const renderNavItem = (item) => {
-    if (item.path === '/accounting' && !hasAccountingAccess) return null;
-    if ((item.path === '/super-admin' || item.path === '/users' || item.path === '/roles' || item.path === '/permissions') && !isSuperAdmin) return null;
-    if (!isSuperAdmin && item.module && allowedModules !== null && !allowedModules.includes(item.module)) return null;
+    if (!isItemVisible(item)) return null;
     const badge = badgeValue(item);
     const isFav = favorites.some((f) => f.path === item.path);
     return (
@@ -195,7 +219,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group
+                (item) => item.group === group && isItemVisible(item)
               ).map(renderNavItem)}
             </div>
           </div>

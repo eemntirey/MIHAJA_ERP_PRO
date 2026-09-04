@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.paiement_service import process_payment
 from app import db
 
@@ -7,6 +8,7 @@ ns = Namespace('paiements', description='Gestion des paiements')
 
 @ns.route('/')
 class PaiementList(Resource):
+    @permission_required('payment.view')
     @tenant_required_readonly
     def get(self):
         """Liste tous les paiements"""
@@ -19,6 +21,7 @@ class PaiementList(Resource):
         paiements = query.all()
         return {'paiements': [p.to_dict() for p in paiements]}, 200
 
+    @permission_required('payment.create')
     @tenant_required_readonly
     def post(self):
         """Creation de paiement"""
@@ -49,6 +52,7 @@ class PaiementList(Resource):
 
 @ns.route('/<int:id>')
 class PaiementResource(Resource):
+    @permission_required('payment.view')
     @tenant_required_readonly
     def get(self, id):
         """Details d'un paiement"""
@@ -59,6 +63,7 @@ class PaiementResource(Resource):
             return {'message': 'Paiement non trouve'}, 404
         return paiement.to_dict(), 200
 
+    @permission_required('payment.create')
     @tenant_required_readonly
     def put(self, id):
         """Met a jour un paiement"""
@@ -90,6 +95,7 @@ class PaiementResource(Resource):
             db.session.rollback()
             return {'message': str(e)}, 400
 
+    @permission_required('payment.create')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime un paiement"""
@@ -108,6 +114,7 @@ class PaiementResource(Resource):
 
 @ns.route('/facture/<int:facture_id>')
 class PaiementFactureResource(Resource):
+    @permission_required('payment.view')
     @tenant_required_readonly
     def get(self, facture_id):
         """Liste les paiements d'une facture"""

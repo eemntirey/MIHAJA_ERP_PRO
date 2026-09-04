@@ -3,15 +3,16 @@
 @import '../../styles/tokens.css';
 
 .desktop-sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
   width: var(--erp-sidebar-width, var(--sidebar-width));
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  z-index: 40;
+  z-index: 100;
   transition: width 0.18s ease;
   overflow: visible;
   flex-shrink: 0;
@@ -207,7 +208,7 @@
 
 .desktop-sidebar__star {
   position: absolute;
-  right: 6px;
+  right: 32px;
   background: transparent;
   border: none;
   color: var(--color-text-secondary);
