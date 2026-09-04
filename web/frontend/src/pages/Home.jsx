@@ -71,12 +71,25 @@ const Home = () => {
       setNotifications(response.data?.notifications || response.data || []);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      const status = err.response?.status;
+      const msg =
+        status === 404
+          ? 'Aucune commande trouvée pour cette référence.'
+          : status === 401
+            ? 'Session expirée. Veuillez vous reconnecter.'
+            : 'Recherche indisponible pour le moment.';
+      toast.error(msg);
     }
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchNotifications(searchQuery || undefined);
+    const ref = (searchQuery || '').trim();
+    if (!ref) {
+      toast.warn('Saisissez une référence de commande ou un nom de produit.');
+      return;
+    }
+    fetchNotifications(ref);
   };
 
   const openUserMenu = () => {
@@ -141,7 +154,7 @@ const Home = () => {
                     aria-haspopup="true"
                     aria-expanded={showUserCartouche}
                   >
-                    <span className="user-cartouche-avatar">
+                    <span className="user-cartouche-avatar" aria-hidden="true">
                       {(user?.prenom?.[0] || 'U').toUpperCase()}
                     </span>
                     <span className="user-cartouche-greeting">
@@ -155,7 +168,7 @@ const Home = () => {
                   {showUserCartouche && (
                     <div className="user-cartouche">
                       <div className="user-cartouche-header">
-                        <div className="user-cartouche-avatar-large">
+                        <div className="user-cartouche-avatar-large" aria-hidden="true">
                           {(user?.prenom?.[0] || 'U').toUpperCase()}
                         </div>
                         <div className="user-cartouche-meta">
@@ -296,7 +309,7 @@ const Home = () => {
         )}
 
         {isUser && isAuthenticated && (
-          <section className="orders-card">
+          <section className={`orders-card${notifications.length === 0 ? ' is-empty' : ''}`}>
             <div className="orders-card__header">
               <div className="orders-card__heading">
                 <span className="orders-card__icon" aria-hidden="true">

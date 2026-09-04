@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats
 from flask import request, current_app
 from app import db
@@ -24,6 +25,7 @@ vente_model = ns.model('Vente', {
 
 @ns.route('/')
 class VenteList(Resource):
+    @permission_required('sale.view')
     @tenant_required_readonly
     def get(self):
         """Liste toutes les ventes"""
@@ -47,6 +49,7 @@ class VenteList(Resource):
             return {'ventes': []}, 500
 
     @ns.doc('create_vente')
+    @permission_required('sale.create')
     @tenant_required_readonly
     @ns.expect(vente_model)
     def post(self):
@@ -55,6 +58,12 @@ class VenteList(Resource):
         data = request.get_json()
         try:
             vente = create_with_lignes(data)
+            # Notification temps réel "nouvelle vente" (best effort).
+            try:
+                from app.services.notification_service import notify_new_sale
+                notify_new_sale(vente)
+            except Exception:
+                current_app.logger.exception('Erreur notification nouvelle vente')
             return vente.to_dict(), 201
         except ValueError as e:
             db.session.rollback()
@@ -66,6 +75,7 @@ class VenteList(Resource):
 
 @ns.route('/<int:id>')
 class VenteResource(Resource):
+    @permission_required('sale.view')
     @tenant_required_readonly
     def get(self, id):
         """Details d'une vente"""
@@ -88,6 +98,7 @@ class VenteResource(Resource):
             result['commercial_nom'] = None
         return result, 200
 
+    @permission_required('sale.update')
     @tenant_required_readonly
     def put(self, id):
         """Met a jour une vente"""
@@ -123,6 +134,7 @@ class VenteResource(Resource):
             current_app.logger.exception('Erreur lors de la mise a jour de la vente')
             return {'message': 'Erreur lors de la mise a jour de la vente'}, 400
 
+    @permission_required('sale.delete')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une vente (soft-delete en cascade)"""
@@ -150,6 +162,7 @@ class VenteResource(Resource):
 
 @ns.route('/summary')
 class VenteSummary(Resource):
+    @permission_required('sale.view')
     @tenant_required_readonly
     def get(self):
         """Statistiques des ventes"""

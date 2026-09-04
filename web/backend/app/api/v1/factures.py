@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.facturation_service import issue_invoice
 from app import db
 
@@ -7,6 +8,7 @@ api = Namespace('factures', description='Gestion des factures')
 
 @api.route('/')
 class FactureList(Resource):
+    @permission_required('invoice.view')
     @tenant_required_readonly
     def get(self):
         """Liste toutes les factures"""
@@ -25,6 +27,7 @@ class FactureList(Resource):
             result.append(d)
         return {'factures': result}, 200
 
+    @permission_required('invoice.create')
     @tenant_required_readonly
     def post(self):
         """Creation de facture"""
@@ -35,6 +38,7 @@ class FactureList(Resource):
 
 @api.route('/<int:id>')
 class FactureResource(Resource):
+    @permission_required('invoice.view')
     @tenant_required_readonly
     def get(self, id):
         """Details d'une facture"""
@@ -54,6 +58,7 @@ class FactureResource(Resource):
         result['paiements'] = [p.to_dict() for p in paiements]
         return result, 200
 
+    @permission_required('invoice.update')
     @tenant_required_readonly
     def put(self, id):
         """Met a jour une facture"""
@@ -77,6 +82,7 @@ class FactureResource(Resource):
             db.session.rollback()
             return {'message': str(e)}, 400
 
+    @permission_required('invoice.update')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture"""
@@ -97,6 +103,7 @@ class FactureResource(Resource):
 
 @api.route('/from-vente/<int:vente_id>')
 class FactureFromVente(Resource):
+    @permission_required('invoice.create')
     @tenant_required_readonly
     def post(self, vente_id):
         """Genere une facture depuis une vente"""

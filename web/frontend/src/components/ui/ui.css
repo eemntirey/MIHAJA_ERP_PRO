@@ -65,7 +65,7 @@
 .btn--primary:hover:not(:disabled) {
   background: var(--btn-primary-hover);
   border-color: var(--btn-primary-hover);
-  color: var(--color-onyx);
+  color: var(--btn-primary-fg);
   transform: translateY(-1px);
 }
 

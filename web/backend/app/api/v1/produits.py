@@ -1,6 +1,7 @@
 from flask_restx import Namespace, Resource
 from app.services.produit_service import ProduitService
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.security.plan_limits import check_plan_limits
 
 ns = Namespace('produits', description='Gestion des produits')
@@ -8,6 +9,7 @@ ns = Namespace('produits', description='Gestion des produits')
 @ns.route('/')
 class ProduitListResource(Resource):
     @ns.doc('list_produits')
+    @permission_required('product.view')
     @tenant_required_readonly
     def get(self):
         """Liste tous les produits"""
@@ -16,8 +18,9 @@ class ProduitListResource(Resource):
             return {'produits': [p.to_dict() for p in produits], 'total': total}, 200
         except Exception as e:
             return {'produits': [], 'total': 0, 'message': str(e)}, 500
-    
+
     @ns.doc('create_produit')
+    @permission_required('product.create')
     @tenant_required_readonly
     @check_plan_limits('produits')
     def post(self):
@@ -30,6 +33,7 @@ class ProduitListResource(Resource):
 @ns.route('/<int:produit_id>')
 class ProduitResource(Resource):
     @ns.doc('get_produit')
+    @permission_required('product.view')
     @tenant_required_readonly
     def get(self, produit_id):
         """Recupere un produit par son ID"""
@@ -37,8 +41,9 @@ class ProduitResource(Resource):
         if not produit:
             return {'message': 'Produit non trouve'}, 404
         return produit.to_dict(), 200
-    
+
     @ns.doc('update_produit')
+    @permission_required('product.update')
     @tenant_required_readonly
     def put(self, produit_id):
         """Met a jour un produit"""
@@ -50,6 +55,7 @@ class ProduitResource(Resource):
         return produit.to_dict(), 200
     
     @ns.doc('delete_produit')
+    @permission_required('product.delete')
     @tenant_required_readonly
     def delete(self, produit_id):
         """Supprime un produit"""

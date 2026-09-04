@@ -1,4 +1,5 @@
 
+import os
 from flask import current_app, request
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import (
@@ -10,13 +11,17 @@ from flask_jwt_extended import (
 from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from app import db
-from app.security.auth import authenticate_user, hash_password, _validate_password, verify_password
+from app.security.auth import (
+    authenticate_user, hash_password, _validate_password, verify_password,
+    invalidate_user_tokens, require_password_changed,
+)
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur, StatutAdmin
 from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import is_super_admin
 from app.security.plans import check_tenant_limit
 from app.services.abonnement_service import AbonnementService
-
+from app.utils.audit import log_audit
+from app.models.audit_log import TypeActionAudit
 
 from app.security.rate_limit import rate_limit
 
@@ -92,7 +97,7 @@ class AuthLogin(Resource):
                 identifier
             )
             return {
-                'message':                 'Le service d\u2019authentification n\u2019a pas généré une session valide'
+                'message': 'Le service d\u2019authentification n\u2019a pas généré une session valide'
             }, 500
 
         return result, 200
@@ -412,6 +417,7 @@ class AuthForgotPassword(Resource):
         if user:
             from app.models.password_reset_token import PasswordResetToken
 
+            # Invalider les tokens précédents non utilisés
             PasswordResetToken.query.filter_by(
                 user_id=user.id,
                 used=False
@@ -420,19 +426,48 @@ class AuthForgotPassword(Resource):
 
             raw_token = PasswordResetToken.generate_token()
             hashed_token = PasswordResetToken.hash_token(raw_token)
+            ttl_minutes = int(os.environ.get('PASSWORD_RESET_TTL_MINUTES', '30'))
             token = PasswordResetToken(
                 user_id=user.id,
                 token=hashed_token,
-                expires_at=datetime.utcnow() + timedelta(hours=1),
+                expires_at=datetime.utcnow() + timedelta(minutes=ttl_minutes),
                 ip_address=request.remote_addr,
             )
             db.session.add(token)
             db.session.commit()
 
-            reset_link = (
-                f"{request.host_url.rstrip('/')}"
-                f"/reset-password/{raw_token}"
+            app_url = (
+                os.environ.get('APP_URL')
+                or os.environ.get('PUBLIC_APP_URL')
+                or os.environ.get('FRONTEND_URL')
+                or request.host_url.rstrip('/')
             )
+            reset_link = f"{app_url.rstrip('/')}/reset-password/{raw_token}"
+
+            # Envoi de l'e-mail de réinitialisation
+            try:
+                from app.services.email_service import send_password_reset_email
+                tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+                # Le service reconstruit lui-même le lien à partir de APP_URL
+                # et du raw_token ; on lui passe donc le token brut.
+                send_password_reset_email(user, tenant, raw_token, expires_in_minutes=ttl_minutes, app_url=app_url)
+            except Exception:
+                current_app.logger.exception(
+                    'Erreur lors de l\'envoi du mail de reset pour %s', user.email
+                )
+
+            # Audit log — sans enregistrer le token brut
+            try:
+                log_audit(
+                    TypeActionAudit.PASSWORD_RESET_REQUESTED,
+                    f"Demande de réinitialisation du mot de passe pour {user.email}",
+                    tenant_id=user.tenant_id,
+                    utilisateur_id=user.id,
+                    metadata={'ip': request.remote_addr},
+                )
+            except Exception:
+                pass
+
             current_app.logger.info(
                 'Password reset requested for %s from IP %s',
                 user.email,
@@ -441,6 +476,41 @@ class AuthForgotPassword(Resource):
 
         return {
             'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'
+        }, 200
+
+
+@api.route('/verify-reset-token')
+class AuthVerifyResetToken(Resource):
+    """Vérifie la validité d'un token de réinitialisation sans l'utiliser."""
+
+    def post(self):
+        data = request.get_json() or {}
+        token = data.get('token')
+        if not token:
+            return {'message': 'Token requis'}, 400
+
+        from app.models.password_reset_token import PasswordResetToken
+        reset_token = PasswordResetToken.find_by_raw_token(token)
+
+        if not reset_token:
+            return {'valid': False, 'message': 'Token invalide ou expiré'}, 400
+
+        if reset_token.used:
+            return {'valid': False, 'message': 'Token déjà utilisé'}, 400
+
+        user = db.session.get(Utilisateur, reset_token.user_id)
+        if not user or not user.is_active:
+            return {'valid': False, 'message': 'Utilisateur introuvable'}, 404
+
+        remaining = None
+        if reset_token.expires_at:
+            remaining = max(0, int((reset_token.expires_at - datetime.utcnow()).total_seconds()))
+
+        return {
+            'valid': True,
+            'message': 'Token valide',
+            'remaining_seconds': remaining,
+            'email': user.email,
         }, 200
 
 
@@ -455,10 +525,18 @@ class AuthResetPassword(Resource):
             return {'message': 'Token et nouveau mot de passe requis'}, 400
 
         from app.models.password_reset_token import PasswordResetToken
-        from app.security.auth import hash_password, _validate_password
 
         reset_token = PasswordResetToken.find_by_raw_token(token)
         if not reset_token:
+            # Audit — token invalide ou expiré
+            try:
+                log_audit(
+                    TypeActionAudit.PASSWORD_RESET_FAILED,
+                    'Tentative de reset avec token invalide ou expiré',
+                    metadata={'ip': request.remote_addr},
+                )
+            except Exception:
+                pass
             return {'message': 'Token invalide ou expiré'}, 400
 
         pwd_error = _validate_password(new_password)
@@ -470,10 +548,197 @@ class AuthResetPassword(Resource):
             return {'message': 'Utilisateur non trouvé'}, 404
 
         user.password_hash = hash_password(new_password)
+        user.must_change_password = False
+        user.password_changed_at = datetime.utcnow()
         reset_token.used = True
+        # Invalide toutes les sessions precedentes
+        invalidate_user_tokens(user)
         db.session.commit()
 
+        # Notification e-mail après reset
+        try:
+            from app.services.email_service import send_password_changed_email
+            tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+            send_password_changed_email(user, tenant=tenant)
+        except Exception:
+            current_app.logger.exception(
+                'Erreur lors de l\'envoi de l\'email de confirmation reset pour %s',
+                user.email
+            )
+
+        # Audit
+        try:
+            log_audit(
+                TypeActionAudit.PASSWORD_RESET_COMPLETED,
+                f"Réinitialisation du mot de passe complétée pour {user.email}",
+                tenant_id=user.tenant_id,
+                utilisateur_id=user.id,
+                metadata={'ip': request.remote_addr},
+            )
+        except Exception:
+            pass
+
         return {'message': 'Mot de passe réinitialisé avec succès'}, 200
+
+
+def _first_change_password_post():
+    """Implémentation partagée entre /auth/first-change-password et
+    /auth/first-login-change. Cette dernière URL est celle attendue
+    par le frontend (Login.jsx, FirstLoginChange.jsx) pour rester
+    compatible avec les deux frontends (web et desktop)."""
+    user_id = get_jwt_identity()
+    user = db.session.get(Utilisateur, user_id)
+
+    if not user or not user.is_active:
+        return {'message': 'Utilisateur non trouvé'}, 404
+
+    if not user.must_change_password:
+        return {
+            'message': 'Aucun changement obligatoire de mot de passe en attente'
+        }, 400
+
+    data = request.get_json() or {}
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
+
+    if not new_password or not confirm_password:
+        return {'message': 'Nouveau mot de passe et confirmation requis'}, 400
+
+    if new_password != confirm_password:
+        return {'message': 'Les mots de passe ne correspondent pas'}, 400
+
+    pwd_error = _validate_password(new_password)
+    if pwd_error:
+        return {'message': pwd_error}, 400
+
+    user.password_hash = hash_password(new_password)
+    user.must_change_password = False
+    user.password_changed_at = datetime.utcnow()
+    invalidate_user_tokens(user)
+    db.session.commit()
+
+    # Notification e-mail
+    try:
+        from app.services.email_service import send_password_changed_email
+        tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+        send_password_changed_email(user, tenant=tenant)
+    except Exception:
+        current_app.logger.exception(
+            'Erreur lors de l\'envoi email first-change pour %s', user.email
+        )
+
+    # Audit
+    try:
+        log_audit(
+            TypeActionAudit.PASSWORD_FIRST_CHANGE,
+            f"Premiere modification du mot de passe pour {user.email}",
+            tenant_id=user.tenant_id,
+            utilisateur_id=user.id,
+            metadata={'ip': request.remote_addr},
+        )
+    except Exception:
+        pass
+
+    return {
+        'message': 'Mot de passe modifié avec succès',
+        'user': user.to_dict(),
+    }, 200
+
+
+@api.route('/first-change-password')
+class AuthFirstChangePassword(Resource):
+    """Endpoint historique pour le changement obligatoire du mot de passe."""
+
+    @jwt_required()
+    def post(self):
+        return _first_change_password_post()
+
+
+@api.route('/first-login-change')
+class AuthFirstLoginChange(Resource):
+    """Alias moderne de /auth/first-change-password utilisé par le frontend."""
+
+    @jwt_required()
+    def post(self):
+        return _first_change_password_post()
+
+
+@api.route('/change-password')
+class AuthChangePassword(Resource):
+    """Changement volontaire du mot de passe pour un utilisateur connecté.
+
+    Requiert l'ancien mot de passe. Envoie une notification e-mail après
+    modification réussie et enregistre l'événement dans l'audit log.
+    """
+
+    @jwt_required()
+    def post(self):
+        user_id = get_jwt_identity()
+        user = db.session.get(Utilisateur, user_id)
+
+        if not user or not user.is_active:
+            return {'message': 'Utilisateur non trouvé'}, 404
+
+        data = request.get_json() or {}
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+
+        if not old_password or not new_password or not confirm_password:
+            return {'message': 'Ancien mot de passe, nouveau mot de passe et confirmation requis'}, 400
+
+        # Vérifier l'ancien mot de passe
+        if not verify_password(old_password, user.password_hash):
+            try:
+                log_audit(
+                    TypeActionAudit.PASSWORD_RESET_FAILED,
+                    f"Tentative de changement de mot de passe avec ancien mot de passe incorrect pour {user.email}",
+                    tenant_id=user.tenant_id,
+                    utilisateur_id=user.id,
+                )
+            except Exception:
+                pass
+            return {'message': 'Ancien mot de passe incorrect'}, 403
+
+        if new_password != confirm_password:
+            return {'message': 'Les mots de passe ne correspondent pas'}, 400
+
+        pwd_error = _validate_password(new_password)
+        if pwd_error:
+            return {'message': pwd_error}, 400
+
+        user.password_hash = hash_password(new_password)
+        user.must_change_password = False
+        user.password_changed_at = datetime.utcnow()
+        invalidate_user_tokens(user)
+        db.session.commit()
+
+        # Notification e-mail
+        try:
+            from app.services.email_service import send_password_changed_email
+            tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+            send_password_changed_email(user, tenant=tenant)
+        except Exception:
+            current_app.logger.exception(
+                'Erreur lors de l\'envoi email change-password pour %s', user.email
+            )
+
+        # Audit
+        try:
+            log_audit(
+                TypeActionAudit.PASSWORD_CHANGED,
+                f"Modification du mot de passe par l'utilisateur {user.email}",
+                tenant_id=user.tenant_id,
+                utilisateur_id=user.id,
+                metadata={'ip': request.remote_addr},
+            )
+        except Exception:
+            pass
+
+        return {
+            'message': 'Mot de passe modifié avec succès',
+            'user': user.to_dict(),
+        }, 200
 
 
 @api.route('/super-admin/me')

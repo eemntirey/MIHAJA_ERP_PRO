@@ -445,12 +445,16 @@
 
 .auth-login {
   min-height: 100vh;
+  width: 100%;
   background: var(--erp-paper);
 }
 
 .auth-login__layout {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
   min-height: 100vh;
 }
 
@@ -772,7 +776,7 @@
 
 .auth-login__input-wrap input {
   width: 100%;
-  padding: 14px 14px 14px 44px;
+  padding: 14px 48px 14px 44px;
   border: 1px solid var(--erp-line-strong);
   border-radius: 6px;
   font-size: 14px;
@@ -816,15 +820,37 @@
 
 .auth-login__password-toggle {
   position: absolute;
-  right: 12px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: none;
   border: none;
+  border-radius: 6px;
   color: var(--erp-muted);
   cursor: pointer;
   font-size: 16px;
-  padding: 4px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.auth-login__password-toggle:hover,
+.auth-login__password-toggle:focus-visible {
+  background: rgba(17, 17, 17, 0.06);
+  color: var(--erp-onyx);
+}
+
+.auth-login__password-toggle:focus-visible {
+  outline: 2px solid var(--erp-gold);
+  outline-offset: 2px;
+}
+
+.auth-login__password-toggle i {
+  pointer-events: none;
 }
 
 .auth-login__error {
@@ -878,7 +904,7 @@
 .auth-login__submit:hover:not(:disabled) {
   background: var(--erp-onyx-soft);
   border-color: var(--erp-onyx-soft);
-  color: #ffffff;
+  color: rgb(12, 10, 9);
 }
 
 .auth-login__submit:disabled {

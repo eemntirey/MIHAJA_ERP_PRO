@@ -107,6 +107,30 @@
   color: var(--color-text-secondary);
 }
 
+.desktop-sidebar__search i.ti-search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 50%;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.35), 0 0 12px rgba(99, 102, 241, 0.4);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), color var(--transition-fast);
+}
+
+.desktop-sidebar__search:hover i.ti-search,
+.desktop-sidebar__search:focus-visible i.ti-search {
+  background-color: rgba(99, 102, 241, 0.22);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: scale(1.12);
+}
+
 /* Scroll */
 .desktop-sidebar__scroll {
   flex: 1;
@@ -207,7 +231,7 @@
 
 .desktop-sidebar__star {
   position: absolute;
-  right: 6px;
+  right: 32px;
   background: transparent;
   border: none;
   color: var(--color-text-secondary);

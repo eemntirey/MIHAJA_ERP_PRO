@@ -8,10 +8,20 @@ import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
-const API_BASE_URL =
+const RAW_API_BASE_URL =
     typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
         ? process.env.REACT_APP_API_URL
         : '/api/v1';
+
+const resolveAbsoluteApiUrl = (raw) => {
+    if (!raw) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw.replace(/\/+$/, '');
+    if (typeof window === 'undefined') return raw.replace(/\/+$/, '');
+    const origin = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
+    return `${origin}${raw.startsWith('/') ? '' : '/'}${raw}`.replace(/\/+$/, '');
+};
+
+const API_BASE_URL = resolveAbsoluteApiUrl(RAW_API_BASE_URL);
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -113,7 +123,7 @@ api.interceptors.response.use(
 
             try {
                 const refreshResponse = await axios.post(
-                    `${API_BASE_URL}/auth/refresh`,
+                    `${API_BASE_URL.replace(/\/+$/, '')}/auth/refresh`,
                     null,
                     {
                         headers: {
@@ -199,14 +209,48 @@ api.interceptors.request.use(
 // API PUBLIQUE (sans token)
 // ======================================================
 
-export const publicApi = axios.create({
-    baseURL: typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
+const RAW_PUBLIC_API_URL =
+    typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
         ? process.env.REACT_APP_PUBLIC_API_URL
-        : '',
+        : '';
+
+export const publicApi = axios.create({
+    baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
     headers: {
         'Content-Type': 'application/json',
     },
 });
+
+const getPublicTenantHeaders = () => {
+    try {
+        if (typeof localStorage === 'undefined') return {};
+        const slug = localStorage.getItem('public_tenant_slug');
+        const domaine = localStorage.getItem('public_tenant_domaine');
+        const headers = {};
+        if (slug) headers['X-Tenant-Slug'] = slug;
+        if (domaine) headers['X-Tenant-Domaine'] = domaine;
+        return headers;
+    } catch {
+        return {};
+    }
+};
+
+publicApi.interceptors.request.use((config) => {
+    config.headers = { ...(config.headers || {}), ...getPublicTenantHeaders() };
+    return config;
+});
+
+export const setPublicTenantContext = (tenant) => {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        if (tenant?.slug) localStorage.setItem('public_tenant_slug', tenant.slug);
+        else localStorage.removeItem('public_tenant_slug');
+        if (tenant?.domaine) localStorage.setItem('public_tenant_domaine', tenant.domaine);
+        else localStorage.removeItem('public_tenant_domaine');
+    } catch {
+        /* ignore */
+    }
+};
 
 export const publicPlanService = {
     getAll: () => api.get('/auth/plans'),
@@ -414,6 +458,35 @@ export const authService = {
 
     resetPassword: (token, newPassword) =>
         api.post('/auth/reset-password', { token, new_password: newPassword }),
+
+    /**
+     * Changement volontaire du mot de passe par l'utilisateur connecté.
+     * Requiert l'ancien mot de passe + le nouveau (et confirmation côté backend).
+     */
+    changePassword: (oldPassword, newPassword) =>
+        api.post('/auth/change-password', {
+            old_password: oldPassword,
+            new_password: newPassword,
+            confirm_password: newPassword,
+        }),
+
+    /**
+     * Changement obligatoire de mot de passe (première connexion).
+     * L'utilisateur a un mot de passe temporaire et doit le remplacer.
+     * Aucun ancien mot de passe n'est requis.
+     */
+    firstChangePassword: (newPassword) =>
+        api.post('/auth/first-login-change', {
+            new_password: newPassword,
+            confirm_password: newPassword,
+        }),
+
+    /**
+     * Verification de validite d'un token de reinitialisation (sans l'utiliser).
+     * Retourne {valid, remaining_seconds, email}.
+     */
+    verifyResetToken: (token) =>
+        api.post('/auth/verify-reset-token', { token }),
 };
 
 // ======================================================
