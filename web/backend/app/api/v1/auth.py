@@ -20,6 +20,7 @@ from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import is_super_admin
 from app.security.plans import check_tenant_limit
 from app.services.abonnement_service import AbonnementService
+from app.services.modele_seed_service import seed_modeles_systeme
 from app.utils.audit import log_audit
 from app.models.audit_log import TypeActionAudit
 
@@ -264,6 +265,8 @@ class AuthRegister(Resource):
                     'tenant_id': tenant.id,
                     'plan': plan,
                 })
+
+                seed_modeles_systeme(tenant.id)
 
                 db.session.commit()
             except IntegrityError:

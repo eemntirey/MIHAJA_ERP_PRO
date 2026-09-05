@@ -362,6 +362,24 @@ export const superAdminSubscriptionService = {
 };
 
 // ======================================================
+// SUPER ADMIN PAIEMENTS & REVENUS
+// ======================================================
+
+export const superAdminPaymentService = {
+  getAll: (params) =>
+    api.get('/super-admin/payments', { params }),
+
+  getStats: (params) =>
+    api.get('/super-admin/payments/stats', { params }),
+
+  getFilters: () =>
+    api.get('/super-admin/payments/filters'),
+
+  getById: (id) =>
+    api.get(`/super-admin/payments/${id}`),
+};
+
+// ======================================================
 // SUPER ADMIN DASHBOARD
 // ======================================================
 

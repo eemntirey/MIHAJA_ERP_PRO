@@ -1,5 +1,8 @@
 # Analyse du Projet MIHAJA_ERP_PRO
 
+**Date de mise à jour** : 2026-09-05
+**Statut** : Pré-production — Architecture conforme, corrections P0/P1 appliquées
+
 ## Vue d'ensemble
 
 **MIHAJA_ERP_PRO** est un système ERP (Enterprise Resource Planning) multi-locataire complet conçu pour les entreprises à Madagascar. Il gère l'ensemble des processus commerciaux : ventes, stocks, comptabilité, ressources humaines, livraisons et achats.
@@ -30,20 +33,21 @@
 ```
 MIHAJA_ERP_PRO/
 ├── web/
-│   ├── backend/          # API Flask (22 namespaces REST)
+│   ├── backend/          # API Flask (23 namespaces REST)
 │   │   ├── app/
-│   │   │   ├── api/v1/   # 22 namespaces REST enregistrés
-│   │   │   ├── models/   # 38 modèles SQLAlchemy
-│   │   │   ├── services/ # 17 services métier
-│   │   │   ├── security/ # 9 modules (auth, RBAC, plans, encryption...)
+│   │   │   ├── api/v1/   # 23 namespaces REST enregistrés (admin_devices + notifications ajoutés)
+│   │   │   ├── models/   # 40 modèles SQLAlchemy
+│   │   │   ├── services/ # 25 services métier
+│   │   │   ├── security/ # 10 modules (auth, RBAC, plans, encryption...)
 │   │   │   ├── ai/       # 6 modules (prévisions, anomalies, assistant...)
 │   │   │   ├── tasks/    # 3 tâches asynchrones (backups, emails, rapports)
-│   │   │   ├── utils/    # 9 utilitaires (PDF, Excel, QR, barcodes...)
+│   │   │   ├── utils/    # 10 utilitaires (PDF, Excel, QR, barcodes...)
 │   │   │   ├── config/   # 2 fichiers (settings, database)
-│   │   │   └── websockets/ # Événements temps réel
-│   │   └── tests/        # 15 modules de tests
+│   │   │   ├── websockets/ # Événements temps réel
+│   │   │   └── realtime/  # Socket.IO server
+│   │   └── tests/        # 34 fichiers de tests
 │   │
-│   └── frontend/         # Application React principale (29 pages)
+│   └── frontend/         # Application React principale (30 pages)
 │       └── src/
 │           ├── pages/    # Dashboard, Produits, Clients, Ventes, Stock...
 │           ├── components/ # Layout, auth, desktop, landing, common
@@ -54,7 +58,7 @@ MIHAJA_ERP_PRO/
 │           ├── utils/    # localStore, filterUtils, exportUtils
 │           └── styles/   # 14 fichiers CSS
 │
-├── desk/                 # Application desktop Electron (29 pages)
+├── desk/                 # Application desktop Electron (30 pages)
 │   └── src/
 │       ├── pages/        # Mêmes pages que web/frontend
 │       ├── components/   # Layout, auth, desktop, landing
@@ -63,7 +67,7 @@ MIHAJA_ERP_PRO/
 │       ├── hooks/        # useFormDraft, useAutoSaveDraft, useSplitView...
 │       └── styles/       # tokens.css, landing.css
 │
-├── super-admin/          # Panneau d'administration plateforme (7 pages)
+├── super-admin/          # Panneau d'administration plateforme (9 pages)
 │   └── src/
 │       ├── pages/        # Dashboard, Tenants, Plans, Subscriptions, Audit...
 │       └── services/     # api.js
@@ -170,7 +174,7 @@ class BaseModel(db.Model):
 
 ---
 
-## Namespaces API Enregistrés (22)
+## Namespaces API Enregistrés (23)
 
 | Namespace | Fichier | Description |
 |-----------|---------|-------------|
@@ -188,7 +192,7 @@ class BaseModel(db.Model):
 | `tenants` | `tenants.py` | Gestion tenants |
 | `abonnements` | `abonnements.py` | Abonnements |
 | `documents` | `documents.py` | Documents |
-| `livraisons` | `livraisons.py` | Livraisons |
+| `livraisons` | `livraisons.py` | Livraisons (incluant endpoints `/livreurs/moi/*`) |
 | `rh` | `rh.py` | Ressources humaines |
 | `achats_devis` | `achats_devis.py` | Achats & devis |
 | `comptabilite` | `comptabilite.py` | Comptabilité |
@@ -196,12 +200,14 @@ class BaseModel(db.Model):
 | `permissions` | `permissions.py` | Permissions |
 | `users` | `users.py` | Utilisateurs |
 | `papi` | `papi.py` | Passerelle paiement PAPI |
+| `admin_devices` | `admin_devices.py` | Gestion des appareils admin |
+| `notifications` | `notifications.py` | Notifications utilisateur |
 
-> **Note** : Les fichiers `employes.py`, `notifications.py`, `super_admin.py`, `desk.py`, `test.py` existent dans `api/v1/` mais ne sont pas enregistrés dans `__init__.py`.
+> **Note** : Les fichiers `employes.py`, `super_admin.py`, `desk.py`, `test.py` existent dans `api/v1/` mais ne sont pas enregistrés dans `__init__.py`.
 
 ---
 
-## Modèles SQLAlchemy (38)
+## Modèles SQLAlchemy (40)
 
 | Catégorie | Modèles |
 |-----------|---------|
@@ -221,7 +227,7 @@ class BaseModel(db.Model):
 
 ---
 
-## Services Métier (17)
+## Services Métier (25)
 
 | Service | Description |
 |---------|-------------|
@@ -245,7 +251,7 @@ class BaseModel(db.Model):
 
 ---
 
-## Pages Frontend Web (29)
+## Pages Frontend Web (30)
 
 | Module | Pages |
 |--------|-------|
@@ -267,13 +273,13 @@ class BaseModel(db.Model):
 
 ---
 
-## Pages Desktop Electron (29)
+## Pages Desktop Electron (30)
 
 Mêmes pages que le frontend web avec layout desktop optimisé (sidebar, TopBar, SplitView, CommandPalette).
 
 ---
 
-## Pages Super Admin (7)
+## Pages Super Admin (9)
 
 | Page | Description |
 |------|-------------|
@@ -300,7 +306,7 @@ Mêmes pages que le frontend web avec layout desktop optimisé (sidebar, TopBar,
 
 ---
 
-## Modules Sécurité (9)
+## Modules Sécurité (10)
 
 | Module | Description |
 |--------|-------------|
@@ -311,8 +317,9 @@ Mêmes pages que le frontend web avec layout desktop optimisé (sidebar, TopBar,
 | `permission_matrix.py` | Matrice permissions |
 | `plans.py` | Plans d'abonnement |
 | `plan_limits.py` | Limites par plan |
-| `rate_limit.py` | Rate limiting |
+| `rate_limit.py` | Rate limiting (fail-closed) |
 | `encryption.py` | Chiffrement données |
+| `admin_devices.py` | Gestion des appareils admin (auto-register 1er device) |
 
 ---
 
@@ -321,20 +328,31 @@ Mêmes pages que le frontend web avec layout desktop optimisé (sidebar, TopBar,
 | Module | Fichier |
 |--------|---------|
 | Authentification | `test_auth.py` |
+| Architecture admin | `test_admin_architecture.py` |
+| Anti-bugs audit | `test_anti_bugs_audit.py` |
+| Conformité architecture | `test_architecture_compliance.py` |
 | API Utilisateurs | `test_users_api.py` |
-| Multi-tenancy | `test_tenancy.py` |
+| Multi-tenancy | `test_tenancy.py`, `test_security_multi_tenant.py` |
 | Stocks | `test_stocks.py` |
-| Sécurité | `test_security_multi_tenant.py` |
 | RH | `test_rh.py` |
 | Produits | `test_produits.py` |
 | Limites abonnement | `test_plan_limits.py`, `test_tenant_limits.py` |
 | Paiements PAPI | `test_papi.py` |
 | API Critiques | `test_critical_api.py` |
 | Clients | `test_clients_api.py` |
+| Catalogue public | `test_public_catalog.py` |
 | IA | `test_ai.py` |
 | Mission 5 | `test_mission_5.py` |
+| Compte livreur | `test_livreur_compte.py` |
+| employee_key | `test_employee_key.py` |
+| Rôles presets | `test_roles_presets.py` |
+| Création rôles sécurité | `test_role_creation_security.py` |
+| Visibilité rôles | `test_role_visibility_fix.py` |
+| Super Admin paiements | `test_super_admin_payments.py` |
 
 **Configuration** : Base SQLite en mémoire, Factory-Boy pour les fixtures.
+
+**Total** : 34 fichiers de tests backend collectés (~278 tests).
 
 ---
 
@@ -390,16 +408,17 @@ npm run dist                 # Packaging
 ## Résumé
 
 MIHAJA_ERP_PRO est un ERP production-ready avec :
-- **38 modèles** couvrant tous les aspects d'une entreprise
-- **22 namespaces API** organisés par domaine métier
-- **17 services** pour la logique métier
+- **40 modèles** couvrant tous les aspects d'une entreprise
+- **23 namespaces API** organisés par domaine métier
+- **25 services** pour la logique métier
 - **4 interfaces** (Web, Desktop, Super Admin, Shared)
-- **29 pages** frontend web et desktop
-- **7 pages** super admin
+- **30 pages** frontend web et desktop
+- **9 pages** super admin
 - **Multi-tenancy** avec isolation complète des données
 - **IA intégrée** (6 modules) pour l'aide à la décision
-- **15 modules de tests** couvrant les fonctionnalités critiques
-- **Sécurité renforcée** (9 modules dédiés)
+- **34 modules de tests** (~278 tests collectés) couvrant les fonctionnalités critiques
+- **Sécurité renforcée** (10 modules dédiés)
+- **ÉTAPE 0 (Livreur)** : relation `Livreur ↔ Utilisateur` opérationnelle avec 7 tests passent (défense en profondeur : API + service + event listener ORM)
 
 :::ADMIN DU TENANT
        │
@@ -555,8 +574,8 @@ MIHAJA_ERP_PRO est un ERP production-ready avec :
 | # | Fichier | Ligne | Description |
 |---|---------|-------|-------------|
 | 67 | `web/backend/app/services/vente_service.py` | 102-128 | **Race condition stock** : Vérification et décrément du stock non atomiques — deux ventes concurrentes peuvent créer un stock négatif. |
-| 68 | `web/backend/run.py` | 23 | **Werkzeug debugger en production** : `allow_unsafe_werkzeug=True` expose le debugger en prod. |
-| 69 | `web/backend/run_socket.py` | 24 | **Werkzeug debugger en production** : Même problème pour le serveur WebSocket. |
+| 68 | `web/backend/run.py` | 23 | **Werkzeug debugger en production** : `allow_unsafe_werkzeug=True` expose le debugger en prod. **[CORRIGE]** : `allow_unsafe_werkzeug=debug` (gated par `FLASK_DEBUG`). |
+| 69 | `web/backend/run_socket.py` | 24 | **Werkzeug debugger en production** : Même problème pour le serveur WebSocket. **[CORRIGE]** : idem, gated par `FLASK_DEBUG`. |
 | 70 | `web/backend/scripts/reset_enterprise_passwords.py` | 97, 19-41 | **Mots de passe en clair dans le code et logs** : Passwords hardcodés et affichés en console. |
 
 ---
@@ -617,11 +636,11 @@ MIHAJA_ERP_PRO est un ERP production-ready avec :
 ### Plan de Correction Priorisé
 
 #### Phase 1 — Sécurité Critique (P0)
-1. Mass Assignment (#17) — Whitelist des champs modifiables
+1. Mass Assignment (#17) — Whitelist des champs modifiables **[CORRIGE]**
 2. Endpoint public (#1) — Ajouter auth ou rate limiting strict
-3. Webhook PAPI (#2) — Vérification signature HMAC
-4. Hard-delete tenant (#3) — Soft-delete + backup + confirmation
-5. Werkzeug debugger (#68, #69) — Supprimer `allow_unsafe_werkzeug`
+3. Webhook PAPI (#2) — Vérification signature HMAC **[CORRIGE]** (`papi/webhook.py` : `_verify_webhook_signature` avec `hmac.compare_digest`)
+4. Hard-delete tenant (#3) — Soft-delete + backup + confirmation **[CORRIGE]** : endpoint hard-delete supprimé, seul soft-delete conservé
+5. Werkzeug debugger (#68, #69) — Gating par `FLASK_DEBUG` **[CORRIGE]**
 6. Mots de passe hardcodés (#70) — Nettoyer les scripts
 
 #### Phase 2 — Data Integrity Critique (P0)
