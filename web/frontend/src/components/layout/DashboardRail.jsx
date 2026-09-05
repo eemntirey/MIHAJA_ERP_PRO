@@ -1,48 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { NAV_ITEMS, buildNavGroups } from './navConfig';
+import { filterNavGroups } from '@shared/utils/navPermissions';
 import './DashboardRail.css';
 
-const NAV_GROUPS = [
-  {
-    label: 'Piloter',
-    items: [
-      { label: 'Tableau de bord', to: '/dashboard', icon: 'ti-layout-dashboard', module: 'dashboard' },
-      { label: 'Produits', to: '/products', icon: 'ti-package', module: 'produits', badge: 'products' },
-      { label: 'Clients', to: '/clients', icon: 'ti-users', module: 'clients' },
-      { label: 'Ventes', to: '/sales', icon: 'ti-shopping-cart', module: 'ventes', badge: 'sales' },
-      { label: 'Factures', to: '/invoices', icon: 'ti-file-text', module: 'factures', badge: 'invoices' },
-      { label: 'Paiements', to: '/payments', icon: 'ti-credit-card', module: 'paiements' },
-    ],
-  },
-  {
-    label: 'Opérations',
-    items: [
-      { label: 'Stock', to: '/inventory', icon: 'ti-box', module: 'stocks', badge: 'stock' },
-      { label: 'Fournisseurs', to: '/suppliers', icon: 'ti-truck' },
-      { label: 'Achats', to: '/purchases', icon: 'ti-shopping-cart-plus', module: 'achats' },
-      { label: 'Livraisons', to: '/delivery', icon: 'ti-truck-delivery', module: 'livraison' },
-    ],
-  },
-  {
-    label: 'Gestion',
-    items: [
-      { label: 'Ressources Humaines', to: '/hr', icon: 'ti-users-group', module: 'rh' },
-      { label: 'Comptabilité', to: '/accounting', icon: 'ti-calculator', module: 'comptabilite' },
-      { label: 'Documents', to: '/documents', icon: 'ti-file-description', module: 'documents' },
-      { label: 'IA', to: '/ai', icon: 'ti-robot', module: 'ia' },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { label: 'Administration', to: '/super-admin', icon: 'ti-settings' },
-      { label: 'Utilisateurs', to: '/users', icon: 'ti-users' },
-      { label: 'Rôles', to: '/roles', icon: 'ti-user-cog' },
-      { label: 'Permissions', to: '/permissions', icon: 'ti-key' },
-    ],
-  },
-];
+// Groupes dérivés de NAV_ITEMS (navConfig) : une seule déclaration des
+// permissions, filtrage RBAC centralisé via shared/utils/navPermissions.js.
+const NAV_GROUPS = buildNavGroups();
 
 const getInitials = (user) => {
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.trim();
@@ -59,30 +25,46 @@ const formatRole = (role) => {
   return String(role).replace(/_/g, ' ');
 };
 
-const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEditName, onSaveName, nameForm, onUpdateNameField, darkMode, onToggleDarkMode, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead }) => {
-  const { hasRole, getAllowedModules } = useAuth();
+const formatNotifTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "à l'instant";
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  return date.toLocaleDateString();
+};
+
+const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEditName, onSaveName, nameForm, onUpdateNameField, darkMode, onToggleDarkMode, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead, onOpenPalette }) => {
+  const { hasPermission, hasAnyPermission, hasRole, getAllowedModules } = useAuth();
+  const navigate = useNavigate();
+  const { refresh: refreshNotifications } = useNotifications();
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const mobileProfileRef = useRef(null);
+  const mobileProfileMenuRef = useRef(null);
+  const [mobileProfilePos, setMobileProfilePos] = useState({ top: 0, left: 0, placement: 'below' });
   const notifRef = useRef(null);
   const notifButtonRef = useRef(null);
   const notifPosition = useRef({ top: 0, left: 0 });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
   const allowedModules = getAllowedModules();
-  const isAdmin = hasRole('super_admin') || hasRole('admin');
 
-  const filteredNavGroups = NAV_GROUPS.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      if (item.to === '/accounting') return hasAccountingAccess;
-      if (item.to === '/super-admin') return hasRole('super_admin');
-      if (item.to === '/users' || item.to === '/roles' || item.to === '/permissions') return isAdmin;
-      if (!isSuperAdmin && item.module && allowedModules !== null && !allowedModules.includes(item.module)) return false;
-      return true;
-    })
-  })).filter(group => group.items.length > 0);
+  // Contexte RBAC effectif : permissions réelles de l'utilisateur (rôle ENUM
+  // ou rôle custom) + modules autorisés par le plan. La visibilité n'est plus
+  // décidée par le nom du rôle mais par les permissions déclaratives.
+  const authCtx = {
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    allowedModules,
+    isSuperAdmin: hasRole('super_admin') || hasRole('SUPER_ADMIN'),
+  };
+
+  // Groupes automatiquement masqués si aucun enfant n'est accessible.
+  const filteredNavGroups = filterNavGroups(NAV_GROUPS, authCtx);
 
   const badgeValue = (item) => {
     if (!item.badge || !counters) return null;
@@ -107,6 +89,10 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
   }, []);
 
   const handleCommandPalette = () => {
+    if (onOpenPalette) {
+      onOpenPalette();
+      return;
+    }
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true }));
   };
 
@@ -149,18 +135,22 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
           type="button"
           className="dashboard-rail__notif"
           onClick={() => {
-            if (!notifOpen && notifButtonRef.current) {
-              const rect = notifButtonRef.current.getBoundingClientRect();
-              const dropdownWidth = window.innerWidth <= 760 ? Math.min(window.innerWidth - 32, 300) : 300;
-              let left = rect.left;
-              if (left + dropdownWidth > window.innerWidth - 8) {
-                left = window.innerWidth - dropdownWidth - 8;
+            if (!notifOpen) {
+              // Rafraîchit la liste à chaque ouverture du box.
+              refreshNotifications();
+              if (notifButtonRef.current) {
+                const rect = notifButtonRef.current.getBoundingClientRect();
+                const dropdownWidth = window.innerWidth <= 760 ? Math.min(window.innerWidth - 32, 300) : 300;
+                let left = rect.left;
+                if (left + dropdownWidth > window.innerWidth - 8) {
+                  left = window.innerWidth - dropdownWidth - 8;
+                }
+                left = Math.max(8, left);
+                notifPosition.current = {
+                  top: rect.bottom + 10,
+                  left,
+                };
               }
-              left = Math.max(8, left);
-              notifPosition.current = {
-                top: rect.bottom + 10,
-                left,
-              };
             }
             setNotifOpen((o) => !o);
           }}
@@ -192,17 +182,27 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
               <ul className="dashboard-rail__notif-list">
                 {notifications.map((n, i) => {
                   const title = n.titre || n.title || n.message || n.type || 'Alerte';
-                  const detail = n.detail || n.description || n.montant || '';
+                  const detail = n.message || n.detail || n.description || n.montant || '';
+                  const time = formatNotifTime(n.created_at);
                   return (
                     <li
                       key={n.id || i}
                       className={`dashboard-rail__notif-item${!n.read ? ' is-unread' : ''}`}
-                      onClick={() => onMarkAsRead(n.id)}
+                      onClick={() => {
+                        onMarkAsRead(n.id);
+                        // Navigue vers le module concerné si la notification a un lien.
+                        if (n.link) {
+                          setNotifOpen(false);
+                          navigate(n.link);
+                        }
+                      }}
+                      title={n.link ? 'Cliquer pour ouvrir' : undefined}
                     >
                       <i className="ti ti-alert-circle" aria-hidden="true" />
                       <span>
                         <strong>{title}</strong>
                         {detail && <small>{detail}</small>}
+                        {time && <small>{time}</small>}
                       </span>
                       {!n.read && <span className="dashboard-rail__notif-dot" />}
                     </li>
@@ -234,9 +234,9 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                 const badge = badgeValue(item);
                 return (
                     <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/dashboard'}
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === '/dashboard'}
                     className={({ isActive }) => (
                       `dashboard-rail__item${isActive ? ' is-active' : ''}`
                     )}
@@ -295,9 +295,33 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
           <button
             type="button"
             className="dashboard-rail__profile"
-            onClick={() => setMobileProfileOpen((o) => !o)}
+            onClick={() => {
+              setMobileProfileOpen((prev) => {
+                if (prev) return false;
+                const trigger = mobileProfileRef.current;
+                const menu = mobileProfileMenuRef.current;
+                if (trigger && menu) {
+                  const rect = trigger.getBoundingClientRect();
+                  const menuWidth = menu.offsetWidth || 220;
+                  const menuHeight = menu.offsetHeight || 200;
+                  const margin = 8;
+                  const vw = window.innerWidth;
+                  const vh = window.innerHeight;
+                  const spaceBelow = vh - rect.bottom - margin;
+                  const spaceAbove = rect.top - margin;
+                  const placement = spaceBelow >= menuHeight || spaceBelow >= spaceAbove ? 'below' : 'above';
+                  const top = placement === 'below'
+                    ? rect.bottom + margin
+                    : rect.top - menuHeight - margin;
+                  const left = Math.min(Math.max(rect.right - menuWidth, margin), vw - menuWidth - margin);
+                  setMobileProfilePos({ top, left, placement });
+                }
+                return true;
+              });
+            }}
             aria-label="Menu profil"
             title="Menu profil"
+            aria-expanded={mobileProfileOpen}
           >
             <i className="ti ti-user" aria-hidden="true" />
           </button>
@@ -312,7 +336,12 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
           </button>
 
           {mobileProfileOpen && (
-            <div className="dashboard-rail__mobile-menu" role="menu">
+            <div
+              className={`dashboard-rail__mobile-menu dashboard-rail__mobile-menu--${mobileProfilePos.placement}`}
+              role="menu"
+              ref={mobileProfileMenuRef}
+              style={{ position: 'fixed', top: mobileProfilePos.top, left: mobileProfilePos.left }}
+            >
               <div className="dashboard-rail__mobile-menu-header">
                 <span className="dashboard-rail__avatar" aria-hidden="true">{getInitials(user)}</span>
                 <div>
@@ -382,9 +411,9 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                   const badge = badgeValue(item);
                   return (
                     <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.to === '/dashboard'}
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === '/dashboard'}
                       className={({ isActive }) =>
                         `dashboard-rail__mobile-nav-item${isActive ? ' is-active' : ''}`
                       }

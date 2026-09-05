@@ -8,9 +8,10 @@ from app.models.tenant import Tenant
 from app.models.admin_device import AdminDevice
 from app import db
 from app.security.auth import hash_password, _validate_password, verify_password as _verify_password
-from app.security.plan_limits import check_plan_limits, check_admin_limit, require_module, is_admin_limit_reached, is_employee_limit_reached, is_unlimited, _get_limits
+from app.security.plan_limits import check_plan_limits, is_admin_limit_reached, is_employee_limit_reached, is_unlimited, _get_limits
 from app.security.tenant import tenant_required, get_current_tenant_id
 from app.security.roles import can_manage_role
+from app.security.permissions import permission_required
 from app.utils.audit import log_audit
 from app.models.audit_log import TypeActionAudit
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_user
@@ -21,12 +22,6 @@ _ALLOWED_USER_FIELDS = {'username', 'email', 'nom', 'prenom', 'telephone', 'mobi
 
 
 def _require_admin():
-    """Vérifie que l'utilisateur courant peut gérer les utilisateurs.
-
-    Autorise SUPER_ADMIN (accès global), ADMIN du tenant, ou tout rôle
-    disposant de la permission 'user.create'. Retourne (None, None) si
-    autorisé, sinon (message, status).
-    """
     user = getattr(g, 'current_user', None)
     if user is None:
         return {'message': 'Utilisateur non trouve'}, 401
@@ -38,16 +33,11 @@ def _require_admin():
 
 
 def _is_global_admin():
-    """True si l'utilisateur courant est super admin (accès global multi-tenant)."""
     user = getattr(g, 'current_user', None)
     return bool(user) and bool(user.is_super_admin)
 
 
 def _get_tenant_scoped_user(user_id):
-    """Récupère un utilisateur en respectant la portée tenant.
-
-    Un admin de tenant ne peut manipuler que les utilisateurs de son propre tenant.
-    """
     user = db.session.get(Utilisateur, user_id)
     if user is None:
         return None
@@ -87,9 +77,6 @@ def _validate_custom_role(custom_role_id, tenant_id):
     role = db.session.get(RoleModel, custom_role_id)
     if not role:
         return {'message': 'Role personnalise introuvable'}, 404
-    # Le rôle SUPER_ADMIN est protégé : un tenant ne peut pas l'assigner
-    # en tant que rôle custom à un utilisateur (même si le role système est
-    # identifié uniquement par son id). Un super administrateur peut.
     if not _is_global_admin() and (role.name or '').strip().lower() == Role.SUPER_ADMIN.value:
         return {'message': 'Ce role est reserve au super administrateur'}, 403
     if tenant_id is not None and role.tenant_id is not None and role.tenant_id != tenant_id:
@@ -99,6 +86,8 @@ def _validate_custom_role(custom_role_id, tenant_id):
 
 @ns.route('/')
 class UserList(Resource):
+
+    @permission_required('user.view')
     @tenant_required
     def get(self):
         err, status = _require_admin()
@@ -118,9 +107,6 @@ class UserList(Resource):
                 ])
             )
         else:
-            # Pas de tenant_id (super_admin plateforme) : on n'affiche que
-            # les comptes administratifs (admin / super_admin) pour eviter
-            # d'exposer l'ensemble des employes de tous les tenants.
             query = query.filter(
                 Utilisateur.role.in_([Role.ADMIN, Role.SUPER_ADMIN])
             )
@@ -143,8 +129,9 @@ class UserList(Resource):
         users = query.order_by(Utilisateur.created_at.desc()).all()
         return {'users': [u.to_dict() for u in users]}, 200
 
-    @tenant_required
+    @permission_required('user.create')
     @check_plan_limits('utilisateurs')
+    @tenant_required
     def post(self):
         err, status = _require_admin()
         if err:
@@ -153,11 +140,21 @@ class UserList(Resource):
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
-        if not username or not email or not password:
-            return {'message': 'username, email et password requis'}, 400
+
+        if not username or not email:
+            return {'message': 'username et email requis'}, 400
+
+        auto_generated = False
+        temp_password_plain = None
+        if not password:
+            temp_password_plain = Utilisateur.generate_temp_password()
+            password = temp_password_plain
+            auto_generated = True
+
         pwd_error = _validate_password(password)
         if pwd_error:
             return {'message': pwd_error}, 400
+
         existing = (
             Utilisateur.query.execution_options(_skip_tenant_filter=True)
             .filter(
@@ -203,6 +200,9 @@ class UserList(Resource):
             if err:
                 return err, status
         creator_id = get_jwt_identity()
+
+        must_change = auto_generated or bool(data.get('must_change_password', True))
+
         user = Utilisateur(
             username=username,
             email=email,
@@ -216,6 +216,7 @@ class UserList(Resource):
             custom_role_id=custom_role_id,
             tenant_id=tenant_id,
             created_by=creator_id,
+            must_change_password=must_change,
         )
         db.session.add(user)
         try:
@@ -223,26 +224,52 @@ class UserList(Resource):
         except IntegrityError:
             db.session.rollback()
             return {'message': 'Un utilisateur avec cet email ou username existe deja'}, 409
+
         try:
             log_audit(
                 TypeActionAudit.CREATION_UTILISATEUR,
-                f"Création de l'utilisateur {user.username} (role={role.value})",
+                f"Creation de l'utilisateur {user.username} (role={role.value})",
                 tenant_id=tenant_id,
                 utilisateur_id=get_jwt_identity(),
                 metadata={'user_id': user.id, 'role': role.value},
             )
+            if auto_generated:
+                log_audit(
+                    TypeActionAudit.PASSWORD_CREATED_TEMPORARY,
+                    f"Mot de passe temporaire genere pour {user.email}",
+                    tenant_id=tenant_id,
+                    utilisateur_id=user.id,
+                )
         except Exception:
             pass
+
+        if temp_password_plain:
+            try:
+                from app.services.email_service import send_welcome_email
+                tenant_obj = db.session.get(Tenant, tenant_id) if tenant_id else None
+                send_welcome_email(user, tenant_obj, temp_password_plain)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    'send_welcome_email echoue pour %s : %s', user.email, exc
+                )
+
         try:
             broadcast_to_tenant(tenant_id, 'user:updated', user.to_dict())
             broadcast_to_user(user.id, 'user:updated', user.to_dict())
         except Exception:
             pass
-        return user.to_dict(), 201
+
+        response = user.to_dict()
+        if auto_generated:
+            response['temporary_password'] = temp_password_plain
+        return response, 201
 
 
 @ns.route('/<int:user_id>')
-class UserResource(Resource):
+class UserItem(Resource):
+
+    @permission_required('user.view')
     @tenant_required
     def get(self, user_id):
         err, status = _require_admin()
@@ -253,6 +280,7 @@ class UserResource(Resource):
             return {'message': 'Utilisateur non trouve'}, 404
         return user.to_dict(), 200
 
+    @permission_required('user.update')
     @tenant_required
     def put(self, user_id):
         err, status = _require_admin()
@@ -304,10 +332,6 @@ class UserResource(Resource):
                         return err, status
             setattr(user, key, value)
         if 'password' in data and data['password']:
-            # Vérification de l'ancien mot de passe : un admin qui modifie le
-            # mot de passe d'un autre utilisateur doit fournir le mot de passe
-            # courant. Un utilisateur qui modifie son propre mot de passe peut
-            # passer par le endpoint dédié /auth/change-password.
             if user.id != get_jwt_identity():
                 current_pwd = data.get('current_password')
                 if not current_pwd:
@@ -324,10 +348,10 @@ class UserResource(Resource):
         if old_role != user.role:
             log_audit(
                 TypeActionAudit.CHANGEMENT_ROLE,
-                f"Changement de rôle pour {user.username}: {old_role.value} -> {user.role.value}",
+                f"Changement de role pour {user.username}: {old_role.value} -> {user.role.value}",
                 tenant_id=user.tenant_id,
                 utilisateur_id=g.current_user.id if hasattr(g, 'current_user') and g.current_user else None,
-                metadata={'user_id': user.id, 'old_role': old_role.value, 'new_role': user.role.value},
+                metadata={'user_id': user.id, 'old_role': old_role.value if old_role else None, 'new_role': user.role.value},
             )
         try:
             broadcast_to_tenant(user.tenant_id, 'user:updated', user.to_dict())
@@ -336,6 +360,7 @@ class UserResource(Resource):
             pass
         return user.to_dict(), 200
 
+    @permission_required('user.update')
     @tenant_required
     def delete(self, user_id):
         err, status = _require_admin()
@@ -346,20 +371,20 @@ class UserResource(Resource):
             return {'message': 'Utilisateur non trouve'}, 404
         if user.is_super_admin:
             return {'message': 'Impossible de supprimer un super administrateur'}, 400
-        
+
         AdminDevice.query.filter_by(user_id=user.id).update(
             {AdminDevice.is_active: False}, synchronize_session=False
         )
-        
+
         if user.tenant_id:
             tenant = db.session.get(Tenant, user.tenant_id)
             if tenant and tenant.admin_principal_id == user.id:
                 tenant.admin_principal_id = None
                 db.session.add(tenant)
-        
+
         user.mark_deleted()
         db.session.commit()
-        
+
         try:
             log_audit(
                 TypeActionAudit.SUPPRESSION_UTILISATEUR,
@@ -370,7 +395,7 @@ class UserResource(Resource):
             )
         except Exception:
             pass
-        
+
         try:
             broadcast_to_tenant(user.tenant_id, 'user:updated', user.to_dict())
         except Exception:

@@ -80,12 +80,14 @@
 }
 
 [data-theme='dark'] {
-  --btn-primary-bg:       var(--color-surface);
-  --btn-primary-fg:       var(--color-text);
-  --btn-primary-hover:    var(--color-onyx-soft);
-  --btn-primary-border:   var(--color-border);
+  --btn-primary-bg:       var(--color-primary);
+  --btn-primary-fg:       var(--color-text-on-primary);
+  --btn-primary-hover:    var(--color-primary-hover);
+  --btn-primary-border:   var(--color-primary);
 
+  --btn-secondary-bg:     var(--color-surface);
   --btn-secondary-fg:     var(--color-text);
+  --btn-secondary-border: var(--color-border-strong);
 
   --btn-danger-fg:        #ffffff;
 }

@@ -21,6 +21,7 @@
   flex-direction: column;
   justify-content: flex-start;
   min-height: 100vh;
+  margin-left: var(--erp-sidebar-width, var(--sidebar-width));
   transition: all 0.18s ease;
 }
 

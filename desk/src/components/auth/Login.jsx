@@ -27,6 +27,19 @@ const Login = ({ darkMode, onToggleDarkMode }) => {
   const { login, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
+  const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron;
+
+  const handleQuit = () => {
+    const confirmed = window.confirm('Quitter l\u2019application ?');
+    if (!confirmed) return;
+    if (IS_ELECTRON && typeof window.electron.quit === 'function') {
+      window.electron.quit();
+      return;
+    }
+    // Fallback navigateur : ferme l'onglet si possible.
+    window.close();
+  };
+
   const roleParam = new URLSearchParams(location.search).get('role');
   const roleLabel =
     roleParam === 'company'
@@ -223,7 +236,7 @@ const Login = ({ darkMode, onToggleDarkMode }) => {
             <button
               type="button"
               className="auth-login__quit"
-              onClick={() => window.electron?.quit?.()}
+              onClick={handleQuit}
             >
               <i className="ti ti-logout" aria-hidden="true" />
               Quitter l'application

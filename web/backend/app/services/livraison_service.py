@@ -227,6 +227,42 @@ class ItineraireService:
 class LivraisonService:
     model = Livraison
 
+    _PROTECTED_FIELDS = ('id', 'tenant_id', 'created_at', 'updated_at', 'is_active', 'created_by', 'updated_by')
+    _INT_FK_FIELDS = ('vente_id', 'commande_client_id', 'itineraire_id', 'livreur_id', 'vehicule_id')
+    _DATETIME_FIELDS = ('date_livraison_prevue', 'date_livraison_reelle')
+
+    @classmethod
+    def _sanitize_payload(cls, data):
+        clean = {}
+        unknown = []
+        for key, value in (data or {}).items():
+            if not hasattr(cls.model, key):
+                unknown.append(key)
+                continue
+            if key in cls._PROTECTED_FIELDS:
+                continue
+            if key in cls._INT_FK_FIELDS:
+                if value in ('', None):
+                    clean[key] = None
+                else:
+                    try:
+                        clean[key] = int(value)
+                    except (TypeError, ValueError):
+                        raise ValueError(f"{key} doit etre un entier")
+            elif key in cls._DATETIME_FIELDS:
+                if value in ('', None):
+                    clean[key] = None
+                else:
+                    try:
+                        clean[key] = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+                    except ValueError:
+                        raise ValueError(f"{key} doit etre une date ISO 8601 valide")
+            else:
+                clean[key] = value
+        if unknown:
+            raise ValueError(f"Champs non autorises: {', '.join(unknown)}")
+        return clean
+
     @classmethod
     def _get_tenant_filter(cls, query):
         tenant_id = get_current_tenant_id()
@@ -275,8 +311,9 @@ class LivraisonService:
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
-        data['tenant_id'] = tenant_id
-        instance = cls.model(**data)
+        clean = cls._sanitize_payload(data)
+        clean['tenant_id'] = tenant_id
+        instance = cls.model(**clean)
         db.session.add(instance)
         db.session.commit()
         return instance
@@ -286,9 +323,9 @@ class LivraisonService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
-        for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
-                setattr(instance, key, value)
+        clean = cls._sanitize_payload(data)
+        for key, value in clean.items():
+            setattr(instance, key, value)
         db.session.commit()
         return instance
 

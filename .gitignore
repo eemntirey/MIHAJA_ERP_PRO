@@ -556,3 +556,10 @@ settings.local.json
 # ============================================================
 # FIN DU .gitignore
 # ============================================================
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

@@ -17,6 +17,25 @@ export default function Documents() {
 
     const [editingId, setEditingId] = useState(null);
 
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem('documents_prefill');
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            sessionStorage.removeItem('documents_prefill');
+            setTab('documents');
+            setDocForm(prev => ({
+                ...prev,
+                type_document: data.type_document || prev.type_document,
+                reference: data.reference || prev.reference,
+                entite_type: data.entite_type || prev.entite_type,
+                entite_id: data.entite_id || prev.entite_id,
+                donnees: typeof data.donnees === 'string' ? data.donnees : JSON.stringify(data.donnees, null, 2),
+            }));
+            toast.info('Données pré-remplies depuis la facture');
+        } catch (_) { /* ignore */ }
+    }, []);
+
     const fetchAll = async () => {
         setLoading(true);
         try {

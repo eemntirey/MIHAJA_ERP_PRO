@@ -8,7 +8,7 @@ if __name__ == '__main__':
     with app.app_context():
         upgrade()
     
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    debug = os.getenv('FLASK_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', 5000))
     
