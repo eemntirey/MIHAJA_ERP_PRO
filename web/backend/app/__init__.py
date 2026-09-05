@@ -29,11 +29,17 @@ def create_app():
     if not app.config['SECRET_KEY']:
         raise ValueError("SECRET_KEY environment variable is required")
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    database_url = os.getenv(
         'DATABASE_URL',
-        'sqlite:///erp.db'
+        'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db'
     )
 
+    if os.getenv('FLASK_ENV', '').lower() == 'production' and database_url.startswith('sqlite'):
+        raise ValueError(
+            'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
+        )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
