@@ -286,45 +286,7 @@
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-card__cta {
-  color: #fffafa;
-}
-
-/* ==================== BULLETIN PAIEMENT HORS LIGNE ==================== */
-
-.offline-bulletin {
-  background: var(--color-background, #f8f9fa);
-  border: 1px dashed var(--color-border, #cbd5e1);
-  border-radius: 10px;
-  padding: 18px;
-}
-
-.offline-bulletin__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  font-size: 14px;
-}
-
-.offline-bulletin__ref {
-  font-family: var(--font-heading, monospace);
-  letter-spacing: 0.5px;
-  color: #3b82f6;
-}
-
-.offline-bulletin__instructions {
-  margin: 16px 0 8px;
-  font-size: 14px;
-  color: var(--color-onyx, #1f2937);
-  line-height: 1.5;
-}
-
-.offline-bulletin__note {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-  line-height: 1.5;
+  color: #111111;
 }
 
 
