@@ -1,23 +1,21 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: erp_mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_postgres
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-erp_db}
-      MYSQL_USER: ${MYSQL_USER:-erp_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_password}
     ports:
-      - "${MYSQL_HOST_PORT:-127.0.0.1:3306}:3306"
+      - "${POSTGRES_HOST_PORT:-127.0.0.1:5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}"]
+      interval: 10s
+      timeout: 5s
       retries: 10
 
   redis:
@@ -44,7 +42,7 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_started
@@ -63,8 +61,10 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
     depends_on:
-      - redis
-      - mysql
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
     command: celery -A app.tasks worker --loglevel=info
@@ -85,5 +85,5 @@ services:
       - /app/node_modules
 
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:

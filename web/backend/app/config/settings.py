@@ -10,12 +10,20 @@ class Config:
     if not SECRET_KEY:
         raise ValueError("SECRET_KEY environment variable is required")
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-    
+
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///erp.db')
+    DEFAULT_DATABASE_URL = os.getenv(
+        'DATABASE_URL',
+        'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db'
+    )
+    if os.getenv('FLASK_ENV', '').lower() == 'production' and DEFAULT_DATABASE_URL.startswith('sqlite'):
+        raise ValueError(
+            'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
+        )
+    SQLALCHEMY_DATABASE_URI = DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {}
-    
+
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     if not JWT_SECRET_KEY:
@@ -25,12 +33,12 @@ class Config:
     JWT_TOKEN_LOCATION = ['headers']
     JWT_HEADER_NAME = 'Authorization'
     JWT_HEADER_TYPE = 'Bearer'
-    
+
     # Celery / Redis
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
-    
+
     # Email
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
@@ -50,18 +58,18 @@ class Config:
     # Securite / reset
     PASSWORD_RESET_TTL_MINUTES = int(os.getenv('PASSWORD_RESET_TTL_MINUTES', '30'))
     FRONTEND_RESET_URL = os.getenv('FRONTEND_RESET_URL', 'http://localhost:3000')
-    
+
     # Upload
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
-    
+
     # CORS
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-    
+
     # Pagination
     DEFAULT_PAGE_SIZE = 20
     MAX_PAGE_SIZE = 100
-    
+
     # Multi-tenancy
     DEFAULT_TENANT_SLUG = 'default'
     DEFAULT_TENANT_DOMAIN = 'localhost'
@@ -87,7 +95,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_ECHO = False
-    
+
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
