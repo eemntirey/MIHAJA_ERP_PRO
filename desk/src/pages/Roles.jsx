@@ -135,8 +135,8 @@ const Roles = () => {
     return result;
   }, [groupedPermissions, permSearch]);
 
-  const formatDescription = (text = '') =>
-    text
+  const formatDescription = (text) =>
+    (text || '')
       .replace(/([a-zà-ÿ])([A-Z])/g, '$1 $2')
       .replace(/([.!?])([A-ZÀ-Ú])/g, '$1 $2')
       .replace(/\s+/g, ' ')

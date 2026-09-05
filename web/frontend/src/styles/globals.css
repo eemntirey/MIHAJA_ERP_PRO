@@ -22,6 +22,11 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 body {
   min-height: 100vh;
   font-family: var(--font-family-body);
@@ -31,10 +36,13 @@ body {
   background-color: var(--color-background);
   font-weight: var(--weight-normal);
   letter-spacing: var(--tracking-normal);
+  position: relative;
 }
 
 #root, .app {
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* --------------------------------------------------------------------------

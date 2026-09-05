@@ -1,6 +1,7 @@
 from flask import request, current_app
 from flask_restx import Namespace, Resource
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.produit_service import ProduitService
 from app.models.stock import MouvementStock
 from app import db
@@ -10,12 +11,14 @@ ns = Namespace('stocks', description='Gestion des stocks')
 
 @ns.route('/')
 class StockList(Resource):
+    @permission_required('stock.view')
     @tenant_required_readonly
     def get(self):
         """Liste les produits avec statut stock"""
         produits = ProduitService.get_stock_alert()
         return {'stocks': [p.to_dict() for p in produits]}, 200
 
+    @permission_required('stock.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
@@ -42,6 +45,7 @@ class StockList(Resource):
 
 @ns.route('/<int:id>')
 class StockResource(Resource):
+    @permission_required('stock.view')
     @tenant_required_readonly
     def get(self, id):
         """Statut d'un produit"""
@@ -52,6 +56,7 @@ class StockResource(Resource):
 
 @ns.route('/mouvements')
 class StockMouvementList(Resource):
+    @permission_required('stock.view')
     @tenant_required_readonly
     def get(self):
         """Liste des mouvements de stock"""
@@ -70,6 +75,7 @@ class StockMouvementList(Resource):
         mouvements = query.all()
         return {'mouvements': [m.to_dict() for m in mouvements]}, 200
 
+    @permission_required('stock.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
@@ -99,6 +105,7 @@ class StockMouvementList(Resource):
 
 @ns.route('/stats')
 class StockStats(Resource):
+    @permission_required('stock.view')
     @tenant_required_readonly
     def get(self):
         """Statistiques des stocks"""
@@ -108,6 +115,7 @@ class StockStats(Resource):
 
 @ns.route('/alerts')
 class StockAlerts(Resource):
+    @permission_required('stock.view')
     @tenant_required_readonly
     def get(self):
         """Alertes de stock"""

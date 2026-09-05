@@ -57,11 +57,31 @@ class Utilisateur(BaseModel):
     
     employee_key_hash = db.Column(db.String(255), nullable=True)
     employee_key_status = db.Column(db.String(20), nullable=True, default='active')
-    
+
     custom_role = db.relationship('RoleModel', backref='users', foreign_keys='Utilisateur.custom_role_id')
-    
+
     last_login = db.Column(db.DateTime)
     last_ip = db.Column(db.String(45))
+
+    # ================================================================
+    # Gestion du mot de passe (premiere connexion / reset)
+    # ================================================================
+    # `must_change_password` est mis a True lorsque le Tenant cree un
+    # compte avec un mot de passe temporaire ; il est remis a False
+    # apres la premiere modification reussie (ou apres un reset complet).
+    # `password_changed_at` est actualise a chaque changement de
+    # mot de passe reussi (modification volontaire, premiere connexion
+    # ou reinitialisation via token).
+    must_change_password = db.Column(
+        db.Boolean, default=False, nullable=False, index=True
+    )
+    password_changed_at = db.Column(db.DateTime, nullable=True)
+    # Token_version permet d'invalider les anciens JWT lorsqu'un
+    # utilisateur change/reinitialise son mot de passe (utilise via
+    # le claim JWT `pwd_v`). Voir app.security.auth.invalidate_user_tokens.
+    token_version = db.Column(
+        db.Integer, default=0, nullable=False
+    )
     
     tenant = db.relationship('Tenant', back_populates='utilisateurs', foreign_keys='Utilisateur.tenant_id')
     clients = db.relationship('Client', back_populates='commercial', foreign_keys='Client.commercial_id', lazy='dynamic')
@@ -131,6 +151,8 @@ class Utilisateur(BaseModel):
             else:
                 data['custom_role'] = None
         data['permissions'] = self.get_permissions()
+        # Toujours exposer must_change_password pour que le frontend puisse rediriger
+        data['must_change_password'] = bool(self.must_change_password)
         return data
     
     def mark_deleted(self):
@@ -156,6 +178,29 @@ class Utilisateur(BaseModel):
     def generate_employee_key():
         import secrets
         return secrets.token_urlsafe(32)
+
+    @staticmethod
+    def generate_temp_password():
+        """Génère un mot de passe temporaire sécurisé de 12 caractères.
+
+        Le mot de passe respecte la politique de sécurité :
+        - au moins une lettre majuscule
+        - au moins une lettre minuscule
+        - au moins un chiffre
+        - longueur totale : 12 caractères
+        Ne jamais stocker ce mot de passe en clair ; le hasher immédiatement.
+        """
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        # Garantit la politique de sécurité
+        while True:
+            pwd = ''.join(secrets.choice(alphabet) for _ in range(12))
+            has_upper = any(c.isupper() for c in pwd)
+            has_lower = any(c.islower() for c in pwd)
+            has_digit = any(c.isdigit() for c in pwd)
+            if has_upper and has_lower and has_digit:
+                return pwd
 
     def __repr__(self):
         return f'<Utilisateur {self.username}>'

@@ -292,6 +292,38 @@ class TestEmployeeUserLimits:
         assert r.status_code == 403, r.get_json()
         assert 'employés' in r.get_json()['message']
 
+    def test_admin_can_still_list_users_when_employee_limit_reached(self, app):
+        """La limite d'employes bloque la creation mais pas la consultation
+        de la liste des utilisateurs (§34 : la limite s'affiche, la liste
+        reste accessible)."""
+        tenant, admin = _make_tenant_with_abonnement(max_employees=2)
+        client = app.test_client()
+        headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp1', 'email': 'emp1@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp2', 'email': 'emp2@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 201, r.get_json()
+
+        # Limite atteinte : creation refusee
+        r = client.post('/api/v1/users', headers=headers,
+                        json={'username': 'emp3', 'email': 'emp3@test.mg',
+                              'password': 'Pass123!', 'role': 'user'})
+        assert r.status_code == 403, r.get_json()
+        assert 'employés' in r.get_json()['message']
+
+        # Mais la liste des utilisateurs reste consultable
+        r = client.get('/api/v1/users', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        emails = [u['email'] for u in r.get_json()['users']]
+        assert 'emp1@test.mg' in emails
+        assert 'emp2@test.mg' in emails
+
     def test_can_create_employee_user_under_limit(self, app):
         tenant, admin = _make_tenant_with_abonnement(max_employees=3)
         client = app.test_client()

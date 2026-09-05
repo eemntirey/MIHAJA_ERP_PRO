@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.ai import (
     predict_sales,
     detect_stock_anomalies,
@@ -44,6 +45,7 @@ recommendation_model = ns.model('Recommendation', {
 @ns.route('/previsions')
 @ns.doc(responses={200: 'Prévisions récupérées avec succès', 400: 'Requête invalide'})
 class PrevisionsResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def get(self):
         """Obtenir les prévisions de ventes pour une période donnée"""
@@ -67,6 +69,7 @@ class PrevisionsResource(Resource):
 @ns.route('/anomalies')
 @ns.doc(responses={200: 'Anomalies détectées avec succès', 500: 'Erreur serveur'})
 class AnomaliesResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def get(self):
         """Détecter les anomalies de stock, de ventes et de paiements"""
@@ -101,6 +104,7 @@ class AnomaliesResource(Resource):
 @ns.route('/recommendations')
 @ns.doc(responses={200: 'Recommandations récupérées avec succès', 500: 'Erreur serveur'})
 class RecommendationsResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def get(self):
         """Obtenir les recommandations de réapprovisionnement, d'ajustement de prix et de vente croisée"""
@@ -138,6 +142,7 @@ class RecommendationsResource(Resource):
 @ns.route('/assistant')
 @ns.doc(responses={200: 'Réponse de l\'assistant', 400: 'Requête invalide'})
 class AssistantResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def post(self):
         """Interroger l'assistant virtuel ERP avec une question en langage naturel"""
@@ -159,6 +164,7 @@ class AssistantResource(Resource):
 @ns.route('/train')
 @ns.doc(responses={200: 'Modèles entraînés avec succès', 400: 'Requête invalide', 500: 'Erreur lors de l\'entraînement'})
 class TrainResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def post(self):
         """Entraîner/Réactualiser les modèles IA avec les dernières données"""
@@ -177,6 +183,7 @@ class TrainResource(Resource):
 @ns.route('/stock-ruptures')
 @ns.doc(responses={200: 'Prédictions de rupture de stock récupérées', 500: 'Erreur serveur'})
 class StockRuptureResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def get(self):
         """Prédire les ruptures de stock pour les produits"""
@@ -195,6 +202,7 @@ class StockRuptureResource(Resource):
 @ns.route('/health')
 @ns.doc(responses={200: 'Statut du module IA'})
 class AIHealthResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def get(self):
         """Vérifier le statut du module IA"""
@@ -228,6 +236,7 @@ class AIHealthResource(Resource):
 
 @ns.route('/search')
 class AISearchResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def post(self):
         """Recherche web externe pour enrichir une réponse IA"""
@@ -248,6 +257,7 @@ class AISearchResource(Resource):
 
 @ns.route('/context')
 class AIContextResource(Resource):
+    @permission_required('report.view')
     @tenant_required_readonly
     def post(self):
         """Met à jour le contexte conversationnel de l'assistant"""

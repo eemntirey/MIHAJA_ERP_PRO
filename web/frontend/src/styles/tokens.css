@@ -86,7 +86,7 @@
 
   /* Onyx (dark text / soft bg) */
   --color-onyx:           var(--color-neutral-900);
-  --color-onyx-soft:      var(--color-neutral-100);
+  --color-onyx-soft:      var(--color-neutral-800);
 
   /* White */
   --color-white:          var(--color-neutral-0);

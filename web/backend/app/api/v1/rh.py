@@ -4,6 +4,7 @@ from datetime import date
 from app import db
 from app.security.tenant import tenant_required_readonly
 from app.security.plan_limits import check_plan_limits, require_module
+from app.security.permissions import permission_required
 from app.services.rh_service import EmployeService, PresenceService, SalaireService, PrimeService
 from app.services.stagiaire_service import StagiaireService
 from app.utils.audit import log_audit
@@ -20,6 +21,7 @@ _MODULE_RH = 'rh'
 
 @ns_employes.route('/')
 class EmployeList(Resource):
+    @permission_required('employe.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
@@ -47,6 +49,7 @@ class EmployeList(Resource):
 
 @ns_employes.route('/<int:id>')
 class EmployeResource(Resource):
+    @permission_required('employe.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self, id):
@@ -55,6 +58,7 @@ class EmployeResource(Resource):
             return {'message': 'Employe non trouve'}, 404
         return employe.to_dict(), 200
 
+    @permission_required('employe.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def put(self, id):
@@ -74,6 +78,7 @@ class EmployeResource(Resource):
             pass
         return employe.to_dict(), 200
 
+    @permission_required('employe.delete')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def delete(self, id):
@@ -95,12 +100,14 @@ class EmployeResource(Resource):
 
 @ns_presences.route('/')
 class PresenceList(Resource):
+    @permission_required('presence.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
         presences, total = PresenceService.get_all()
         return {'presences': [p.to_dict() for p in presences], 'total': total}, 200
 
+    @permission_required('presence.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def post(self):
@@ -111,6 +118,7 @@ class PresenceList(Resource):
 
 @ns_presences.route('/registre')
 class PresenceRegistre(Resource):
+    @permission_required('presence.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
@@ -127,6 +135,7 @@ class PresenceRegistre(Resource):
 
 @ns_presences.route('/registre/export')
 class PresenceRegistreExport(Resource):
+    @permission_required('presence.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
@@ -146,6 +155,7 @@ class PresenceRegistreExport(Resource):
 
 @ns_presences.route('/<int:id>')
 class PresenceResource(Resource):
+    @permission_required('presence.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self, id):
@@ -154,6 +164,7 @@ class PresenceResource(Resource):
             return {'message': 'Presence non trouvee'}, 404
         return presence.to_dict(), 200
 
+    @permission_required('presence.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def put(self, id):
@@ -163,6 +174,7 @@ class PresenceResource(Resource):
             return {'message': 'Presence non trouvee'}, 404
         return presence.to_dict(), 200
 
+    @permission_required('presence.delete')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def delete(self, id):
@@ -174,12 +186,14 @@ class PresenceResource(Resource):
 
 @ns_salaires.route('/')
 class SalaireList(Resource):
+    @permission_required('salaire.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
         salaires, total = SalaireService.get_all()
         return {'salaires': [s.to_dict() for s in salaires], 'total': total}, 200
 
+    @permission_required('salaire.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def post(self):
@@ -190,6 +204,7 @@ class SalaireList(Resource):
 
 @ns_salaires.route('/generer')
 class SalaireGenerer(Resource):
+    @permission_required('salaire.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def post(self):
@@ -215,6 +230,7 @@ class SalaireGenerer(Resource):
 
 @ns_salaires.route('/<int:id>/payer')
 class SalairePayer(Resource):
+    @permission_required('salaire.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def post(self, id):
@@ -233,6 +249,7 @@ class SalairePayer(Resource):
 
 @ns_salaires.route('/export')
 class SalaireExport(Resource):
+    @permission_required('salaire.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
@@ -273,6 +290,7 @@ class SalaireExport(Resource):
 
 @ns_salaires.route('/<int:id>')
 class SalaireResource(Resource):
+    @permission_required('salaire.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self, id):
@@ -281,6 +299,7 @@ class SalaireResource(Resource):
             return {'message': 'Salaire non trouve'}, 404
         return salaire.to_dict(), 200
 
+    @permission_required('salaire.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def put(self, id):
@@ -290,6 +309,7 @@ class SalaireResource(Resource):
             return {'message': 'Salaire non trouve'}, 404
         return salaire.to_dict(), 200
 
+    @permission_required('salaire.delete')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def delete(self, id):
@@ -301,12 +321,14 @@ class SalaireResource(Resource):
 
 @ns_primes.route('/')
 class PrimeList(Resource):
+    @permission_required('prime.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
         primes, total = PrimeService.get_all()
         return {'primes': [p.to_dict() for p in primes], 'total': total}, 200
 
+    @permission_required('prime.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def post(self):
@@ -317,6 +339,7 @@ class PrimeList(Resource):
 
 @ns_primes.route('/<int:id>')
 class PrimeResource(Resource):
+    @permission_required('prime.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self, id):
@@ -325,6 +348,7 @@ class PrimeResource(Resource):
             return {'message': 'Prime non trouvee'}, 404
         return prime.to_dict(), 200
 
+    @permission_required('prime.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def put(self, id):
@@ -334,6 +358,7 @@ class PrimeResource(Resource):
             return {'message': 'Prime non trouvee'}, 404
         return prime.to_dict(), 200
 
+    @permission_required('prime.delete')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def delete(self, id):
@@ -345,12 +370,14 @@ class PrimeResource(Resource):
 
 @ns_stagiaires.route('/')
 class StagiaireList(Resource):
+    @permission_required('stagiaire.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self):
         stagiaires, total = StagiaireService.get_all()
         return {'stagiaires': [s.to_dict() for s in stagiaires], 'total': total}, 200
 
+    @permission_required('stagiaire.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     @check_plan_limits('stagiaires')
@@ -375,6 +402,7 @@ class StagiaireList(Resource):
 
 @ns_stagiaires.route('/<int:id>')
 class StagiaireResource(Resource):
+    @permission_required('stagiaire.view')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def get(self, id):
@@ -383,6 +411,7 @@ class StagiaireResource(Resource):
             return {'message': 'Stagiaire non trouve'}, 404
         return stagiaire.to_dict(), 200
 
+    @permission_required('stagiaire.update')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def put(self, id):
@@ -408,6 +437,7 @@ class StagiaireResource(Resource):
             pass
         return stagiaire.to_dict(), 200
 
+    @permission_required('stagiaire.delete')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     def delete(self, id):

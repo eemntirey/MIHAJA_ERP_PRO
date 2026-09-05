@@ -187,6 +187,7 @@
 .dashboard-button--dark:hover:not(:disabled) {
   border-color: var(--color-text-soft);
   background: var(--color-onyx-soft);
+  color: var(--color-text);
 }
 
 .dashboard-icon-spin {

@@ -141,7 +141,7 @@ const Home = () => {
                     aria-haspopup="true"
                     aria-expanded={showUserCartouche}
                   >
-                    <span className="user-cartouche-avatar">
+                    <span className="user-cartouche-avatar" aria-hidden="true">
                       {(user?.prenom?.[0] || 'U').toUpperCase()}
                     </span>
                     <span className="user-cartouche-greeting">
@@ -155,7 +155,7 @@ const Home = () => {
                   {showUserCartouche && (
                     <div className="user-cartouche">
                       <div className="user-cartouche-header">
-                        <div className="user-cartouche-avatar-large">
+                        <div className="user-cartouche-avatar-large" aria-hidden="true">
                           {(user?.prenom?.[0] || 'U').toUpperCase()}
                         </div>
                         <div className="user-cartouche-meta">
@@ -296,7 +296,7 @@ const Home = () => {
         )}
 
         {isUser && isAuthenticated && (
-          <section className="orders-card">
+          <section className={`orders-card${notifications.length === 0 ? ' is-empty' : ''}`}>
             <div className="orders-card__header">
               <div className="orders-card__heading">
                 <span className="orders-card__icon" aria-hidden="true">

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue sur MIHAJA ERP</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { background: #1a73e8; color: #ffffff; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; }
+        .body { padding: 30px; color: #333333; }
+        .body h2 { margin-top: 0; font-size: 20px; color: #1a73e8; }
+        .credentials { background: #f8f9fa; border-left: 4px solid #1a73e8; padding: 16px 20px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .credentials p { margin: 6px 0; font-size: 14px; }
+        .credentials strong { display: inline-block; min-width: 140px; }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 20px 0; font-size: 13px; color: #856404; }
+        .warning strong { color: #856404; }
+        .btn { display: inline-block; background: #1a73e8; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-weight: 600; font-size: 14px; margin: 20px 0; }
+        .footer { background: #f8f9fa; padding: 20px 30px; font-size: 12px; color: #666666; text-align: center; }
+        .footer a { color: #1a73e8; text-decoration: none; }
+        @media (max-width: 480px) { .container { margin: 10px; } .header, .body, .footer { padding: 20px; } .credentials strong { min-width: 100px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MIHAJA ERP</h1>
+            <p>Bienvenue, {{ user_full_name }}</p>
+        </div>
+        <div class="body">
+            <h2>Votre compte a ete cree</h2>
+            <p>Votre compte a ete cree par <strong>{{ tenant_name }}</strong>. Voici vos identifiants de connexion :</p>
+            <div class="credentials">
+                <p><strong>Identifiant :</strong> {{ user_email }}</p>
+                <p><strong>Mot de passe temporaire :</strong> {{ temporary_password }}</p>
+            </div>
+            <div class="warning">
+                <strong>Important :</strong> Ce mot de passe est temporaire. Connectez-vous et modifiez-le immediatement. Ne le partagez avec personne.
+            </div>
+            <p>Cliquez sur le bouton ci-dessous pour vous connecter :</p>
+            <center><a href="{{ app_url }}/login" class="btn">Se connecter a MIHAJA ERP</a></center>
+            <p style="font-size: 13px; color: #666666; margin-top: 24px;">
+                Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br>
+                <a href="{{ app_url }}/login" style="word-break: break-all;">{{ app_url }}/login</a>
+            </p>
+        </div>
+        <div class="footer">
+            <p>MIHAJA ERP &mdash; Systeme de gestion ERP pour Madagascar<br><a href="{{ app_url }}">{{ app_url }}</a></p>
+            <p style="margin-top: 8px;">Cet e-mail a ete envoye automatiquement. Merci de ne pas y repondre.</p>
+        </div>
+    </div>
+</body>
+</html>
