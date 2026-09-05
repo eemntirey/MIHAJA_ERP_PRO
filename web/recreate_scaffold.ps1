@@ -41,28 +41,28 @@ jwt = JWTManager()
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///erp.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret')
-    
+
     db.init_app(app)
     migrate.init_app(app, db)
     CORS(app)
     jwt.init_app(app)
-    
+
     api = Api(app, title='ERP Commercial API', version='1.0', doc='/docs/')
-    
+
     from app.api.v1.test import ns as test_ns
     api.add_namespace(test_ns, path='/api/v1/test')
-    
+
     @app.route('/')
     def index():
         return {'message': 'ERP Commercial API', 'status': 'running'}, 200
-    
+
     @app.route('/health')
     def health():
         return {'status': 'healthy', 'database': 'connected'}, 200
-    
+
     return app" | Out-File -FilePath "backend\app\__init__.py" -Encoding UTF8
 
 # 5. Creer run.py
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', 5000))
-    
+
     print('=' * 50)
     print('ERP Commercial API')
     print('=' * 50)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     print(f'Documentation: http://localhost:{port}/docs')
     print('=' * 50)
     print('')
-    
+
     app.run(debug=debug, host=host, port=port)" | Out-File -FilePath "backend\run.py" -Encoding UTF8
 
 # 6. Creer models/__init__.py
@@ -97,21 +97,21 @@ from datetime import datetime
 
 class BaseModel(db.Model):
     __abstract__ = True
-    
+
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     def save(self):
         db.session.add(self)
         db.session.commit()
         return self
-    
+
     def delete(self):
         self.is_active = False
         db.session.commit()
-    
+
     def to_dict(self):
         data = {}
         for column in self.__table__.columns:
@@ -130,7 +130,7 @@ FLASK_ENV=development
 FLASK_DEBUG=True
 SECRET_KEY=
 JWT_SECRET_KEY=
-DATABASE_URL=sqlite:///erp.db
+DATABASE_URL=postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db
 ENCRYPTION_KEY=" | Out-File -FilePath "backend\.env" -Encoding UTF8
 
 # Messages de fin
