@@ -355,7 +355,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 12px;
 }
 
 .ai-quick-prompt {
@@ -412,6 +412,13 @@
   max-height: 120px;
   min-height: 24px;
   padding: 2px 0;
+}
+
+.ai-input-field:focus,
+.ai-input-field:focus-visible {
+  border: none;
+  outline: none;
+  box-shadow: none;
 }
 
 .ai-input-field::placeholder {

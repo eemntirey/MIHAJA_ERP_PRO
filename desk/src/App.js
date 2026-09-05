@@ -1,4 +1,4 @@
-// src/App.js
+﻿// src/App.js
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
@@ -12,27 +12,22 @@ import { DesktopProvider } from './contexts/DesktopContext';
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { authStorage } from '../../shared/storage/authStorage';
+import { canAccessRoute } from '@shared/utils/navPermissions';
+import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
 
 // Layout
 import DesktopLayout from './components/layout/DesktopLayout';
-import LandingLayout from './components/landing/LandingLayout';
 
 // Error boundary (évite l'écran blanc en cas d'erreur React)
 import ErrorBoundary from './components/common/ErrorBoundary';
-import ErrorBoundary from './components/ErrorBoundary';
 
-// Pages publiques
-const Catalogue = React.lazy(() => import('./pages/Catalogue'));
-const Suivi = React.lazy(() => import('./pages/Suivi'));
-const Contact = React.lazy(() => import('./pages/Contact'));
-const Documentation = React.lazy(() => import('./pages/Documentation'));
-const ProductDetail = React.lazy(() => import('./pages/ProductDetail'));
+// Boutique connectee (pages protegees par ProtectedRoute)
 const Cart = React.lazy(() => import('./pages/Cart'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
 const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
 const UserOrders = React.lazy(() => import('./pages/UserOrders'));
 
-// Pages protégées
+// Pages protÃ©gÃ©es
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Products = React.lazy(() => import('./pages/Products'));
 const Clients = React.lazy(() => import('./pages/Clients'));
@@ -61,57 +56,61 @@ const RegisterUser = React.lazy(() => import('./components/auth/RegisterUser'));
 const RegisterCompany = React.lazy(() => import('./components/auth/RegisterCompany'));
 const ForgotPassword = React.lazy(() => import('./components/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./components/auth/ResetPassword'));
+const FirstChangePassword = React.lazy(() => import('./components/auth/FirstChangePassword'));
 
 const AuthSuspense = ({ children }) => (
-  <Suspense fallback={<div className="auth-loading">Chargement…</div>}>
+  <Suspense fallback={<div className="auth-loading">Chargementâ€¦</div>}>
     {children}
   </Suspense>
 );
 
 const PageSuspense = ({ children }) => (
-  <Suspense fallback={<div className="page-loading">Chargement…</div>}>
+  <Suspense fallback={<div className="page-loading">Chargementâ€¦</div>}>
     {children}
   </Suspense>
 );
 
-// Routes boutique accessibles aux utilisateurs simples connectés
+// Routes boutique accessibles aux utilisateurs simples connectÃ©s
 const STOREFRONT_PREFIXES = ['/cart', '/checkout', '/order-tracking', '/mes-commandes'];
 
-// Protection des routes
-const PATH_MODULE_MAP = {
-  '/dashboard': 'dashboard',
-  '/products': 'produits',
-  '/clients': 'clients',
-  '/sales': 'ventes',
-  '/invoices': 'factures',
-  '/payments': 'paiements',
-  '/inventory': 'stocks',
-  '/suppliers': null,
-  '/purchases': 'achats',
-  '/delivery': 'livraison',
-  '/hr': 'rh',
-  '/accounting': 'comptabilite',
-  '/documents': 'documents',
-  '/ai': 'ia',
-  '/super-admin': null,
-  '/users': null,
-  '/roles': null,
-  '/permissions': null,
+// Source unique pour les maps de permissions/modules/chemins admin :
+// importees depuis shared/navConfig. La definition locale a ete supprimee
+// pour eviter toute divergence avec la sidebar / le backend.
+
+const roleFallbackForPath = (pathname) => {
+  const item = NAV_ITEMS.find((i) => i.path === pathname);
+  return Array.isArray(item?.roleFallback) ? item.roleFallback : null;
 };
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, user, subscription, getAllowedModules } = useAuth();
+  const {
+    isAuthenticated,
+    loading,
+    user,
+    mustChangePassword,
+    subscription,
+    getAllowedModules,
+    hasAnyPermission,
+    hasPermission,
+    hasRole,
+  } = useAuth();
   const location = useLocation();
 
   const hasToken = !!authStorage.getAccessToken();
   const shouldAllow = isAuthenticated || hasToken;
 
   if (loading) {
-    return <div className="loading-screen">Chargement…</div>;
+    return <div className="loading-screen">Chargementâ€¦</div>;
   }
 
   if (!shouldAllow) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Si l'utilisateur doit changer son mot de passe, on le force vers l'ecran
+  // de changement obligatoire (sauf s'il est deja sur cet ecran).
+  if (mustChangePassword && location.pathname !== '/first-change-password') {
+    return <Navigate to="/first-change-password" replace />;
   }
 
   const role = (user?.role || '').toLowerCase();
@@ -121,12 +120,12 @@ const ProtectedRoute = ({ children }) => {
   );
 
   // Les utilisateurs simples accèdent à la boutique connectée, pas aux modules ERP.
-  // Ils sont redirigés vers le catalogue (ou leurs commandes) au lieu d'une page d'accueil.
+  // Ils sont redirigés vers leurs commandes au lieu d'une page d'accueil.
   if (role === 'user') {
     if (isStorefront) {
       return children;
     }
-    return <Navigate to="/catalogue" replace />;
+    return <Navigate to="/mes-commandes" replace />;
   }
 
   if (role === 'super_admin') {
@@ -141,11 +140,24 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/subscription" replace />;
   }
 
-  const allowedModules = getAllowedModules();
-  const requiredModule = PATH_MODULE_MAP[location.pathname];
-
-  if (requiredModule && allowedModules !== null && !allowedModules.includes(requiredModule)) {
-    return <Navigate to="/dashboard" replace />;
+  // Garde de permission explicite : acces direct par URL (cas 7 RBAC).
+  // Source unique : shared/utils/navPermissions.js::canAccessRoute.
+  if (user && Array.isArray(user.permissions)) {
+    const ctx = {
+      isSuperAdmin: role === 'super_admin',
+      hasAnyPermission,
+      hasPermission,
+      hasRole,
+      allowedModules: getAllowedModules(),
+      roleFallbackFor: roleFallbackForPath,
+    };
+    const ok = canAccessRoute(location.pathname, PATH_PERMISSION_MAP, ctx, {
+      pathModuleMap: PATH_MODULE_MAP,
+      skipModuleGatePaths: ADMIN_PATHS,
+    });
+    if (!ok) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;
@@ -164,8 +176,8 @@ const RequireRole = ({ children, role }) => {
 const App = () => {
   useRealtimeSync();
   const { logout } = useAuth();
-  // Gestion centralisée du thème : synchronise la classe `.dark` sur <html>,
-  // persiste dans localStorage et met à jour le meta theme-color.
+  // Gestion centralisÃ©e du thÃ¨me : synchronise la classe `.dark` sur <html>,
+  // persiste dans localStorage et met Ã  jour le meta theme-color.
   const [darkMode, toggleDarkMode] = useTheme();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
@@ -193,15 +205,8 @@ const App = () => {
           <NotificationProvider>
             <CartProvider>
               <Routes>
-               {/* Pages publiques (vitrine) avec LandingLayout */}
-              <Route element={<LandingLayout darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}>
-                  <Route path="/" element={<Navigate to="/catalogue" replace />} />
-                  <Route path="/catalogue" element={<PageSuspense><Catalogue /></PageSuspense>} />
-                 <Route path="/suivi" element={<PageSuspense><Suivi /></PageSuspense>} />
-                 <Route path="/contact" element={<PageSuspense><Contact /></PageSuspense>} />
-                 <Route path="/documentation" element={<PageSuspense><Documentation /></PageSuspense>} />
-                 <Route path="/produits/:id" element={<PageSuspense><ProductDetail /></PageSuspense>} />
-                </Route>
+               {/* Point d'entree : forcer l'authentification */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
 
               {/* Authentification */}
               <Route path="/login" element={<AuthSuspense><Login darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
@@ -210,8 +215,10 @@ const App = () => {
               <Route path="/register/company" element={<AuthSuspense><RegisterCompany darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
               <Route path="/forgot-password" element={<AuthSuspense><ForgotPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
               <Route path="/reset-password/:token" element={<AuthSuspense><ResetPassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+                            <Route path="/first-change-password" element={<AuthSuspense><FirstChangePassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
+              <Route path="/first-login-change" element={<AuthSuspense><FirstChangePassword darkMode={darkMode} onToggleDarkMode={toggleDarkMode} /></AuthSuspense>} />
 
-             {/* Espace protégé (layout desktop) — inclut la boutique connectée */}
+             {/* Espace protÃ©gÃ© (layout desktop) â€” inclut la boutique connectÃ©e */}
              <Route
                element={(
                  <ProtectedRoute>
@@ -244,7 +251,7 @@ const App = () => {
                 <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
                 <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
 
-                {/* Boutique connectée (utilisateurs simples + autres rôles) */}
+                {/* Boutique connectÃ©e (utilisateurs simples + autres rÃ´les) */}
                 <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
                 <Route path="checkout" element={<PageSuspense><Checkout /></PageSuspense>} />
                 <Route path="order-tracking/:ref" element={<PageSuspense><OrderTracking /></PageSuspense>} />
@@ -272,7 +279,7 @@ const App = () => {
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <div className="modal-header">
                     <h2>Limite du plan atteinte</h2>
-                    <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
+                    <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">Ã—</button>
                   </div>
                   <div className="modal-body">
                     <p>{planLimitModal.message}</p>

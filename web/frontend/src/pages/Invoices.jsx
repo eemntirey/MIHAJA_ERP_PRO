@@ -1,5 +1,6 @@
 // src/pages/Invoices.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { factureService, saleService, clientService, paiementService } from '../services/api';
 import { toast } from 'react-toastify';
 import { PAYMENT_METHODS } from '../constants/erpConstants';
@@ -15,10 +16,17 @@ const Invoices = () => {
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [jsonPayload, setJsonPayload] = useState('');
+  const [jsonLoading, setJsonLoading] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [currentSale, setCurrentSale] = useState(null);
   const [selectedSaleId, setSelectedSaleId] = useState('');
   const [paiements, setPaiements] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [lignesByInvoiceId, setLignesByInvoiceId] = useState({});
+  const [lignesLoadingId, setLignesLoadingId] = useState(null);
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     vente_id: '',
@@ -174,6 +182,127 @@ const Invoices = () => {
     setCurrentInvoice(null);
   };
 
+  const buildDonneesJson = (invoice, sale, client) => {
+    const items = (sale?.lignes || []).map(l => ({
+      produit_nom: l.produit_nom || l.designation || (`Produit #${l.produit_id}`),
+      quantite: Number(l.quantite) || 0,
+      prix_unitaire: Number(l.prix_unitaire_ht ?? l.prix_unitaire ?? 0),
+      taux_tva: Number(l.taux_tva ?? 0),
+      total_ht: Number(l.total_ht ?? ((Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0))) || 0,
+    }));
+
+    const total_ht = Number(sale?.total_ht ?? invoice.total_ht ?? 0);
+    const taux_tva = items.length ? Number(items[0].taux_tva) || 0 : 0;
+    const total_ttc = Number(sale?.total_ttc ?? invoice.total_ttc ?? (total_ht * (1 + taux_tva / 100)));
+
+    const payload = {
+      client_nom: client?.nom_complet || invoice.client_nom || '',
+      client_adresse: client?.adresse_facturation || '',
+      client_ville: client?.ville_facturation || '',
+      client_email: client?.email || '',
+      client_telephone: client?.telephone || client?.mobile || '',
+      total_ht,
+      taux_tva,
+      total_ttc,
+      remise: 0,
+      items,
+    };
+    return payload;
+  };
+
+  const openJsonModalForInvoice = async (invoice) => {
+    setJsonLoading(true);
+    setShowJsonModal(true);
+    setJsonPayload('');
+    try {
+      const invRes = await factureService.getById(invoice.id);
+      const inv = invRes.data || invoice;
+      const venteId = inv.vente_id || invoice.vente_id;
+      let sale = null;
+      let client = null;
+      try {
+        if (venteId) {
+          const saleRes = await saleService.getById(venteId);
+          sale = saleRes.data || null;
+        }
+      } catch (_) { /* tolerate */ }
+      try {
+        const clientId = inv.client_id || sale?.client_id || invoice.client_id;
+        if (clientId) {
+          const clientRes = await clientService.getById(clientId);
+          client = clientRes.data || null;
+        }
+      } catch (_) { /* tolerate */ }
+      const payload = buildDonneesJson(inv, sale, client);
+      setJsonPayload(JSON.stringify(payload, null, 2));
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Erreur lors de la génération du JSON';
+      toast.error(msg);
+      setShowJsonModal(false);
+    } finally {
+      setJsonLoading(false);
+    }
+  };
+
+  const closeJsonModal = () => {
+    setShowJsonModal(false);
+    setJsonPayload('');
+  };
+
+  const copyJsonToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(jsonPayload);
+      toast.success('JSON copié dans le presse-papier');
+    } catch (_) {
+      const ta = document.getElementById('invoice-json-textarea');
+      if (ta) {
+        ta.select();
+        document.execCommand('copy');
+        toast.success('JSON copié');
+      } else {
+        toast.error('Impossible de copier');
+      }
+    }
+  };
+
+  const openDocumentsWithJson = () => {
+    try {
+      sessionStorage.setItem('documents_prefill', JSON.stringify({
+        entite_type: 'facture',
+        entite_id: currentInvoice?.id || null,
+        reference: currentInvoice?.reference || '',
+        type_document: 'facture',
+        donnees: jsonPayload,
+      }));
+    } catch (_) { /* ignore quota errors */ }
+    navigate('/documents');
+  };
+
+  const toggleExpandInvoice = async (invoice) => {
+    if (expandedId === invoice.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(invoice.id);
+    if (lignesByInvoiceId[invoice.id]) return;
+    const venteId = invoice.vente_id;
+    if (!venteId) {
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: [] }));
+      return;
+    }
+    try {
+      setLignesLoadingId(invoice.id);
+      const res = await saleService.getById(venteId);
+      const lignes = res.data?.lignes || res.data?.lignes_vente || [];
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: lignes }));
+    } catch (err) {
+      toast.error('Impossible de charger les lignes de la vente');
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: [] }));
+    } finally {
+      setLignesLoadingId(null);
+    }
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -300,6 +429,7 @@ const Invoices = () => {
           <table className="data-table">
             <thead>
               <tr>
+                <th></th>
                 <th>N° Facture</th>
                 <th>Date</th>
                 <th>Client</th>
@@ -313,44 +443,108 @@ const Invoices = () => {
             <tbody>
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center">
+                  <td colSpan="9" className="text-center">
                     Aucune facture trouvée
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map(invoice => (
-                  <tr key={invoice.id}>
-                    <td>#{invoice.id}</td>
-                    <td>{formatDate(invoice.created_at)}</td>
-                    <td>{invoice.client_nom || invoice.client_id || 'N/A'}</td>
-                    <td>{formatCurrency(invoice.total_ttc)}</td>
-                    <td>{formatCurrency((invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
-                    <td>{formatCurrency((invoice.total_ttc || 0) - (invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(invoice.statut).class}`}>
-                        {getStatusBadge(invoice.statut).label}
-                      </span>
-                    </td>
-                    <td>
-                        <button 
-                          onClick={() => viewInvoiceDetails(invoice)}
-                          className="btn-small btn-view"
-                          title="Voir les détails"
-                        >
-                          <i className="ti ti-eye" aria-hidden="true" />
-                        </button>
-                      {invoice.statut !== 'payee' && (
-                        <button 
-                          onClick={() => openPaymentModal(invoice)}
-                          className="btn-small btn-edit"
-                          title="Enregistrer un paiement"
-                        >
-                          <i className="ti ti-cash" aria-hidden="true" />
-                        </button>
+                filteredInvoices.map(invoice => {
+                  const isExpanded = expandedId === invoice.id;
+                  const lignes = lignesByInvoiceId[invoice.id];
+                  const isLoadingLignes = lignesLoadingId === invoice.id;
+                  return (
+                    <React.Fragment key={invoice.id}>
+                      <tr className={isExpanded ? 'row-expanded' : ''}>
+                        <td style={{ width: 32, textAlign: 'center' }}>
+                          <button
+                            onClick={() => toggleExpandInvoice(invoice)}
+                            className="btn-expand"
+                            title={isExpanded ? 'Masquer les produits' : 'Voir les produits'}
+                            aria-expanded={isExpanded}
+                          >
+                            <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} aria-hidden="true" />
+                          </button>
+                        </td>
+                        <td>#{invoice.id}</td>
+                        <td>{formatDate(invoice.created_at)}</td>
+                        <td>{invoice.client_nom || invoice.client_id || 'N/A'}</td>
+                        <td>{formatCurrency(invoice.total_ttc)}</td>
+                        <td>{formatCurrency((invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
+                        <td>{formatCurrency((invoice.total_ttc || 0) - (invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
+                        <td>
+                          <span className={`badge ${getStatusBadge(invoice.statut).class}`}>
+                            {getStatusBadge(invoice.statut).label}
+                          </span>
+                        </td>
+                        <td>
+                            <button
+                              onClick={() => viewInvoiceDetails(invoice)}
+                              className="btn-small btn-view"
+                              title="Voir les détails"
+                            >
+                              <i className="ti ti-eye" aria-hidden="true" />
+                            </button>
+                            <button
+                              onClick={() => openJsonModalForInvoice(invoice)}
+                              className="btn-small btn-json"
+                              title="Créer JSON pour Documents"
+                            >
+                              <i className="ti ti-file-code" aria-hidden="true" />
+                            </button>
+                          {invoice.statut !== 'payee' && (
+                            <button
+                              onClick={() => openPaymentModal(invoice)}
+                              className="btn-small btn-edit"
+                              title="Enregistrer un paiement"
+                            >
+                              <i className="ti ti-cash" aria-hidden="true" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="invoice-lignes-row">
+                          <td colSpan="9" style={{ background: '#fafafa', padding: '12px 24px' }}>
+                            {isLoadingLignes ? (
+                              <span className="text-muted">Chargement des produits...</span>
+                            ) : !lignes || lignes.length === 0 ? (
+                              <span className="text-muted">Aucun produit associé à cette facture.</span>
+                            ) : (
+                              <table className="data-table" style={{ margin: 0 }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '40%' }}>Produit</th>
+                                    <th style={{ width: '15%' }}>Quantité</th>
+                                    <th style={{ width: '20%' }}>Prix unitaire HT</th>
+                                    <th style={{ width: '10%' }}>TVA %</th>
+                                    <th style={{ width: '15%' }}>Total HT</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {lignes.map((l, i) => {
+                                    const qty = Number(l.quantite) || 0;
+                                    const pu = Number(l.prix_unitaire_ht ?? l.prix_unitaire ?? 0);
+                                    const tva = Number(l.taux_tva ?? 0);
+                                    const totalHt = Number(l.total_ht ?? (qty * pu));
+                                    return (
+                                      <tr key={i}>
+                                        <td>{l.produit_nom || l.designation || `Produit #${l.produit_id}`}</td>
+                                        <td>{qty}</td>
+                                        <td>{formatCurrency(pu)}</td>
+                                        <td>{tva}%</td>
+                                        <td>{formatCurrency(totalHt)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -540,7 +734,47 @@ const Invoices = () => {
                   Enregistrer le paiement
                 </button>
               </div>
-            </form>
+          </form>
+        </div>
+      </div>
+      )}
+
+      {showJsonModal && (
+        <div className="modal-overlay" onClick={closeJsonModal}>
+          <div className="modal large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>JSON pour Documents {currentInvoice ? `(Facture #${currentInvoice.id})` : ''}</h2>
+              <button onClick={closeJsonModal} className="btn-close">×</button>
+            </div>
+            <div className="modal-form">
+              <p className="text-muted" style={{ marginBottom: 8 }}>
+                Copiez ce JSON dans le champ <code>donnees</code> de la page Documents, ou ouvrez Documents directement (le champ sera pré-rempli).
+              </p>
+              <textarea
+                id="invoice-json-textarea"
+                value={jsonPayload}
+                readOnly
+                rows={16}
+                style={{
+                  width: '100%',
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  padding: 8,
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  background: '#f7f7f5',
+                }}
+              />
+              <div className="modal-footer">
+                <button type="button" onClick={closeJsonModal} className="btn-secondary">Fermer</button>
+                <button type="button" onClick={copyJsonToClipboard} className="btn-primary" disabled={!jsonPayload || jsonLoading}>
+                  Copier
+                </button>
+                <button type="button" onClick={openDocumentsWithJson} className="btn-primary" disabled={!jsonPayload || jsonLoading}>
+                  Ouvrir Documents
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

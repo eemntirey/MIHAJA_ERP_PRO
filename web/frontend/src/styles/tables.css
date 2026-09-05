@@ -5,6 +5,7 @@
 /* ===== Table Container ===== */
 .table-container {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -21,6 +22,7 @@
 /* ===== Data Table ===== */
 .data-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: var(--text-table);
   min-width: 600px;
@@ -183,5 +185,9 @@
 @media (max-width: 480px) {
   .data-table {
     min-width: 400px;
+  }
+
+  .table-container {
+    max-width: 100vw;
   }
 }

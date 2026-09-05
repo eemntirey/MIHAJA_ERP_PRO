@@ -19,6 +19,35 @@
   grid-column: 1 / -1;
 }
 
+/* ===== Inline Checkbox (modifier under a field) ===== */
+.form-group label.checkbox-inline,
+.form-group label.checkbox-inline input,
+.form-group label.checkbox-inline span {
+  cursor: pointer;
+}
+
+.form-group label.checkbox-inline {
+  margin-top: var(--space-2);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  line-height: 1.4;
+}
+
+.form-group label.checkbox-inline input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ===== Inputs ===== */
 .form-input,
 .form-select,

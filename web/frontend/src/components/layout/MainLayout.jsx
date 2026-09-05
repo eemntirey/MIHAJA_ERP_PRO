@@ -6,6 +6,7 @@ import DashboardRail from './DashboardRail';
 import DarkModeToggle from './DarkModeToggle';
 import ChatInput from './ChatInput';
 import DesktopLayout from './DesktopLayout';
+import CommandPalette from './CommandPalette';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { authService, saleService, stockService, factureService, dashboardService } from '../../services/api';
 import { toast } from 'react-toastify';
@@ -31,7 +32,20 @@ const MainLayout = () => {
   const isDesktop = useMediaQuery('(min-width: 1280px)');
 
   const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  useEffect(() => {
+    if (isDesktop) return undefined;
+    const onKey = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isDesktop]);
 
   const toggleDarkMode = (next) => {
     setDarkMode(next);
@@ -110,8 +124,11 @@ const MainLayout = () => {
       };
 
       if (dash.status === 'fulfilled') {
-        const d = dash.value?.data || {};
-        next.salesToday = safeCount(d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today);
+        // L'API renvoie { message, stats: { ventes_aujourdhui, ... } }.
+        const d = dash.value?.data?.stats || dash.value?.data || {};
+        next.salesToday = safeCount(
+          d.ventes_aujourdhui ?? d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today
+        );
       }
 
       setCounters(next);
@@ -157,6 +174,7 @@ const MainLayout = () => {
         unreadCount={unreadCount}
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
 
       <main className="main-content">
@@ -169,6 +187,8 @@ const MainLayout = () => {
           <ChatInput />
         </>
       )}
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 };

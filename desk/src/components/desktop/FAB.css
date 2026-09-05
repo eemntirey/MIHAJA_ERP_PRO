@@ -68,7 +68,7 @@
 .fab-main:hover {
   background: var(--erp-onyx-soft);
   border-color: var(--erp-onyx-soft);
-  color: #ffffff;
+  color: var(--erp-onyx);
   transform: scale(1.05);
 }
 

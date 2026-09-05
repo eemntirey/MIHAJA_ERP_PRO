@@ -275,6 +275,22 @@ export const authService = {
 
     resetPassword: (token, newPassword) =>
         api.post('/auth/reset-password', { token, new_password: newPassword }),
+
+    changePassword: (oldPassword, newPassword) =>
+        api.post('/auth/change-password', {
+            old_password: oldPassword,
+            new_password: newPassword,
+            confirm_password: newPassword,
+        }),
+
+    firstChangePassword: (newPassword) =>
+        api.post('/auth/first-login-change', {
+            new_password: newPassword,
+            confirm_password: newPassword,
+        }),
+
+    verifyResetToken: (token) =>
+        api.post('/auth/verify-reset-token', { token }),
 };
 
 // ======================================================

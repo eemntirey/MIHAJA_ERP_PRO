@@ -5,7 +5,7 @@ from app import db
 from app.models.utilisateur import Utilisateur, Role, StatutAdmin, StatutUtilisateur
 from app.models.tenant import Tenant, StatutTenant
 from app.models.abonnement import Abonnement, StatutAbonnement
-from app.models.paiement import Paiement, StatutPaiement
+from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.models.produit import Produit
 from app.models.vente import Vente
@@ -46,6 +46,7 @@ from app.security.plans import apply_plan_to_abonnement
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
+from sqlalchemy.orm import contains_eager, joinedload
 import json
 
 ns = Namespace('super-admin', description='Endpoints réservés au SUPER_ADMIN')
@@ -715,6 +716,534 @@ class SuperAdminSubscriptions(Resource):
             'page': page,
             'per_page': per_page,
             'pages': (total + per_page - 1) // per_page,
+        }, 200
+
+
+# ==========================================================
+# 💰 PAIEMENTS & REVENUS (lecture seule, SUPER_ADMIN uniquement)
+#
+# Portée : transactions d'abonnement de la plateforme
+# (Paiement.type == 'abonnement', provider 'papi' ou 'manuel').
+# Les paiements métier des tenants (factures, ventes, achats...)
+# ne font pas partie des revenus de la plateforme.
+#
+# Settlement Papi : l'intégration Papi actuelle ne fournit aucune
+# donnée de versement (settlement). Aucun montant de settlement ni
+# de "net à recevoir" n'est donc calculé ici : on n'affiche que ce
+# qui existe réellement en base (paiement + évènements webhook).
+# ==========================================================
+
+_SETTLEMENT_UNAVAILABLE = (
+    "Informations de settlement non disponibles via l'intégration actuelle"
+)
+
+_PAPI_FEES_UNAVAILABLE = (
+    "Frais Papi non disponibles via l'intégration actuelle"
+)
+
+# Groupes de statuts (valeurs réelles de StatutPaiement) :
+# - confirmé/encaissé : 'succes' (Papi SUCCESS / validation hors ligne)
+#   et 'confirme'
+# - en attente : 'en_attente', 'traitement'
+# - échoué : 'echec', 'annule', 'expiré'
+_CONFIRMED_STATUTS = (StatutPaiement.SUCCESS, StatutPaiement.CONFIRME)
+_PENDING_STATUTS = (StatutPaiement.EN_ATTENTE, StatutPaiement.PROCESSING)
+_FAILED_STATUTS = (StatutPaiement.FAILED, StatutPaiement.CANCELLED, StatutPaiement.EXPIRED)
+
+_STATUT_LABELS = {
+    StatutPaiement.EN_ATTENTE: 'EN_ATTENTE',
+    StatutPaiement.PROCESSING: 'PROCESSING',
+    StatutPaiement.SUCCESS: 'SUCCESS',
+    StatutPaiement.CONFIRME: 'CONFIRME',
+    StatutPaiement.FAILED: 'FAILED',
+    StatutPaiement.CANCELLED: 'CANCELLED',
+    StatutPaiement.EXPIRED: 'EXPIRE',
+}
+
+# Accepte à la fois le nom de l'enum (ex: 'SUCCESS') et sa valeur
+# en base (ex: 'succes') comme filtre.
+_STATUT_FILTER_MAP = {}
+for _st in StatutPaiement:
+    _STATUT_FILTER_MAP[str(_st.name).upper()] = _st
+    _STATUT_FILTER_MAP[str(_st.value).upper()] = _st
+
+
+def _payment_status_value(payment):
+    return payment.statut.value if hasattr(payment.statut, 'value') else payment.statut
+
+
+def _payment_status_label(statut):
+    return _STATUT_LABELS.get(statut, str(statut).upper() if statut else None)
+
+
+def _resolve_statut_filter(raw):
+    if not raw:
+        return None
+    return _STATUT_FILTER_MAP.get(str(raw).strip().upper())
+
+
+def _parse_payment_date(raw, inclusive_end=False):
+    """Parse un filtre de date ISO (YYYY-MM-DD). Retourne None si invalide."""
+    if not raw:
+        return None
+    try:
+        dt = datetime.strptime(str(raw).strip()[:10], '%Y-%m-%d')
+    except (TypeError, ValueError):
+        return None
+    if inclusive_end:
+        dt = dt + timedelta(days=1)  # borne haute exclusive (fin de journée)
+    return dt
+
+
+def _apply_payment_filters(query, args):
+    """Applique les filtres communs aux endpoints liste/statistiques.
+
+    Tous les filtres sont optionnels ; les valeurs invalides sont ignorées.
+    Les requêtes passent exclusivement par l'ORM SQLAlchemy (pas de SQL
+    brut => pas d'injection SQL).
+    """
+    tenant_id = args.get('tenant_id', type=int)
+    if tenant_id:
+        query = query.filter(Paiement.tenant_id == tenant_id)
+
+    statut = _resolve_statut_filter(args.get('status'))
+    if statut is not None:
+        query = query.filter(Paiement.statut == statut)
+
+    provider = (args.get('provider') or '').strip()
+    if provider:
+        query = query.filter(Paiement.provider == provider)
+
+    payment_method = (args.get('payment_method') or '').strip()
+    if payment_method:
+        query = query.filter(Paiement.payment_method == payment_method)
+
+    plan = (args.get('plan') or '').strip()
+    if plan:
+        query = query.filter(Paiement.abonnement.has(Abonnement.plan == plan))
+
+    date_from = _parse_payment_date(args.get('date_from'))
+    if date_from:
+        query = query.filter(Paiement.created_at >= date_from)
+
+    date_to = _parse_payment_date(args.get('date_to'), inclusive_end=True)
+    if date_to:
+        query = query.filter(Paiement.created_at < date_to)
+
+    return query
+
+
+def _payments_base_query():
+    """Query de base : paiements d'abonnement actifs, avec tenant + abonnement.
+
+    Les tenants désactivés (soft-delete) restent visibles : l'historique
+    financier doit être conservé.
+    """
+    return (
+        Paiement.query
+        .join(Tenant, Paiement.tenant_id == Tenant.id)
+        .filter(
+            Paiement.is_active == True,
+            Paiement.type == TypePaiement.ABONNEMENT,
+        )
+        .options(
+            contains_eager(Paiement.tenant),
+            joinedload(Paiement.abonnement),
+        )
+    )
+
+
+def _payment_list_item(payment):
+    """Sérialise un paiement pour la liste (aucune donnée sensible)."""
+    tenant = payment.tenant
+    abonnement = payment.abonnement
+    return {
+        'id': payment.id,
+        'tenant_id': payment.tenant_id,
+        'tenant_name': tenant.nom if tenant else None,
+        'subscription_id': payment.subscription_id,
+        'plan': abonnement.plan if abonnement else None,
+        'montant': float(payment.montant or 0),
+        'devise': payment.devise or 'MGA',
+        'provider': payment.provider,
+        'payment_method': payment.payment_method,
+        'statut': _payment_status_value(payment),
+        'statut_label': _payment_status_label(payment.statut),
+        'reference': payment.reference,
+        'external_reference': payment.external_reference,
+        'date_paiement': payment.date_paiement.isoformat() if payment.date_paiement else None,
+        'completed_at': payment.completed_at.isoformat() if payment.completed_at else None,
+        'created_at': payment.created_at.isoformat() if payment.created_at else None,
+        'updated_at': payment.updated_at.isoformat() if payment.updated_at else None,
+    }
+
+
+def _payment_events_info(payment_id):
+    """Charge les PaymentEvent d'un paiement (sans payload ni signature).
+
+    Retourne (events_data, papi_fee) : les évènements incluent uniquement
+    event_id/event_type/statut de traitement/dates. Le `fee` est extrait du
+    payload du webhook Papi UNIQUEMENT s'il a réellement été renvoyé par
+    Papi (aucun calcul, aucun pourcentage inventé).
+    """
+    events = (
+        PaymentEvent.query
+        .filter_by(payment_id=payment_id)
+        .order_by(PaymentEvent.created_at.asc())
+        .all()
+    )
+    events_data = []
+    papi_fee = None
+    for event in events:
+        events_data.append({
+            'event_id': event.event_id,
+            'event_type': event.event_type,
+            'processed': bool(event.processed),
+            'processed_at': event.processed_at.isoformat() if event.processed_at else None,
+            'created_at': event.created_at.isoformat() if event.created_at else None,
+        })
+        if event.processed and papi_fee is None:
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            raw_fee = payload.get('fee')
+            try:
+                if raw_fee is not None:
+                    papi_fee = float(raw_fee)
+            except (TypeError, ValueError):
+                continue
+    return events_data, papi_fee
+
+
+def _payment_stats_by_method(base_query, statuts):
+    """Repartition par methode de paiement (donnees reelles uniquement)."""
+    rows = (
+        base_query
+        .with_entities(
+            Paiement.payment_method,
+            func.count(Paiement.id).label('count'),
+            func.coalesce(func.sum(Paiement.montant), 0).label('total'),
+        )
+        .filter(Paiement.statut.in_(statuts))
+        .group_by(Paiement.payment_method)
+        .all()
+    )
+    return [
+        {
+            'payment_method': row[0] or 'INCONNU',
+            'count': row[1],
+            'montant': float(row[2] or 0),
+        }
+        for row in rows
+    ]
+
+
+def _payment_stats_by_plan(base_query, statuts):
+    """Repartition par plan (jointure reelle via Abonnement)."""
+    rows = (
+        base_query
+        .with_entities(
+            Abonnement.plan,
+            func.count(Paiement.id).label('count'),
+            func.coalesce(func.sum(Paiement.montant), 0).label('total'),
+        )
+        .join(Abonnement, Paiement.subscription_id == Abonnement.id)
+        .filter(Paiement.statut.in_(statuts))
+        .group_by(Abonnement.plan)
+        .all()
+    )
+    return [
+        {
+            'plan': row[0] or 'INCONNU',
+            'count': row[1],
+            'montant': float(row[2] or 0),
+        }
+        for row in rows
+    ]
+
+
+@ns.route('/payments')
+class SuperAdminPaymentsList(Resource):
+    @jwt_required()
+    def get(self):
+        """Liste paginee des paiements d'abonnement de la plateforme.
+
+        Acces reserve au SUPER_ADMIN. Les paiements metiers des tenants
+        (factures/ventes/achats) ne sont PAS inclus : ils ne constituent
+        pas des revenus de la plateforme.
+        """
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        per_page = max(1, min(per_page, 200))
+
+        query = _payments_base_query()
+        query = _apply_payment_filters(query, request.args)
+
+        search = (request.args.get('search') or '').strip()
+        if search:
+            like = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Tenant.nom.ilike(like),
+                    Paiement.reference.ilike(like),
+                    Paiement.external_reference.ilike(like),
+                )
+            )
+
+        query = query.order_by(Paiement.created_at.desc())
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        items = [_payment_list_item(p) for p in paginated.items]
+
+        return {
+            'items': items,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': paginated.total,
+                'pages': paginated.pages,
+            },
+        }, 200
+
+
+@ns.route('/payments/<int:payment_id>')
+class SuperAdminPaymentDetail(Resource):
+    @jwt_required()
+    def get(self, payment_id):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        paiement = (
+            Paiement.query
+            .filter_by(id=payment_id, is_active=True)
+            .options(joinedload(Paiement.abonnement))
+            .first()
+        )
+        if not paiement:
+            return {'message': 'Paiement non trouve'}, 404
+
+        data = _payment_list_item(paiement)
+        if paiement.abonnement:
+            data['subscription'] = paiement.abonnement.to_dict()
+
+        events_data, papi_fee = _payment_events_info(paiement.id)
+        data['payment_events'] = events_data
+
+        # Settlement : l'API Papi actuelle ne fournit aucun champ
+        # settlement_id / settlement_status / settlement_amount /
+        # settlement_date. Le webhook ne stocke pas non plus ces champs.
+        # On expose donc une mention explicite "non disponible" pour ne
+        # PAS inventer un montant de versement.
+        data['settlement'] = {
+            'available': False,
+            'message': _SETTLEMENT_UNAVAILABLE,
+            'settlement_id': None,
+            'settlement_status': None,
+            'settlement_amount': None,
+            'settlement_date': None,
+            'settlement_reference': None,
+            'net_amount': None,
+        }
+
+        # Frais Papi : uniquement si le champ `fee` a ete reellement
+        # transmis par Papi dans le payload du webhook et stocke dans
+        # PaymentEvent.payload. Aucun pourcentage/frais invente.
+        if papi_fee is not None:
+            data['papi_fees'] = {
+                'available': True,
+                'fee': papi_fee,
+                'message': None,
+            }
+        else:
+            data['papi_fees'] = {
+                'available': False,
+                'message': _PAPI_FEES_UNAVAILABLE,
+                'fee': None,
+            }
+
+        # Net a recevoir : seulement si frais + statut SUCCESS/CONFIRME.
+        net_amount_block = {
+            'available': False,
+            'montant': None,
+            'devise': paiement.devise or 'MGA',
+            'message': 'Net à recevoir non disponible (frais Papi ou settlement bancaire reel non connus)',
+        }
+        if (
+            papi_fee is not None
+            and float(paiement.montant or 0) > 0
+            and _payment_status_value(paiement) in ('succes', 'confirme')
+        ):
+            net = float(paiement.montant or 0) - papi_fee
+            net_amount_block = {
+                'available': True,
+                'montant': max(net, 0.0),
+                'devise': paiement.devise or 'MGA',
+                'note': 'Net = montant confirme - frais reels Papi (settlement bancaire non confirme)',
+            }
+        data['settlement']['net_amount'] = net_amount_block
+        # Expose egalement net_amount au top level pour faciliter l'UI.
+        data['net_amount'] = net_amount_block
+
+        return data, 200
+
+
+@ns.route('/payments/stats')
+class SuperAdminPaymentsStats(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        # Agrégations SQL : requête sans eager-load (les options joinedload
+        # ne sont pas pertinentes pour des requêtes GROUP BY).
+        base_query = Paiement.query.filter(
+            Paiement.is_active == True,
+            Paiement.type == TypePaiement.ABONNEMENT,
+        )
+        base_query = _apply_payment_filters(base_query, request.args)
+
+        total_success = float(
+            base_query.with_entities(func.coalesce(func.sum(Paiement.montant), 0))
+            .filter(Paiement.statut.in_(_CONFIRMED_STATUTS))
+            .scalar() or 0
+        )
+        total_pending = float(
+            base_query.with_entities(func.coalesce(func.sum(Paiement.montant), 0))
+            .filter(Paiement.statut.in_(_PENDING_STATUTS))
+            .scalar() or 0
+        )
+        total_failed = float(
+            base_query.with_entities(func.coalesce(func.sum(Paiement.montant), 0))
+            .filter(Paiement.statut.in_(_FAILED_STATUTS))
+            .scalar() or 0
+        )
+
+        success_count = (
+            base_query.with_entities(func.count(Paiement.id))
+            .filter(Paiement.statut.in_(_CONFIRMED_STATUTS))
+            .scalar() or 0
+        )
+        pending_count = (
+            base_query.with_entities(func.count(Paiement.id))
+            .filter(Paiement.statut.in_(_PENDING_STATUTS))
+            .scalar() or 0
+        )
+        failed_count = (
+            base_query.with_entities(func.count(Paiement.id))
+            .filter(Paiement.statut.in_(_FAILED_STATUTS))
+            .scalar() or 0
+        )
+
+        online_confirmed = float(
+            base_query.with_entities(func.coalesce(func.sum(Paiement.montant), 0))
+            .filter(Paiement.statut.in_(_CONFIRMED_STATUTS))
+            .filter(Paiement.provider == 'papi')
+            .scalar() or 0
+        )
+        offline_confirmed = float(
+            base_query.with_entities(func.coalesce(func.sum(Paiement.montant), 0))
+            .filter(Paiement.statut.in_(_CONFIRMED_STATUTS))
+            .filter(Paiement.provider.in_(['manuel', 'especes']))
+            .scalar() or 0
+        )
+
+        by_method_confirmed = _payment_stats_by_method(base_query, _CONFIRMED_STATUTS)
+        by_plan_confirmed = _payment_stats_by_plan(base_query, _CONFIRMED_STATUTS)
+
+        return {
+            'currency': 'MGA',
+            'total_count': (success_count or 0) + (pending_count or 0) + (failed_count or 0),
+            'success_count': success_count,
+            'pending_count': pending_count,
+            'failed_count': failed_count,
+            'total_success': total_success,
+            'total_pending': total_pending,
+            'total_failed': total_failed,
+            'online_confirmed': online_confirmed,
+            'offline_confirmed': offline_confirmed,
+            'by_method_confirmed': by_method_confirmed,
+            'by_plan_confirmed': by_plan_confirmed,
+            'settlement': {
+                'available': False,
+                'message': _SETTLEMENT_UNAVAILABLE,
+            },
+            'papi_fees': {
+                'available': False,
+                'message': _PAPI_FEES_UNAVAILABLE,
+            },
+            'note': (
+                "total_success = somme des paiements MIHAJA confirmes "
+                "(SUCCESS/CONFIRME). Cela n'implique PAS un versement "
+                "effectif sur le compte bancaire MIHAJA."
+            ),
+        }, 200
+
+
+# ==========================================================
+# Options de filtrage réelles (tenants, plans, providers,
+# méthodes, statuts) — issues de la base, pas de valeurs inventées.
+# ==========================================================
+
+
+@ns.route('/payments/filters')
+class SuperAdminPaymentFilters(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        tenants = (
+            Tenant.query.filter(Tenant.is_active == True)
+            .order_by(Tenant.nom.asc()).all()
+        )
+
+        plans = [
+            row[0] for row in db.session.query(Abonnement.plan)
+            .filter(Abonnement.plan.isnot(None))
+            .distinct().order_by(Abonnement.plan.asc()).all()
+        ]
+
+        scope = [
+            Paiement.is_active == True,
+            Paiement.type == TypePaiement.ABONNEMENT,
+        ]
+        providers = [
+            row[0] for row in db.session.query(Paiement.provider)
+            .filter(*scope, Paiement.provider.isnot(None)).distinct().all()
+        ]
+        for known in ('papi', 'manuel'):
+            if known not in providers:
+                providers.append(known)
+
+        payment_methods = [
+            row[0] for row in db.session.query(Paiement.payment_method)
+            .filter(*scope, Paiement.payment_method.isnot(None)).distinct().all()
+        ]
+        for known in ('MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'VISA',
+                      'ESPECES', 'VIREMENT', 'CHEQUE'):
+            if known not in payment_methods:
+                payment_methods.append(known)
+
+        statuses = [
+            {
+                'value': st.value,
+                'name': st.name,
+                'label': _STATUT_LABELS[st],
+            }
+            for st in StatutPaiement
+        ]
+
+        return {
+            'tenants': [{'id': t.id, 'nom': t.nom} for t in tenants],
+            'plans': plans,
+            'providers': sorted(providers),
+            'payment_methods': sorted(payment_methods),
+            'statuses': statuses,
         }, 200
 
 

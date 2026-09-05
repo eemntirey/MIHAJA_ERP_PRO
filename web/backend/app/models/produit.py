@@ -70,7 +70,7 @@ class Produit(BaseTenantModel):
     est_service = db.Column(db.Boolean, default=False)
     est_dechirable = db.Column(db.Boolean, default=False)
     est_dangereux = db.Column(db.Boolean, default=False)
-    published = db.Column(db.Boolean, default=False, nullable=False)
+    published = db.Column(db.Boolean, default=True, nullable=False)
     
     # Relations
     fournisseur = db.relationship('Fournisseur', back_populates='produits')

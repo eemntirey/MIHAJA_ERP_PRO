@@ -1,0 +1,130 @@
+@import '../../styles/tokens.css';
+
+/*
+ * MacTrafficLights — floating control island anchored to the top-center of
+ * the viewport. The component is rendered via a React portal directly under
+ * <body> so that sticky/transform/filter ancestors (e.g. .desktop-topbar) do
+ * NOT create a containing block that would clip fixed descendants.
+ * Opaque background prevents bleed-through of scrolling content underneath.
+ */
+.mac-traffic-lights {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: 0;
+
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+  isolation: isolate;
+}
+
+/* Buttons retain white/glass treatment on the dark floating island */
+.mac-close {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+.mac-close svg { stroke: #ffffff; }
+
+.mac-minimize {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 2px solid #ffffff;
+  color: #ffffff;
+}
+.mac-minimize svg { stroke: #ffffff; }
+
+.mac-maximize {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+.mac-maximize svg { stroke: #ffffff; }
+
+.mac-traffic-lights .mac-btn {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  border: none;
+  position: relative;
+  flex: 0 0 auto;
+  font-size: 0;
+  line-height: 1;
+  outline: none;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              filter 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Override the global `.desktop-topbar button` reset (padding/bg/border-radius)
+   so the 18px circle keeps its exact hit area and shape. */
+.mac-traffic-lights .mac-btn.mac-close,
+.mac-traffic-lights .mac-btn.mac-minimize,
+.mac-traffic-lights .mac-btn.mac-maximize {
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  font-size: 0;
+  font-weight: normal;
+}
+
+.mac-traffic-lights .mac-btn svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.mac-traffic-lights:hover .mac-btn svg,
+.mac-traffic-lights .mac-btn:focus-visible svg {
+  opacity: 1;
+}
+
+.mac-traffic-lights .mac-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.mac-traffic-lights .mac-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+}
+
+.mac-traffic-lights .mac-btn:active {
+  transform: translateY(0) scale(0.92);
+}
+
+.mac-traffic-lights.is-minimized {
+  opacity: 0.4;
+}
+
+.mac-traffic-lights.is-minimized:hover {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mac-traffic-lights,
+  .mac-traffic-lights .mac-btn {
+    transition: none;
+  }
+}

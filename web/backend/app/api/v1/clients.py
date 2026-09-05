@@ -55,6 +55,7 @@ client_model = ns.model('Client', {
 @ns.route('/')
 class ClientListResource(Resource):
     @ns.doc('list_clients')
+    @permission_required('client.view')
     @tenant_required_readonly
     def get(self):
         """Liste tous les clients"""
@@ -94,6 +95,7 @@ class ClientListResource(Resource):
 @ns.route('/<int:client_id>')
 class ClientResource(Resource):
     @ns.doc('get_client')
+    @permission_required('client.view')
     @tenant_required_readonly
     def get(self, client_id):
         """Récupère un client par son ID"""
@@ -101,8 +103,9 @@ class ClientResource(Resource):
         if not client:
             return {'message': 'Client non trouve'}, 404
         return client.to_dict(), 200
-    
+
     @ns.doc('update_client')
+    @permission_required('client.update')
     @tenant_required_readonly
     def put(self, client_id):
         """Met à jour un client"""
@@ -112,8 +115,9 @@ class ClientResource(Resource):
         if not client:
             return {'message': 'Client non trouve'}, 404
         return client.to_dict(), 200
-    
+
     @ns.doc('delete_client')
+    @permission_required('client.delete')
     @tenant_required_readonly
     def delete(self, client_id):
         """Supprime un client"""

@@ -29,6 +29,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [subscription, setSubscription] = useState(null);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+    const [mustChangePassword, setMustChangePassword] = useState(false);
 
     useEffect(() => {
         const handleForcedLogout = () => {
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             setIsAuthenticated(false);
             setSubscription(null);
             setSubscriptionLoading(false);
+            setMustChangePassword(false);
         };
 
         window.addEventListener('auth:logout', handleForcedLogout);
@@ -56,6 +58,9 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             try {
                 setUser(userData);
                 setIsAuthenticated(true);
+                // Restaurer le flag must_change_password depuis les donnees
+                // utilisateur persistees (storage local / localStorage).
+                setMustChangePassword(Boolean(userData.must_change_password));
 
                 if (tenantData) {
                     setTenant(tenantData);
@@ -80,6 +85,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             setSubscription(null);
             setSubscriptionLoading(false);
             setIsAuthenticated(false);
+            setMustChangePassword(false);
         }
 
         setLoading(false);
@@ -177,6 +183,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
                 refresh_token,
                 user: userData,
                 tenant: tenantData,
+                must_change_password: mustChange,
             } = response.data || {};
 
             if (!access_token) {
@@ -187,33 +194,49 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
                 throw new Error('Le serveur a répondu sans données utilisateur');
             }
 
+            // Le backend peut renvoyer le flag au niveau racine (compat ascendante)
+            // ou l'integrer dans l'objet user. On prend la valeur la plus stricte.
+            const mustChangeFlag = Boolean(
+                mustChange ?? userData?.must_change_password
+            );
+
+            // S'assurer que userData inclut le flag pour les rechargements de page
+            const normalizedUser = { ...userData, must_change_password: mustChangeFlag };
+
             authStorage.setAccessToken(access_token);
 
             if (refresh_token) {
                 authStorage.setRefreshToken(refresh_token);
             }
 
-            authStorage.setUser(userData);
+            authStorage.setUser(normalizedUser);
 
             if (tenantData) {
                 authStorage.setTenant(tenantData);
             }
 
-            setUser(userData);
+            setUser(normalizedUser);
             setTenant(tenantData || null);
             setIsAuthenticated(true);
-            if (userData?.tenant_id || userData?.tenant?.id) {
+            setMustChangePassword(mustChangeFlag);
+            if (normalizedUser?.tenant_id || normalizedUser?.tenant?.id) {
                 setSubscriptionLoading(true);
             }
 
-            const redirectPath = getRedirectPath(userData);
+            // Si l'utilisateur doit changer son mot de passe, on force la
+            // redirection vers l'ecran dedie (le ProtectedRoute s'occupera
+            // aussi de blquer l'acces aux autres routes).
+            const redirectPath = mustChangeFlag
+                ? '/first-change-password'
+                : getRedirectPath(normalizedUser);
 
             toast.success('Connexion réussie !');
 
             return {
                 success: true,
-                user: userData,
+                user: normalizedUser,
                 redirectPath,
+                mustChangePassword: mustChangeFlag,
             };
 
         } catch (error) {
@@ -261,6 +284,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         setSubscription(null);
         setSubscriptionLoading(false);
         setIsAuthenticated(false);
+        setMustChangePassword(false);
 
         window.dispatchEvent(new Event('auth:logout'));
 
@@ -330,7 +354,61 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             return false;
         }
 
+        // Le super_admin recoit ['*'] du backend : toutes les permissions.
+        if (user.permissions.includes('*')) {
+            return true;
+        }
+
+        // Support du wildcard par module (ex. 'sales.*' couvre 'sales.view').
+        if (permission.includes('.')) {
+            const moduleWildcard = `${permission.split('.')[0]}.*`;
+            if (user.permissions.includes(moduleWildcard)) {
+                return true;
+            }
+        }
+
         return user.permissions.includes(permission);
+    };
+
+    /**
+     * True si l'utilisateur possede AU MOINS UNE des permissions listees.
+     * Utilise pour la visibilite declarative des modules de la sidebar :
+     * une liste vide retourne false (module masque).
+     */
+    const hasAnyPermission = (permissions) => {
+        if (!Array.isArray(permissions) || permissions.length === 0) {
+            return false;
+        }
+        return permissions.some((permission) => hasPermission(permission));
+    };
+
+    const hasAllPermissions = (permissions) => {
+        if (!user) {
+            return false;
+        }
+        if (!Array.isArray(permissions) || permissions.length === 0) {
+            return true;
+        }
+        return permissions.every((permission) => hasPermission(permission));
+    };
+
+    /**
+     * Verifie qu'un module est disponible dans le plan de l'utilisateur
+     * (via la subscription). null = pas d'info (subscription pas chargee
+     * ou super_admin) -> autorise.
+     */
+    const isModuleEnabled = (moduleName) => {
+        if (!moduleName) {
+            return true;
+        }
+        if (!subscription) {
+            return true;
+        }
+        const modules = getAllowedModules();
+        if (modules === null) {
+            return true;
+        }
+        return modules.includes(moduleName);
     };
 
     const hasRole = (role) => {
@@ -341,7 +419,56 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         return (user.role || '').toLowerCase() === String(role).toLowerCase();
     };
 
-    const value = {
+    /**
+     * Changement de mot de passe (volontaire) pour un utilisateur connecté.
+     * Apres un succes, le flag mustChangePassword reste a false (et un email
+     * de notification est envoye cote backend).
+     */
+    const changePassword = async (oldPassword, newPassword) => {
+        try {
+            const response = await authService.changePassword(oldPassword, newPassword);
+            toast.success('Mot de passe modifié avec succès');
+            return { success: true, data: response.data };
+        } catch (error) {
+            const message =
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.message ||
+                'Erreur lors de la modification du mot de passe';
+            toast.error(message);
+            return { success: false, error: message };
+        }
+    };
+
+    /**
+     * Changement obligatoire du mot de passe (première connexion).
+     * L'utilisateur n'a pas d'ancien mot de passe a fournir.
+     * Apres succes, le flag mustChangePassword est mis a false cote client
+     * (et un email de notification est envoye cote backend).
+     */
+    const firstChangePassword = async (newPassword) => {
+        try {
+            // Utilisation du pattern useForm + onSubmit pour gérer confirm_password
+            const response = await authService.firstChangePassword(newPassword);
+            toast.success('Mot de passe défini avec succès');
+            const updatedUser = response.data?.user || user;
+            const normalizedUser = { ...updatedUser, must_change_password: false };
+            setUser(normalizedUser);
+            setMustChangePassword(false);
+            authStorage.setUser(normalizedUser);
+            return { success: true, user: normalizedUser };
+        } catch (error) {
+            const message =
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.message ||
+                'Erreur lors du changement de mot de passe';
+            toast.error(message);
+            return { success: false, error: message };
+        }
+    };
+
+const value = {
         user,
         setUser,
         tenant,
@@ -355,10 +482,18 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         register,
         logout,
         hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
         hasRole,
+        isModuleEnabled,
         getRedirectPath,
         fetchSubscriptionStatus,
         getAllowedModules,
+        // Gestion du changement de mot de passe
+        mustChangePassword,
+        setMustChangePassword,
+        changePassword,
+        firstChangePassword,
     };
 
     return (

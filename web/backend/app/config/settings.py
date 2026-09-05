@@ -37,6 +37,19 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+
+    # Email service (Nouveaux alias pour app.services.email_service)
+    MAIL_HOST = os.getenv('MAIL_HOST') or MAIL_SERVER
+    MAIL_USERNAME_ALT = os.getenv('MAIL_USERNAME')  # alias
+    MAIL_PASSWORD_ALT = os.getenv('MAIL_PASSWORD')  # alias
+    MAIL_USE_TLS_ALT = os.getenv('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
+    MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
+    MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
+    MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '30'))
+
+    # Securite / reset
+    PASSWORD_RESET_TTL_MINUTES = int(os.getenv('PASSWORD_RESET_TTL_MINUTES', '30'))
+    FRONTEND_RESET_URL = os.getenv('FRONTEND_RESET_URL', 'http://localhost:3000')
     
     # Upload
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')

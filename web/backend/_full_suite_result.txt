@@ -1,0 +1,139 @@
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 49%]
+.F........................................F............................. [ 66%]
+..................................................................F..... [ 82%]
+.........................F......................FFFF.................... [ 99%]
+..                                                                       [100%]
+================================== FAILURES ===================================
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_public_catalog.py:399: assert 2 in []
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_roles_presets.py:100: AssertionError: assert ['employe.cre...on.view', ...] == ['employe.cre....delete', ...]
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_super_admin_payments.py:349: assert 10 == 1
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_tenant_limits.py:271: AssertionError: assert 2 == 1
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:353: assert 3 == 1
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:370: assert 6 == 4
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:380: assert 3 == 2
+C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:392: assert 6 == 4
+============================== warnings summary ===============================
+venv\Lib\site-packages\flask_restx\api.py:23
+venv\Lib\site-packages\flask_restx\api.py:23
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\venv\Lib\site-packages\flask_restx\api.py:23: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema import RefResolver
+
+tests/test_admin_architecture.py: 26 warnings
+tests/test_admin_seed_safety.py: 1 warning
+tests/test_ai.py: 8 warnings
+tests/test_anti_bugs_audit.py: 32 warnings
+tests/test_architecture_compliance.py: 22 warnings
+tests/test_clients_api.py: 8 warnings
+tests/test_critical_api.py: 11 warnings
+tests/test_employee_key.py: 10 warnings
+tests/test_livreur_compte.py: 7 warnings
+tests/test_mission_5.py: 3 warnings
+tests/test_papi.py: 2 warnings
+tests/test_password_flow.py: 2 warnings
+tests/test_plan_limits.py: 18 warnings
+tests/test_public_catalog.py: 12 warnings
+tests/test_rbac_sidebar.py: 15 warnings
+tests/test_rh.py: 6 warnings
+tests/test_role_visibility_fix.py: 2 warnings
+tests/test_roles_rbac_super_admin.py: 8 warnings
+tests/test_security_multi_tenant.py: 39 warnings
+tests/test_seed_initial.py: 4 warnings
+tests/test_tenancy.py: 7 warnings
+tests/test_tenant_limits.py: 15 warnings
+tests/test_users_api.py: 26 warnings
+tests/test_users_employee_system_roles.py: 21 warnings
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\venv\Lib\site-packages\flask_sqlalchemy\extension.py:881: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: livreurs, roles, tenants, utilisateurs, vehicules; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    getattr(metadata, op_name)(bind=engine)
+
+tests/test_livreur_compte.py::TestLivreurCompte::test_b_association_valide
+tests/test_livreur_compte.py::TestLivreurCompte::test_c_association_cross_tenant
+tests/test_livreur_compte.py::TestLivreurCompte::test_d_compte_deja_associe
+tests/test_livreur_compte.py::TestLivreurCompte::test_d_compte_deja_associe
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\app\api\v1\livraisons.py:432: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    utilisateur = Utilisateur.query.execution_options(_skip_tenant_filter=True).get(utilisateur_id)
+
+tests/test_livreur_compte.py::TestLivreurCompte::test_b_association_valide
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_livreur_compte.py:157: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert Livreur.query.get(lid).utilisateur_id == uid
+
+tests/test_password_flow.py: 22 warnings
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_password_flow.py:65: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "livreurs, roles, tenants, utilisateurs, vehicules", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_db.metadata.sorted_tables):
+
+tests/test_password_flow.py::TestTenantIsolation::test_token_genere_pour_un_user_ne_reset_qu_ce_user
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_password_flow.py:593: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert verify_password(
+
+tests/test_password_flow.py::TestTenantIsolation::test_token_genere_pour_un_user_ne_reset_qu_ce_user
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_password_flow.py:596: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert verify_password(
+
+tests/test_super_admin_masking.py::TestTenantCannotAssignSuperAdminToUser::test_tenant_admin_ne_peut_pas_promouvoir_user_en_super_admin
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_super_admin_masking.py:251: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert Utilisateur.query.get(target.id).role == Role.USER
+
+tests/test_users_api.py::TestUsersApiSecurity::test_creation_user_created_by_renseigne
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:228: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    user = Utilisateur.query.get(created_id)
+
+tests/test_users_api.py::TestUsersApiSecurity::test_modification_user_updated_by_renseigne
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:241: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    updated_user = Utilisateur.query.get(user_a.id)
+
+tests/test_users_api.py::TestUsersApiSecurity::test_delete_user_cascade_admin_devices
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:282: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert Utilisateur.query.get(user_a.id).is_active is False
+
+tests/test_users_api.py::TestUsersApiSecurity::test_delete_user_cascade_admin_devices
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:283: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert AdminDevice.query.get(device.id).is_active is False
+
+tests/test_users_api.py::TestUsersApiSecurity::test_delete_tenant_principal_admin_clears_reference
+  C:\Users\eemntirey\Desktop\ERP_MM\MIHAJA_ERP_PRO\web\backend\tests\test_users_api.py:297: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    assert Tenant.query.get(ta.id).admin_principal_id is None
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_public_catalog.py::TestPublicCatalogStockFiltering::test_tenant_b_cannot_see_tenant_a_products_in_public_catalog - assert 2 in []
+ +  where 2 = <Produit PUBLIC-B-001 - Produit Public B>.id
+FAILED tests/test_roles_presets.py::TestRolePresets::test_rh_role_has_correct_permissions - AssertionError: assert ['employe.cre...on.view', ...] == ['employe.cre....delete', ...]
+  At index 4 diff: 'notification.update' != 'presence.create'
+  Left contains 2 more items, first extra item: 'stagiaire.update'
+  Full diff:
+    [
+     'employe.create',
+     'employe.delete',
+     'employe.update',
+     'employe.view',
+  +  'notification.update',
+  +  'notification.view',
+     'presence.create',
+     'presence.delete',
+     'presence.update',
+     'presence.view',
+     'prime.create',
+     'prime.delete',
+     'prime.update',
+     'prime.view',
+     'profile.update',
+     'profile.view',
+     'report.view',
+     'salaire.create',
+     'salaire.delete',
+     'salaire.update',
+     'salaire.view',
+     'stagiaire.create',
+     'stagiaire.delete',
+     'stagiaire.update',
+     'stagiaire.view',
+    ]
+FAILED tests/test_super_admin_payments.py::TestFilters::test_filtre_plan - assert 10 == 1
+FAILED tests/test_tenant_limits.py::TestTenantLimitHelpers::test_count_active_tenants_for_plan - AssertionError: assert 2 == 1
+ +  where 2 = count_active_tenants_for_plan('pro')
+FAILED tests/test_users_api.py::TestSuperAdminTenantDeletion::test_delete_tenant_updates_list_count - assert 3 == 1
+FAILED tests/test_users_api.py::TestSuperAdminUsersList::test_super_admin_can_list_all_users - assert 6 == 4
+FAILED tests/test_users_api.py::TestSuperAdminUsersList::test_super_admin_users_filter_by_role_admins - assert 3 == 2
+FAILED tests/test_users_api.py::TestSuperAdminUsersList::test_super_admin_users_filter_by_role_all - assert 6 == 4
+8 failed, 426 passed, 342 warnings in 1221.32s (0:20:21)

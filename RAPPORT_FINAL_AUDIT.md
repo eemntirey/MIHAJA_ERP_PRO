@@ -1,7 +1,7 @@
 # RAPPORT FINAL — AUDIT TECHNIQUE MIHAJA_ERP_PRO
 
-**Date** : 2026-09-01
-**Version** : 2.0 (mise à jour état actuel)
+**Date** : 2026-09-05
+**Version** : 2.1 (mise à jour état actuel)
 
 ---
 
@@ -20,8 +20,8 @@
 - Socket.IO en CORS wildcard.
 - Dockerfile backend manquant.
 
-### État actuel (2026-09-01)
-- **278 tests backend** collectés (couverture étendue).
+### État actuel (2026-09-05)
+- **278 tests backend** collectés dans 34 fichiers (couverture étendue).
 - Secrets retirés des fichiers versionnés et des scripts de seeding.
 - `.gitignore` corrigé : `web/backend/.env` exclu, migrations versionnables.
 - Configuration DB unifiée sur SQLite en dev/tests, MySQL supporté en prod via `DATABASE_URL`.
@@ -35,8 +35,12 @@
 - **Nouveau** : Système d'audit trail complet (25+ types d'actions).
 - **Nouveau** : Interface Super Admin (React web app).
 - **Nouveau** : Tâches background (backups, emails, reports).
-- **Nouveau** : 41 modèles, 29 contrôleurs API, 25 services.
+- **Nouveau** : 40 modèles, 23 contrôleurs API (admin_devices + notifications ajoutés), 25 services.
 - **Nouveau** : Gestion appareils admin avec auto-enregistrement.
+- **Nouveau (ÉTAPE 0)** : Relation `Livreur ↔ Utilisateur` opérationnelle avec 7 tests passent.
+- **CORRIGE** : Webhook PAPI avec vérification signature HMAC (`papi/webhook.py`).
+- **CORRIGE** : Werkzeug debugger gated par `FLASK_DEBUG` (plus de debugger en prod).
+- **CORRIGE** : Mass assignment sur `BaseService.update()` (whitelist `PROTECTED_FIELDS`).
 
 ---
 
@@ -69,30 +73,32 @@
 
 | Module | Fichiers | Description |
 |--------|----------|-------------|
-| `app/models/` | 41 fichiers | Modèles SQLAlchemy (multi-tenant) |
-| `app/api/v1/` | 29 fichiers | Contrôleurs REST (flask-restx) |
+| `app/models/` | 40 fichiers | Modèles SQLAlchemy (multi-tenant) |
+| `app/api/v1/` | 23 namespaces enregistrés (28 fichiers) | Contrôleurs REST (flask-restx) |
 | `app/services/` | 25 fichiers | Logique métier |
-| `app/security/` | 10 fichiers | Auth, RBAC, plans, rate-limit, encryption |
+| `app/security/` | 10 fichiers | Auth, RBAC, plans, rate-limit, encryption, admin_devices |
 | `app/utils/` | 10 fichiers | Audit, PDF, Excel, QR, barcodes, validators |
-| `app/ai/` | 8 fichiers + 2 modèles | ML (anomalies, prévisions, recommandations) |
-| `app/tasks/` | 4 fichiers | Tâches background |
-| `app/websockets/` | 2 fichiers | Événements temps réel |
-| `app/realtime/` | 2 fichiers | Socket.IO server |
+| `app/ai/` | 6 fichiers + 2 modèles | ML (anomalies, prévisions, recommandations) |
+| `app/tasks/` | 3 fichiers | Tâches background |
+| `app/websockets/` | 1 fichier | Événements temps réel |
+| `app/realtime/` | 1 fichier | Socket.IO server |
 
 ### C.2. Frontend — Applications
 
 | App | Localisation | Fichiers | Description |
 |-----|--------------|----------|-------------|
-| Desktop | `desk/src/` | ~105 fichiers | Electron + React (ERP complet) |
-| Super Admin | `super-admin/src/` | 18 fichiers | React web (gestion plateforme) |
-| Shared | `shared/` | 17 fichiers | Bibliothèque commune |
+| Web | `web/frontend/src/` | 30 pages | React (interface tenant) |
+| Desktop | `desk/src/` | ~105 fichiers | Electron + React (ERP complet, 30 pages) |
+| Super Admin | `super-admin/src/` | 9 pages | React web (gestion plateforme) |
+| Shared | `shared/` | 24 fichiers | Bibliothèque commune |
 
 ### C.3. Tests
 
 | Suite | Fichiers | Description |
 |-------|----------|-------------|
-| Backend | 24 fichiers | pytest (278 tests collectés) |
-| Desktop | 7 fichiers | Jest (composants, hooks, utils) |
+| Backend | 34 fichiers | pytest (278 tests collectés) |
+| Desktop | 11 fichiers | Jest (composants, hooks, utils) |
+| Frontend | 2 fichiers | Tests React web |
 
 ### C.4. Documentation
 
@@ -212,11 +218,12 @@
 | Indicateur | Valeur |
 |------------|--------|
 | Tests collectés (backend) | 278 |
-| Fichiers de test (backend) | 24 |
-| Fichiers de test (desktop) | 7 |
+| Fichiers de test (backend) | 34 |
+| Fichiers de test (desktop) | 11 |
+| Fichiers de test (frontend) | 2 |
 | Couverture estimée | ~85% backend |
 
-**Note** : Les tests backend couvrent l'authentification, le multi-tenancy, les plans/limites, les rôles, les permissions, les API CRUD, et la sécurité.
+**Note** : Les tests backend couvrent l'authentification, le multi-tenancy, les plans/limites, les rôles, les permissions, l'API CRUD, la sécurité, le compte livreur (ÉTAPE 0 : 7 tests), l'employee_key et l'AI.
 
 ---
 
@@ -272,24 +279,27 @@
 
 ## K. STATUT FINAL
 
-**STABLE POUR DÉVELOPPEMENT — PRÉ-PRODUCTION**
+**STABLE POUR DÉVELOPPEMENT — PRÉ-PRODUCTION (mise à jour 2026-09-05)**
 
-Le projet est fonctionnel, testé (278 tests), et les corrections de sécurité critiques ont été appliquées. L'architecture est mature avec :
-- Backend Python complet (41 modèles, 29 API, 25 services)
-- Desktop Electron (105+ composants React)
-- Super Admin web (18 composants React)
+Le projet est fonctionnel, testé (278 tests / 34 fichiers backend), et les corrections de sécurité critiques ont été appliquées. L'architecture est mature avec :
+- Backend Python complet (40 modèles, 23 namespaces API, 25 services, 10 modules sécurité)
+- Frontend React web (30 pages)
+- Desktop Electron (~47 composants, 30 pages)
+- Super Admin web (9 pages)
 - Module AI opérationnel
 - Audit trail complet
+- ÉTAPE 0 (Livreur) opérationnelle — 7 tests passent
 
 **Non prêt pour production** car :
 - Révocation JWT manquante
 - Rate limiting incomplet
 - Migrations à finaliser
 - `db.create_all()` en production reste un risque
+- Quelques memory leaks (intervals Subscription) et race conditions (AbortController manquant) restants
 
 ---
 
-## L. ÉTAPE 0 — COMPTE LIVREUR (2026-09-01)
+## L. ÉTAPE 0 — COMPTE LIVREUR (2026-09-01, vérifiée 2026-09-05)
 
 ### L.1. CONSTAT INITIAL
 

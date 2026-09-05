@@ -68,22 +68,34 @@
   border-color: var(--color-border);
 }
 
-.main-layout[data-theme='dark'] .btn-primary,
+/* Primary button in dark mode: use gold for clear visibility */
+.main-layout[data-theme='dark'] .btn-primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border-color: var(--btn-primary-border);
+}
+
+.main-layout[data-theme='dark'] .btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+  border-color: var(--btn-primary-hover);
+  color: var(--color-text-on-primary);
+  transform: translateY(-1px);
+}
+
 .main-layout[data-theme='dark'] .btn-secondary,
 .main-layout[data-theme='dark'] .chat-input-send,
 .main-layout[data-theme='dark'] .logout-btn {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border-color: var(--btn-secondary-border);
 }
 
-.main-layout[data-theme='dark'] .btn-primary:hover,
-.main-layout[data-theme='dark'] .btn-secondary:hover,
+.main-layout[data-theme='dark'] .btn-secondary:hover:not(:disabled),
 .main-layout[data-theme='dark'] .chat-input-send:hover,
 .main-layout[data-theme='dark'] .logout-btn:hover {
-  background: var(--color-onyx-soft);
-  border-color: var(--color-border-strong);
-  color: var(--color-onyx);
+  background: var(--btn-secondary-hover-bg, var(--color-surface-hover));
+  border-color: var(--btn-secondary-border);
+  color: var(--btn-secondary-fg);
 }
 
 /* Loading screen */

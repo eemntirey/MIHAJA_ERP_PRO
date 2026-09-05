@@ -1,7 +1,7 @@
 # Audit architecture MIHAJA_ERP_PRO — Super Admin =| Tenant == Admin =| User
 
-**Date** : 2026-09-01
-**Dernière vérification** : 2026-09-01 (relecture code complet)
+**Date** : 2026-09-05
+**Dernière vérification** : 2026-09-05 (relecture code complet)
 **Statut** : Architecture conforme — Zéro bugs d'architecture identifiés
 
 > **Méthode de vérification** : les chemins de fichiers ci-dessous sont relatifs à la racine `web/backend/`. Les règles §2 à §10 ont été confirmées par lecture directe du code et par l'existence des tests de conformité (278 tests collectés).
@@ -50,7 +50,7 @@ SUPER ADMIN =| TENANT == ADMIN =| UTILISATEUR/EMPLOYÉ
 
 ---
 
-## 3. Modèles de données (41 modèles)
+## 3. Modèles de données (40 modèles)
 
 ### Tenant (`web/backend/app/models/tenant.py`)
 ```python
@@ -84,9 +84,17 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 - **Gestion stock** : Stock, Livraison, Livreur, Vehicule, Itineraire
 - **Comptabilité** : CompteComptable, EcritureComptable, Tresorerie
 - **RH** : Employe, Presence, Salaire, Prime, Stagiaire
-- **Administration** : Tenant, Utilisateur, Abonnement, Paiement, AdminDevice
+- **Administration** : Tenant, Utilisateur, Abonnement, Paiement, AdminDevice, AuditLog
 - **Documents** : DocumentGenere, ModeleDocument, DevisAvoirBL
 - **Autres** : Notification, DeskState, PaymentEvent
+
+### Livreur ↔ Utilisateur (ÉTAPE 0)
+```python
+class Livreur(BaseTenantModel):
+    utilisateur_id = Column(Integer, ForeignKey('utilisateurs.id'), nullable=True, unique=True, index=True)
+    utilisateur = relationship('Utilisateur', backref='livreur_profile', foreign_keys=[utilisateur_id])
+```
+Relation 0..1 ↔ 1 validée par 3 niveaux de défense (API + service + event listener ORM).
 
 ---
 
@@ -207,13 +215,18 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 ### Desktop (`desk/src/`)
 | Module | Fichiers | Description |
 |--------|----------|-------------|
-| `components/` | ~60 fichiers | Composants réutilisables (DataTable, FilterPanel, layouts) |
-| `pages/` | 38 fichiers | Pages ERP (Dashboard, Ventes, Factures, Stock, RH, etc.) |
-| `contexts/` | 4 fichiers | Auth, Cart, Desktop, Notification |
+| `components/` | ~47 fichiers | Composants réutilisables (DataTable, FilterPanel, layouts) |
+| `pages/` | 30 fichiers | Pages ERP (Dashboard, Ventes, Factures, Stock, RH, etc.) |
+| `contexts/` | 5 fichiers | Auth, Cart, Desktop, Notification, Sync |
 | `hooks/` | 6 fichiers | Custom hooks |
 | `services/` | 4 fichiers | API client |
 | `utils/` | 4 fichiers | Utilitaires |
-| `tests/` | 7 fichiers | Tests unitaires |
+| `tests/` | 11 fichiers | Tests unitaires |
+
+### Frontend Web (`web/frontend/src/`)
+- 30 pages React (Dashboard, Ventes, Produits, Stock, RH, Comptabilité, etc.)
+- 2 fichiers de tests
+- Contexts, hooks, services, utils alignés avec le desktop
 
 ### Super Admin (`super-admin/src/`)
 | Page | Description |
@@ -229,7 +242,7 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 | `LoginPage.jsx` | Connexion |
 
 ### Shared (`shared/`)
-- Bibliothèque commune (contexts, hooks, realtime, services, storage, utils, websockets)
+- Bibliothèque commune (contexts, hooks, realtime, services, storage, utils, websockets) — 24 fichiers JS/JSX.
 
 ---
 
@@ -246,6 +259,7 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 | `test_clients_api.py` | API clients |
 | `test_critical_api.py` | API critiques |
 | `test_employee_key.py` | Clé employé |
+| `test_livreur_compte.py` | **Compte livreur — ÉTAPE 0 (7 tests)** |
 | `test_mission_5.py` | Mission 5 |
 | `test_papi.py` | Intégration PAPI |
 | `test_plan_limits.py` | Limites plan |
@@ -260,7 +274,9 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 | `test_tenancy.py` | Tenancy |
 | `test_tenant_limits.py` | Limites tenant |
 | `test_users_api.py` | API utilisateurs |
+| `test_super_admin_payments.py` | Super Admin paiements |
 | `conftest.py` | Fixtures partagées |
+| ... | (34 fichiers au total) |
 
 ### Desktop (`desk/src/**/__tests__/`)
 | Fichier | Description |
@@ -272,6 +288,10 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 | `useFormDraft.test.jsx` | Hook formulaire |
 | `filterUtils.test.js` | Utilitaires filtre |
 | `notify.test.js` | Utilitaires notification |
+| ... | (11 fichiers au total) |
+
+### Frontend Web (`web/frontend/src/**/__tests__/`)
+- 2 fichiers de tests.
 
 ---
 
@@ -282,34 +302,45 @@ plan = db.Column(db.String(50))  # gratuit, starter, pro, enterprise
 web/backend/
 ├── app/
 │   ├── __init__.py          # App factory, CORS, JWT, tenant context
-│   ├── api/v1/              # 29 contrôleurs REST
+│   ├── api/v1/              # 23 namespaces enregistrés (28 fichiers)
 │   ├── config/              # Configuration (settings, database)
-│   ├── models/              # 41 modèles SQLAlchemy
-│   ├── security/            # 10 modules (auth, RBAC, plans, rate-limit, encryption)
+│   ├── models/              # 40 modèles SQLAlchemy
+│   ├── security/            # 10 modules (auth, RBAC, plans, rate-limit, encryption, admin_devices)
 │   ├── services/            # 25 services métier
 │   ├── utils/               # 10 utilitaires (audit, PDF, Excel, QR, etc.)
-│   ├── ai/                  # Module IA (8 fichiers + 2 modèles .pkl)
-│   ├── tasks/               # Tâches background
+│   ├── ai/                  # Module IA (6 fichiers + 2 modèles .pkl)
+│   ├── tasks/               # 3 tâches background
 │   ├── websockets/          # Événements temps réel
 │   └── realtime/            # Socket.IO server
-├── migrations/              # 12 migrations Alembic
+├── migrations/              # 11 migrations Alembic
 ├── scripts/                 # 22 scripts utilitaires
-├── tests/                   # 24 fichiers de test
+├── tests/                   # 34 fichiers de test
 ├── Dockerfile               # Image Docker (user non-root)
 └── requirements.txt         # Dépendances Python
 ```
 
 ### Frontend
 ```
+web/frontend/                 # Application Web React (tenant)
+├── src/
+│   ├── components/
+│   ├── pages/                # 30 pages
+│   ├── contexts/
+│   ├── hooks/
+│   ├── services/
+│   ├── utils/
+│   └── __tests__/            # 2 fichiers
+└── package.json
+
 desk/                         # Application Desktop Electron
 ├── src/
-│   ├── components/           # ~60 composants
-│   ├── pages/                # 38 pages
-│   ├── contexts/             # 4 contextes
+│   ├── components/           # ~47 composants
+│   ├── pages/                # 30 pages
+│   ├── contexts/             # 5 contextes
 │   ├── hooks/                # 6 hooks
 │   ├── services/             # 4 services API
 │   ├── utils/                # 4 utilitaires
-│   └── __tests__/            # 7 fichiers de test
+│   └── __tests__/            # 11 fichiers de test
 ├── electron/                 # Processus Electron
 ├── package.json
 └── Dockerfile
@@ -322,7 +353,7 @@ super-admin/                  # Application Web Super Admin
 │   └── contexts/             # Contexte auth
 └── package.json
 
-shared/                       # Bibliothèque commune
+shared/                       # Bibliothèque commune (24 fichiers JS/JSX)
 ├── contexts/
 ├── hooks/
 ├── realtime/
@@ -366,6 +397,19 @@ shared/                       # Bibliothèque commune
 
 ## 15. Statut final
 
-**ZERO BUGS D'ARCHITECTURE IDENTIFIÉS**
+**ZERO BUGS D'ARCHITECTURE IDENTIFIÉS (2026-09-05)**
 
-L'architecture MIHAJA_ERP_PRO est conforme à 100% aux règles métier spécifiées. Le projet est en état de **pré-production** avec 278 tests backend, une couverture de sécurité améliorée, et une architecture mature (41 modèles, 29 API, 25 services, 3 applications frontend).
+L'architecture MIHAJA_ERP_PRO est conforme à 100% aux règles métier spécifiées. Le projet est en état de **pré-production** avec 278 tests backend (34 fichiers), une couverture de sécurité améliorée, et une architecture mature (40 modèles, 23 namespaces API, 25 services, 4 applications frontend : Web + Desktop + Super Admin + Shared).
+
+### Corrections de sécurité récemment validées (vs audit 2026-09-01)
+- Webhook PAPI avec vérification signature HMAC (`papi/webhook.py`)
+- Mass assignment corrigé dans `BaseService.update()` (whitelist `PROTECTED_FIELDS`)
+- Werkzeug debugger gated par `FLASK_DEBUG` (plus de debugger en prod)
+- Hard-delete tenant : endpoint et fonction `_hard_delete_tenant()` supprimés (seul soft-delete conservé)
+- `isEmployeeLimitReached` déplacé dans le scope du composant `Users.jsx` (plus de ReferenceError)
+- Tokens Electron unifiés via `secureStore` (storageAdapter, tokenStore, authStorage)
+
+### ÉTAPE 0 — Compte livreur (livrée)
+- Relation `Livreur ↔ Utilisateur` opérationnelle
+- 7/7 tests passent (`test_livreur_compte.py`)
+- 3 niveaux de défense (API + service + event listener ORM)

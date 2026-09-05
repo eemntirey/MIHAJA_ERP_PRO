@@ -11,6 +11,12 @@ import { plansService } from '../../services/api';
 import AuthLeftPanel from './AuthLeftPanel';
 import './Auth.css';
 
+const EyeIcon = ({ visible }) => (
+  visible
+    ? <i className="ti ti-eye-off" aria-hidden="true" />
+    : <i className="ti ti-eye" aria-hidden="true" />
+);
+
 const formatPlanPrice = (plan) => {
   if (plan.prix === 0 || plan.prix === null || plan.prix === undefined) {
     return 'Gratuit';
@@ -49,6 +55,8 @@ const RegisterCompany = () => {
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -382,13 +390,23 @@ const RegisterCompany = () => {
               <i className="ti ti-lock" aria-hidden="true" />
               <input
                 id="register-company-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 {...register('password')}
                 className={errors.password ? 'error' : ''}
                 aria-invalid={Boolean(errors.password)}
               />
+              <button
+                type="button"
+                className="auth-login__password-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                aria-pressed={showPassword}
+                tabIndex={-1}
+              >
+                <EyeIcon visible={showPassword} />
+              </button>
             </div>
             {password && password.length > 0 && (
               <div className="password-strength">
@@ -419,13 +437,23 @@ const RegisterCompany = () => {
               <i className="ti ti-lock" aria-hidden="true" />
               <input
                 id="register-company-confirm"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 {...register('confirmPassword')}
                 className={errors.confirmPassword ? 'error' : ''}
                 aria-invalid={Boolean(errors.confirmPassword)}
               />
+              <button
+                type="button"
+                className="auth-login__password-toggle"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                aria-label={showConfirmPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                aria-pressed={showConfirmPassword}
+                tabIndex={-1}
+              >
+                <EyeIcon visible={showConfirmPassword} />
+              </button>
             </div>
             {errors.confirmPassword && (
               <span className="auth-login__error" role="alert">

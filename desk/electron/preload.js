@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld('electron', {
   onMaximizeChanged: (callback) => {
     ipcRenderer.on('window:maximize-changed', (_event, isMaximized) => callback(isMaximized));
   },
+  // Déplacement de la fenêtre depuis une zone drag custom (topbar).
+  startDragging: () => ipcRenderer.send('window:start-move'),
 
   // === Impression ===
   print: (options) => ipcRenderer.invoke('print', options),

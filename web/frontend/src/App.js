@@ -7,6 +7,8 @@ import { useAuth } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
 import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
+import { canAccessRoute } from '@shared/utils/navPermissions';
+import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
 
 // Composants d'authentification
 import Login from './components/auth/Login';
@@ -15,6 +17,7 @@ import RegisterUser from './components/auth/RegisterUser';
 import RegisterCompany from './components/auth/RegisterCompany';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
+import FirstChangePassword from './components/auth/FirstChangePassword';
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
@@ -55,32 +58,29 @@ import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Permissions from './pages/Permissions';
 
-// Composant de protection utilisant AuthContext
-const PATH_MODULE_MAP = {
-  '/dashboard': 'dashboard',
-  '/products': 'produits',
-  '/clients': 'clients',
-  '/sales': 'ventes',
-  '/invoices': 'factures',
-  '/payments': 'paiements',
-  '/inventory': 'stocks',
-  '/suppliers': null,
-  '/purchases': 'achats',
-  '/delivery': 'livraison',
-  '/hr': 'rh',
-  '/accounting': 'comptabilite',
-  '/documents': 'documents',
-  '/ai': 'ia',
-  '/super-admin': null,
-  '/users': null,
-  '/roles': null,
-  '/permissions': null,
+// Composant de protection utilisant AuthContext.
+// PATH_MODULE_MAP, PATH_PERMISSION_MAP, ADMIN_PATHS et la logique
+// de fallback par rôle sont importés depuis shared/navConfig + navPermissions
+// pour garantir une source unique de vérité.
+
+const roleFallbackForPath = (pathname) => {
+  const item = NAV_ITEMS.find((i) => i.path === pathname);
+  return Array.isArray(item?.roleFallback) ? item.roleFallback : null;
 };
 
-const ADMIN_PATHS = ['/super-admin', '/users', '/roles', '/permissions'];
-
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, user, subscription, subscriptionLoading, getAllowedModules } = useAuth();
+  const {
+    isAuthenticated,
+    loading,
+    user,
+    mustChangePassword,
+    subscription,
+    subscriptionLoading,
+    getAllowedModules,
+    hasAnyPermission,
+    hasPermission,
+    hasRole,
+  } = useAuth();
   const location = useLocation();
 
   const hasToken = !!authStorage.getAccessToken();
@@ -94,17 +94,24 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Si l'utilisateur doit changer son mot de passe, on le force vers l'écran
+  // de changement obligatoire (sauf s'il est déjà sur cet écran).
+  if (mustChangePassword && location.pathname !== '/first-change-password') {
+    return <Navigate to="/first-change-password" replace />;
+  }
+
   const role = (user?.role || '').toLowerCase();
   if (role === 'user' && !user?.tenant_id) {
     return <Navigate to="/" replace />;
   }
 
-  if (role === 'super_admin') {
+  const isSuperAdmin = role === 'super_admin';
+  if (isSuperAdmin) {
     return children;
   }
 
   const isSubscriptionPage = location.pathname === '/subscription';
-  const hasActiveSubscription = subscription && 
+  const hasActiveSubscription = subscription &&
     (subscription.statut === 'actif' || subscription.statut === 'ACTIF' || subscription.statut === 'ACTIVE');
 
   const isAdminPath = ADMIN_PATHS.includes(location.pathname);
@@ -113,11 +120,22 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/subscription" replace />;
   }
 
-  if (!isAdminPath) {
-    const allowedModules = getAllowedModules();
-    const requiredModule = PATH_MODULE_MAP[location.pathname];
-
-    if (requiredModule && allowedModules !== null && !allowedModules.includes(requiredModule)) {
+  // Garde de permission explicite : acces direct par URL (cas 7 RBAC).
+  // Source unique : shared/utils/navPermissions.js::canAccessRoute.
+  if (user && Array.isArray(user.permissions)) {
+    const ctx = {
+      isSuperAdmin,
+      hasAnyPermission,
+      hasPermission,
+      hasRole,
+      allowedModules: getAllowedModules(),
+      roleFallbackFor: roleFallbackForPath,
+    };
+    const ok = canAccessRoute(location.pathname, PATH_PERMISSION_MAP, ctx, {
+      pathModuleMap: PATH_MODULE_MAP,
+      skipModuleGatePaths: ADMIN_PATHS,
+    });
+    if (!ok) {
       return <Navigate to="/dashboard" replace />;
     }
   }
@@ -151,6 +169,8 @@ function App() {
                 <Route path="/register/company" element={<RegisterCompany />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:token" element={<ResetPassword />} />
+                <Route path="/first-change-password" element={<FirstChangePassword />} />
+                <Route path="/first-login-change" element={<FirstChangePassword />} />
 
                 <Route
                   element={

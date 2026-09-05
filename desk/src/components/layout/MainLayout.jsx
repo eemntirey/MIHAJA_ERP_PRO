@@ -110,8 +110,11 @@ const MainLayout = () => {
       };
 
       if (dash.status === 'fulfilled') {
-        const d = dash.value?.data || {};
-        next.salesToday = safeCount(d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today);
+        // L'API renvoie { message, stats: { ventes_aujourdhui, ... } }.
+        const d = dash.value?.data?.stats || dash.value?.data || {};
+        next.salesToday = safeCount(
+          d.ventes_aujourdhui ?? d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today
+        );
       }
 
       setCounters(next);

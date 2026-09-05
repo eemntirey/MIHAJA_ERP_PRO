@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource
 from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.livraison_service import LivreurService, VehiculeService, ItineraireService, LivraisonService
 from app.models.livreur import Livreur
 from app.models.utilisateur import Utilisateur, Role
@@ -33,11 +34,13 @@ def _require_livreur():
 
 @ns_livreurs.route('/')
 class LivreurList(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         livreurs, total = LivreurService.get_all()
         return {'livreurs': [l.to_dict() for l in livreurs], 'total': total}, 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
@@ -47,6 +50,7 @@ class LivreurList(Resource):
 
 @ns_livreurs.route('/<int:id>')
 class LivreurResource(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         livreur = LivreurService.get_by_id(id)
@@ -54,6 +58,7 @@ class LivreurResource(Resource):
             return {'message': 'Livreur non trouve'}, 404
         return livreur.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def put(self, id):
         from flask import request
@@ -63,6 +68,7 @@ class LivreurResource(Resource):
             return {'message': 'Livreur non trouve'}, 404
         return livreur.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def delete(self, id):
         success = LivreurService.delete(id)
@@ -72,11 +78,13 @@ class LivreurResource(Resource):
 
 @ns_vehicules.route('/')
 class VehiculeList(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         vehicules, total = VehiculeService.get_all()
         return {'vehicules': [v.to_dict() for v in vehicules], 'total': total}, 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
@@ -86,6 +94,7 @@ class VehiculeList(Resource):
 
 @ns_vehicules.route('/<int:id>')
 class VehiculeResource(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         vehicule = VehiculeService.get_by_id(id)
@@ -93,6 +102,7 @@ class VehiculeResource(Resource):
             return {'message': 'Vehicule non trouve'}, 404
         return vehicule.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def put(self, id):
         from flask import request
@@ -102,6 +112,7 @@ class VehiculeResource(Resource):
             return {'message': 'Vehicule non trouve'}, 404
         return vehicule.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def delete(self, id):
         success = VehiculeService.delete(id)
@@ -111,11 +122,13 @@ class VehiculeResource(Resource):
 
 @ns_itineraires.route('/')
 class ItineraireList(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         itineraires, total = ItineraireService.get_all()
         return {'itineraires': [i.to_dict() for i in itineraires], 'total': total}, 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
@@ -125,6 +138,7 @@ class ItineraireList(Resource):
 
 @ns_itineraires.route('/<int:id>')
 class ItineraireResource(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         itineraire = ItineraireService.get_by_id(id)
@@ -132,6 +146,7 @@ class ItineraireResource(Resource):
             return {'message': 'Itineraire non trouve'}, 404
         return itineraire.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def put(self, id):
         from flask import request
@@ -141,6 +156,7 @@ class ItineraireResource(Resource):
             return {'message': 'Itineraire non trouve'}, 404
         return itineraire.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def delete(self, id):
         success = ItineraireService.delete(id)
@@ -150,20 +166,26 @@ class ItineraireResource(Resource):
 
 @ns_livraisons.route('/')
 class LivraisonList(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         livraisons, total = LivraisonService.get_all()
         return {'livraisons': [l.to_dict() for l in livraisons], 'total': total}, 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self):
         from flask import request
         data = request.get_json()
-        livraison = LivraisonService.create(data)
+        try:
+            livraison = LivraisonService.create(data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         return livraison.to_dict(), 201
 
 @ns_livraisons.route('/<int:id>')
 class LivraisonResource(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         livraison = LivraisonService.get_by_id(id)
@@ -171,15 +193,20 @@ class LivraisonResource(Resource):
             return {'message': 'Livraison non trouvee'}, 404
         return livraison.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def put(self, id):
         from flask import request
         data = request.get_json()
-        livraison = LivraisonService.update(id, data)
+        try:
+            livraison = LivraisonService.update(id, data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not livraison:
             return {'message': 'Livraison non trouvee'}, 404
         return livraison.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def delete(self, id):
         success = LivraisonService.delete(id)
@@ -189,6 +216,7 @@ class LivraisonResource(Resource):
 
 @ns_livraisons.route('/<int:id>/suivi')
 class LivraisonSuivi(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         from flask import request
@@ -209,6 +237,7 @@ class LivraisonSuivi(Resource):
 
 @ns_livraisons.route('/<int:id>/suivis')
 class LivraisonSuivis(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         from app.models.suivi_livraison import SuiviLivraison
@@ -223,6 +252,7 @@ class LivraisonSuivis(Resource):
 
 @ns_livraisons.route('/<int:id>/assigner')
 class LivraisonAssigner(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         from flask import request
@@ -242,6 +272,7 @@ class LivraisonAssigner(Resource):
 
 @ns_livraisons.route('/<int:id>/statut')
 class LivraisonStatut(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         from flask import request
@@ -263,6 +294,7 @@ class LivraisonStatut(Resource):
 
 @ns_livraisons.route('/stats')
 class LivraisonStats(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         stats = LivraisonService.get_stats()
@@ -271,6 +303,7 @@ class LivraisonStats(Resource):
 
 @ns_livraisons.route('/<int:id>/avancer')
 class LivraisonAvancer(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         livraison = LivraisonService.avancer_statut(id)
@@ -281,6 +314,7 @@ class LivraisonAvancer(Resource):
 
 @ns_livreurs.route('/moi')
 class LivreurMoi(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         err, livreur = _require_livreur()
@@ -291,6 +325,7 @@ class LivreurMoi(Resource):
 
 @ns_livreurs.route('/moi/livraisons')
 class LivreurMoiLivraisons(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self):
         err, livreur = _require_livreur()
@@ -302,6 +337,7 @@ class LivreurMoiLivraisons(Resource):
 
 @ns_livreurs.route('/moi/livraisons/<int:id>')
 class LivreurMoiLivraisonResource(Resource):
+    @permission_required('delivery.view')
     @tenant_required_readonly
     def get(self, id):
         err, livreur = _require_livreur()
@@ -312,6 +348,7 @@ class LivreurMoiLivraisonResource(Resource):
             return {'message': 'Livraison non trouvee'}, 404
         return livraison.to_dict(), 200
 
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         err, livreur = _require_livreur()
@@ -339,6 +376,7 @@ class LivreurMoiLivraisonResource(Resource):
 
 @ns_livreurs.route('/moi/livraisons/<int:id>/statut')
 class LivreurMoiLivraisonStatut(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         err, livreur = _require_livreur()
@@ -366,6 +404,7 @@ class LivreurMoiLivraisonStatut(Resource):
 
 @ns_livreurs.route('/<int:id>/associer-utilisateur')
 class LivreurAssocierUtilisateur(Resource):
+    @permission_required('delivery.update')
     @tenant_required_readonly
     def post(self, id):
         from flask import request
