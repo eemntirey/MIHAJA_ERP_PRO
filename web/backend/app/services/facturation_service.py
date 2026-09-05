@@ -5,7 +5,22 @@ from app.models.client import Client
 from app.security.tenant import get_current_tenant_id
 
 
+FACTURE_ALLOWED_KEYS = {
+    'vente_id', 'client_id', 'reference', 'total_ht', 'total_ttc',
+    'statut', 'tenant_id', 'is_active', 'created_by', 'updated_by',
+}
+
+
+def _filter_facture_payload(data):
+    """Ne garde que les colonnes du modele Facture pour eviter
+    TypeError avec SQLAlchemy 2.x (rejette les kwargs non-colonnes)."""
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if k in FACTURE_ALLOWED_KEYS}
+
+
 def issue_invoice(data):
+    data = _filter_facture_payload(data)
     if not data.get('vente_id') or not data.get('client_id'):
         raise ValueError('vente_id et client_id sont requis')
     tenant_id = get_current_tenant_id()

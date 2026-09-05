@@ -70,8 +70,12 @@ def create_with_lignes(data):
             random_part = ''.join(random.choices(string.digits, k=4))
             data['reference'] = f"{prefix}-{timestamp}-{random_part}"
 
-    if not data.get('client_id'):
+    if data.get('client_passager') in (True, 'true', 'True', 1, '1'):
+        passager = get_or_create_passager_client()
+        data['client_id'] = passager.id
+    elif not data.get('client_id'):
         raise ValueError("Le client est requis")
+    data.pop('client_passager', None)
 
     if 'date' in data and isinstance(data['date'], str):
         try:
@@ -151,6 +155,45 @@ def create_with_lignes(data):
         raise ValueError("; ".join(stock_errors))
     db.session.commit()
     return sale
+
+
+def get_or_create_passager_client():
+    """Retourne (ou cree) le client passager du tenant courant.
+
+    Un seul client passager par tenant. Le code est deterministe
+    (PASSAGER-<tenant_id>) pour rester idempotent. En cas de course
+    concurrente, on retombe sur une lecture apres rollback.
+    """
+    from app.models.client import Client
+    from sqlalchemy.exc import IntegrityError
+    tenant_id = get_current_tenant_id()
+    code = f"PASSAGER-{tenant_id}" if tenant_id else "PASSAGER"
+    query = Client.query.filter_by(code=code)
+    if tenant_id:
+        query = query.filter_by(tenant_id=tenant_id)
+    existing = query.first()
+    if existing:
+        return existing
+    client = Client(
+        code=code,
+        nom='Passager',
+        prenom='Client',
+        type='particulier',
+        secteur='autre',
+        est_actif=True,
+    )
+    if tenant_id:
+        client.tenant_id = tenant_id
+    db.session.add(client)
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        existing = query.first()
+        if existing:
+            return existing
+        raise
+    return client
 
 
 def get_by_client(client_id):

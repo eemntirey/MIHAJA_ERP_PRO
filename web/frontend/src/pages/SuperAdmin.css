@@ -208,3 +208,27 @@
 .full-width {
   width: 100%;
 }
+
+/* 💰 Paiements & Revenus — cartes de statistiques */
+.superadmin-page .card-body {
+  padding: 16px 20px;
+}
+
+.card .stat-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.card .stat-value {
+  font-family: var(--font-family-heading);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.card .stat-note {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 6px;
+}

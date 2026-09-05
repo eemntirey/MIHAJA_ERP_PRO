@@ -1,12 +1,57 @@
 // src/pages/SuperAdmin.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { tenantService, subscriptionService } from '../services/api';
+import { tenantService, subscriptionService, superAdminPaymentService } from '../services/api';
 import { VILLES_MADAGASCAR } from '../constants/erpConstants';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './SuperAdmin.css';
 import './Pages.css';
+
+const PAYMENT_STATUS_LABEL = {
+  succes: 'SUCCESS',
+  confirme: 'CONFIRME',
+  en_attente: 'EN_ATTENTE',
+  traitement: 'PROCESSING',
+  echec: 'FAILED',
+  annule: 'CANCELLED',
+  expire: 'EXPIRE',
+};
+
+const PAYMENT_METHOD_LABEL = {
+  MVOLA: 'MVola',
+  ORANGE_MONEY: 'Orange Money',
+  AIRTEL_MONEY: 'Airtel Money',
+  BRED: 'Visa / BRED',
+  ESPECES: 'Espèces',
+  VIREMENT: 'Virement',
+  CHEQUE: 'Chèque',
+};
+
+const PROVIDER_LABEL = {
+  papi: 'Papi (en ligne)',
+  manuel: 'Manuel (hors ligne)',
+  especes: 'Manuel (hors ligne)',
+  visa: 'Visa',
+};
+
+function formatCurrency(amount, devise = 'MGA') {
+  const value = Number(amount || 0).toLocaleString('mg-MG', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  return `${value} ${devise || 'Ar'}`;
+}
+
+function getPaymentStatusBadge(statut) {
+  const normalized = (statut || '').toLowerCase();
+  if (normalized === 'succes' || normalized === 'confirme') return 'badge-success';
+  if (normalized === 'en_attente' || normalized === 'traitement') return 'badge-warning';
+  if (normalized === 'echec' || normalized === 'annule' || normalized === 'expire') {
+    return 'badge-danger';
+  }
+  return 'badge-info';
+}
 
 const SuperAdmin = () => {
   const { hasRole } = useAuth();
@@ -22,6 +67,32 @@ const SuperAdmin = () => {
   const [editingTenant, setEditingTenant] = useState(null);
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const [subFilter, setSubFilter] = useState('');
+
+  // ====== PAIEMENTS & REVENUS ======
+  const [payments, setPayments] = useState([]);
+  const [paymentsPagination, setPaymentsPagination] = useState({
+    page: 1,
+    per_page: 20,
+    total: 0,
+    pages: 1,
+  });
+  const [paymentsStats, setPaymentsStats] = useState(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsFilters, setPaymentsFilters] = useState({
+    search: '',
+    tenant_id: '',
+    status: '',
+    provider: '',
+    payment_method: '',
+    plan: '',
+    date_from: '',
+    date_to: '',
+    page: 1,
+    per_page: 20,
+  });
+  const [paymentDetail, setPaymentDetail] = useState(null);
+  const [paymentDetailLoading, setPaymentDetailLoading] = useState(false);
+  const [showPaymentDetail, setShowPaymentDetail] = useState(false);
 
   useEffect(() => {
     if (!hasRole('SUPER_ADMIN')) {
@@ -85,6 +156,84 @@ const SuperAdmin = () => {
     }
   };
 
+  const fetchPayments = useCallback(async (filters) => {
+    try {
+      setPaymentsLoading(true);
+      const params = {};
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== '' && val !== null && val !== undefined) {
+          params[key] = val;
+        }
+      });
+      const response = await superAdminPaymentService.getAll(params);
+      const body = response.data || {};
+      setPayments(body.items || []);
+      setPaymentsPagination(body.pagination || {
+        page: 1, per_page: 20, total: 0, pages: 1,
+      });
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+      const msg = err.response?.data?.message || 'Échec du chargement des paiements';
+      toast.error(msg);
+      setPayments([]);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, []);
+
+  const fetchPaymentsStats = useCallback(async (filters) => {
+    try {
+      const params = {};
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== '' && val !== null && val !== undefined &&
+            ['tenant_id', 'plan'].includes(key)) {
+          params[key] = val;
+        }
+      });
+      const response = await superAdminPaymentService.getStats(params);
+      setPaymentsStats(response.data || null);
+    } catch (err) {
+      console.error('Error fetching payment stats:', err);
+      setPaymentsStats(null);
+    }
+  }, []);
+
+  const fetchPaymentDetail = async (id) => {
+    try {
+      setPaymentDetailLoading(true);
+      const response = await superAdminPaymentService.getById(id);
+      setPaymentDetail(response.data || null);
+      setShowPaymentDetail(true);
+    } catch (err) {
+      console.error('Error fetching payment detail:', err);
+      toast.error(err.response?.data?.message || 'Échec du chargement du détail');
+    } finally {
+      setPaymentDetailLoading(false);
+    }
+  };
+
+  const handlePaymentsSearch = () => {
+    fetchPayments(paymentsFilters);
+    fetchPaymentsStats(paymentsFilters);
+  };
+
+  const handlePaymentsPageChange = (page) => {
+    const next = { ...paymentsFilters, page };
+    setPaymentsFilters(next);
+    fetchPayments(next);
+  };
+
+  const handlePaymentsReset = () => {
+    const cleared = {
+      search: '', tenant_id: '', status: '', provider: '',
+      payment_method: '', plan: '', date_from: '', date_to: '',
+      page: 1, per_page: 20,
+    };
+    setPaymentsFilters(cleared);
+    fetchPayments(cleared);
+    fetchPaymentsStats(cleared);
+  };
+
   useEffect(() => {
     fetchTenants();
   }, []);
@@ -111,8 +260,14 @@ const SuperAdmin = () => {
       } else {
         setHistorique([]);
       }
+    } else if (activeTab === 'payments') {
+      fetchPayments(paymentsFilters);
+      fetchPaymentsStats(paymentsFilters);
     }
-  }, [activeTab, selectedTenantId]);
+    // NB : le rechargement des paiements est déclenché explicitement par
+    // handlePaymentsSearch / handlePaymentsPageChange / handlePaymentsReset
+    // afin d'éviter une requête API à chaque frappe dans les filtres.
+  }, [activeTab, selectedTenantId, fetchPayments, fetchPaymentsStats]);
 
   const openModal = (tenant = null) => {
     setEditingTenant(tenant);
@@ -236,11 +391,17 @@ const SuperAdmin = () => {
         >
           Abonnements
         </button>
-        <button 
+        <button
           className={`superadmin-tab ${activeTab === 'historique' ? 'superadmin-tab--active' : ''}`}
           onClick={() => setActiveTab('historique')}
         >
           Historique par entreprise
+        </button>
+        <button
+          className={`superadmin-tab ${activeTab === 'payments' ? 'superadmin-tab--active' : ''}`}
+          onClick={() => setActiveTab('payments')}
+        >
+          💰 Paiements & Revenus
         </button>
       </div>
 
@@ -455,6 +616,497 @@ const SuperAdmin = () => {
             </div>
           )}
         </>
+      )}
+
+      {activeTab === 'payments' && (
+        <>
+          <div className="card-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '16px',
+            marginBottom: '20px',
+          }}>
+            <div className="card">
+              <div className="card-body">
+                <div className="stat-label">Revenus confirmés</div>
+                <div className="stat-value">
+                  {paymentsStats
+                    ? formatCurrency(paymentsStats.total_success, paymentsStats.currency)
+                    : 'N/A'}
+                </div>
+                <div className="stat-note">
+                  {paymentsStats
+                    ? `${paymentsStats.success_count || 0} paiement(s) SUCCESS`
+                    : 'Chargement...'}
+                </div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-body">
+                <div className="stat-label">Paiements en attente</div>
+                <div className="stat-value">
+                  {paymentsStats
+                    ? formatCurrency(paymentsStats.total_pending, paymentsStats.currency)
+                    : 'N/A'}
+                </div>
+                <div className="stat-note">
+                  {paymentsStats
+                    ? `${paymentsStats.pending_count || 0} paiement(s)`
+                    : 'Chargement...'}
+                </div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-body">
+                <div className="stat-label">Paiements réussis</div>
+                <div className="stat-value">
+                  {paymentsStats ? paymentsStats.success_count : 'N/A'}
+                </div>
+                <div className="stat-note">Statut SUCCESS / CONFIRME</div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-body">
+                <div className="stat-label">Paiements échoués</div>
+                <div className="stat-value">
+                  {paymentsStats ? paymentsStats.failed_count : 'N/A'}
+                </div>
+                <div className="stat-note">
+                  {paymentsStats
+                    ? formatCurrency(paymentsStats.total_failed, paymentsStats.currency)
+                    : 'Chargement...'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {paymentsStats?.settlement && !paymentsStats.settlement.available && (
+            <div className="card" style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: '#fff8e1',
+              borderLeft: '4px solid #ff9800',
+              fontSize: '13px',
+            }}>
+              <strong>⚠️ Versements Papi :</strong> {paymentsStats.settlement.message}
+              {paymentsStats?.papi_fees && !paymentsStats.papi_fees.available && (
+                <div style={{ marginTop: '6px' }}>
+                  <strong>💸 Frais Papi :</strong> {paymentsStats.papi_fees.message}
+                </div>
+              )}
+              <div style={{ marginTop: '6px', color: '#5d4037' }}>
+                ℹ️ total_success représente la somme des paiements MIHAJA confirmés
+                (SUCCESS/CONFIRME). Cela n'implique PAS un versement effectif sur le
+                compte bancaire MIHAJA.
+              </div>
+            </div>
+          )}
+
+          {paymentsStats?.by_method_confirmed?.length > 0 && (
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <div className="card-header" style={{ padding: '12px 16px' }}>
+                <h3 style={{ margin: 0, fontSize: '15px' }}>Revenus par méthode de paiement</h3>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Méthode</th>
+                      <th>Nombre</th>
+                      <th>Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentsStats.by_method_confirmed.map((row) => (
+                      <tr key={row.payment_method}>
+                        <td>{PAYMENT_METHOD_LABEL[row.payment_method] || row.payment_method}</td>
+                        <td>{row.count}</td>
+                        <td>{formatCurrency(row.montant, paymentsStats.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {paymentsStats?.by_plan_confirmed?.length > 0 && (
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <div className="card-header" style={{ padding: '12px 16px' }}>
+                <h3 style={{ margin: 0, fontSize: '15px' }}>Revenus par plan</h3>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Plan</th>
+                      <th>Nombre</th>
+                      <th>Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentsStats.by_plan_confirmed.map((row) => (
+                      <tr key={row.plan}>
+                        <td>{row.plan}</td>
+                        <td>{row.count}</td>
+                        <td>{formatCurrency(row.montant, paymentsStats.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="card full-width">
+            <div className="card-header" style={{
+              padding: '12px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <h3 style={{ margin: 0, fontSize: '15px' }}>Transactions</h3>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <input
+                  type="search"
+                  placeholder="Recherche..."
+                  value={paymentsFilters.search}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, search: e.target.value, page: 1,
+                  }))}
+                  className="form-input"
+                  style={{ minWidth: '180px' }}
+                />
+                <select
+                  value={paymentsFilters.status}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, status: e.target.value, page: 1,
+                  }))}
+                  className="form-select"
+                >
+                  <option value="">Tous statuts</option>
+                  <option value="SUCCESS">SUCCESS</option>
+                  <option value="CONFIRME">CONFIRME</option>
+                  <option value="EN_ATTENTE">EN_ATTENTE</option>
+                  <option value="PROCESSING">PROCESSING</option>
+                  <option value="FAILED">FAILED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                  <option value="EXPIRED">EXPIRE</option>
+                </select>
+                <select
+                  value={paymentsFilters.provider}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, provider: e.target.value, page: 1,
+                  }))}
+                  className="form-select"
+                >
+                  <option value="">Tous providers</option>
+                  <option value="papi">Papi (en ligne)</option>
+                  <option value="manuel">Manuel (hors ligne)</option>
+                </select>
+                <select
+                  value={paymentsFilters.payment_method}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, payment_method: e.target.value, page: 1,
+                  }))}
+                  className="form-select"
+                >
+                  <option value="">Toutes méthodes</option>
+                  <option value="MVOLA">MVola</option>
+                  <option value="ORANGE_MONEY">Orange Money</option>
+                  <option value="AIRTEL_MONEY">Airtel Money</option>
+                  <option value="ESPECES">Espèces</option>
+                  <option value="VIREMENT">Virement</option>
+                  <option value="CHEQUE">Chèque</option>
+                </select>
+                <select
+                  value={paymentsFilters.plan}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, plan: e.target.value, page: 1,
+                  }))}
+                  className="form-select"
+                >
+                  <option value="">Tous plans</option>
+                  <option value="gratuit">Gratuit</option>
+                  <option value="starter">Starter</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+                <select
+                  value={paymentsFilters.tenant_id}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, tenant_id: e.target.value, page: 1,
+                  }))}
+                  className="form-select"
+                >
+                  <option value="">Tous tenants</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nom}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={paymentsFilters.date_from}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, date_from: e.target.value, page: 1,
+                  }))}
+                  className="form-input"
+                  title="Date début"
+                />
+                <input
+                  type="date"
+                  value={paymentsFilters.date_to}
+                  onChange={(e) => setPaymentsFilters((f) => ({
+                    ...f, date_to: e.target.value, page: 1,
+                  }))}
+                  className="form-input"
+                  title="Date fin"
+                />
+                <button
+                  onClick={handlePaymentsSearch}
+                  className="btn-primary"
+                  type="button"
+                >
+                  Rechercher
+                </button>
+                <button
+                  onClick={handlePaymentsReset}
+                  className="btn-secondary"
+                  type="button"
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
+
+            {paymentsLoading ? (
+              <div className="loading-screen">
+                <div className="spinner-large"></div>
+                <p>Chargement des paiements...</p>
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Tenant</th>
+                      <th>Abonnement</th>
+                      <th>Plan</th>
+                      <th>Méthode</th>
+                      <th>Provider</th>
+                      <th>Montant</th>
+                      <th>Statut</th>
+                      <th>Référence</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.length === 0 ? (
+                      <tr>
+                        <td colSpan="10" className="text-center">
+                          Aucune transaction trouvée
+                        </td>
+                      </tr>
+                    ) : (
+                      payments.map((p) => (
+                        <tr key={p.id}>
+                          <td>{p.created_at ? new Date(p.created_at).toLocaleDateString('mg-MG') : '-'}</td>
+                          <td>{p.tenant_name || `Tenant #${p.tenant_id}`}</td>
+                          <td>{p.subscription_id ? `#${p.subscription_id}` : '-'}</td>
+                          <td>{p.plan || '-'}</td>
+                          <td>{PAYMENT_METHOD_LABEL[p.payment_method] || p.payment_method || '-'}</td>
+                          <td>{PROVIDER_LABEL[p.provider] || p.provider || '-'}</td>
+                          <td>{formatCurrency(p.montant, p.devise)}</td>
+                          <td>
+                            <span className={`badge ${getPaymentStatusBadge(p.statut)}`}>
+                              {PAYMENT_STATUS_LABEL[p.statut] || p.statut_label || p.statut || '-'}
+                            </span>
+                          </td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                            {p.external_reference || p.reference || '-'}
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => fetchPaymentDetail(p.id)}
+                              className="btn-small btn-edit"
+                              title="Voir"
+                              disabled={paymentDetailLoading}
+                            >
+                              <i className="ti ti-eye" aria-hidden="true" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {paymentsPagination.pages > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                borderTop: '1px solid #e0e0e0',
+              }}>
+                <div style={{ fontSize: '13px', color: '#666' }}>
+                  Page {paymentsPagination.page} / {paymentsPagination.pages}
+                  {' '}({paymentsPagination.total} résultats)
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => handlePaymentsPageChange(Math.max(1, paymentsPagination.page - 1))}
+                    disabled={paymentsPagination.page <= 1}
+                    className="btn-secondary"
+                    type="button"
+                  >
+                    ← Précédent
+                  </button>
+                  <button
+                    onClick={() => handlePaymentsPageChange(Math.min(paymentsPagination.pages, paymentsPagination.page + 1))}
+                    disabled={paymentsPagination.page >= paymentsPagination.pages}
+                    className="btn-secondary"
+                    type="button"
+                  >
+                    Suivant →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {showPaymentDetail && paymentDetail && (
+        <div className="modal-overlay" onClick={() => setShowPaymentDetail(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Détail transaction #{paymentDetail.id}</h2>
+              <button type="button" className="btn-close" onClick={() => setShowPaymentDetail(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '16px' }}>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Tenant</label>
+                  <div>{paymentDetail.tenant_name || '-'} ({paymentDetail.tenant_id})</div>
+                </div>
+                <div className="form-group">
+                  <label>Abonnement</label>
+                  <div>{paymentDetail.subscription_id ? `#${paymentDetail.subscription_id}` : '-'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Montant</label>
+                  <div>{formatCurrency(paymentDetail.montant, paymentDetail.devise)}</div>
+                </div>
+                <div className="form-group">
+                  <label>Devise</label>
+                  <div>{paymentDetail.devise}</div>
+                </div>
+                <div className="form-group">
+                  <label>Provider</label>
+                  <div>{PROVIDER_LABEL[paymentDetail.provider] || paymentDetail.provider || '-'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Méthode</label>
+                  <div>{PAYMENT_METHOD_LABEL[paymentDetail.payment_method] || paymentDetail.payment_method || '-'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Statut</label>
+                  <div>
+                    <span className={`badge ${getPaymentStatusBadge(paymentDetail.statut)}`}>
+                      {PAYMENT_STATUS_LABEL[paymentDetail.statut] || paymentDetail.statut_label || paymentDetail.statut}
+                    </span>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Référence externe</label>
+                  <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                    {paymentDetail.external_reference || '-'}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Date de création</label>
+                  <div>{paymentDetail.created_at ? new Date(paymentDetail.created_at).toLocaleString('mg-MG') : '-'}</div>
+                </div>
+                <div className="form-group">
+                  <label>Date de paiement</label>
+                  <div>{paymentDetail.date_paiement ? new Date(paymentDetail.date_paiement).toLocaleString('mg-MG') : '-'}</div>
+                </div>
+                {paymentDetail.completed_at && (
+                  <div className="form-group">
+                    <label>Date de confirmation</label>
+                    <div>{new Date(paymentDetail.completed_at).toLocaleString('mg-MG')}</div>
+                  </div>
+                )}
+              </div>
+
+              <hr style={{ margin: '16px 0' }} />
+
+              <h3 style={{ fontSize: '14px', marginBottom: '8px' }}>Section Versements Papi</h3>
+              {paymentDetail.settlement ? (
+                paymentDetail.settlement.available ? (
+                  <div>{/* Non disponible actuellement */}</div>
+                ) : (
+                  <div className="card" style={{
+                    padding: '12px',
+                    backgroundColor: '#fff8e1',
+                    borderLeft: '4px solid #ff9800',
+                  }}>
+                    <div style={{ fontSize: '13px' }}>
+                      ℹ️ {paymentDetail.settlement.message}
+                    </div>
+                    <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                      💸 {paymentDetail.papi_fees?.available
+                        ? `Frais Papi réels : ${formatCurrency(paymentDetail.papi_fees.fee, paymentDetail.devise)}`
+                        : `Frais Papi : ${paymentDetail.papi_fees?.message || 'Non disponible'}`}
+                    </div>
+                    <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                      💰 Net à recevoir : {paymentDetail.net_amount?.available
+                        ? formatCurrency(paymentDetail.net_amount.montant, paymentDetail.net_amount.devise)
+                        : (paymentDetail.net_amount?.message || 'Non disponible')}
+                    </div>
+                  </div>
+                )
+              ) : null}
+
+              {paymentDetail.payment_events?.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <h3 style={{ fontSize: '14px', marginBottom: '8px' }}>Évènements webhook</h3>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Event ID</th>
+                          <th>Type</th>
+                          <th>Traité</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentDetail.payment_events.map((ev) => (
+                          <tr key={ev.id || ev.event_id}>
+                            <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{ev.event_id}</td>
+                            <td>{ev.event_type}</td>
+                            <td>{ev.processed ? '✅' : '⏳'}</td>
+                            <td>{ev.processed_at ? new Date(ev.processed_at).toLocaleString('mg-MG') : '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-secondary" onClick={() => setShowPaymentDetail(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showModal && (

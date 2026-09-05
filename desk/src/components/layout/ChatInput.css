@@ -39,10 +39,16 @@
   font-family: 'DM Sans', sans-serif;
   color: var(--color-text, #111111);
   background: transparent;
+  height: 38px;
   max-height: 120px;
   min-height: 38px;
   line-height: 1.5;
   padding: 8px 0;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .chat-input-field::placeholder {

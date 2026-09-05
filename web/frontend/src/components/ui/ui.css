@@ -1,6 +1,301 @@
-@import '../styles/tokens.css';
+@import '../../styles/tokens.css';
 
 /* src/components/ui/ui.css — Composants réutilisables MIHAJA */
+
+/* ===================== Field (form container) ===================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-family-body);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  letter-spacing: var(--tracking-normal);
+  line-height: var(--leading-tight);
+}
+
+.field__required {
+  color: var(--color-danger);
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.field__optional {
+  margin-left: var(--space-1);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.field__help {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-snug);
+}
+
+.field__error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger-text);
+  line-height: var(--leading-snug);
+  animation: mihaja-error-in var(--duration-fast) var(--ease-out);
+}
+
+.field__error-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-circle);
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+@keyframes mihaja-error-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================== Base input (shared) ===================== */
+.field__input,
+.select-field__native,
+.toggle-field textarea,
+.toggle-field input[type='text'] {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-tight);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.field__input::placeholder,
+.select-field__native:invalid {
+  color: var(--color-text-tertiary);
+}
+
+.field__input:hover,
+.select-field__native:hover {
+  border-color: var(--color-border);
+}
+
+.field__input:focus,
+.select-field__native:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.field__input:disabled,
+.select-field__native:disabled {
+  background: var(--color-surface-hover);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.field--error .field__input,
+.field--error .select-field__native {
+  border-color: var(--color-border-error);
+}
+.field--error .field__input:focus,
+.field--error .select-field__native:focus {
+  border-color: var(--color-border-error);
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+}
+
+/* ===================== SelectField ===================== */
+.select-field {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.select-field__native {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: calc(var(--space-3) + 18px);
+  cursor: pointer;
+  background-image: none;
+}
+
+.select-field__chevron {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.select-field__native:hover + .select-field__chevron {
+  color: var(--color-text);
+}
+
+.select-field__native:focus + .select-field__chevron {
+  color: var(--color-primary);
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.select-field--disabled .select-field__chevron {
+  color: var(--color-text-disabled);
+}
+
+.select-field--disabled .select-field__native {
+  background: var(--color-surface-hover);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ===================== ToggleField (iOS-like switch) ===================== */
+.toggle-field {
+  --toggle-w: 42px;
+  --toggle-h: 24px;
+  --toggle-pad: 3px;
+}
+
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  min-height: 24px;
+}
+
+.toggle__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toggle__track {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--toggle-w);
+  height: var(--toggle-h);
+  margin-top: 2px;
+  background: var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color var(--transition-normal) var(--ease-in-out),
+    box-shadow var(--transition-fast);
+}
+
+.toggle__thumb {
+  position: absolute;
+  top: var(--toggle-pad);
+  left: var(--toggle-pad);
+  width: calc(var(--toggle-h) - var(--toggle-pad) * 2);
+  height: calc(var(--toggle-h) - var(--toggle-pad) * 2);
+  background: var(--color-surface);
+  border-radius: var(--radius-circle);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-normal) var(--ease-spring);
+}
+
+.toggle:hover .toggle__track {
+  background: var(--color-neutral-400);
+}
+
+.toggle__input:focus-visible + .toggle__track {
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.toggle__input:checked + .toggle__track {
+  background: var(--color-primary);
+}
+
+.toggle__input:checked + .toggle__track .toggle__thumb {
+  transform: translateX(calc(var(--toggle-w) - var(--toggle-h)));
+}
+
+.toggle__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.toggle__title {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  line-height: var(--leading-tight);
+  text-transform: none;
+}
+
+.toggle__desc {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-snug);
+  margin-top: 2px;
+  text-transform: none;
+}
+
+.toggle--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toggle--disabled .toggle__track {
+  background: var(--color-border);
+}
+
+/* Compact variant (no body, just track) */
+.toggle--compact .toggle__body { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle__thumb,
+  .toggle__track,
+  .field__error {
+    transition: none;
+    animation: none;
+  }
+}
 
 /* ===================== PageHeader ===================== */
 .page-header--compact {

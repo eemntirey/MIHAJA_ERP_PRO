@@ -45,6 +45,11 @@
   padding: 8px 12px;
   border-radius: 8px;
   box-sizing: border-box;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .chat-input-field::placeholder {

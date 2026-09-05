@@ -5,6 +5,8 @@ import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
+import SelectField from '../components/ui/SelectField';
+import ToggleField from '../components/ui/ToggleField';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -48,7 +50,12 @@ const saleLineSchema = yup.object().shape({
 });
 
 const saleSchema = yup.object().shape({
-  client_id: yup.number().required('Client requis'),
+  client_id: yup.number().nullable().when('client_passager', {
+    is: true,
+    then: () => yup.number().nullable().notRequired(),
+    otherwise: () => yup.number().required('Client requis'),
+  }),
+  client_passager: yup.boolean().default(false),
   date: yup.string().required('Date requise'),
   statut: yup.string().oneOf(['en_attente', 'payee', 'annulee', 'partielle']).default('en_attente'),
   mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money']).default('especes'),
@@ -82,6 +89,7 @@ const calculateTotals = (items) => {
 const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
   const defaultValues = {
     client_id: '',
+    client_passager: false,
     date: new Date().toISOString().split('T')[0],
     statut: 'en_attente',
     mode_paiement: 'especes',
@@ -91,6 +99,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
 
   const editValues = initialData ? {
     client_id: initialData.client_id || '',
+    client_passager: false,
     date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
     statut: initialData.statut || 'en_attente',
     mode_paiement: initialData.mode_paiement || 'especes',
@@ -130,8 +139,10 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
 
   const onSubmit = async (data) => {
     try {
+      const isPassager = Boolean(data.client_passager);
       const payload = {
-        client_id: Number(data.client_id),
+        client_id: isPassager ? null : Number(data.client_id),
+        client_passager: isPassager,
         date: data.date,
         statut: data.statut,
         mode_paiement: data.mode_paiement,
@@ -149,7 +160,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
         toast.success('Vente modifiée avec succès');
       } else {
         await saleService.create(payload);
-        toast.success('Vente créée avec succès');
+        toast.success(isPassager ? 'Vente créée (client passager)' : 'Vente créée avec succès');
       }
       onSuccess();
     } catch (err) {
@@ -168,12 +179,29 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
         <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
           <div className="form-grid">
             <div className="form-group">
-              <label>Client *</label>
-              <select {...register('client_id')} required>
-                <option value="">Sélectionner un client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-              </select>
-              {errors.client_id && <span className="field-error">{errors.client_id.message}</span>}
+              <SelectField
+                id="sale-client"
+                label="Client"
+                required
+                disabled={watch('client_passager')}
+                placeholder={watch('client_passager') ? 'Client passager' : 'Sélectionner un client'}
+                options={clients.map(c => ({ value: c.id, label: c.nom_complet || c.nom }))}
+                error={errors.client_id?.message}
+                helperText={watch('client_passager') ? 'Vente enregistrée sans client.' : undefined}
+                {...register('client_id', { required: !watch('client_passager') ? 'Veuillez sélectionner un client' : false })}
+              />
+              <ToggleField
+                id="sale-client-passager"
+                label="Client passager"
+                description="Activer pour une vente sans client enregistré."
+                {...register('client_passager')}
+                onChange={(e) => {
+                  setValue('client_passager', e.target.checked, { shouldValidate: true });
+                  if (e.target.checked) {
+                    setValue('client_id', null, { shouldValidate: true });
+                  }
+                }}
+              />
             </div>
             <div className="form-group">
               <label>Date *</label>

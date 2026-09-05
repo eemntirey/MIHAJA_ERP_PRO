@@ -1,8 +1,8 @@
 # MIHAJA_ERP_PRO — Architecture Update Report
 
-**Date** : 2026-08-31
+**Date** : 2026-08-31 (vérifié 2026-09-05)
 **Mission** : Suppression totale de `admin_key` et mise en place de `employee_key`
-**Statut** : ✅ Architecture conforme
+**Statut** : ✅ Architecture conforme — maintenue
 
 ---
 
