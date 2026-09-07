@@ -22,7 +22,13 @@ class Config:
         )
     SQLALCHEMY_DATABASE_URI = DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {}
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', '1800')),
+        'pool_size': int(os.getenv('DB_POOL_SIZE', '10')),
+        'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', '20')),
+        'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', '30')),
+    }
 
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
@@ -73,7 +79,7 @@ class Config:
     # Multi-tenancy
     DEFAULT_TENANT_SLUG = 'default'
     DEFAULT_TENANT_DOMAIN = 'localhost'
-    DEFAULT_TENANT_NAME = 'Tenant Par Défaut'
+    DEFAULT_TENANT_NAME = 'Tenant Par D\u00e9faut'
 
     # Currency & Localization (Madagascar)
     CURRENCY_CODE = 'MGA'
