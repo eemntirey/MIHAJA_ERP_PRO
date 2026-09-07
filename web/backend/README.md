@@ -61,14 +61,16 @@ web/backend/
    ```
    SECRET_KEY=your-secret-key
    JWT_SECRET_KEY=your-jwt-secret
-   DATABASE_URL=sqlite:///erp.db
+   DATABASE_URL=postgresql+psycopg://postgres:eemntirey@localhost:55432/erp
    CORS_ORIGINS=http://localhost:3000
    ```
 
-5. Run database migrations:
+5. Initialize PostgreSQL and run database migrations (PowerShell):
    ```bash
-   flask db upgrade
+   .\setup_postgresql.ps1
    ```
+
+   For an already initialized database, run only `flask --app app:create_app db upgrade`.
 
 6. Start the application:
    ```bash

@@ -11,7 +11,7 @@ from app.security.plans import check_tenant_limit, get_tenant_limit, count_activ
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -255,7 +255,7 @@ class TestCompanyRegistrationTenantLimit:
 class TestTenantLimitHelpers:
     def test_get_tenant_limit(self):
         from app.security.plans import get_tenant_limit
-        # max_tenants est illimité (-1) : un SaaS multi-locataire doit pouvoir
+        # max_tenants est illimitÃ© (-1) : un SaaS multi-locataire doit pouvoir
         # heberger autant de tenants que necessaire par plan.
         assert get_tenant_limit('gratuit') == -1
         assert get_tenant_limit('starter') == -1

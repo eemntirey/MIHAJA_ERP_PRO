@@ -31,8 +31,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: erp_backend
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -56,8 +56,8 @@ services:
 
   celery-worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: erp_celery_worker
     environment:
       - DATABASE_URL=${DATABASE_URL}

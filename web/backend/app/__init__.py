@@ -31,10 +31,14 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
         'DATABASE_URL',
-        'sqlite:///erp.db'
+        'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp'
     )
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 1800,
+    }
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:

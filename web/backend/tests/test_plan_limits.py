@@ -13,7 +13,7 @@ from app.security.plans import resolve_limits, resolve_modules, admin_limit
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -123,7 +123,7 @@ class TestEmployeeLimits:
         r = client.post('/api/v1/employes', headers=headers,
                         json={'matricule': 'EMP003', 'nom': 'E', 'prenom': 'F'})
         assert r.status_code == 403, r.get_json()
-        assert 'employés' in r.get_json()['message']
+        assert 'employÃ©s' in r.get_json()['message']
 
     def test_can_create_employee_under_limit(self, app):
         tenant, admin = _make_tenant_with_abonnement(max_employees=3)
@@ -290,11 +290,11 @@ class TestEmployeeUserLimits:
                         json={'username': 'emp3', 'email': 'emp3@test.mg',
                               'password': 'Pass123!', 'role': 'user'})
         assert r.status_code == 403, r.get_json()
-        assert 'employés' in r.get_json()['message']
+        assert 'employÃ©s' in r.get_json()['message']
 
     def test_admin_can_still_list_users_when_employee_limit_reached(self, app):
         """La limite d'employes bloque la creation mais pas la consultation
-        de la liste des utilisateurs (§34 : la limite s'affiche, la liste
+        de la liste des utilisateurs (Â§34 : la limite s'affiche, la liste
         reste accessible)."""
         tenant, admin = _make_tenant_with_abonnement(max_employees=2)
         client = app.test_client()
@@ -315,7 +315,7 @@ class TestEmployeeUserLimits:
                         json={'username': 'emp3', 'email': 'emp3@test.mg',
                               'password': 'Pass123!', 'role': 'user'})
         assert r.status_code == 403, r.get_json()
-        assert 'employés' in r.get_json()['message']
+        assert 'employÃ©s' in r.get_json()['message']
 
         # Mais la liste des utilisateurs reste consultable
         r = client.get('/api/v1/users', headers=headers)
