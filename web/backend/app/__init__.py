@@ -41,6 +41,14 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Connection pool tuned for PostgreSQL (prod-safe defaults, overridable via env)
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,   # detect stale connections
+        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', '1800')),  # seconds
+        'pool_size': int(os.getenv('DB_POOL_SIZE', '10')),
+        'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', '20')),
+        'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', '30')),
+    }
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:
@@ -92,39 +100,39 @@ def create_app():
 
     jwt.init_app(app)
 
-    # --- JWT Blocklist (révocation réelle) ---
+    # --- JWT Blocklist (revocation reelle) ---
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        """Retourne True si le JTI est dans la blocklist → token rejeté."""
+        """Retourne True si le JTI est dans la blocklist -> token rejete."""
         from app.models.token_blocklist import TokenBlocklist
         jti = jwt_payload.get('jti')
         return TokenBlocklist.is_revoked(jti)
 
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
-        return {'message': 'Token JWT révoqué'}, 401
+        return {'message': 'Token JWT revoque'}, 401
 
     from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
 
     @jwt.unauthorized_loader
     def unauthorized_callback(err):
-        return {'message': 'En-tête Authorization manquant ou invalide'}, 401
+        return {'message': 'En-tete Authorization manquant ou invalide'}, 401
 
     @jwt.invalid_token_loader
     def invalid_token_callback(err):
-        return {'message': 'Token JWT invalide ou expiré'}, 401
+        return {'message': 'Token JWT invalide ou expire'}, 401
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        return {'message': 'Token JWT expiré'}, 401
+        return {'message': 'Token JWT expire'}, 401
 
     @app.errorhandler(NoAuthorizationError)
     def handle_no_auth_error(e):
-        return {'message': 'En-tête Authorization manquant ou invalide'}, 401
+        return {'message': 'En-tete Authorization manquant ou invalide'}, 401
 
     @app.errorhandler(InvalidHeaderError)
     def handle_invalid_header_error(e):
-        return {'message': 'En-tête Authorization invalide'}, 401
+        return {'message': 'En-tete Authorization invalide'}, 401
 
     @app.errorhandler(JWTDecodeError)
     def handle_decode_error(e):
@@ -132,7 +140,7 @@ def create_app():
 
     @app.errorhandler(RevokedTokenError)
     def handle_revoked_token_error(e):
-        return {'message': 'Token JWT révoqué'}, 401
+        return {'message': 'Token JWT revoque'}, 401
 
     @app.route('/')
     @app.route('/index')
@@ -258,13 +266,11 @@ def create_app():
                 g.current_tenant = tenant
         except Exception:
             logger.warning(
-                "Impossible de résoudre le tenant depuis les headers HTTP",
+                "Impossible de resoudre le tenant depuis les headers HTTP",
                 exc_info=True,
             )
             g.current_tenant = None
 
-    # NOTE: le seeding complet (_seed_roles / _seed_initial_data) est conserve
-    # dans le depot historique. Ici on garde la structure de demarrage saine
-    # avec blocklist JWT. Le seeding peut etre declenche via CLI / endpoint.
+    # NOTE: seeding via CLI / endpoint, not at import time.
 
     return app
