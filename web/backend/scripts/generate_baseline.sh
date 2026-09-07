@@ -5,18 +5,25 @@
 # Prerequisites:
 #   - PostgreSQL running and empty database created
 #   - Virtualenv activated with requirements installed
-#   - .env configured with DATABASE_URL pointing to the EMPTY database
+#   - DATABASE_URL pointing to the EMPTY database
+#
+# Docker (recommended):
+#   cd web
+#   docker compose --profile db up -d postgres
+#   docker compose exec postgres psql -U erp_user -d erp_db \
+#     -c "CREATE DATABASE erp_empty;"
+#   export DATABASE_URL=postgresql+psycopg://erp_user:erp_password@127.0.0.1:5432/erp_empty
 #
 # Usage:
 #   cd web/backend
 #   export FLASK_APP=app:create_app
-#   export DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/erp_empty
+#   export DATABASE_URL=postgresql+psycopg://erp_user:erp_password@127.0.0.1:5432/erp_empty
 #   bash scripts/generate_baseline.sh
 #
 # After generation:
 #   1. Inspect migrations/versions/*_baseline.py carefully
 #   2. Verify CREATE TABLE / FK / UNIQUE / INDEX
-#   3. Test: drop DB, recreate empty, flask db upgrade
+#   3. Test: drop + recreate erp_empty, then flask db upgrade
 #   4. Commit only after review
 # =============================================================================
 
@@ -28,7 +35,6 @@ echo "=== MIHAJA_ERP_PRO — Baseline generation ==="
 echo "FLASK_APP=${FLASK_APP:-app:create_app}"
 echo "DATABASE_URL=${DATABASE_URL:-(from .env)}"
 
-# Safety: refuse if not pointing to something that looks like a test/empty DB
 if [[ "${DATABASE_URL:-}" == *"prod"* ]] || [[ "${DATABASE_URL:-}" == *"production"* ]]; then
   echo "ERROR: DATABASE_URL looks like production. Refusing to run."
   exit 1
@@ -60,7 +66,8 @@ echo "=== NEXT STEPS (manual) ==="
 echo "1. Open the newly generated file in migrations/versions/"
 echo "2. Review every CREATE TABLE, FK, UNIQUE, INDEX, ENUM"
 echo "3. Test on empty DB:"
-echo "     dropdb / createdb  (or equivalent)"
+echo "     docker compose exec postgres psql -U erp_user -d erp_db -c 'DROP DATABASE IF EXISTS erp_empty;'"
+echo "     docker compose exec postgres psql -U erp_user -d erp_db -c 'CREATE DATABASE erp_empty;'"
 echo "     flask db upgrade"
 echo "4. If OK: git add migrations/versions/ && git commit"
 echo "5. Push to FORD"
