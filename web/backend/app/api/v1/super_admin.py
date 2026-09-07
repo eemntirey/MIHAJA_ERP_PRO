@@ -322,6 +322,138 @@ class SuperAdminTenantsList(Resource):
         }, 200
 
 
+@ns.route('/tenants/papi-overview')
+class SuperAdminTenantsPapiOverview(Resource):
+    """Vue agrégée : configuration Papi marchand + vitrine pour tous les tenants."""
+
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        search = (request.args.get('search') or '').strip().lower()
+        papi_filter = (request.args.get('papi') or '').strip().lower()
+        vitrine_filter = (request.args.get('vitrine') or '').strip().lower()
+
+        query = Tenant.query.filter(Tenant.is_active == True)
+
+        if search:
+            like = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Tenant.nom.ilike(like),
+                    Tenant.slug.ilike(like),
+                    Tenant.email_contact.ilike(like),
+                )
+            )
+
+        tenants = query.order_by(Tenant.created_at.desc()).all()
+
+        # Agrégats globaux
+        total = len(tenants)
+        papi_configured = sum(1 for t in tenants if t.has_papi_configured())
+        vitrine_enabled = sum(1 for t in tenants if t.vitrine_enabled)
+        vitrine_active = sum(1 for t in tenants if t.is_vitrine_active())
+
+        # Volume d'encaissement par tenant (commandes via Papi tenant uniquement)
+        from app.models.paiement import Paiement
+        from app.models.commande_client import CommandeClient
+        from sqlalchemy import func as sql_func
+
+        commande_paiements = (
+            db.session.query(
+                Paiement.tenant_id,
+                sql_func.count(Paiement.id),
+                sql_func.coalesce(sql_func.sum(Paiement.montant), 0),
+            )
+            .filter(
+                Paiement.is_active == True,
+                Paiement.type == TypePaiement.COMMANDE,
+                Paiement.provider == 'papi',
+                Paiement.statut.in_([
+                    StatutPaiement.SUCCESS,
+                    StatutPaiement.CONFIRME,
+                ]),
+            )
+            .group_by(Paiement.tenant_id)
+            .all()
+        )
+        encaissements_by_tenant = {
+            row[0]: {'count': row[1], 'total': float(row[2] or 0)}
+            for row in commande_paiements
+        }
+
+        # Commandes vitrine par tenant
+        cmd_counts = dict(
+            db.session.query(
+                CommandeClient.tenant_id,
+                sql_func.count(CommandeClient.id),
+            )
+            .filter(CommandeClient.is_active == True)
+            .group_by(CommandeClient.tenant_id)
+            .all()
+        )
+
+        rows = []
+        for t in tenants:
+            statut = (
+                t.statut.value if hasattr(t.statut, 'value') else t.statut
+            )
+            row = {
+                'id': t.id,
+                'nom': t.nom,
+                'slug': t.slug,
+                'email_contact': t.email_contact,
+                'plan': t.plan,
+                'statut': statut,
+                'papi_configured': t.has_papi_configured(),
+                'papi_environment': t.papi_environment,
+                'papi_configured_at': (
+                    t.papi_configured_at.isoformat()
+                    if t.papi_configured_at
+                    else None
+                ),
+                'vitrine_enabled': bool(t.vitrine_enabled),
+                'vitrine_enabled_at': (
+                    t.vitrine_enabled_at.isoformat()
+                    if t.vitrine_enabled_at
+                    else None
+                ),
+                'vitrine_active': t.is_vitrine_active(),
+                'commandes_total': cmd_counts.get(t.id, 0),
+                'commandes_paiements_count': encaissements_by_tenant.get(
+                    t.id, {}
+                ).get('count', 0),
+                'commandes_paiements_total': encaissements_by_tenant.get(
+                    t.id, {}
+                ).get('total', 0.0),
+            }
+            rows.append(row)
+
+        if papi_filter in ('configured', '1', 'yes', 'true'):
+            rows = [r for r in rows if r['papi_configured']]
+        elif papi_filter in ('not_configured', '0', 'no', 'false'):
+            rows = [r for r in rows if not r['papi_configured']]
+
+        if vitrine_filter in ('enabled', '1', 'yes', 'true'):
+            rows = [r for r in rows if r['vitrine_enabled']]
+        elif vitrine_filter in ('disabled', '0', 'no', 'false'):
+            rows = [r for r in rows if not r['vitrine_enabled']]
+        elif vitrine_filter == 'active':
+            rows = [r for r in rows if r['vitrine_active']]
+
+        return {
+            'rows': rows,
+            'summary': {
+                'total_tenants': total,
+                'papi_configured': papi_configured,
+                'vitrine_enabled': vitrine_enabled,
+                'vitrine_active': vitrine_active,
+            },
+        }, 200
+
+
 @ns.route('/tenants/<int:tenant_id>')
 class SuperAdminTenantDetail(Resource):
     @jwt_required()

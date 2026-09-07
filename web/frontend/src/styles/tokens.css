@@ -345,6 +345,18 @@
   --page-padding-sm:         var(--space-6);
   --page-padding-lg:         var(--space-10);
 
+  /* Dashboard rail — dedicated tokens so the rail keeps dark bg / light text
+     in BOTH light and dark themes. Authoring via variables (not hardcoded
+     white) keeps icon contrast robust if the rail background is ever changed. */
+  --sidebar-bg:              rgb(7, 5, 32);
+  --sidebar-fg:              rgba(255, 255, 255, 0.78);
+  --sidebar-fg-muted:        rgba(255, 255, 255, 0.55);
+  --sidebar-fg-subtle:       rgba(255, 255, 255, 0.48);
+  --sidebar-fg-faint:        rgba(255, 255, 255, 0.40);
+  --sidebar-border:          rgba(255, 255, 255, 0.18);
+  --sidebar-border-subtle:   rgba(255, 255, 255, 0.10);
+  --sidebar-hover-bg:        rgba(255, 255, 255, 0.08);
+
   /* =========================================================================
      BREAKPOINTS
      ========================================================================= */

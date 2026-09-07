@@ -29,16 +29,18 @@ def create_app():
     if not app.config['SECRET_KEY']:
         raise ValueError("SECRET_KEY environment variable is required")
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    database_url = os.getenv(
         'DATABASE_URL',
-        'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp'
+        'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db'
     )
 
+    if os.getenv('FLASK_ENV', '').lower() == 'production' and database_url.startswith('sqlite'):
+        raise ValueError(
+            'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
+        )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 1800,
-    }
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:
@@ -68,10 +70,20 @@ def create_app():
     with app.app_context():
         register_tenant_filter_event()
 
-    CORS_ORIGINS = os.getenv(
-        'CORS_ORIGINS',
-        'http://localhost:3000'
-    ).split(',')
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv(
+            'CORS_ORIGINS',
+            'http://localhost:3000,http://127.0.0.1:3000'
+        ).split(',')
+        if origin.strip()
+    ]
+
+    # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
+    # clé dans app.config, le handshake /socket.io n'autorise que
+    # http://localhost:3000 et renvoie « HTTP 400 Not an accepted origin. »
+    # pour toute autre origine (ex: http://192.168.40.236:3000).
+    app.config['CORS_ORIGINS'] = CORS_ORIGINS
 
     if '*' in CORS_ORIGINS:
         raise ValueError(
@@ -132,6 +144,43 @@ def create_app():
     def handle_revoked_token_error(e):
         return {'message': 'Token JWT révoqué'}, 401
 
+    from werkzeug.exceptions import HTTPException
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        return {
+            'message': e.description or e.name,
+            'code': e.code,
+        }, e.code or 500
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_exception(e):
+        from flask import jsonify
+        # JWT-specific exceptions are handled by the dedicated handlers above
+        # (and on the Api namespace); ignore them here.
+        from flask_jwt_extended.exceptions import (
+            NoAuthorizationError, InvalidHeaderError,
+            RevokedTokenError, JWTDecodeError,
+        )
+        if isinstance(e, (NoAuthorizationError, InvalidHeaderError,
+                           RevokedTokenError, JWTDecodeError)):
+            raise e
+        logger.exception('Unhandled exception during request: %s', e)
+        response = jsonify({
+            'message': 'Erreur interne du serveur',
+            'code': 500,
+        })
+        response.status_code = 500
+        return response
+
+    api = Api(
+        app,
+        title='ERP Commercial API',
+        version='1.0',
+        doc='/docs/',
+        decorators=[cross_origin()]
+    )
+
     @app.route('/')
     @app.route('/index')
     def index():
@@ -141,13 +190,7 @@ def create_app():
     def health():
         return {'status': 'healthy', 'database': 'connected'}, 200
 
-    api = Api(
-        app,
-        title='ERP Commercial API',
-        version='1.0',
-        doc='/docs/',
-        decorators=[cross_origin()]
-    )
+    api.errorhandler(Exception)(handle_unexpected_exception)
 
     api.errorhandler(NoAuthorizationError)(handle_no_auth_error)
     api.errorhandler(InvalidHeaderError)(handle_invalid_header_error)
@@ -178,6 +221,7 @@ def create_app():
     from app.api.v1.papi import ns as papi_ns
     from app.api.v1.notifications import ns as notifications_ns
     from app.api.v1.super_admin import ns as super_admin_ns
+    from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
     from app.api.v1.desk import desk_bp
 
@@ -223,9 +267,13 @@ def create_app():
     api.add_namespace(permissions_ns, path='/api/v1/permissions')
     api.add_namespace(users_ns, path='/api/v1/users')
     api.add_namespace(papi_ns, path='/api/v1/papi')
+    api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
 
     app.register_blueprint(desk_bp)
+
+    from app.realtime.socket_server import init_socketio
+    app.socketio = init_socketio(app)
 
     @app.before_request
     def before_request():
@@ -261,8 +309,19 @@ def create_app():
             )
             g.current_tenant = None
 
-    # NOTE: le seeding complet (_seed_roles / _seed_initial_data) est conserve
-    # dans le depot historique. Ici on garde la structure de demarrage saine
-    # avec blocklist JWT. Le seeding peut etre declenche via CLI / endpoint.
+    # Auto-seed des rôles/permissions système si la table est vide.
+    # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
+    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
+    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+    try:
+        from app.models.role_permission import RoleModel
+        if db.session.query(RoleModel.id).first() is None:
+            from scripts.seed_roles import seed_roles
+            seed_roles(app)
+            logger.info("Auto-seed rôles/permissions effectué (base vide).")
+    except Exception:
+        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+
+    # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
 
     return app
