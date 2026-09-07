@@ -12,15 +12,11 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DATABASE_URL',
-        'mysql+pymysql://erp_user:password@localhost:3306/erp_db?charset=utf8mb4'
-    )
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
         'pool_pre_ping': True,
+        'pool_recycle': 1800,
     }
     
     # JWT
@@ -44,6 +40,19 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+
+    # Email service (Nouveaux alias pour app.services.email_service)
+    MAIL_HOST = os.getenv('MAIL_HOST') or MAIL_SERVER
+    MAIL_USERNAME_ALT = os.getenv('MAIL_USERNAME')  # alias
+    MAIL_PASSWORD_ALT = os.getenv('MAIL_PASSWORD')  # alias
+    MAIL_USE_TLS_ALT = os.getenv('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
+    MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
+    MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
+    MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '30'))
+
+    # Securite / reset
+    PASSWORD_RESET_TTL_MINUTES = int(os.getenv('PASSWORD_RESET_TTL_MINUTES', '30'))
+    FRONTEND_RESET_URL = os.getenv('FRONTEND_RESET_URL', 'http://localhost:3000')
     
     # Upload
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
@@ -61,6 +70,19 @@ class Config:
     DEFAULT_TENANT_DOMAIN = 'localhost'
     DEFAULT_TENANT_NAME = 'Tenant Par Défaut'
 
+    # Currency & Localization (Madagascar)
+    CURRENCY_CODE = 'MGA'
+    CURRENCY_SYMBOL = 'Ar'
+    CURRENCY_LOCALE = 'mg-MG'
+    DEFAULT_COUNTRY = 'Madagascar'
+
+    # Papi Payment Gateway
+    PAPI_API_URL = os.getenv('PAPI_API_URL', 'https://app.papi.mg/dashboard/api/payment-links')
+    PAPI_API_KEY = os.getenv('PAPI_API_KEY')
+    PAPI_ENVIRONMENT = os.getenv('PAPI_ENVIRONMENT', 'sandbox')
+    PAPI_WEBHOOK_SECRET = os.getenv('PAPI_WEBHOOK_SECRET')
+    PAPI_CALLBACK_URL = os.getenv('PAPI_CALLBACK_URL')
+
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True
@@ -71,4 +93,7 @@ class ProductionConfig(Config):
     
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'TEST_DATABASE_URL',
+        'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test'
+    )

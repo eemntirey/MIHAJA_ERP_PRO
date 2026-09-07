@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { superAdminService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { VILLES_MADAGASCAR } from '../constants/erpConstants';
 import './Pages.css';
 
 const SuperAdminProfile = () => {
@@ -61,7 +62,6 @@ const SuperAdminProfile = () => {
       const updated = response.data?.user || response.data || {};
       const mergedUser = { ...(user || {}), ...updated };
       setUser(mergedUser);
-      try { localStorage.setItem('user', JSON.stringify(mergedUser)); } catch {}
       toast.success('Profil mis à jour');
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -92,7 +92,7 @@ const SuperAdminProfile = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '800px', width: '100%' }}>
         <div className="form-grid">
           <div className="form-group">
             <label htmlFor="nom">Nom</label>
@@ -115,10 +115,6 @@ const SuperAdminProfile = () => {
             <input id="adresse" name="adresse" value={formData.adresse} onChange={handleChange} />
           </div>
           <div className="form-group">
-            <label htmlFor="ville">Ville</label>
-            <input id="ville" name="ville" value={formData.ville} onChange={handleChange} />
-          </div>
-          <div className="form-group">
             <label htmlFor="code_postal">Code postal</label>
             <input id="code_postal" name="code_postal" value={formData.code_postal} onChange={handleChange} />
           </div>
@@ -131,6 +127,16 @@ const SuperAdminProfile = () => {
               <option value="Seychelles">Seychelles</option>
               <option value="Tanzanie">Tanzanie</option>
               <option value="Kenya">Kenya</option>
+              <option value="Mozambique">Mozambique</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="ville">Ville</label>
+            <select id="ville" name="ville" value={formData.ville} onChange={handleChange}>
+              <option value="">Sélectionnez une ville</option>
+              {VILLES_MADAGASCAR.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
             </select>
           </div>
         </div>

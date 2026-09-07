@@ -1,38 +1,46 @@
 // src/components/layout/DesktopTopBar.jsx
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDesktop } from '../../contexts/DesktopContext';
+import { notificationService } from '../../services/desktopApi';
+import Breadcrumbs from './Breadcrumbs';
 import NotificationDropdown from './NotificationDropdown';
-import DarkModeToggle from './DarkModeToggle';
+import ThemeToggle from './ThemeToggle';
 import './DesktopTopBar.css';
 
-const BREADCRUMB_MAP = {
-  '/dashboard': ['Tableau de bord'],
-  '/products': ['Produits'],
-  '/clients': ['Piloter', 'Clients'],
-  '/sales': ['Piloter', 'Ventes'],
-  '/invoices': ['Piloter', 'Factures'],
-  '/payments': ['Piloter', 'Paiements'],
-  '/inventory': ['Opérations', 'Stock'],
-  '/suppliers': ['Opérations', 'Fournisseurs'],
-  '/purchases': ['Opérations', 'Achats'],
-  '/delivery': ['Opérations', 'Livraisons'],
-  '/hr': ['Gestion', 'Ressources Humaines'],
-  '/accounting': ['Gestion', 'Comptabilité'],
-  '/documents': ['Gestion', 'Documents'],
-  '/ai': ['Gestion', 'Assistant IA'],
-  '/subscription': ['Compte', 'Abonnement'],
-  '/super-admin': ['Admin', 'Administration'],
-};
+const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron;
 
-const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, onLogout }) => {
-  const location = useLocation();
+const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, isMobile, onLogout }) => {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const { setCommandPaletteOpen, notifications, unreadCount } = useDesktop();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
+
+  const handleTopBarMouseDown = (e) => {
+    if (!IS_ELECTRON) return;
+    if (e.button !== 0) return;
+    if (e.target.closest('button, a, input, select, textarea, [data-no-drag]')) return;
+    try {
+      window.electron.startDragging();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleTopBarDoubleClick = (e) => {
+    if (!IS_ELECTRON) return;
+    if (e.target.closest('button, a, input, select, textarea, [data-no-drag]')) return;
+    try {
+      window.electron.isMaximized().then((max) => {
+        if (max) window.electron.unmaximize();
+        else window.electron.maximize();
+      });
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Fermer le dropdown notifications au clic extérieur
   useEffect(() => {
@@ -43,11 +51,10 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const path = location.pathname;
-  const crumbs = useMemo(() => {
-    const base = BREADCRUMB_MAP[path] || ['Page'];
-    return base;
-  }, [path]);
+  // Synchronisation du badge du dock Electron
+  useEffect(() => {
+    notificationService.setBadge(unreadCount).catch(() => {});
+  }, [unreadCount]);
 
   const indicators = useMemo(() => [
     { key: 'stock', label: 'Stock critique', value: counters.stock, icon: 'ti-alert-triangle', to: '/inventory', tone: 'critical' },
@@ -61,27 +68,20 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
   };
 
   return (
-    <header className="desktop-topbar">
+    <header className="desktop-topbar" onMouseDown={handleTopBarMouseDown} onDoubleClick={handleTopBarDoubleClick}>
       <div className="desktop-topbar__left">
         {onToggleSidebar && (
           <button
             type="button"
             className="desktop-topbar__toggle"
             onClick={onToggleSidebar}
-            title={collapsed ? 'Déplier la barre' : 'Réduire la barre'}
-            aria-label="Basculer la barre latérale"
+            title={isMobile ? 'Menu' : (collapsed ? 'Déplier la barre' : 'Réduire la barre')}
+            aria-label={isMobile ? 'Menu' : 'Basculer la barre latérale'}
           >
-            <i className="ti ti-menu-2" aria-hidden="true" />
+            <i className={`ti ${isMobile ? 'ti-menu' : 'ti-menu-2'}`} aria-hidden="true" />
           </button>
         )}
-        <nav className="topbar-breadcrumb" aria-label="Fil d'Ariane">
-          {crumbs.map((crumb, i) => (
-            <span key={i} className="topbar-crumb">
-              {i > 0 && <i className="ti ti-chevron-right" aria-hidden="true" />}
-              {i === crumbs.length - 1 ? <strong>{crumb}</strong> : <span>{crumb}</span>}
-            </span>
-          ))}
-        </nav>
+          <Breadcrumbs />
       </div>
 
       <div className="topbar-center">
@@ -101,10 +101,15 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
       </div>
 
       <div className="topbar-right">
-        <button className="topbar-search-btn" onClick={openCommandPalette} title="Recherche globale (CMD+K)">
+        <button
+          className="topbar-search-btn"
+          onClick={openCommandPalette}
+          title="Recherche globale (CMD+K)"
+          aria-label="Recherche globale (raccourci Cmd+K)"
+        >
           <i className="ti ti-search" aria-hidden="true" />
-          <span>Rechercher...</span>
-          <kbd>⌘K</kbd>
+          <span className="topbar-search-btn__label">Rechercher...</span>
+          <kbd className="topbar-search-btn__kbd">⌘K</kbd>
         </button>
 
         <div className="topbar-notifications" ref={notifRef} style={{ position: 'relative' }}>
@@ -121,7 +126,7 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
           </button>
         )}
 
-        <DarkModeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+                <ThemeToggle enabled={darkMode} onChange={onToggleDarkMode} />
 
         {onLogout && (
           <button type="button" className="topbar-icon-btn" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">

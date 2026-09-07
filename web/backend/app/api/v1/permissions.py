@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.role_permission import Permission
 from app.models.utilisateur import Utilisateur
 from app import db
+from app.security.roles import is_admin, is_super_admin
 
 ns = Namespace('permissions', description='Gestion des permissions')
 
@@ -12,10 +13,10 @@ _ALLOWED_FIELDS = {'code', 'description', 'module', 'action'}
 
 def _ensure_admin():
     user_id = get_jwt_identity()
-    user = Utilisateur.query.get(user_id)
+    user = db.session.get(Utilisateur, user_id)
     if not user:
         return {'message': 'Utilisateur non trouve'}, 401
-    if not (user.is_super_admin or user.is_admin):
+    if not (is_super_admin(user.role) or is_admin(user.role)):
         return {'message': 'Acces administrateur requis'}, 403
     return None
 
@@ -72,7 +73,7 @@ class PermissionResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
         if not permission:
             return {'message': 'Permission non trouvee'}, 404
         return permission.to_dict(), 200
@@ -82,7 +83,7 @@ class PermissionResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
         if not permission:
             return {'message': 'Permission non trouvee'}, 404
         data = request.get_json() or {}
@@ -97,7 +98,7 @@ class PermissionResource(Resource):
         err = _ensure_admin()
         if err:
             return err
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
         if not permission:
             return {'message': 'Permission non trouvee'}, 404
         db.session.delete(permission)

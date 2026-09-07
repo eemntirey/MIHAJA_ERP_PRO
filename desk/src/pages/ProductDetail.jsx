@@ -1,7 +1,8 @@
+// src/pages/ProductDetail.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/publicApi';
+import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
@@ -28,7 +29,7 @@ const ProductDetail = () => {
       } catch (err) {
         console.error('Error fetching product:', err);
         toast.error('Produit introuvable');
-        navigate('/catalogue');
+        navigate('/');
       } finally {
         setLoading(false);
       }
@@ -57,7 +58,7 @@ const ProductDetail = () => {
       <div className="page-container">
         <div className="alert error">
           <p>Produit introuvable</p>
-          <Link to="/catalogue" className="btn-primary">Retour au catalogue</Link>
+          <Link to="/" className="btn-primary">Retour au catalogue</Link>
         </div>
       </div>
     );
@@ -73,7 +74,7 @@ const ProductDetail = () => {
         <div>
           <h1>{product.nom}</h1>
           {product.tenant_nom && (
-            <p style={{ color: 'var(--erp-muted)', fontSize: '13px', marginTop: '4px' }}>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>
               Vendu par <strong>{product.tenant_nom}</strong>
             </p>
           )}
@@ -85,12 +86,12 @@ const ProductDetail = () => {
         )}
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
+      <div className="card product-detail-grid">
         <div>
           <div style={{
-            width: '100%', height: '0', paddingTop: '60%', background: 'var(--erp-paper)',
-            borderRadius: '0', border: '1px solid var(--erp-line)', display: 'grid', placeItems: 'center',
-            color: 'var(--erp-muted)', fontSize: '13px',
+            width: '100%', height: '0', paddingTop: '60%', background: 'var(--color-background)',
+            borderRadius: '0', border: '1px solid var(--color-border)', display: 'grid', placeItems: 'center',
+            color: 'var(--color-text-secondary)', fontSize: '13px',
           }}>
             {product.image || product.photo ? (
               <img src={product.image || product.photo} alt={product.nom} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -114,13 +115,13 @@ const ProductDetail = () => {
           </div>
 
           {product.description_longue && (
-            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--erp-muted)' }}>
+            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
               {product.description_longue}
             </p>
           )}
 
           {product.description_courte && !product.description_longue && (
-            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--erp-muted)' }}>
+            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
               {product.description_courte}
             </p>
           )}
@@ -144,7 +145,7 @@ const ProductDetail = () => {
                 max={maxQty}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
-                style={{ width: '70px', padding: '8px 10px', border: '1px solid var(--erp-line-strong)', fontFamily: 'var(--erp-body-font)', fontSize: '13px' }}
+                style={{ width: '100%', maxWidth: '90px', padding: '8px 10px', border: '1px solid var(--color-border-strong)', fontFamily: 'var(--font-body)', fontSize: '13px' }}
                 aria-label="Quantité"
               />
               <button
@@ -161,7 +162,7 @@ const ProductDetail = () => {
               <Link to="/login" className="btn-primary">
                 Se connecter pour commander
               </Link>
-              <Link to="/catalogue" className="btn-secondary">
+              <Link to="/" className="btn-secondary">
                 ← Retour au catalogue
               </Link>
             </div>

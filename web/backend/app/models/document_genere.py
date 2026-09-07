@@ -1,7 +1,7 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 
-class DocumentGenere(BaseModel):
+class DocumentGenere(BaseTenantModel):
     __tablename__ = 'documents_generes'
 
     modele_id = db.Column(db.Integer, db.ForeignKey('modeles_documents.id'), nullable=False, index=True)

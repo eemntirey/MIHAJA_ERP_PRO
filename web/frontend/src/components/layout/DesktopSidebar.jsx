@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
+import { canAccessNavItem, filterNavGroups } from '@shared/utils/navPermissions';
 import './DesktopSidebar.css';
 
 const FAVORITES_KEY = 'desktop_favorites';
@@ -34,9 +35,22 @@ const DesktopSidebar = ({
   darkMode,
   onToggleDarkMode,
 }) => {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasAnyPermission, hasPermission, isModuleEnabled, getAllowedModules } = useAuth();
   const location = useLocation();
-  const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const isSuperAdmin = hasRole('super_admin');
+  const isAdmin = hasRole('admin') || isSuperAdmin;
+  const allowedModules = getAllowedModules();
+
+  // Contexte RBAC effectif partagé : source unique de vérité pour la
+  // visibilité des items (canAccessNavItem) et des groupes (filterNavGroups).
+  const authCtx = {
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    allowedModules,
+    isSuperAdmin,
+    isModuleEnabled,
+  };
 
   const [favorites, setFavorites] = useState(readFavorites);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -73,27 +87,46 @@ const DesktopSidebar = ({
     if (item.badge === 'sales') return counters.sales;
     if (item.badge === 'stock') return counters.stock;
     if (item.badge === 'invoices') return counters.invoices;
+    if (item.badge === 'products') return counters.products;
     return null;
   };
 
-  const favoriteItems = NAV_ITEMS.filter((item) => favorites.includes(item.path));
-  const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g && (g !== 'Admin' || isSuperAdmin))
+  // Décide si un item de nav est visible pour l'utilisateur courant.
+  // Source unique de vérité : shared/utils/navPermissions.js::canAccessNavItem
+  // (permissions effectives + module du plan + roleFallback déclaratif).
+  const isItemVisible = (item) => {
+    if (!user) return false;
+    if (!isSuperAdmin && !Array.isArray(user.permissions)) return false;
+    return canAccessNavItem(item, authCtx);
+  };
+
+  const visibleGroups = filterNavGroups(
+    NAV_GROUPS.map((label) => ({
+      label,
+      items: NAV_ITEMS.filter((item) => item.group === label),
+    })),
+    authCtx,
+  ).map((g) => g.label);
+
+  const favoriteItems = NAV_ITEMS.filter(
+    (item) => favorites.includes(item.path) && isItemVisible(item)
   );
 
   const renderNavItem = (item) => {
+    if (!isItemVisible(item)) return null;
     const badge = badgeValue(item);
     const isFav = favorites.includes(item.path);
     return (
       <div className="desktop-sidebar__row" key={item.path}>
-        <NavLink
-          to={item.path}
-          end={item.path === '/dashboard'}
-          className={({ isActive }) =>
-            `desktop-sidebar__item${isActive ? ' is-active' : ''}`
-          }
-          title={collapsed ? item.label : undefined}
-        >
+          <NavLink
+            to={item.path}
+            end={item.path === '/dashboard'}
+            className={({ isActive }) =>
+              `desktop-sidebar__item${isActive ? ' is-active' : ''}`
+            }
+            title={collapsed ? item.label : undefined}
+            data-label={item.label}
+          >
           <i className={`ti ${item.icon}`} aria-hidden="true" />
           {!collapsed && <span className="desktop-sidebar__label">{item.label}</span>}
           {!collapsed && badge > 0 && <span className="desktop-sidebar__badge">{badge}</span>}
@@ -157,7 +190,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group && (group !== 'Admin' || isSuperAdmin)
+                (item) => item.group === group && isItemVisible(item)
               ).map(renderNavItem)}
             </div>
           </div>
@@ -188,6 +221,9 @@ const DesktopSidebar = ({
                 <i className="ti ti-user" aria-hidden="true" /> Profil
               </Link>
             )}
+            <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+              <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+            </Link>
             <button
               type="button"
               className="desktop-sidebar__menu-item"

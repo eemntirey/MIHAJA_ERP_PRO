@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -8,7 +8,7 @@ class StatutEcriture(enum.Enum):
     VALIDE = 'valide'
     ANNULE = 'annule'
 
-class EcritureComptable(BaseModel):
+class EcritureComptable(BaseTenantModel):
     __tablename__ = 'ecritures_comptables'
 
     date = db.Column(db.Date, nullable=False)

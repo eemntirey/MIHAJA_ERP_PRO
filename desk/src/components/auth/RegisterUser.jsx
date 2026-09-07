@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
 import DarkModeToggle from '../../components/layout/DarkModeToggle';
+import AuthLeftPanel from './AuthLeftPanel';
 import './Auth.css';
 
 const registerSchema = yup.object().shape({
@@ -17,7 +18,9 @@ const registerSchema = yup.object().shape({
   password: yup
     .string()
     .required('Mot de passe requis')
-    .min(6, 'Minimum 6 caractères'),
+    .min(8, 'Minimum 8 caractères')
+    .matches(/[a-zA-Z]/, 'Le mot de passe doit contenir au moins une lettre')
+    .matches(/\d/, 'Le mot de passe doit contenir au moins un chiffre'),
   confirmPassword: yup
     .string()
     .oneOf([yup.ref('password'), null], 'Les mots de passe doivent correspondre'),
@@ -75,7 +78,7 @@ const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
     const result = await registerAuth(payload);
 
     if (result && result.success) {
-      navigate(result.redirectPath || '/catalogue');
+      navigate(result.redirectPath || '/mes-commandes');
     }
   };
 
@@ -86,48 +89,15 @@ const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="auth-login"
+      className="auth-login auth-register"
       data-theme={darkMode ? 'dark' : undefined}
     >
       <main className="auth-login__layout">
         <section
           className="auth-login__context"
-          aria-labelledby="register-user-title"
+          aria-labelledby="auth-login-context-title"
         >
-          <span className="auth-login__context-divider" aria-hidden="true" />
-          <span className="auth-login__context-orbit auth-login__context-orbit--large" aria-hidden="true" />
-          <span className="auth-login__context-orbit auth-login__context-orbit--small" aria-hidden="true" />
-
-          <div className="auth-login__context-inner">
-            <div className="auth-login__brand-row">
-              <Link to="/login" className="auth-login__brand" aria-label="ERP Pro accueil">
-                <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
-                <span className="auth-login__brand-name">ERP Pro</span>
-              </Link>
-              <span className="auth-login__brand-meta">Espace utilisateur</span>
-            </div>
-
-            <div className="auth-login__context-content">
-              <p className="auth-login__eyebrow">
-                <span aria-hidden="true" />
-                Simple utilisateur
-              </p>
-              <h1 id="register-user-title">
-                Créez votre compte utilisateur
-              </h1>
-              <p className="auth-login__context-copy">
-                 Accédez au catalogue public des grossistes, ajoutez des produits à
-                 votre panier et suivez vos commandes.
-              </p>
-            </div>
-
-            <footer className="auth-login__context-footer">
-              <span>© {new Date().getFullYear()} ERP Pro</span>
-              <span className="auth-login__watermark" aria-hidden="true">
-                ERP PRO · CATALOGUE · COMMANDES
-              </span>
-            </footer>
-          </div>
+          <AuthLeftPanel />
         </section>
 
         <section
@@ -187,7 +157,7 @@ const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
                   <input
                     id="register-user-nom"
                     type="text"
-                    placeholder="Dupont"
+                    placeholder="Rakoto"
                     autoComplete="family-name"
                     {...register('nom')}
                     className={errors.nom ? 'error' : ''}
@@ -208,7 +178,7 @@ const RegisterUser = ({ darkMode, onToggleDarkMode }) => {
                   <input
                     id="register-user-email"
                     type="email"
-                    placeholder="jean.dupont@email.com"
+                    placeholder="jean.rakoto@email.com"
                     autoComplete="email"
                     {...register('email')}
                     className={errors.email ? 'error' : ''}

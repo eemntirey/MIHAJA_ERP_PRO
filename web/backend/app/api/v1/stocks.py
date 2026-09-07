@@ -1,5 +1,7 @@
+from flask import request, current_app
 from flask_restx import Namespace, Resource
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.produit_service import ProduitService
 from app.models.stock import MouvementStock
 from app import db
@@ -9,13 +11,15 @@ ns = Namespace('stocks', description='Gestion des stocks')
 
 @ns.route('/')
 class StockList(Resource):
-    @tenant_required
+    @permission_required('stock.view')
+    @tenant_required_readonly
     def get(self):
         """Liste les produits avec statut stock"""
         produits = ProduitService.get_stock_alert()
         return {'stocks': [p.to_dict() for p in produits]}, 200
 
-    @tenant_required
+    @permission_required('stock.update')
+    @tenant_required_readonly
     def post(self):
         from flask import request
         data = request.get_json() or {}
@@ -24,19 +28,25 @@ class StockList(Resource):
         type_mouvement = data.get('type_mouvement')
         if not produit_id or quantite is None or not type_mouvement:
             return {'message': 'produit_id, quantite et type_mouvement sont requis'}, 400
+        try:
+            from decimal import Decimal
+            qty = Decimal(str(quantite))
+        except Exception:
+            return {'message': 'Quantite invalide'}, 400
         result = ProduitService.update_stock(
             produit_id,
-            quantite,
+            qty,
             type_mouvement,
             data.get('raison', '')
         )
         if not result:
             return {'message': 'Produit non trouve'}, 404
-        return result, 201
+        return result.to_dict(), 201
 
 @ns.route('/<int:id>')
 class StockResource(Resource):
-    @tenant_required
+    @permission_required('stock.view')
+    @tenant_required_readonly
     def get(self, id):
         """Statut d'un produit"""
         produit = ProduitService.get_by_id(id)
@@ -46,7 +56,8 @@ class StockResource(Resource):
 
 @ns.route('/mouvements')
 class StockMouvementList(Resource):
-    @tenant_required
+    @permission_required('stock.view')
+    @tenant_required_readonly
     def get(self):
         """Liste des mouvements de stock"""
         from app.models.stock import MouvementStock
@@ -64,7 +75,8 @@ class StockMouvementList(Resource):
         mouvements = query.all()
         return {'mouvements': [m.to_dict() for m in mouvements]}, 200
 
-    @tenant_required
+    @permission_required('stock.update')
+    @tenant_required_readonly
     def post(self):
         from flask import request
         data = request.get_json() or {}
@@ -74,21 +86,27 @@ class StockMouvementList(Resource):
         if not produit_id or quantite is None or not type_mouvement:
             return {'message': 'produit_id, quantite et type_mouvement sont requis'}, 400
         try:
+            try:
+                qty = Decimal(str(quantite))
+            except Exception:
+                return {'message': 'Quantite invalide'}, 400
             result = ProduitService.update_stock(
                 produit_id,
-                Decimal(str(quantite)),
+                qty,
                 type_mouvement,
                 data.get('raison', '')
             )
             if not result:
                 return {'message': 'Produit non trouve'}, 404
-            return result, 201
-        except Exception as e:
-            return {'message': str(e)}, 400
+            return result.to_dict(), 201
+        except Exception:
+            current_app.logger.exception('Erreur lors de la mise a jour du stock')
+            return {'message': 'Erreur lors de la mise a jour du stock'}, 400
 
 @ns.route('/stats')
 class StockStats(Resource):
-    @tenant_required
+    @permission_required('stock.view')
+    @tenant_required_readonly
     def get(self):
         """Statistiques des stocks"""
         stats = ProduitService.get_statistiques()
@@ -97,7 +115,8 @@ class StockStats(Resource):
 
 @ns.route('/alerts')
 class StockAlerts(Resource):
-    @tenant_required
+    @permission_required('stock.view')
+    @tenant_required_readonly
     def get(self):
         """Alertes de stock"""
         produits = ProduitService.get_stock_alert()

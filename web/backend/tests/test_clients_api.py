@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret-key')
     app = create_app()
     app.config['TESTING'] = True
@@ -30,7 +30,6 @@ def tenant(app):
         domaine='test.local',
         statut=StatutTenant.ACTIF,
         plan='pro',
-        max_clients=2
     )
     db.session.add(tenant)
     db.session.commit()
@@ -42,9 +41,10 @@ def tenant(app):
         date_debut=datetime.utcnow(),
         date_fin=datetime.utcnow() + timedelta(days=30),
         statut=StatutAbonnement.ACTIF,
-        methode_paiement='carte',
+        methode_paiement='especes',
         reference_paiement='SUB-TEST-001',
-        is_active=True
+        is_active=True,
+        max_clients=2,
     )
     db.session.add(abonnement)
     db.session.commit()
@@ -213,7 +213,7 @@ class TestClientAPI:
                 date_debut=datetime.utcnow(),
                 date_fin=datetime.utcnow() + timedelta(days=30),
                 statut=StatutAbonnement.ACTIF,
-                methode_paiement='carte',
+                methode_paiement='especes',
                 reference_paiement='SUB-AUTRE-001',
                 is_active=True
             )

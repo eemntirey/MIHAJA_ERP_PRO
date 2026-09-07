@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { NAV_ITEMS } from './navConfig';
 import './CommandPalette.css';
 
@@ -9,6 +10,16 @@ const QUICK_ACTIONS = [
   { id: 'qa-product', label: 'Nouveau produit', icon: 'ti-package', to: '/products', kind: 'action' },
   { id: 'qa-ca', label: 'Exporter le chiffre d’affaires', icon: 'ti-download', to: '/accounting', kind: 'action' },
 ];
+
+const ADMIN_PATHS = ['/super-admin', '/users', '/roles', '/permissions'];
+
+const isItemAllowed = (item, { isSuperAdmin, allowedModules, hasAccountingAccess }) => {
+  if (ADMIN_PATHS.includes(item.to)) return isSuperAdmin;
+  if (item.to === '/accounting') return hasAccountingAccess;
+  if (isSuperAdmin) return true;
+  if (item.module) return allowedModules === null || allowedModules.includes(item.module);
+  return true;
+};
 
 // Score flou simple : correspondance de sous-séquence.
 const fuzzyScore = (query, text) => {
@@ -25,6 +36,10 @@ const fuzzyScore = (query, text) => {
 
 const CommandPalette = ({ open, onClose }) => {
   const navigate = useNavigate();
+  const { hasRole, getAllowedModules } = useAuth();
+  const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const allowedModules = getAllowedModules();
+  const hasAccountingAccess = hasRole('super_admin') || hasRole('admin') || hasRole('manager') || hasRole('accountant');
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -40,21 +55,21 @@ const CommandPalette = ({ open, onClose }) => {
   }, [open]);
 
   const items = useMemo(() => {
-    const all = [
-      ...QUICK_ACTIONS,
-      ...NAV_ITEMS.map((n) => ({ ...n, kind: 'page' })),
-    ];
+    const visibleQuick = QUICK_ACTIONS.filter((item) =>
+      isItemAllowed(item, { isSuperAdmin, allowedModules, hasAccountingAccess })
+    );
+    const visibleNav = NAV_ITEMS
+      .filter((item) => isItemAllowed(item, { isSuperAdmin, allowedModules, hasAccountingAccess }))
+      .map((n) => ({ ...n, kind: 'page' }));
+    const all = [...visibleQuick, ...visibleNav];
     if (!query) {
-      return [
-        ...QUICK_ACTIONS,
-        ...NAV_ITEMS.map((n) => ({ ...n, kind: 'page' })),
-      ];
+      return all;
     }
     return all
       .map((item) => ({ ...item, _score: fuzzyScore(query, item.label) }))
       .filter((item) => item._score > 0)
       .sort((a, b) => b._score - a._score);
-  }, [query]);
+  }, [query, isSuperAdmin, allowedModules, hasAccountingAccess]);
 
   useEffect(() => {
     setActive(0);

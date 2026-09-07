@@ -1,7 +1,9 @@
 /* src/components/layout/DesktopLayout.css */
 
+@import '../../styles/tokens.css';
+
 .main-layout.desktop-layout {
-  --erp-sidebar-width: 260px;
+  --erp-sidebar-width: var(--sidebar-width);
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
@@ -9,7 +11,7 @@
 }
 
 .main-layout.desktop-layout.is-collapsed {
-  --erp-sidebar-width: 76px;
+  --erp-sidebar-width: var(--sidebar-collapsed-width);
 }
 
 .main-layout.desktop-layout .desktop-main {
@@ -27,7 +29,7 @@
   min-width: 0;
   margin-left: 0;
   overflow-x: auto;
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .main-layout.desktop-layout[data-ai='true'] .main-content.desktop-content {

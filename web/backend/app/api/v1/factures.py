@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 from app.services.facturation_service import issue_invoice
 from app import db
 
@@ -7,7 +8,8 @@ api = Namespace('factures', description='Gestion des factures')
 
 @api.route('/')
 class FactureList(Resource):
-    @tenant_required
+    @permission_required('invoice.view')
+    @tenant_required_readonly
     def get(self):
         """Liste toutes les factures"""
         from app.models.facture import Facture
@@ -25,7 +27,8 @@ class FactureList(Resource):
             result.append(d)
         return {'factures': result}, 200
 
-    @tenant_required
+    @permission_required('invoice.create')
+    @tenant_required_readonly
     def post(self):
         """Creation de facture"""
         from flask import request
@@ -35,7 +38,8 @@ class FactureList(Resource):
 
 @api.route('/<int:id>')
 class FactureResource(Resource):
-    @tenant_required
+    @permission_required('invoice.view')
+    @tenant_required_readonly
     def get(self, id):
         """Details d'une facture"""
         from app.models.facture import Facture
@@ -54,7 +58,8 @@ class FactureResource(Resource):
         result['paiements'] = [p.to_dict() for p in paiements]
         return result, 200
 
-    @tenant_required
+    @permission_required('invoice.update')
+    @tenant_required_readonly
     def put(self, id):
         """Met a jour une facture"""
         from app.models.facture import Facture
@@ -65,8 +70,11 @@ class FactureResource(Resource):
             return {'message': 'Facture non trouvee'}, 404
         data = request.get_json()
         try:
+            PROTECTED = {'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id', 'is_active'}
             for key, value in data.items():
-                if key not in ['id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id']:
+                if key in PROTECTED:
+                    continue
+                if hasattr(facture, key):
                     setattr(facture, key, value)
             db.session.commit()
             return facture.to_dict(), 200
@@ -74,7 +82,8 @@ class FactureResource(Resource):
             db.session.rollback()
             return {'message': str(e)}, 400
 
-    @tenant_required
+    @permission_required('invoice.update')
+    @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture"""
         from app.models.facture import Facture
@@ -94,7 +103,8 @@ class FactureResource(Resource):
 
 @api.route('/from-vente/<int:vente_id>')
 class FactureFromVente(Resource):
-    @tenant_required
+    @permission_required('invoice.create')
+    @tenant_required_readonly
     def post(self, vente_id):
         """Genere une facture depuis une vente"""
         from app.models.vente import Vente

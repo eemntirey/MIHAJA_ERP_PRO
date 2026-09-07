@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric, Index
 import enum
@@ -9,7 +9,7 @@ class StatutAvoir(enum.Enum):
     REMBOURSE = 'rembourse'
     ANNULE = 'annule'
 
-class Avoir(BaseModel):
+class Avoir(BaseTenantModel):
     __tablename__ = 'avoirs'
 
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)
@@ -37,7 +37,7 @@ class Avoir(BaseModel):
     def __repr__(self):
         return f'<Avoir {self.reference}>'
 
-class Devis(BaseModel):
+class Devis(BaseTenantModel):
     __tablename__ = 'devis'
 
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)
@@ -65,7 +65,7 @@ class Devis(BaseModel):
     def __repr__(self):
         return f'<Devis {self.reference}>'
 
-class BonLivraison(BaseModel):
+class BonLivraison(BaseTenantModel):
     __tablename__ = 'bons_livraison'
 
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)

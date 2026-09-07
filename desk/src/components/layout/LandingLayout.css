@@ -1,3 +1,5 @@
+@import '../../styles/tokens.css';
+
 /* src/components/layout/LandingLayout.css */
 
 .landing-layout {
@@ -29,8 +31,8 @@
   padding: 0 6px;
   margin-left: 6px;
   border-radius: 999px;
-  background: var(--erp-gold);
-  color: var(--erp-onyx);
+  background: var(--color-primary);
+  color: var(--color-onyx);
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
@@ -39,13 +41,13 @@
 .landing-logout {
   background: none;
   border: 1px solid transparent;
-  font-family: var(--erp-body-font);
+  font-family: var(--font-body);
   cursor: pointer;
 }
 
 .landing-logout:hover {
-  border-color: var(--erp-line-strong);
-  color: var(--erp-gold-dark);
+  border-color: var(--color-border-strong);
+  color: var(--color-primary-hover);
 }
 
 .landing-main {
@@ -58,9 +60,9 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 18px 32px;
-  border-top: 1px solid var(--erp-line);
-  background: var(--erp-white);
-  color: var(--erp-muted);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 

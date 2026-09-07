@@ -1,7 +1,7 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 
-class Vehicule(BaseModel):
+class Vehicule(BaseTenantModel):
     __tablename__ = 'vehicules'
 
     marque = db.Column(db.String(100), nullable=False)

@@ -1,13 +1,15 @@
 from flask_restx import Namespace, Resource
 from app.services.dashboard_service import get_dashboard_data
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
+from app.security.permissions import permission_required
 
 api = Namespace('dashboard', description='Tableau de bord et statistiques')
 
 @api.route('/')
 class Dashboard(Resource):
     @api.doc('get_dashboard')
-    @tenant_required
+    @permission_required('report.view')
+    @tenant_required_readonly
     def get(self):
         """Récupère les données du tableau de bord"""
         data = get_dashboard_data()
@@ -18,18 +20,20 @@ class Dashboard(Resource):
 
 @api.route('/sales-stats')
 class SalesStats(Resource):
-    @tenant_required
+    @permission_required('report.view')
+    @tenant_required_readonly
     def get(self):
         """Statistiques des ventes"""
         from app.models.vente import Vente
         from app import db
         from app.security.tenant import get_current_tenant_id
+        from app.services.dashboard_service import _local_day_boundaries
         from sqlalchemy import func
-        from datetime import datetime, timedelta
 
         tenant_id = get_current_tenant_id()
-        today = datetime.utcnow().date()
-        debut_mois = today.replace(day=1)
+        # Bornes du mois en heure locale (converties en UTC) : sinon les
+        # ventes passees entre 00h00 et 03h00 locales sortent du mois.
+        _today, _debut_jour, debut_mois, _tz = _local_day_boundaries()
 
         query = Vente.query.filter_by(is_active=True)
         if tenant_id:
@@ -62,7 +66,8 @@ class SalesStats(Resource):
 
 @api.route('/top-products')
 class TopProducts(Resource):
-    @tenant_required
+    @permission_required('report.view')
+    @tenant_required_readonly
     def get(self):
         """Top produits vendus"""
         from app.models.ligne_vente import LigneVente
@@ -105,7 +110,8 @@ class TopProducts(Resource):
 
 @api.route('/top-clients')
 class TopClients(Resource):
-    @tenant_required
+    @permission_required('report.view')
+    @tenant_required_readonly
     def get(self):
         """Top clients par chiffre d'affaires"""
         from app.models.vente import Vente
@@ -148,7 +154,8 @@ class TopClients(Resource):
 
 @api.route('/alerts')
 class Alerts(Resource):
-    @tenant_required
+    @permission_required('report.view')
+    @tenant_required_readonly
     def get(self):
         """Alertes stock et autres"""
         from app.models.produit import Produit

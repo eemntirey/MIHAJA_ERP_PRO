@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { factureService, saleService, clientService, paiementService } from '../services/api';
 import { toast } from 'react-toastify';
+import { PAYMENT_METHODS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Invoices = () => {
@@ -30,7 +31,7 @@ const Invoices = () => {
   const [paymentData, setPaymentData] = useState({
     facture_id: '',
     montant: 0,
-    mode_paiement: 'espece',
+    mode_paiement: 'especes',
     date: new Date().toISOString().split('T')[0],
     remarque: '',
   });
@@ -89,14 +90,18 @@ const Invoices = () => {
   };
 
   const handleSaleChange = (e) => {
-    const saleId = parseInt(e.target.value, 10) || '';
+    const saleId = parseInt(e.target.value, 10);
     setSelectedSaleId(saleId);
     const sale = sales.find(s => s.id === saleId);
     if (sale) {
+      const clientId = sale.client_id || sale.client?.id || '';
+      if (!clientId) {
+        toast.error('Cette vente n\'est pas associée à un client');
+      }
       setFormData(prev => ({
         ...prev,
         vente_id: saleId,
-        client_id: sale.client_id || sale.client?.id || '',
+        client_id: clientId,
         total_ttc: sale.total_ttc || 0,
       }));
     }
@@ -122,7 +127,8 @@ const Invoices = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await factureService.create(formData);
+      const reference = `FAC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      await factureService.create({ ...formData, reference });
       toast.success('Facture créée avec succès');
       fetchInvoices();
       closeModal();
@@ -156,7 +162,7 @@ const Invoices = () => {
     setPaymentData({
       facture_id: invoice.id,
       montant: total - paid,
-      mode_paiement: 'espece',
+      mode_paiement: 'especes',
       date: new Date().toISOString().split('T')[0],
       remarque: '',
     });
@@ -501,10 +507,9 @@ const Invoices = () => {
                     onChange={(e) => handleChange(e, setPaymentData)}
                     required
                   >
-                    <option value="espece">Espèces</option>
-                    <option value="carte">Carte bancaire</option>
-                    <option value="virement">Virement</option>
-                    <option value="cheque">Chèque</option>
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">

@@ -26,7 +26,7 @@ const Cart = () => {
           <Link to="/" className="btn-primary">Retour au catalogue</Link>
         </div>
         <div className="card full-width" style={{ marginTop: '24px', textAlign: 'center', padding: '48px' }}>
-          <p style={{ color: 'var(--erp-muted)', marginBottom: '16px' }}>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
             Aucun article dans le panier. Découvrez nos produits publics.
           </p>
           <Link to="/" className="btn-primary">Découvrir le catalogue</Link>
@@ -71,7 +71,7 @@ const Cart = () => {
                 <tr key={key}>
                   <td>
                     <strong>{item.nom}</strong>
-                    <div style={{ fontSize: '11px', color: 'var(--erp-muted)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
                       Réf. {item.reference}
                     </div>
                   </td>
@@ -84,7 +84,7 @@ const Cart = () => {
                       value={qty}
                       onChange={(e) => updateQuantity(item, Math.max(1, parseInt(e.target.value, 10) || 1))}
                       className="qty-input"
-                      style={{ width: '60px', textAlign: 'center' }}
+                      style={{ width: '100%', maxWidth: '80px', textAlign: 'center' }}
                       aria-label={`Quantité de ${item.nom}`}
                     />
                   </td>

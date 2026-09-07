@@ -3,6 +3,8 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { favoriteService } from '../../services/desktopApi';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
+import { canAccessNavItem, filterNavGroups } from '@shared/utils/navPermissions';
+import ThemeToggle from './ThemeToggle';
 import './DesktopSidebar.css';
 
 const FAVORITES_KEY = 'desktop_favorites';
@@ -35,10 +37,24 @@ const DesktopSidebar = ({
   onLogout,
   darkMode,
   onToggleDarkMode,
+  className,
 }) => {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasAnyPermission, hasPermission, isModuleEnabled, getAllowedModules } = useAuth();
   const location = useLocation();
-  const isSuperAdmin = hasRole('SUPER_ADMIN');
+  const isSuperAdmin = hasRole('super_admin');
+  const isAdminPrincipal = hasRole('admin') || isSuperAdmin;
+  const allowedModules = getAllowedModules();
+
+  // Contexte RBAC effectif partagé : source unique de vérité pour la
+  // visibilité des items (canAccessNavItem) et des groupes (filterNavGroups).
+  const authCtx = {
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    allowedModules,
+    isSuperAdmin,
+    isModuleEnabled,
+  };
 
   const [favorites, setFavorites] = useState(readFavorites);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -105,12 +121,29 @@ const DesktopSidebar = ({
     return null;
   };
 
-  const favoriteItems = NAV_ITEMS.filter((item) => favorites.some((f) => f.path === item.path));
-  const visibleGroups = NAV_GROUPS.filter((g) =>
-    NAV_ITEMS.some((i) => i.group === g && (g !== 'Admin' || isSuperAdmin))
+  // Decide si un item de nav est visible pour l'utilisateur courant.
+  // Source unique de vérité : shared/utils/navPermissions.js::canAccessNavItem
+  // (permissions effectives + module du plan + roleFallback déclaratif).
+  const isItemVisible = (item) => {
+    if (!user) return false;
+    if (!isSuperAdmin && !Array.isArray(user.permissions)) return false;
+    return canAccessNavItem(item, authCtx);
+  };
+
+  const visibleGroups = filterNavGroups(
+    NAV_GROUPS.map((label) => ({
+      label,
+      items: NAV_ITEMS.filter((item) => item.group === label),
+    })),
+    authCtx,
+  ).map((g) => g.label);
+
+  const favoriteItems = NAV_ITEMS.filter(
+    (item) => favorites.some((f) => f.path === item.path) && isItemVisible(item)
   );
 
   const renderNavItem = (item) => {
+    if (!isItemVisible(item)) return null;
     const badge = badgeValue(item);
     const isFav = favorites.some((f) => f.path === item.path);
     return (
@@ -144,7 +177,7 @@ const DesktopSidebar = ({
   };
 
   return (
-    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Navigation principale">
+    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''} ${className || ''}`} aria-label="Navigation principale">
       <div className="desktop-sidebar__header">
         <Link to="/dashboard" className="desktop-sidebar__brand" aria-label="ERP Pro accueil">
           <span className="desktop-sidebar__brand-mark" aria-hidden="true">ERP</span>
@@ -186,7 +219,7 @@ const DesktopSidebar = ({
             {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
-                (item) => item.group === group && (group !== 'Admin' || isSuperAdmin)
+                (item) => item.group === group && isItemVisible(item)
               ).map(renderNavItem)}
             </div>
           </div>
@@ -217,15 +250,18 @@ const DesktopSidebar = ({
                 <i className="ti ti-user" aria-hidden="true" /> Profil
               </Link>
             )}
-            <button
-              type="button"
+            {isAdminPrincipal && (
+              <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+              </Link>
+            )}
+            <ThemeToggle
+              enabled={darkMode}
+              onChange={onToggleDarkMode}
+              menuItem
               className="desktop-sidebar__menu-item"
-              role="menuitem"
-              onClick={() => { setProfileOpen(false); onToggleDarkMode(!darkMode); }}
-            >
-              <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-              {darkMode ? 'Mode clair' : 'Mode sombre'}
-            </button>
+              onClick={() => setProfileOpen(false)}
+            />
             <button
               type="button"
               className="desktop-sidebar__menu-item desktop-sidebar__menu-item--danger"

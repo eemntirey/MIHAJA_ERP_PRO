@@ -31,12 +31,16 @@ TRESORERIE_TYPE_MAP = {
 }
 
 PAIEMENT_MAP = {
-    'espece': 'espece',
+    'espece': 'especes',
+    'especes': 'especes',
     'virement': 'virement',
     'cheque': 'cheque',
-    'mobile_money': 'mobile_money',
-    'mobile money': 'mobile_money',
-    'carte': 'carte',
+    'mvola': 'mvola',
+    'orange_money': 'orange_money',
+    'airtel_money': 'airtel_money',
+    'mobile_money': 'mvola',
+    'mobile money': 'mvola',
+    'carte': 'especes',
 }
 
 def _read_file(file: FileStorage):

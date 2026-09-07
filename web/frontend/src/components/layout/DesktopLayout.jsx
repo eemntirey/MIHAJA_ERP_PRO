@@ -8,9 +8,7 @@ import ChatInput from './ChatInput';
 import { saleService, stockService, factureService, dashboardService } from '../../services/api';
 import './DesktopLayout.css';
 
-// Wrapper conditionnel activé uniquement en desktop (Plan §1, §2, §10.1).
-// Récupère les compteurs temps réel pour badges (sidebar) et indicateurs (topbar).
-const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
+const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead }) => {
   const location = useLocation();
   const isAIView = location.pathname === '/ai';
 
@@ -22,8 +20,6 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     }
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
-  const [notifications, setNotifications] = useState([]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -37,7 +33,6 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     });
   }, []);
 
-  // CMD+K / CTRL+K : ouverture de la command palette.
   useEffect(() => {
     const onKey = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -47,71 +42,6 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Compteurs temps réel (tolérant aux erreurs réseau/shape API).
-  useEffect(() => {
-    let active = true;
-
-    const safeCount = (value) => {
-      if (value == null) return 0;
-      if (typeof value === 'number') return value;
-      if (Array.isArray(value)) return value.length;
-      if (typeof value === 'object') {
-        return value.count ?? value.total ?? value.nombre ?? 0;
-      }
-      return 0;
-    };
-
-    const load = async () => {
-      const [sales, stock, factures, dash] = await Promise.allSettled([
-        saleService.getSummary(),
-        stockService.getAlerts(),
-        factureService.getAll({ statut: 'impaye' }),
-        dashboardService.getStats(),
-      ]);
-
-      if (!active) return;
-
-      const next = {
-        sales: sales.status === 'fulfilled' ? safeCount(sales.value?.data) : 0,
-        stock: stock.status === 'fulfilled' ? safeCount(stock.value?.data) : 0,
-        invoices: factures.status === 'fulfilled' ? safeCount(factures.value?.data) : 0,
-        salesToday: 0,
-      };
-
-      if (dash.status === 'fulfilled') {
-        const d = dash.value?.data || {};
-        next.salesToday = safeCount(d.ventes_jour ?? d.ventesAujourdhui ?? d.sales_today);
-      }
-
-      setCounters(next);
-    };
-
-    load();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const res = await dashboardService.getAlerts();
-        if (!active) return;
-        const data = res?.data;
-        const list = Array.isArray(data) ? data : data?.alertes || data?.notifications || [];
-        setNotifications(Array.isArray(list) ? list.slice(0, 8) : []);
-      } catch {
-        // silence : les notifications sont optionnelles
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
   }, []);
 
   return (
@@ -134,6 +64,9 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
         <TopBar
           counters={counters}
           notifications={notifications}
+          unreadCount={unreadCount}
+          onMarkAsRead={onMarkAsRead}
+          onMarkAllAsRead={onMarkAllAsRead}
           onOpenPalette={() => setPaletteOpen(true)}
           onToggleSidebar={toggleCollapsed}
           collapsed={collapsed}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import api, { modeleDocumentService, documentService } from '../services/api';
+import { authStorage } from '../../../../shared/storage/authStorage';
 import './Documents.css';
 
 export default function Documents() {
@@ -15,6 +16,25 @@ export default function Documents() {
     const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', donnees: '{}' });
 
     const [editingId, setEditingId] = useState(null);
+
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem('documents_prefill');
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            sessionStorage.removeItem('documents_prefill');
+            setTab('documents');
+            setDocForm(prev => ({
+                ...prev,
+                type_document: data.type_document || prev.type_document,
+                reference: data.reference || prev.reference,
+                entite_type: data.entite_type || prev.entite_type,
+                entite_id: data.entite_id || prev.entite_id,
+                donnees: typeof data.donnees === 'string' ? data.donnees : JSON.stringify(data.donnees, null, 2),
+            }));
+            toast.info('Données pré-remplies depuis la facture');
+        } catch (_) { /* ignore */ }
+    }, []);
 
     const fetchAll = async () => {
         setLoading(true);
@@ -33,11 +53,22 @@ export default function Documents() {
 
     useEffect(() => { fetchAll(); }, []);
 
+    if (loading && modeles.length === 0 && documents.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des documents...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleSubmitModele = async (e) => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const data = { ...modeleForm, est_actif: true };
+            const data = { ...modeleForm, is_active: true };
             if (editingId) { await modeleDocumentService.update(editingId, data); toast.success('Modèle modifié'); }
             else { await modeleDocumentService.create(data); toast.success('Modèle créé'); }
             setModeleForm({ nom: '', type_document: 'facture', contenu_modele: '', est_defaut: false, logo_url: '', mention_legales: '', conditions_generales: '' });
@@ -86,11 +117,11 @@ export default function Documents() {
     const getPdfUrl = (doc) => {
         if (doc.pdf_url) {
             if (doc.pdf_url.startsWith('http')) return doc.pdf_url;
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}${doc.pdf_url}`;
         }
         if (doc.contenu_pdf_path) {
-            const baseUrl = api.defaults.baseURL.replace('/api/v1', '');
+            const baseUrl = api.defaults.baseURL.replace(/\/api\/v1\/?$/, '');
             return `${baseUrl}/api/v1/documents/${doc.id}/pdf`;
         }
         return '#';
@@ -109,7 +140,7 @@ export default function Documents() {
         try {
             const response = await fetch(url, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    'Authorization': `Bearer ${authStorage.getAccessToken()}`
                 }
             });
             if (!response.ok) throw new Error('Erreur téléchargement');
@@ -224,7 +255,7 @@ export default function Documents() {
                             <input placeholder="Entité ID" type="number" value={docForm.entite_id} onChange={e => setDocForm({...docForm, entite_id: e.target.value})} />
                         </div>
                         <div className="form-group full-width">
-                            <textarea placeholder='Données JSON (ex: {"client_nom":"Dupont","total_ttc":"1500","items":[{"produit_nom":"Produit A","quantite":2,"prix_unitaire":500,"taux_tva":20,"total_ht":1000}]})' value={docForm.donnees} onChange={e => setDocForm({...docForm, donnees: e.target.value})} rows={3} required />
+                            <textarea placeholder='Données JSON (ex: {"client_nom":"Boutique Soa","total_ttc":"326400","items":[{"produit_nom":"Riz blanc (sac 50 kg)","quantite":2,"prix_unitaire":136000,"taux_tva":20,"total_ht":272000}]})' value={docForm.donnees} onChange={e => setDocForm({...docForm, donnees: e.target.value})} rows={3} required />
                         </div>
                         <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Générer le PDF'}</button>
                     </form>

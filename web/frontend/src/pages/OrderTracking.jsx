@@ -134,34 +134,34 @@ const OrderTracking = () => {
 
           <div style={{ marginTop: '20px', display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--erp-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 QR Code
               </p>
-              <div style={{ padding: '12px', background: 'var(--erp-white)', borderRadius: '8px', border: '1px solid var(--erp-line)', display: 'inline-block' }}>
+              <div style={{ padding: '12px', background: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', display: 'inline-block' }}>
                 <img src={qrUrl} alt="QR Code de suivi" style={{ display: 'block' }} />
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--erp-muted)', marginTop: '6px', fontFamily: 'monospace' }}>
+              <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '6px', fontFamily: 'monospace' }}>
                 {ref}
               </p>
             </div>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--erp-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Code barre texte
               </p>
               <div style={{ 
                 padding: '12px 16px', 
-                background: 'var(--erp-onyx)', 
+                background: 'var(--color-onyx)', 
                 borderRadius: '6px', 
                 fontFamily: 'monospace', 
                 fontSize: '18px', 
                 letterSpacing: '4px',
-                color: 'var(--erp-white)',
+                color: 'var(--color-surface)',
                 textAlign: 'center',
                 userSelect: 'all'
               }}>
                 {ref}
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--erp-muted)', marginTop: '6px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
                 Scannez ou copiez la référence pour suivre votre commande
               </p>
             </div>
@@ -169,7 +169,7 @@ const OrderTracking = () => {
 
           {tracking.items && tracking.items.length > 0 && (
             <div style={{ marginTop: '20px' }}>
-              <h4 style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--erp-muted)' }}>
+              <h4 style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
                 Articles
               </h4>
               <div className="table-container">

@@ -1,0 +1,9 @@
+{
+  "short_name": "ERP PRO",
+  "name": "TIA INFO WHOLESALE / ERP PRO",
+  "description": "ERP Commercial - Gestion complète de votre entreprise",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111"
+}

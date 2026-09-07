@@ -49,6 +49,7 @@ export default function Delivery() {
 
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -59,10 +60,11 @@ export default function Delivery() {
         itineraireService.getAll(),
         livraisonService.getAll(),
       ]);
-      setLivreurs((lRes.status === 'fulfilled' ? lRes.value?.data?.livreurs : undefined) || []);
-      setVehicules((vRes.status === 'fulfilled' ? vRes.value?.data?.vehicules : undefined) || []);
-      setItineraires((iRes.status === 'fulfilled' ? iRes.value?.data?.itineraires : undefined) || []);
-      setLivraisons((liRes.status === 'fulfilled' ? liRes.value?.data?.livraisons : undefined) || []);
+      setLivreurs((lRes.status === 'fulfilled' ? lRes.value?.data?.livreurs || lRes.value?.data || [] : []));
+      setVehicules((vRes.status === 'fulfilled' ? vRes.value?.data?.vehicules || vRes.value?.data || [] : []));
+      setItineraires((iRes.status === 'fulfilled' ? iRes.value?.data?.itineraires || iRes.value?.data || [] : []));
+      setLivraisons((liRes.status === 'fulfilled' ? liRes.value?.data?.livraisons || liRes.value?.data || [] : []));
+
       const failed = [lRes, vRes, iRes, liRes].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
@@ -75,16 +77,28 @@ export default function Delivery() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+    useEffect(() => { fetchAll(); }, []);
+
+    if (loading && livreurs.length === 0 && vehicules.length === 0 && itineraires.length === 0 && livraisons.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des livraisons...</p>
+                </div>
+            </div>
+        );
+    }
 
   const handleSubmit = async (e, type) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       let data;
       if (type === 'livreur') data = { ...livreurForm };
       else if (type === 'vehicule') data = { ...vehiculeForm, capacite_charge: vehiculeForm.capacite_charge ? Number(vehiculeForm.capacite_charge) : null, capacite_volume: vehiculeForm.capacite_volume ? Number(vehiculeForm.capacite_volume) : null };
-      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: Number(itineraireForm.livreur_id), vehicule_id: Number(itineraireForm.vehicule_id), points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
-      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: Number(livraisonForm.livreur_id), vehicule_id: Number(livraisonForm.vehicule_id), itineraire_id: Number(livraisonForm.itineraire_id) || null, vente_id: Number(livraisonForm.vente_id) || null, commande_client_id: Number(livraisonForm.commande_client_id) || null };
+      else if (type === 'itineraire') data = { ...itineraireForm, livreur_id: itineraireForm.livreur_id ? Number(itineraireForm.livreur_id) : null, vehicule_id: itineraireForm.vehicule_id ? Number(itineraireForm.vehicule_id) : null, points_intermediaires: itineraireForm.points_intermediaires ? JSON.stringify(itineraireForm.points_intermediaires.split('\n')) : null };
+      else if (type === 'livraison') data = { ...livraisonForm, livreur_id: livraisonForm.livreur_id ? Number(livraisonForm.livreur_id) : null, vehicule_id: livraisonForm.vehicule_id ? Number(livraisonForm.vehicule_id) : null, itineraire_id: livraisonForm.itineraire_id ? Number(livraisonForm.itineraire_id) : null, vente_id: livraisonForm.vente_id ? Number(livraisonForm.vente_id) : null, commande_client_id: livraisonForm.commande_client_id ? Number(livraisonForm.commande_client_id) : null };
       const svc = type === 'livreur' ? livreurService : type === 'vehicule' ? vehiculeService : type === 'itineraire' ? itineraireService : livraisonService;
       if (editingType === type && editingId) {
         await svc.update(editingId, data);
@@ -97,6 +111,8 @@ export default function Delivery() {
       fetchAll();
     } catch (e) {
       toast.error(e.response?.data?.message || 'Erreur');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -117,7 +133,7 @@ export default function Delivery() {
     setEditingType(type);
     if (type === 'livreur') setLivreurForm({ nom: item.nom || '', prenom: item.prenom || '', telephone: item.telephone || '', email: item.email || '', numero_permis: item.numero_permis || '', statut: item.statut || 'actif' });
     else if (type === 'vehicule') setVehiculeForm({ marque: item.marque || '', modele: item.modele || '', plaque_immatriculation: item.plaque_immatriculation || '', type: item.type || 'camion', capacite_charge: item.capacite_charge || '', capacite_volume: item.capacite_volume || '', statut: item.statut || 'disponible' });
-    else if (type === 'itineraire') setItineraireForm({ nom: item.nom || '', description: item.description || '', date_depart: item.date_depart ? item.date_depart.slice(0, 16) : '', date_retour: item.date_retour ? item.date_retour.slice(0, 16) : '', points_intermediaires: Array.isArray(item.points_intermediaires) ? item.points_intermediaires.join('\n') : (item.points_intermediaires || ''), livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', statut: item.statut || 'planifie' });
+    else if (type === 'itineraire') setItineraireForm({ nom: item.nom || '', description: item.description || '', date_depart: item.date_depart ? item.date_depart.slice(0, 16) : '', date_retour: item.date_retour ? item.date_retour.slice(0, 16) : '', points_intermediaires: (() => { try { const arr = JSON.parse(item.points_intermediaires || '[]'); return Array.isArray(arr) ? arr.join('\n') : (item.points_intermediaires || ''); } catch { return item.points_intermediaires || ''; } })(), livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', statut: item.statut || 'planifie' });
     else if (type === 'livraison') setLivraisonForm({ vente_id: item.vente_id || '', commande_client_id: item.commande_client_id || '', itineraire_id: item.itineraire_id || '', livreur_id: item.livreur_id || '', vehicule_id: item.vehicule_id || '', adresse_livraison: item.adresse_livraison || '', ville_livraison: item.ville_livraison || '', telephone_livraison: item.telephone_livraison || '', nom_destinataire: item.nom_destinataire || '', date_livraison_prevue: item.date_livraison_prevue ? item.date_livraison_prevue.slice(0, 16) : '', statut: item.statut || 'en_attente', notes: item.notes || '' });
     setTab(type);
   };
@@ -143,6 +159,7 @@ export default function Delivery() {
 
   const submitSuivi = async (e, livraisonId) => {
     e.preventDefault();
+    setSubmitting(true);
     if (!livraisonId) return;
     try {
       await livraisonService.addSuivi(livraisonId, {
@@ -154,6 +171,15 @@ export default function Delivery() {
       setSuiviForm({ statut: '', commentaire: '', localisation_lat: '', localisation_lng: '' });
       const res = await livraisonService.getSuivis(livraisonId);
       setSuivis(prev => ({ ...prev, [livraisonId]: res.data.suivis || [] }));
+      fetchAll();
+    } catch (e) { toast.error('Erreur'); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleAvancer = async (id) => {
+    try {
+      await livraisonService.avancer(id);
+      toast.success('Statut avancé');
       fetchAll();
     } catch (e) { toast.error('Erreur'); }
   };
@@ -223,8 +249,6 @@ export default function Delivery() {
         ))}
       </div>
 
-      {loading && <p className="text-muted">Chargement…</p>}
-
       {tab === 'livreurs' && (
         <div className="card">
           <div className="delivery-section-head">
@@ -260,9 +284,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'livreur' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'livreur' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'livreur' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livreur')}>Annuler</button></div>}
+            {editingType === 'livreur' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livreur')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -331,9 +355,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'vehicule' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'vehicule' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'vehicule' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('vehicule')}>Annuler</button></div>}
+            {editingType === 'vehicule' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('vehicule')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -408,9 +432,9 @@ export default function Delivery() {
               </select>
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'itineraire' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'itineraire' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'itineraire' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('itineraire')}>Annuler</button></div>}
+            {editingType === 'itineraire' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('itineraire')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -506,9 +530,9 @@ export default function Delivery() {
               <textarea value={livraisonForm.notes} onChange={e => setLivraisonForm({...livraisonForm, notes: e.target.value})} />
             </div>
             <div className="form-group">
-              <button type="submit" className="btn-primary">{editingType === 'livraison' ? 'Modifier' : 'Créer'}</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingType === 'livraison' ? 'Modifier' : 'Créer')}</button>
             </div>
-            {editingType === 'livraison' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livraison')}>Annuler</button></div>}
+            {editingType === 'livraison' && <div className="form-group"><button type="button" className="btn-secondary" onClick={() => resetForm('livraison')} disabled={submitting}>Annuler</button></div>}
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
@@ -523,6 +547,9 @@ export default function Delivery() {
                       <span className="delivery-actions">
                         <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(l, 'livraison')}><i className="ti ti-edit" /></button>
                         <button className="btn-small btn-view" title="Suivis" onClick={() => viewSuivis(l.id)}><i className="ti ti-map-pin" /></button>
+                        {(l.statut === 'en_attente' || l.statut === 'chargee' || l.statut === 'en_route') && (
+                          <button className="btn-small btn-primary" title="Avancer statut" onClick={() => handleAvancer(l.id)}><i className="ti ti-arrow-forward" /></button>
+                        )}
                         <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('livraison', l.id)}><i className="ti ti-trash" /></button>
                       </span>
                     </td>
@@ -605,7 +632,7 @@ export default function Delivery() {
                         <input value={suiviForm.commentaire} onChange={e => setSuiviForm({...suiviForm, commentaire: e.target.value})} />
                       </div>
                       <div className="form-group">
-                        <button type="submit" className="btn-small btn-primary"><i className="ti ti-plus" /> Ajouter</button>
+                        <button type="submit" className="btn-small btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : <><i className="ti ti-plus" /> Ajouter</>}</button>
                       </div>
                     </div>
                   </form>

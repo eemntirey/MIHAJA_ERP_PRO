@@ -56,7 +56,7 @@ class ModeleDocumentService:
         if not instance:
             return None
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
+            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at', 'is_active', 'created_by', 'updated_by'):
                 setattr(instance, key, value)
         db.session.commit()
         return instance
@@ -120,7 +120,7 @@ class DocumentGenereService:
         if not instance:
             return None
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by'):
+            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at', 'is_active', 'created_by', 'updated_by'):
                 setattr(instance, key, value)
         db.session.commit()
         return instance

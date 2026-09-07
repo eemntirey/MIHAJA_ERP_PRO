@@ -19,6 +19,7 @@ from app.models.itineraire import Itineraire
 from app.models.livraison import Livraison
 from app.models.suivi_livraison import SuiviLivraison
 from app.models.employe import Employe, TypeContrat, Sexe, StatutEmploye
+from app.models.stagiaire import Stagiaire, TypeContratStagiaire, SexeStagiaire, StatutStagiaire
 from app.models.presence import Presence, StatutPresence
 from app.models.salaire import Salaire, StatutPaiementSalaire
 from app.models.prime import Prime, TypePrime
@@ -30,6 +31,12 @@ from app.models.document_genere import DocumentGenere
 from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat, StatutCommandeAchat
 from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir, StatutAvoir
 from app.models.password_reset_token import PasswordResetToken
+from app.models.token_blocklist import TokenBlocklist
+from app.models.payment_event import PaymentEvent
+from app.models.notification import Notification
+from app.models.audit_log import AuditLog, TypeActionAudit
+from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
+from app.models.role_permission import RoleModel, Permission
 from app import db
 from app.models.tenant import Tenant, StatutTenant
 
@@ -89,9 +96,24 @@ __all__ = [
     'BonLivraison',
     'Avoir',
     'StatutAvoir',
+    'PasswordResetToken',
+    'TokenBlocklist',
+    'PaymentEvent',
+    'Notification',
+    'AuditLog',
+    'TypeActionAudit',
+    'DeskFavorite',
+    'DeskFilterPreset',
+    'DeskColumnConfig',
+    'SyncEvent',
+    'RoleModel',
+    'Permission',
     'Tenant',
     'StatutTenant',
     'Abonnement',
     'StatutAbonnement',
-    'PasswordResetToken',
+    'Stagiaire',
+    'TypeContratStagiaire',
+    'SexeStagiaire',
+    'StatutStagiaire',
 ]

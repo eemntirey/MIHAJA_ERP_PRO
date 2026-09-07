@@ -27,8 +27,7 @@ ERP_PRO/
 │   │   │   └── config/          # Configuration (settings, database)
 │   │   ├── migrations/
 │   │   ├── logs/
-│   │   ├── requirements.txt
-│   │   └── run.py
+│   │   └── requirements.txt
 │   └── frontend/
 │       ├── src/
 │       │   ├── pages/           # Dashboard, Produits, Clients, Ventes, Stock, Abonnements, Livraison, RH, Comptabilité, Documents, Achats, SuperAdmin...
@@ -129,7 +128,7 @@ cd web/backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-python run.py
+flask run
 ```
 
 Le serveur démarre sur `http://localhost:5000`.
@@ -185,3 +184,16 @@ pytest
 - Les données sensibles (clés, secrets) doivent être stockées dans `.env` et jamais commitées.
 - Le backend supporte SQLite (dev) et PostgreSQL (prod).
 - Le frontend web et desktop partagent la même API backend.
+
+dernier Données de test renouvelées avec succès. Les abonnements et paiements ont été recréés avec les dates du jour.
+
+Clés des abonnés (mot de passe commun : Test1234!) :
+
+Email	Rôle	Plan abonnement
+distrifood@erp.com	admin	enterprise
+epicerie@erp.com	admin	starter
+grosriz@erp.com	admin	pro
+wholesale@erp.com	sales	pro
+grossiste-btp@erp.com	admin	starter
+client.simple@erp.com	user	—
+client.pub@erp.com	user	—

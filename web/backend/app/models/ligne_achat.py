@@ -1,8 +1,8 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Numeric
 
-class LigneAchat(BaseModel):
+class LigneAchat(BaseTenantModel):
     __tablename__ = 'lignes_achat'
     
     commande_fournisseur_id = db.Column(db.Integer, db.ForeignKey('commandes_fournisseur.id'), index=True)

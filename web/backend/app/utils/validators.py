@@ -7,9 +7,24 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 def validate_phone(phone):
-    """Valide un numéro de téléphone malgache"""
-    pattern = r'^(\+261|0)(2[0-9]|3[0-9])(\d{2}){4}$'
+    """Valide un numéro de téléphone malgache au format +261 XX XX XXX XX ou 0XX XX XX XXX XX"""
+    pattern = r'^(\+261|0)(2[0-9]|3[0-9])(\d{2})(\d{3})(\d{2})$'
     return re.match(pattern, phone.replace(' ', '')) is not None
+
+def format_phone(phone):
+    """Formate un numéro de téléphone malgache au format international +261 XX XX XXX XX"""
+    if not phone:
+        return ''
+    digits = re.sub(r'\D', '', phone)
+    if digits.startswith('261'):
+        rest = digits[3:]
+        if len(rest) == 9:
+            return f'+261 {rest[0:2]} {rest[2:4]} {rest[4:7]} {rest[7:9]}'
+    elif digits.startswith('0'):
+        rest = digits[1:]
+        if len(rest) == 9:
+            return f'+261 {rest[0:2]} {rest[2:4]} {rest[4:7]} {rest[7:9]}'
+    return phone
 
 def validate_siret(siret):
     """Valide un numéro SIRET"""

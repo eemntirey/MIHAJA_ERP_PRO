@@ -8,16 +8,31 @@ from app.models.facture import Facture
 from app.models.paiement import Paiement
 from app import db
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from sqlalchemy.exc import OperationalError
+
+
+def _local_day_boundaries(now_utc=None):
+    """Bornes de jour/mois en heure locale du serveur, converties en UTC.
+
+    `created_at` est stocke en UTC. Pour que "aujourd'hui" corresponde au
+    jour calendaire de l'utilisateur (Madagascar = UTC+3), on calcule minuit
+    en heure locale puis on le convertit en UTC. Sinon les ventes passees
+    entre 00h00 et 03h00 locales sont comptees sur la veille.
+    """
+    now_utc = now_utc or datetime.utcnow()
+    tz_offset = now_utc.astimezone().utcoffset() or timedelta(0)
+    today_local = (now_utc + tz_offset).date()
+    debut_jour_utc = datetime.combine(today_local, time.min) - tz_offset
+    debut_mois_utc = datetime.combine(today_local.replace(day=1), time.min) - tz_offset
+    return today_local, debut_jour_utc, debut_mois_utc, tz_offset
 
 
 def get_dashboard_data():
     try:
         tenant_id = get_current_tenant_id()
 
-        today = datetime.utcnow().date()
-        debut_mois = today.replace(day=1)
+        today, debut_jour_utc, debut_mois, tz_offset = _local_day_boundaries()
 
         ventes_query = Vente.query.filter(
             Vente.is_active == True,
@@ -48,7 +63,7 @@ def get_dashboard_data():
 
         ventes_aujourdhui_query = Vente.query.filter(
             Vente.is_active == True,
-            Vente.created_at >= today
+            Vente.created_at >= debut_jour_utc
         )
         if tenant_id:
             ventes_aujourdhui_query = ventes_aujourdhui_query.filter_by(tenant_id=tenant_id)
@@ -108,9 +123,12 @@ def get_dashboard_data():
         evolution_ventes = []
         for i in range(7):
             date_jour = today - timedelta(days=i)
+            jour_debut = datetime.combine(date_jour, time.min) - tz_offset
+            jour_fin = jour_debut + timedelta(days=1)
             count = db.session.query(func.count(Vente.id)).filter(
                 Vente.is_active == True,
-                func.date(Vente.created_at) == date_jour
+                Vente.created_at >= jour_debut,
+                Vente.created_at < jour_fin,
             )
             if tenant_id:
                 count = count.filter_by(tenant_id=tenant_id)

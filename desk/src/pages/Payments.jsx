@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { paiementService, factureService, clientService } from '../services/api';
 import { toast } from 'react-toastify';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Payments = () => {
@@ -26,21 +27,23 @@ const Payments = () => {
     try {
       setLoading(true);
       setError(null);
-      const [paymentsRes, facturesRes, clientsRes] = await Promise.allSettled([
+      const [paymentsResponse, facturesResponse, clientsResponse] = await Promise.allSettled([
         paiementService.getAll({}),
         factureService.getAll({}),
         clientService.getAll({}),
       ]);
 
-      setPayments((paymentsRes.status === 'fulfilled' ? paymentsRes.value?.data?.paiements : undefined) || []);
-      setFactures((facturesRes.status === 'fulfilled' ? facturesRes.value?.data?.factures : undefined) || []);
-      setClients((clientsRes.status === 'fulfilled' ? clientsRes.value?.data?.clients : undefined) || []);
-      const failed = [paymentsRes, facturesRes, clientsRes].filter(r => r.status === 'rejected');
+      setPayments((paymentsResponse.status === 'fulfilled' ? paymentsResponse.value?.data?.paiements || paymentsResponse.value?.data || [] : []));
+      setFactures((facturesResponse.status === 'fulfilled' ? facturesResponse.value?.data?.factures || facturesResponse.value?.data || [] : []));
+      setClients((clientsResponse.status === 'fulfilled' ? clientsResponse.value?.data?.clients || clientsResponse.value?.data || [] : []));
+
+      const failed = [paymentsResponse, facturesResponse, clientsResponse].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
         toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
     } catch (err) {
+      console.error('Error fetching payments data:', err);
       const msg = err.response?.data?.message || 'Échec du chargement des paiements';
       setError(msg);
       toast.error(msg);
@@ -132,17 +135,8 @@ const Payments = () => {
   const totalAmount = payments.reduce((sum, payment) => sum + (payment.montant || 0), 0);
   const averageAmount = payments.length ? totalAmount / payments.length : 0;
 
-  const getModeLabel = (mode) => {
-    const labels = {
-      especes: 'Espèces',
-      virement: 'Virement',
-      carte: 'Carte bancaire',
-      cheque: 'Chèque',
-      mobile_money: 'Mobile money',
-      orange_money: 'Orange Money',
-      airtel_money: 'Airtel Money',
-    };
-    return labels[mode] || mode;
+    const getModeLabel = (mode) => {
+    return PAYMENT_METHOD_LABELS[mode] || mode;
   };
 
   const getStatutLabel = (statut) => {
@@ -229,6 +223,7 @@ const Payments = () => {
                  <th>Client</th>
                  <th>Montant</th>
                  <th>Mode de paiement</th>
+                 <th>Fournisseur</th>
                  <th>Statut</th>
                  <th>Date</th>
                  <th>Remarque</th>
@@ -238,7 +233,7 @@ const Payments = () => {
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-center">
+                  <td colSpan="10" className="text-center">
                     Aucun paiement enregistré
                   </td>
                 </tr>
@@ -246,6 +241,7 @@ const Payments = () => {
                 payments.map(payment => {
                   const facture = factures.find(f => f.id === payment.facture_id);
                   const client = clients.find(c => c.id === payment.client_id);
+                  const providerLabel = payment.provider === 'papi' ? 'Papi' : (payment.provider || '-');
                   return (
                     <tr key={payment.id}>
                       <td>#{payment.id}</td>
@@ -253,6 +249,7 @@ const Payments = () => {
                       <td>{client ? client.nom || client.raison_sociale || 'N/A' : payment.client_id}</td>
                       <td>{(payment.montant || 0).toFixed(2)} Ar</td>
                       <td>{getModeLabel(payment.mode_paiement)}</td>
+                      <td>{providerLabel}</td>
                       <td><span className={`statut-badge ${getStatutClass(payment.statut)}`}>{getStatutLabel(payment.statut)}</span></td>
                       <td>{payment.date_paiement ? new Date(payment.date_paiement).toLocaleDateString('mg-MG') : (payment.created_at ? new Date(payment.created_at).toLocaleDateString('mg-MG') : 'N/A')}</td>
                       <td>{payment.notes || payment.remarque || '-'}</td>
@@ -319,17 +316,13 @@ const Payments = () => {
                 <div className="form-group">
                   <label>Mode de paiement *</label>
                   <select name="mode_paiement" value={formData.mode_paiement} onChange={handleChange} required>
-                    <option value="especes">Espèces</option>
-                    <option value="virement">Virement</option>
-                    <option value="carte">Carte bancaire</option>
-                    <option value="cheque">Chèque</option>
-                    <option value="orange_money">Orange Money</option>
-                    <option value="airtel_money">Airtel Money</option>
-                    <option value="mobile_money">Autre Mobile Money</option>
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
                   </select>
                 </div>
 
-                {(formData.mode_paiement === 'orange_money' || formData.mode_paiement === 'airtel_money' || formData.mode_paiement === 'mobile_money') && (
+                {(formData.mode_paiement === 'mvola' || formData.mode_paiement === 'orange_money' || formData.mode_paiement === 'airtel_money') && (
                   <>
                     <div className="form-group">
                       <label>Opérateur</label>

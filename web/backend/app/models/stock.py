@@ -1,4 +1,4 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Index
 import enum
@@ -11,10 +11,15 @@ class TypeMouvement(enum.Enum):
     RETOUR = 'retour'
     TRANSFERT = 'transfert'
 
-class MouvementStock(BaseModel):
+class MouvementStock(BaseTenantModel):
     __tablename__ = 'mouvements_stock'
-    
-    produit_id = db.Column(db.Integer, db.ForeignKey('produits.id'), nullable=False, index=True)
+
+    produit_id = db.Column(
+        db.Integer,
+        db.ForeignKey('produits.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
     type_mouvement = db.Column(
         Enum(
             TypeMouvement,

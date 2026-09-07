@@ -43,7 +43,7 @@ const Contact = () => {
                   type="text"
                   value={form.name}
                   onChange={handleChange}
-                  placeholder="Jean Dupont"
+                  placeholder="Jean Rakoto"
                   required
                 />
               </div>

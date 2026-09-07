@@ -1,3 +1,5 @@
+@import '../../styles/tokens.css';
+
 /* src/components/layout/SplitView.css */
 
 .split-view {
@@ -5,19 +7,19 @@
   gap: 0;
   height: calc(100vh - 140px);
   min-height: 400px;
-  border: 1px solid var(--erp-line);
-  background: var(--erp-white);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .split-view__left {
   flex: 0 0 auto;
   overflow-y: auto;
-  border-right: 1px solid var(--erp-line);
+  border-right: 1px solid var(--color-border);
 }
 
 .split-view__divider {
   width: 4px;
-  background: var(--erp-line);
+  background: var(--color-border);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background-color 180ms ease;
@@ -25,7 +27,7 @@
 
 .split-view__divider:hover,
 .split-view__divider:active {
-  background: var(--erp-gold);
+  background: var(--color-primary);
 }
 
 .split-view__right {
@@ -43,31 +45,11 @@
   height: 100%;
   min-height: 240px;
   text-align: center;
-  color: var(--erp-muted);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
 
 .split-view__right-empty i {
   font-size: 28px;
-  color: var(--erp-subtle);
-}
-
-/* ResizablePanel */
-.resizable-panel {
-  position: relative;
-  min-width: 0;
-}
-
-.resizable-panel__handle {
-  position: absolute;
-  top: 0;
-  right: -4px;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resizable-panel.resizing {
-  user-select: none;
+  color: var(--color-text-muted);
 }

@@ -1,10 +1,10 @@
 from flask_restx import Namespace, Resource, fields
 from app.services.client_service import ClientService
-from app.security.tenant import tenant_required
+from app.security.tenant import tenant_required_readonly
 from app.security.plan_limits import check_plan_limits
 from app.security.permissions import permission_required
 from sqlalchemy.exc import IntegrityError
-from flask import request
+from flask import request, current_app
 from app import db
 
 ns = Namespace('clients', description='Gestion des clients')
@@ -14,7 +14,7 @@ client_model = ns.model('Client', {
     'raison_sociale': fields.String(description='Raison sociale'),
     'nom': fields.String(description='Nom'),
     'prenom': fields.String(description='Prénom'),
-    'type': fields.String(description='Type de client (particulier, professionnel, association, collectivite, grossiste, distributeur, centrale_achat)', default='particulier'),
+    'type': fields.String(description='Type de client (boutique, epicerie, revendeur, semi_grossiste, grossiste, supermarche, restaurant, hotel, entreprise, institution, particulier)', default='particulier'),
     'secteur': fields.String(description='Secteur d\'activité', default='autre'),
     'siret': fields.String(description='SIRET'),
     'numero_tva': fields.String(description='Numéro TVA'),
@@ -55,17 +55,19 @@ client_model = ns.model('Client', {
 @ns.route('/')
 class ClientListResource(Resource):
     @ns.doc('list_clients')
-    @tenant_required
+    @permission_required('client.view')
+    @tenant_required_readonly
     def get(self):
         """Liste tous les clients"""
         try:
             clients, total = ClientService.get_all()
             return {'clients': [c.to_dict() for c in clients], 'total': total}, 200
-        except Exception as e:
-            return {'clients': [], 'total': 0, 'message': str(e)}, 500
+        except Exception:
+            current_app.logger.exception('Erreur lors de la liste des clients')
+            return {'clients': [], 'total': 0}, 500
     
     @ns.doc('create_client')
-    @tenant_required
+    @tenant_required_readonly
     @check_plan_limits('clients')
     @permission_required('client.create')
     @ns.expect(client_model)
@@ -83,30 +85,28 @@ class ClientListResource(Resource):
             return client.to_dict(), 201
         except ValueError as e:
             return {'message': str(e)}, 400
-        except IntegrityError as e:
+        except IntegrityError:
             db.session.rollback()
-            error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
-            if 'email' in error_msg.lower():
-                return {'message': f"L'adresse email '{data.get('email')}' existe déjà" }, 400
-            if 'code' in error_msg.lower():
-                return {'message': f"Le code client '{data.get('code')}' existe déjà" }, 400
             return {'message': 'Contrainte de base de données violée'}, 400
-        except Exception as e:
-            return {'message': f"Erreur lors de la création du client: {str(e)}"}, 400
+        except Exception:
+            current_app.logger.exception('Erreur lors de la création du client')
+            return {'message': 'Erreur lors de la création du client'}, 400
 
 @ns.route('/<int:client_id>')
 class ClientResource(Resource):
     @ns.doc('get_client')
-    @tenant_required
+    @permission_required('client.view')
+    @tenant_required_readonly
     def get(self, client_id):
         """Récupère un client par son ID"""
         client = ClientService.get_by_id(client_id)
         if not client:
             return {'message': 'Client non trouve'}, 404
         return client.to_dict(), 200
-    
+
     @ns.doc('update_client')
-    @tenant_required
+    @permission_required('client.update')
+    @tenant_required_readonly
     def put(self, client_id):
         """Met à jour un client"""
         from flask import request
@@ -115,9 +115,10 @@ class ClientResource(Resource):
         if not client:
             return {'message': 'Client non trouve'}, 404
         return client.to_dict(), 200
-    
+
     @ns.doc('delete_client')
-    @tenant_required
+    @permission_required('client.delete')
+    @tenant_required_readonly
     def delete(self, client_id):
         """Supprime un client"""
         success = ClientService.delete(client_id)

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { fournisseurService, productService } from '../services/api';
 import { toast } from 'react-toastify';
+import { SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
 const Suppliers = () => {
@@ -22,6 +23,7 @@ const Suppliers = () => {
     ville: '',
     code_postal: '',
     pays: 'Madagascar',
+    type: 'fournisseur_local',
     siret: '',
     contact_nom: '',
     contact_email: '',
@@ -76,6 +78,7 @@ const Suppliers = () => {
       ville: supplier.ville || '',
       code_postal: supplier.code_postal || '',
       pays: supplier.pays || 'Madagascar',
+      type: supplier.type || 'fournisseur_local',
       siret: supplier.siret || '',
       contact_nom: supplier.contact_nom || '',
       contact_email: supplier.contact_email || '',
@@ -89,6 +92,7 @@ const Suppliers = () => {
       ville: '',
       code_postal: '',
       pays: 'Madagascar',
+      type: 'fournisseur_local',
       siret: '',
       contact_nom: '',
       contact_email: '',
@@ -210,6 +214,7 @@ const Suppliers = () => {
             <thead>
               <tr>
                 <th>Nom</th>
+                <th>Type</th>
                 <th>Email</th>
                 <th>Téléphone</th>
                 <th>Ville</th>
@@ -221,15 +226,16 @@ const Suppliers = () => {
             </thead>
             <tbody>
               {filteredSuppliers.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center">
-                    Aucun fournisseur trouvé
-                  </td>
-                </tr>
+                  <tr>
+                    <td colSpan="9" className="text-center">
+                      Aucun fournisseur trouvé
+                    </td>
+                  </tr>
               ) : (
                 filteredSuppliers.map(supplier => (
                   <tr key={supplier.id}>
                     <td>{supplier.raison_sociale}</td>
+                    <td>{SUPPLIER_TYPE_LABELS[supplier.type] || supplier.type || 'N/A'}</td>
                     <td>{supplier.email || 'N/A'}</td>
                     <td>{supplier.telephone || 'N/A'}</td>
                     <td>{supplier.ville || 'N/A'}</td>
@@ -302,6 +308,18 @@ const Suppliers = () => {
                   />
                 </div>
                 <div className="form-group">
+                  <label>Type de fournisseur</label>
+                  <select 
+                    name="type" 
+                    value={formData.type}
+                    onChange={handleChange}
+                  >
+                    {SUPPLIER_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
                   <label>Email</label>
                   <input 
                     type="email" 
@@ -318,7 +336,7 @@ const Suppliers = () => {
                     name="telephone" 
                     value={formData.telephone}
                     onChange={handleChange}
-                    placeholder="0123456789"
+                    placeholder="+261 34 00 000 00"
                   />
                 </div>
                 <div className="form-group">
@@ -378,7 +396,7 @@ const Suppliers = () => {
                     name="contact_nom" 
                     value={formData.contact_nom}
                     onChange={handleChange}
-                    placeholder="Jean Dupont"
+                    placeholder="Jean Rakoto"
                   />
                 </div>
                 <div className="form-group">

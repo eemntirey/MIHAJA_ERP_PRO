@@ -1,0 +1,103 @@
+@import '../styles/tokens.css';
+
+/* src/pages/Documents.css */
+
+.documents-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    margin-top: 24px;
+}
+
+.documents-toolbar h4 {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--color-onyx);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.documents-count {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+}
+
+.doc-ref {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-onyx);
+    letter-spacing: -0.01em;
+}
+
+.doc-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.documents-empty {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    padding: 24px;
+}
+
+/* PDF Preview Modal */
+.pdf-preview-container {
+    padding: 0;
+    background: var(--color-onyx-soft);
+    display: flex;
+    flex-direction: column;
+    height: 70vh;
+}
+
+.pdf-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--color-surface);
+    flex: 1;
+}
+
+.modal-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Form helpers */
+.filter-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--color-onyx);
+    font-weight: 500;
+    user-select: none;
+}
+
+.filter-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .doc-actions {
+        flex-wrap: wrap;
+    }
+
+    .modal-header-actions {
+        flex-wrap: wrap;
+    }
+
+    .pdf-preview-container {
+        height: 60vh;
+    }
+}

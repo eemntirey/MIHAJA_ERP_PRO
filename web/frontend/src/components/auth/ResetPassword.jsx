@@ -1,5 +1,5 @@
 // src/components/auth/ResetPassword.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -28,6 +28,10 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [tokenValid, setTokenValid] = useState(null); // null = checking, true/false
+  const [tokenError, setTokenError] = useState('');
+  const [countdown, setCountdown] = useState(null);
+  const [countdownExpired, setCountdownExpired] = useState(false);
 
   const {
     register,
@@ -37,7 +41,60 @@ const ResetPassword = () => {
     resolver: yupResolver(resetSchema),
   });
 
+  // Verification prealable du token et demarrage du compte a rebours
+  React.useEffect(() => {
+    const verifyAndCount = async () => {
+      if (!token) return;
+      try {
+        const result = await authService.verifyResetToken(token);
+        if (result.success) {
+          setTokenValid(true);
+          const fallbackTtl = parseInt(
+            (typeof process !== 'undefined' && process.env && process.env.REACT_APP_PASSWORD_RESET_TTL_MINUTES) || '60',
+            10
+          );
+          const ttlMinutes = result.data?.remaining_seconds
+            ? Math.ceil(result.data.remaining_seconds / 60)
+            : fallbackTtl;
+          setCountdown(ttlMinutes * 60);
+        } else {
+          setTokenValid(false);
+          setTokenError(result.error || 'Token invalide ou expiré');
+        }
+      } catch {
+        setTokenValid(false);
+        setTokenError('Impossible de vérifier le token');
+      }
+    };
+    verifyAndCount();
+  }, [token]);
+
+  // Compte a rebours
+  React.useEffect(() => {
+    if (!countdown && countdown !== 0) return;
+    if (countdown <= 0) {
+      setCountdownExpired(true);
+      setTokenError('Ce lien de réinitialisation a expiré');
+      setTokenValid(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [countdown]);
+
   const onSubmit = async (data) => {
+    if (tokenValid !== true) {
+      toast.error('Token de réinitialisation invalide ou expiré');
+      return;
+    }
     try {
       setLoading(true);
       await authService.resetPassword(token, data.password);
@@ -74,6 +131,31 @@ const ResetPassword = () => {
                 : 'Créez un nouveau mot de passe sécurisé'}
             </p>
           </div>
+
+          {tokenValid === false && (
+            <div className="error-message" style={{ marginBottom: "1rem", textAlign: "center" }}>
+              <p>{tokenError}</p>
+              <p style={{ fontSize: "0.85em", marginTop: "0.5rem" }}>
+                Veuillez{" "}
+                <Link to="/forgot-password" style={{ color: "#4f46e5" }}>
+                  demander un nouveau lien
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {tokenValid === null && (
+            <div style={{ textAlign: "center", padding: "1rem 0" }}>
+              <span className="auth-login__spinner" aria-hidden="true" />
+              <p>Verification du lien...</p>
+            </div>
+          )}
+
+          {tokenValid === true && !resetSuccess && countdown !== null && !countdownExpired && (
+            <p style={{ fontSize: "0.85em", color: "#6b7280", textAlign: "center", marginBottom: "0.75rem" }}>
+              Expire dans {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+            </p>
+          )}
 
           {resetSuccess ? (
             <div className="success-message">

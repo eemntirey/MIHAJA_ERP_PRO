@@ -20,7 +20,7 @@ Backend Python Flask application for the ERP project.
 ```
 web/backend/
 ├── app/
-│   ├── __init__.py          # Flask app factory
+│   ├── __init__             # Flask app factory
 │   ├── api/v1/              # 22 API namespaces
 │   ├── models/              # 35+ SQLAlchemy models
 │   ├── services/            # 20+ business services
@@ -33,8 +33,7 @@ web/backend/
 ├── logs/                    # Application logs
 ├── scripts/                 # Utility scripts
 ├── tests/                   # Test suite
-├── requirements.txt         # Python dependencies
-└── run.py                   # Application entry point
+└── requirements.txt         # Python dependencies
 ```
 
 ## Installation
@@ -62,18 +61,20 @@ web/backend/
    ```
    SECRET_KEY=your-secret-key
    JWT_SECRET_KEY=your-jwt-secret
-   DATABASE_URL=sqlite:///erp.db
+   DATABASE_URL=postgresql+psycopg://postgres:eemntirey@localhost:55432/erp
    CORS_ORIGINS=http://localhost:3000
    ```
 
-5. Run database migrations:
+5. Initialize PostgreSQL and run database migrations (PowerShell):
    ```bash
-   flask db upgrade
+   .\setup_postgresql.ps1
    ```
+
+   For an already initialized database, run only `flask --app app:create_app db upgrade`.
 
 6. Start the application:
    ```bash
-   python run.py
+   flask run
    ```
 
 The server will start at `http://localhost:5000`.
@@ -99,10 +100,10 @@ http://localhost:5000/docs/
 
 ## Scripts
 
-- `python scripts/init_db.py` - Initialize database
-- `python scripts/seed_database.py` - Seed test data
-- `python scripts/migrate_tenant.py` - Migrate to multi-tenant
-- `python scripts/train_ai.py` - Train AI models
+- `scripts/init_db` - Initialize database
+- `scripts/seed_database` - Seed test data
+- `scripts/migrate_tenant` - Migrate to multi-tenant
+- `scripts/train_ai` - Train AI models
 
 ## Testing
 

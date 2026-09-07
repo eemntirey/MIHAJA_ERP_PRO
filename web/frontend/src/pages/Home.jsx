@@ -71,12 +71,25 @@ const Home = () => {
       setNotifications(response.data?.notifications || response.data || []);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      const status = err.response?.status;
+      const msg =
+        status === 404
+          ? 'Aucune commande trouvée pour cette référence.'
+          : status === 401
+            ? 'Session expirée. Veuillez vous reconnecter.'
+            : 'Recherche indisponible pour le moment.';
+      toast.error(msg);
     }
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchNotifications(searchQuery || undefined);
+    const ref = (searchQuery || '').trim();
+    if (!ref) {
+      toast.warn('Saisissez une référence de commande ou un nom de produit.');
+      return;
+    }
+    fetchNotifications(ref);
   };
 
   const openUserMenu = () => {
@@ -141,7 +154,7 @@ const Home = () => {
                     aria-haspopup="true"
                     aria-expanded={showUserCartouche}
                   >
-                    <span className="user-cartouche-avatar">
+                    <span className="user-cartouche-avatar" aria-hidden="true">
                       {(user?.prenom?.[0] || 'U').toUpperCase()}
                     </span>
                     <span className="user-cartouche-greeting">
@@ -155,7 +168,7 @@ const Home = () => {
                   {showUserCartouche && (
                     <div className="user-cartouche">
                       <div className="user-cartouche-header">
-                        <div className="user-cartouche-avatar-large">
+                        <div className="user-cartouche-avatar-large" aria-hidden="true">
                           {(user?.prenom?.[0] || 'U').toUpperCase()}
                         </div>
                         <div className="user-cartouche-meta">
@@ -296,7 +309,7 @@ const Home = () => {
         )}
 
         {isUser && isAuthenticated && (
-          <section className="orders-card">
+          <section className={`orders-card${notifications.length === 0 ? ' is-empty' : ''}`}>
             <div className="orders-card__header">
               <div className="orders-card__heading">
                 <span className="orders-card__icon" aria-hidden="true">
@@ -415,24 +428,20 @@ const Home = () => {
                   <div className="card product-card" key={product.id}>
                     <div className="product-card__header">
                       <h3>{product.nom}</h3>
-                      <span className="badge success">En stock</span>
                     </div>
                     {product.tenant_nom && (
-                      <p style={{ fontSize: '12px', color: 'var(--erp-muted)', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
                         Vendu par <strong>{product.tenant_nom}</strong>
                       </p>
                     )}
                     <p className="product-card__price">{Number(product.prix_vente_ht || product.prix || 0).toFixed(2)} Ar</p>
-                    <p className="text-muted" style={{ fontSize: '12px', marginBottom: '12px' }}>
-                      Stock: {product.quantite_stock ?? product.stock ?? 0}
-                    </p>
                     {product.description_courte && (
-                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--erp-muted)' }}>
+                      <p style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
                         {product.description_courte}
                       </p>
                     )}
                     {isUser && isAuthenticated ? (
-                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px' }}>
+                      <div className="product-card__actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <Link
                           to={`/produits/${product.id}`}
                           className="btn-secondary"

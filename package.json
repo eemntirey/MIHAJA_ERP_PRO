@@ -1,0 +1,26 @@
+{
+  "name": "mihaja_erp_pro",
+  "version": "1.0.0",
+  "description": "Application web de gestion commerciale multi-tenant avec marketplace publique, abonnements par entreprise et rôle Super Admin privé.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eemntirey/MIHAJA_ERP_PRO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/eemntirey/MIHAJA_ERP_PRO/issues"
+  },
+  "homepage": "https://github.com/eemntirey/MIHAJA_ERP_PRO#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.1"
+  }
+}

@@ -5,16 +5,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { clientService } from '../services/api';
-
-const CLIENT_TYPES = [
-  { value: 'particulier', label: 'Particulier' },
-  { value: 'professionnel', label: 'Professionnel' },
-  { value: 'association', label: 'Association' },
-  { value: 'collectivite', label: 'Collectivité' },
-  { value: 'grossiste', label: 'Grossiste' },
-  { value: 'distributeur', label: 'Distributeur' },
-  { value: 'centrale_achat', label: 'Centrale d\'achat' },
-];
+import { CLIENT_TYPES, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 
 const clientSchema = yup.object().shape({
   code: yup.string().required('Code client requis'),
@@ -75,6 +66,8 @@ const ClientModal = ({ client, onClose, onSuccess }) => {
       onSuccess();
     } catch (err) {
       console.error('Error saving client:', err);
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Erreur lors de la sauvegarde du client';
+      toast.error(msg);
     }
   };
 

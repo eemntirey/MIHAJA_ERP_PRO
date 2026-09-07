@@ -1,16 +1,20 @@
-from app.models.base import BaseModel
+from app.models.base import BaseTenantModel
 from app import db
 from sqlalchemy import Enum, Index, Numeric
 import enum
 
 class TypeClient(enum.Enum):
-    PARTICULIER = 'particulier'
-    PROFESSIONNEL = 'professionnel'
-    ASSOCIATION = 'association'
-    COLLECTIVITE = 'collectivite'
+    BOUTIQUE = 'boutique'
+    EPICERIE = 'epicerie'
+    REVENDEUR = 'revendeur'
+    SEMI_GROSSISTE = 'semi_grossiste'
     GROSSISTE = 'grossiste'
-    DISTRIBUTEUR = 'distributeur'
-    CENTRALE_ACHAT = 'centrale_achat'
+    SUPERMARCHE = 'supermarche'
+    RESTAURANT = 'restaurant'
+    HOTEL = 'hotel'
+    ENTREPRISE = 'entreprise'
+    INSTITUTION = 'institution'
+    PARTICULIER = 'particulier'
 
 class SecteurActivite(enum.Enum):
     AGRICULTURE = 'agriculture'
@@ -21,7 +25,7 @@ class SecteurActivite(enum.Enum):
     SERVICES = 'services'
     AUTRE = 'autre'
 
-class Client(BaseModel):
+class Client(BaseTenantModel):
     __tablename__ = 'clients'
     
     code = db.Column(db.String(20), unique=True, nullable=False, index=True)
@@ -111,7 +115,7 @@ class Client(BaseModel):
     
     @property
     def nom_complet(self):
-        if self.type in [TypeClient.PARTICULIER, TypeClient.ASSOCIATION]:
+        if self.type == TypeClient.PARTICULIER:
             return f"{self.prenom} {self.nom}"
         return self.raison_sociale or f"{self.prenom} {self.nom}"
     
