@@ -26,7 +26,7 @@ class Tenant(BaseModel):
     adresse = db.Column(db.String(200))
     ville = db.Column(db.String(100))
     pays = db.Column(db.String(50), default='Madagascar')
-    code_postal = db.Column(db.String(10))
+    code_postal = db.Column(db.String(20))
     
     # Abonnement
     statut = db.Column(
@@ -49,7 +49,20 @@ class Tenant(BaseModel):
     devise = db.Column(db.String(10), default='MGA')
     langue = db.Column(db.String(5), default='mg')
     fuseau_horaire = db.Column(db.String(50), default='Indian/Antananarivo')
-    
+
+    # Paiement / Vitrine : configuration du compte marchand Papi du tenant
+    # Les clés sont stockées chiffrées (Fernet / ENCRYPTION_KEY) et ne sont
+    # jamais renvoyées en clair au frontend.
+    papi_api_key_encrypted = db.Column(db.Text, nullable=True)
+    papi_webhook_secret_encrypted = db.Column(db.Text, nullable=True)
+    papi_environment = db.Column(db.String(20), nullable=True)
+    papi_configured_at = db.Column(db.DateTime, nullable=True)
+
+    # Vitrine publique : activée uniquement si le tenant a configuré Papi
+    # ET basculé explicitement ce toggle. Aucun produit n'est exposé sinon.
+    vitrine_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    vitrine_enabled_at = db.Column(db.DateTime, nullable=True)
+
     # Relations
     utilisateurs = db.relationship(
         'Utilisateur',
@@ -81,8 +94,58 @@ class Tenant(BaseModel):
     # Admin principal : rattaché au TENANT (et non à un utilisateur),
     # conformément à l'architecture SUPER ADMIN =| TENANT == ADMIN.
     admin_principal_id = db.Column(
-        db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True
+        db.Integer,
+        db.ForeignKey('utilisateurs.id', use_alter=True, name='tenants_admin_principal_id_fkey'),
+        nullable=True
     )
+
+    # Traçabilité (surcharge des colonnes de BaseModel) : override nécessaire
+    # pour casser le cycle de dépendances circulaires tenants <-> utilisateurs
+    # côté DDL PostgreSQL (drop_all/create_all de la suite de tests).
+    created_by = db.Column(
+        db.Integer,
+        db.ForeignKey('utilisateurs.id', use_alter=True, name='tenants_created_by_fkey'),
+        nullable=True,
+    )
+    updated_by = db.Column(
+        db.Integer,
+        db.ForeignKey('utilisateurs.id', use_alter=True, name='tenants_updated_by_fkey'),
+        nullable=True,
+    )
+
+    def has_papi_configured(self) -> bool:
+        """Le tenant a-t-il saisi une clé API Papi marchand ?"""
+        return bool(self.papi_api_key_encrypted)
+
+    def is_vitrine_active(self) -> bool:
+        """Le tenant est-il exposé sur la vitrine commune ?
+
+        Trois conditions cumulatives :
+        1. La vitrine est activée par le tenant (toggle).
+        2. Le tenant a configuré son compte marchand Papi.
+        3. Le tenant a un statut actif (cf. StatutTenant).
+        """
+        if not self.vitrine_enabled:
+            return False
+        if not self.has_papi_configured():
+            return False
+        statut = self.statut.value if hasattr(self.statut, 'value') else self.statut
+        return statut in ('actif', 'en_essai')
+
+    def to_papi_status_dict(self) -> dict:
+        """Statut Papi / vitrine pour le frontend (jamais la clé en clair)."""
+        return {
+            'papi_configured': self.has_papi_configured(),
+            'papi_configured_at': (
+                self.papi_configured_at.isoformat() if self.papi_configured_at else None
+            ),
+            'papi_environment': self.papi_environment,
+            'vitrine_enabled': bool(self.vitrine_enabled),
+            'vitrine_enabled_at': (
+                self.vitrine_enabled_at.isoformat() if self.vitrine_enabled_at else None
+            ),
+            'vitrine_active': self.is_vitrine_active(),
+        }
 
     def to_dict(self, include_subscription=False):
         data = {

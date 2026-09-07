@@ -278,6 +278,12 @@ export const publicCatalogueService = {
 
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
+
+    createCommandePapiPayment: (ref, data) =>
+        publicApi.post(`/public/commandes/${ref}/papi-payment`, data),
+
+    getCommandePapiStatus: (ref) =>
+        publicApi.get(`/public/commandes/${ref}/papi-status`),
 };
 
 // ======================================================
@@ -762,8 +768,8 @@ export const subscriptionService = {
     payer: (id, data) =>
         api.post(`/abonnements/${id}/payer`, data),
 
-    renouveler: (id) =>
-        api.post(`/abonnements/${id}/renouveler`),
+    renouveler: (id, data) =>
+        api.post(`/abonnements/${id}/renouveler`, data || {}),
 
     getHistoriqueByTenant: (tenantId) =>
         api.get(`/abonnements/historique/${tenantId}`),
@@ -788,6 +794,31 @@ export const papiService = {
 
     getPayment: (id) =>
         api.get(`/papi/payments/${id}`),
+};
+
+// ======================================================
+// TENANT PAPI / VITRINE SETTINGS (admin principal uniquement)
+// ======================================================
+
+export const tenantPapiService = {
+    getStatus: () => api.get('/me/papi-settings'),
+
+    updateSettings: (data) => api.put('/me/papi-settings', data),
+
+    testConnection: () => api.post('/me/papi-settings/test'),
+
+    getVitrine: () => api.get('/me/vitrine'),
+
+    setVitrine: (enabled) => api.put('/me/vitrine', { enabled }),
+};
+
+// ======================================================
+// SUPER ADMIN — PAPI MARCHANDS OVERVIEW
+// ======================================================
+
+export const superAdminPapiService = {
+    getOverview: (params) =>
+        api.get('/super-admin/tenants/papi-overview', { params }),
 };
 
 // ======================================================

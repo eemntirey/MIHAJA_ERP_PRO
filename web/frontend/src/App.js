@@ -42,9 +42,11 @@ import Checkout from './pages/Checkout';
 import OrderTracking from './pages/OrderTracking';
 import SuperAdmin from './pages/SuperAdmin';
 import SuperAdminProfile from './pages/SuperAdminProfile';
+import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import Subscription from './pages/Subscription';
+import PaymentSettings from './pages/PaymentSettings';
 import Catalogue from './pages/Catalogue';
 import Suivi from './pages/Suivi';
 import Contact from './pages/Contact';
@@ -190,6 +192,7 @@ function App() {
                   <Route path="ai" element={<AI />} />
                   <Route path="documentation" element={<Documentation />} />
                   <Route path="subscription" element={<Subscription />} />
+                  <Route path="payment-settings" element={<PaymentSettings />} />
                   <Route path="delivery" element={<Delivery />} />
                   <Route path="hr" element={<HR />} />
                   <Route path="accounting" element={<Accounting />} />
@@ -197,6 +200,7 @@ function App() {
                   <Route path="purchases" element={<Purchases />} />
                   <Route path="super-admin" element={<SuperAdmin />} />
                   <Route path="super-admin/profile" element={<SuperAdminProfile />} />
+                  <Route path="profile" element={<Profile />} />
                   <Route path="users" element={<Users />} />
                   <Route path="roles" element={<Roles />} />
                   <Route path="permissions" element={<Permissions />} />

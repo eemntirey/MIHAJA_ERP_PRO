@@ -49,7 +49,11 @@ class Utilisateur(BaseModel):
     mobile = db.Column(db.String(20))
     
     role = db.Column(Enum(Role), default=Role.USER, nullable=False)
-    custom_role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), index=True)
+    custom_role_id = db.Column(
+        db.Integer,
+        db.ForeignKey('roles.id', use_alter=True, name='utilisateurs_custom_role_id_fkey'),
+        index=True,
+    )
     statut = db.Column(Enum(StatutUtilisateur), default=StatutUtilisateur.ACTIF)
     admin_statut = db.Column(Enum(StatutAdmin), default=StatutAdmin.ACTIVE)
     device_id = db.Column(db.String(255), nullable=True, index=True)

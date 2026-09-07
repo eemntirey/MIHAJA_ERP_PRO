@@ -1,5 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
+Set-Location $PSScriptRoot
+
 $containerName = 'erp-pg'
 
 Write-Host "Starting PostgreSQL container '$containerName'..."
@@ -26,11 +28,14 @@ if (-not $ready) {
     throw 'PostgreSQL did not become ready within 30 seconds.'
 }
 
-Write-Host 'Creating or synchronizing database tables...'
-python init_db.py
+$pythonCmd = if (Test-Path ".\venv\Scripts\python.exe") { ".\venv\Scripts\python.exe" } else { "python" }
 
-# init_db.py creates the current schema directly; stamp it before applying future migrations.
-flask --app 'app:create_app' db stamp head
-flask --app 'app:create_app' db upgrade
+Write-Host 'Creating or synchronizing database tables...'
+& $pythonCmd -c "from app import create_app, db; app = create_app(); ctx = app.app_context(); ctx.push(); db.create_all()"
+& $pythonCmd scripts/seed_roles.py
+
+# Stamp head before applying future migrations
+& $pythonCmd -m flask --app 'app:create_app' db stamp head
+& $pythonCmd -m flask --app 'app:create_app' db upgrade
 
 Write-Host 'PostgreSQL setup completed successfully.'

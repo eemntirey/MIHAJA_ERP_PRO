@@ -68,11 +68,58 @@ class TestRolePresets:
             assert role is not None, f"Role {role_name} not found"
             assert len(role.permissions) > 0, f"Role {role_name} has no permissions"
 
-    def test_super_admin_has_wildcard(self, app):
+    def test_super_admin_has_read_only_permissions_on_tenants(self, app):
+        # Regle metier : SUPER_ADMIN agit sur la PLATEFORME (tenants, abonnements,
+        # plans) et n'a qu'un acces en LECTURE SEULE aux donnees metier des
+        # tenants. Il ne dispose PAS d'une wildcard `*` : toute ecriture
+        # (create/update/delete) sur les ressources metier est reservee aux
+        # utilisateurs du tenant (admin, manager, ...).
+        sa_perms = ROLE_PERMISSIONS.get('super_admin', [])
+        assert sa_perms, "super_admin doit avoir une liste de permissions explicite"
+        assert '*' not in sa_perms, "super_admin ne doit PAS utiliser la wildcard"
+        # Acces plateforme obligatoire.
+        assert 'super_admin.access' in sa_perms
+        assert 'admin.access' in sa_perms
+        # Lecture seule sur les ressources metier des tenants.
+        for view_perm in [
+            'product.view', 'stock.view', 'sale.view', 'client.view',
+            'invoice.view', 'payment.view', 'compte.view', 'ecriture.view',
+            'tresorerie.view', 'delivery.view', 'report.view', 'dashboard.view',
+            'user.view',
+        ]:
+            assert view_perm in sa_perms, f"{view_perm} doit etre present pour super_admin"
+        # Aucune permission d'ecriture sur les ressources metier des tenants.
+        forbidden_writes = {
+            'product.create', 'product.update', 'product.delete',
+            'sale.create', 'sale.update', 'sale.delete',
+            'client.create', 'client.update', 'client.delete',
+            'invoice.create', 'invoice.update', 'payment.create',
+            'compte.create', 'compte.update', 'compte.delete',
+            'ecriture.create', 'ecriture.update', 'ecriture.delete',
+            'tresorerie.create', 'tresorerie.update', 'tresorerie.delete',
+            'stock.update', 'delivery.update',
+            'employe.create', 'employe.update', 'employe.delete',
+            'presence.create', 'presence.update', 'presence.delete',
+            'salaire.create', 'salaire.update', 'salaire.delete',
+            'prime.create', 'prime.update', 'prime.delete',
+            'stagiaire.create', 'stagiaire.update', 'stagiaire.delete',
+            'user.create', 'user.update', 'user.delete',
+            'notification.manage',
+        }
+        assert forbidden_writes.isdisjoint(sa_perms), (
+            "super_admin ne doit avoir AUCUNE permission d'ecriture sur les "
+            "ressources metier des tenants"
+        )
+        # En BDD, le seed peut creer ou non un RoleModel 'super_admin' selon
+        # la politique de la plateforme. S'il est cree, il ne doit JAMAIS
+        # contenir de permission d'ecriture sur les ressources metier.
         role = RoleModel.query.filter_by(name='super_admin').first()
-        assert role is not None
-        assert role.permissions == []
-        assert ROLE_PERMISSIONS.get('super_admin') == ['*']
+        if role is not None and role.permissions:
+            role_codes = {p.code for p in role.permissions}
+            assert forbidden_writes.isdisjoint(role_codes), (
+                "Le RoleModel super_admin en BDD ne doit contenir aucune "
+                "permission d'ecriture sur les ressources metier"
+            )
 
     def test_rh_permissions_exist(self, app):
         rh_perms = ['employe.view', 'employe.create', 'employe.update', 'employe.delete',

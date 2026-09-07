@@ -9,20 +9,42 @@ from app.models.paiement import Paiement, StatutPaiement
 from app.models.payment_event import PaymentEvent
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.tenant import Tenant, StatutTenant
+from app.services.commande_papi_service import parse_papi_reference
 from app.services.papi.errors import (
     PapiWebhookError,
     PapiDuplicateWebhookError,
     PapiInvalidStatusError,
 )
+from app.services.tenant_papi_service import get_webhook_secret_for_tenant
+from app.models.commande_client import CommandeClient, StatutCommande
 from app.config.settings import Config
 
 logger = logging.getLogger(__name__)
 
 
+def _resolve_webhook_secret(payload: dict) -> str:
+    """Détermine le secret webhook à utiliser.
+
+    Stratégie :
+    - Si la référence porte un tenant_id (CMD-<tenant>-... ou SUB-<tenant>-...),
+      on tente d'utiliser le secret webhook du tenant.
+    - Sinon (abonnements legacy, références non conformes), fallback sur
+      le secret plateforme ``Config.PAPI_WEBHOOK_SECRET``.
+    """
+    reference = (payload or {}).get('paymentReference', '')
+    parsed = parse_papi_reference(reference)
+    if parsed and parsed.get('tenant_id'):
+        tenant = db.session.get(Tenant, parsed['tenant_id'])
+        tenant_secret = get_webhook_secret_for_tenant(tenant) if tenant else None
+        if tenant_secret:
+            return tenant_secret
+    return getattr(Config, 'PAPI_WEBHOOK_SECRET', None) or ''
+
+
 def _verify_webhook_signature(payload: dict, headers) -> bool:
-    secret = getattr(Config, 'PAPI_WEBHOOK_SECRET', None)
+    secret = _resolve_webhook_secret(payload)
     if not secret:
-        logger.warning('PAPI_WEBHOOK_SECRET not configured; signature verification skipped')
+        logger.warning('Aucun secret webhook Papi disponible; vérification ignorée')
         return True
     signature_headers = [
         headers.get('X-Papi-Signature'),
@@ -194,6 +216,13 @@ def process_papi_webhook(payload: dict, headers=None) -> dict:
                         tenant.statut = StatutTenant.ACTIF
                         tenant.date_abonnement = datetime.utcnow()
                         db.session.add(tenant)
+
+        if paiement.commande_client_id:
+            commande = db.session.get(CommandeClient, paiement.commande_client_id)
+            if commande and commande.statut != StatutCommande.LIVREE:
+                if commande.statut == StatutCommande.EN_ATTENTE:
+                    commande.statut = StatutCommande.CONFIRMEE
+                db.session.add(commande)
 
     elif payment_status == 'FAILED':
         if paiement.statut != StatutPaiement.FAILED:

@@ -39,8 +39,12 @@ def init_socketio(app):
         # session (=> HTTP 400 sur le GET polling suivant) sous charge
         # ou en dev. Les clients socket.io-client se reconnectent
         # automatiquement de toute façon.
-        ping_timeout=60,
-        ping_interval=25,
+        # NOTE: on force polling uniquement sous Werkzeug ; les valeurs
+        # ping_timeout/interval doivent alors laisser au client le temps
+        # d'envoyer sa requête POST suivante (sinon le serveur purge la
+        # session et le GET polling reçoit "Session is disconnected" -> 400).
+        ping_timeout=120,
+        ping_interval=20,
         max_http_buffer_size=2 * 1024 * 1024,
         transports=transports,
     )

@@ -4,6 +4,8 @@ import { productService } from '../services/api';
 import { toast } from 'react-toastify';
 import { UNITS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
+import AccessButton from '../components/common/AccessButton';
+import { useAuth } from '../contexts/AuthContext';
 import FilterPanel from '../components/desktop/FilterPanel';
 import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
 import useFormDraft from '../hooks/useFormDraft';
@@ -71,7 +73,9 @@ const Products = () => {
       console.error('Error fetching products:', err);
       const msg = err.response?.data?.message || 'Échec du chargement des produits';
       setError(msg);
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -130,8 +134,10 @@ const Products = () => {
       closeModal();
     } catch (err) {
       console.error('Error saving product:', err);
-      const msg = err.response?.data?.message || 'Échec de la sauvegarde du produit';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Échec de la sauvegarde du produit';
+        toast.error(msg);
+      }
     }
   };
 
@@ -142,9 +148,11 @@ const Products = () => {
         toast.success('Produit supprimé avec succès');
         fetchProducts();
       } catch (err) {
-        console.error('Error deleting product:', err);
+console.error('Error deleting product:', err);
+      if (err.response?.status !== 403) {
         const msg = err.response?.data?.message || 'Échec de la suppression du produit';
         toast.error(msg);
+      }
       }
     }
   };
@@ -225,12 +233,22 @@ const Products = () => {
         align: 'center',
         render: (_value, row) => (
           <span className="dt-actions">
-            <button onClick={() => openModal(row)} className="btn-small btn-edit" title="Modifier">
+            <AccessButton
+              permission="product.update"
+              onClick={() => openModal(row)}
+              className="btn-small btn-edit"
+              title="Modifier"
+            >
               <i className="ti ti-edit" aria-hidden="true" />
-            </button>
-            <button onClick={() => handleDelete(row.id)} className="btn-small btn-delete" title="Supprimer">
+            </AccessButton>
+            <AccessButton
+              permission="product.delete"
+              onClick={() => handleDelete(row.id)}
+              className="btn-small btn-delete"
+              title="Supprimer"
+            >
               <i className="ti ti-trash" aria-hidden="true" />
-            </button>
+            </AccessButton>
           </span>
         ),
       },
@@ -328,9 +346,13 @@ const Products = () => {
           <p>Catalogue produits et suivi des stocks</p>
         </div>
         <div className="header-actions">
-          <button onClick={() => openModal()} className="btn-primary">
+          <AccessButton
+            permission="product.create"
+            onClick={() => openModal()}
+            className="btn-primary"
+          >
             + Ajouter un produit
-          </button>
+          </AccessButton>
           <button onClick={fetchProducts} className="btn-secondary" disabled={loading}>
             Rafraîchir
           </button>

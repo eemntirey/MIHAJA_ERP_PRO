@@ -349,13 +349,20 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                   <span>{formatRole(user?.role)}</span>
                 </div>
               </div>
-              {isSuperAdmin && (
+              {isSuperAdmin ? (
                 <Link to="/super-admin/profile" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
+                  <i className="ti ti-user" aria-hidden="true" /> Profil
+                </Link>
+              ) : (
+                <Link to="/profile" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
                   <i className="ti ti-user" aria-hidden="true" /> Profil
                 </Link>
               )}
               <Link to="/subscription" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
                 <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+              </Link>
+              <Link to="/payment-settings" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
+                <i className="ti ti-settings-cog" aria-hidden="true" /> Paramètres de paiement
               </Link>
               <button
                 type="button"

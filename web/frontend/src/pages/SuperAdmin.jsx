@@ -1,7 +1,12 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { tenantService, subscriptionService, superAdminPaymentService } from '../services/api';
+import {
+  tenantService,
+  subscriptionService,
+  superAdminPaymentService,
+  superAdminPapiService,
+} from '../services/api';
 import { VILLES_MADAGASCAR } from '../constants/erpConstants';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +58,20 @@ function getPaymentStatusBadge(statut) {
   return 'badge-info';
 }
 
+function KpiCard({ label, value, accent }) {
+  const accentClass = {
+    ok: 'kpi-card--ok',
+    info: 'kpi-card--info',
+    success: 'kpi-card--success',
+  }[accent] || '';
+  return (
+    <div className={`kpi-card ${accentClass}`}>
+      <div className="kpi-card__label">{label}</div>
+      <div className="kpi-card__value">{value}</div>
+    </div>
+  );
+}
+
 const SuperAdmin = () => {
   const { hasRole } = useAuth();
   const navigate = useNavigate();
@@ -93,6 +112,15 @@ const SuperAdmin = () => {
   const [paymentDetail, setPaymentDetail] = useState(null);
   const [paymentDetailLoading, setPaymentDetailLoading] = useState(false);
   const [showPaymentDetail, setShowPaymentDetail] = useState(false);
+
+  // Vue Papi marchands (super-admin)
+  const [papiOverview, setPapiOverview] = useState({ rows: [], summary: null });
+  const [papiLoading, setPapiLoading] = useState(false);
+  const [papiFilters, setPapiFilters] = useState({
+    search: '',
+    papi: '',
+    vitrine: '',
+  });
 
   useEffect(() => {
     if (!hasRole('SUPER_ADMIN')) {
@@ -234,6 +262,32 @@ const SuperAdmin = () => {
     fetchPaymentsStats(cleared);
   };
 
+  const fetchPapiOverview = useCallback(async (filters) => {
+    setPapiLoading(true);
+    try {
+      const params = {};
+      if (filters?.search) params.search = filters.search;
+      if (filters?.papi) params.papi = filters.papi;
+      if (filters?.vitrine) params.vitrine = filters.vitrine;
+      const { data } = await superAdminPapiService.getOverview(params);
+      setPapiOverview(data || { rows: [], summary: null });
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message ||
+          'Erreur chargement vue Papi marchands'
+      );
+      setPapiOverview({ rows: [], summary: null });
+    } finally {
+      setPapiLoading(false);
+    }
+  }, []);
+
+  const handlePapiReset = () => {
+    const cleared = { search: '', papi: '', vitrine: '' };
+    setPapiFilters(cleared);
+    fetchPapiOverview(cleared);
+  };
+
   useEffect(() => {
     fetchTenants();
   }, []);
@@ -263,6 +317,8 @@ const SuperAdmin = () => {
     } else if (activeTab === 'payments') {
       fetchPayments(paymentsFilters);
       fetchPaymentsStats(paymentsFilters);
+    } else if (activeTab === 'papi') {
+      fetchPapiOverview(papiFilters);
     }
     // NB : le rechargement des paiements est déclenché explicitement par
     // handlePaymentsSearch / handlePaymentsPageChange / handlePaymentsReset
@@ -401,7 +457,13 @@ const SuperAdmin = () => {
           className={`superadmin-tab ${activeTab === 'payments' ? 'superadmin-tab--active' : ''}`}
           onClick={() => setActiveTab('payments')}
         >
-          💰 Paiements & Revenus
+          Paiements & Revenus
+        </button>
+        <button
+          className={`superadmin-tab ${activeTab === 'papi' ? 'superadmin-tab--active' : ''}`}
+          onClick={() => setActiveTab('papi')}
+        >
+          Papi marchands
         </button>
       </div>
 
@@ -681,21 +743,21 @@ const SuperAdmin = () => {
           </div>
 
           {paymentsStats?.settlement && !paymentsStats.settlement.available && (
-            <div className="card" style={{
+            <div className="card card--warning" style={{
               marginBottom: '16px',
               padding: '12px 16px',
               backgroundColor: '#fff8e1',
               borderLeft: '4px solid #ff9800',
               fontSize: '13px',
             }}>
-              <strong>⚠️ Versements Papi :</strong> {paymentsStats.settlement.message}
+              <strong>Versements Papi :</strong> {paymentsStats.settlement.message}
               {paymentsStats?.papi_fees && !paymentsStats.papi_fees.available && (
                 <div style={{ marginTop: '6px' }}>
-                  <strong>💸 Frais Papi :</strong> {paymentsStats.papi_fees.message}
+                  <strong>Frais Papi :</strong> {paymentsStats.papi_fees.message}
                 </div>
               )}
               <div style={{ marginTop: '6px', color: '#5d4037' }}>
-                ℹ️ total_success représente la somme des paiements MIHAJA confirmés
+                total_success représente la somme des paiements MIHAJA confirmés
                 (SUCCESS/CONFIRME). Cela n'implique PAS un versement effectif sur le
                 compte bancaire MIHAJA.
               </div>
@@ -760,23 +822,42 @@ const SuperAdmin = () => {
 
           <div className="card full-width">
             <div className="card-header" style={{
-              padding: '12px 16px',
+              padding: '20px',
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '16px',
             }}>
               <h3 style={{ margin: 0, fontSize: '15px' }}>Transactions</h3>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <input
-                  type="search"
-                  placeholder="Recherche..."
-                  value={paymentsFilters.search}
-                  onChange={(e) => setPaymentsFilters((f) => ({
-                    ...f, search: e.target.value, page: 1,
-                  }))}
-                  className="form-input"
-                  style={{ minWidth: '180px' }}
-                />
+              <div className="actions-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '12px',
+                width: '100%',
+              }}>
+                <div className="search-row" style={{
+                  gridColumn: '1 / -1',
+                  display: 'flex',
+                  gap: '8px',
+                }}>
+                  <input
+                    type="search"
+                    placeholder="Recherche..."
+                    value={paymentsFilters.search}
+                    onChange={(e) => setPaymentsFilters((f) => ({
+                      ...f, search: e.target.value, page: 1,
+                    }))}
+                    className="form-input"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={handlePaymentsSearch}
+                    className="btn-primary"
+                    type="button"
+                  >
+                    Rechercher
+                  </button>
+                </div>
                 <select
                   value={paymentsFilters.status}
                   onChange={(e) => setPaymentsFilters((f) => ({
@@ -862,13 +943,6 @@ const SuperAdmin = () => {
                   className="form-input"
                   title="Date fin"
                 />
-                <button
-                  onClick={handlePaymentsSearch}
-                  className="btn-primary"
-                  type="button"
-                >
-                  Rechercher
-                </button>
                 <button
                   onClick={handlePaymentsReset}
                   className="btn-secondary"
@@ -980,6 +1054,214 @@ const SuperAdmin = () => {
         </>
       )}
 
+      {activeTab === 'papi' && (
+        <>
+          <div className="header-actions" style={{ marginBottom: '18px' }}>
+            <button
+              onClick={() => fetchPapiOverview(papiFilters)}
+              className="btn-secondary"
+              disabled={papiLoading}
+            >
+              Rafraîchir
+            </button>
+          </div>
+
+          {papiOverview.summary && (
+            <div className="kpi-grid" style={{ marginBottom: '18px' }}>
+              <KpiCard
+                label="Tenants total"
+                value={papiOverview.summary.total_tenants}
+              />
+              <KpiCard
+                label="Papi marchand configuré"
+                value={papiOverview.summary.papi_configured}
+                accent="ok"
+              />
+              <KpiCard
+                label="Vitrine activée"
+                value={papiOverview.summary.vitrine_enabled}
+                accent="info"
+              />
+              <KpiCard
+                label="Vitrine effectivement active"
+                value={papiOverview.summary.vitrine_active}
+                accent="success"
+              />
+            </div>
+          )}
+
+          <div className="public-card" style={{ marginBottom: '18px' }}>
+            <div className="public-card__header">
+              <div className="public-card__title">Filtres</div>
+            </div>
+            <hr className="public-divider" />
+            <div className="form-grid">
+              <div className="form-group">
+                <label htmlFor="papi-search">Recherche (nom / slug / email)</label>
+                <input
+                  id="papi-search"
+                  value={papiFilters.search}
+                  onChange={(e) =>
+                    setPapiFilters((f) => ({ ...f, search: e.target.value }))
+                  }
+                  placeholder="Rechercher…"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="papi-status">Configuration Papi</label>
+                <select
+                  id="papi-status"
+                  value={papiFilters.papi}
+                  onChange={(e) =>
+                    setPapiFilters((f) => ({ ...f, papi: e.target.value }))
+                  }
+                >
+                  <option value="">Tous</option>
+                  <option value="configured">Configuré</option>
+                  <option value="not_configured">Non configuré</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="papi-vitrine">Vitrine</label>
+                <select
+                  id="papi-vitrine"
+                  value={papiFilters.vitrine}
+                  onChange={(e) =>
+                    setPapiFilters((f) => ({ ...f, vitrine: e.target.value }))
+                  }
+                >
+                  <option value="">Tous</option>
+                  <option value="active">Active (Papi + toggle + statut)</option>
+                  <option value="enabled">Toggle activé</option>
+                  <option value="disabled">Toggle désactivé</option>
+                </select>
+              </div>
+            </div>
+            <div className="ps-actions" style={{ marginTop: '14px' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => fetchPapiOverview(papiFilters)}
+              >
+                Rechercher
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handlePapiReset}
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+
+          {papiLoading && papiOverview.rows.length === 0 ? (
+            <div className="loading-screen">
+              <div className="spinner-large"></div>
+              <p>Chargement…</p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>Plan / Statut</th>
+                    <th>Papi marchand</th>
+                    <th>Env.</th>
+                    <th>Vitrine</th>
+                    <th>Commandes</th>
+                    <th>Encaissé (Papi commandes)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {papiOverview.rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>
+                        Aucun tenant ne correspond à ces filtres.
+                      </td>
+                    </tr>
+                  ) : (
+                    papiOverview.rows.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{row.nom}</div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                            {row.slug}
+                            {row.email_contact ? ` · ${row.email_contact}` : ''}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge badge-info" style={{ marginRight: 6 }}>
+                            {row.plan || 'gratuit'}
+                          </span>
+                          <span
+                            className={`badge ${
+                              row.statut === 'actif'
+                                ? 'badge-success'
+                                : row.statut === 'en_essai'
+                                ? 'badge-info'
+                                : 'badge-warning'
+                            }`}
+                          >
+                            {row.statut}
+                          </span>
+                        </td>
+                        <td>
+                          {row.papi_configured ? (
+                            <span className="badge badge-success">
+                              Configuré
+                            </span>
+                          ) : (
+                            <span className="badge badge-warning">
+                              Non configuré
+                            </span>
+                          )}
+                          <div style={{ fontSize: '11px', color: '#6b7280', marginTop: 4 }}>
+                            {row.papi_configured_at
+                              ? `depuis ${new Date(row.papi_configured_at).toLocaleDateString('mg-MG')}`
+                              : '—'}
+                          </div>
+                        </td>
+                        <td>{row.papi_environment || '—'}</td>
+                        <td>
+                          {row.vitrine_active ? (
+                            <span className="badge badge-success">
+                              Active
+                            </span>
+                          ) : row.vitrine_enabled ? (
+                            <span className="badge badge-warning">
+                              Activée mais bloquée
+                            </span>
+                          ) : row.papi_configured ? (
+                            <span className="badge badge-info">Désactivée</span>
+                          ) : (
+                            <span className="badge badge-warning">
+                              Non configurée
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {row.commandes_total}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                            {row.commandes_paiements_count} payées en ligne
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {formatCurrency(row.commandes_paiements_total)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
       {showPaymentDetail && paymentDetail && (
         <div className="modal-overlay" onClick={() => setShowPaymentDetail(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -1050,21 +1332,21 @@ const SuperAdmin = () => {
                 paymentDetail.settlement.available ? (
                   <div>{/* Non disponible actuellement */}</div>
                 ) : (
-                  <div className="card" style={{
+                  <div className="card card--warning" style={{
                     padding: '12px',
                     backgroundColor: '#fff8e1',
                     borderLeft: '4px solid #ff9800',
                   }}>
                     <div style={{ fontSize: '13px' }}>
-                      ℹ️ {paymentDetail.settlement.message}
+                      {paymentDetail.settlement.message}
                     </div>
                     <div style={{ fontSize: '13px', marginTop: '6px' }}>
-                      💸 {paymentDetail.papi_fees?.available
+                      {paymentDetail.papi_fees?.available
                         ? `Frais Papi réels : ${formatCurrency(paymentDetail.papi_fees.fee, paymentDetail.devise)}`
                         : `Frais Papi : ${paymentDetail.papi_fees?.message || 'Non disponible'}`}
                     </div>
                     <div style={{ fontSize: '13px', marginTop: '6px' }}>
-                      💰 Net à recevoir : {paymentDetail.net_amount?.available
+                      Net à recevoir : {paymentDetail.net_amount?.available
                         ? formatCurrency(paymentDetail.net_amount.montant, paymentDetail.net_amount.devise)
                         : (paymentDetail.net_amount?.message || 'Non disponible')}
                     </div>
@@ -1120,19 +1402,19 @@ const SuperAdmin = () => {
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label htmlFor="nom">Nom</label>
-                  <input id="nom" name="nom" value={formData.nom} onChange={handleChange} required />
+                  <input id="nom" name="nom" value={formData.nom} onChange={handleChange} required disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
                 <div className="form-group full-width">
                   <label htmlFor="email">Email</label>
-                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="telephone">Téléphone</label>
-                  <input id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} />
+                  <input id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="pays">Pays</label>
-                  <select id="pays" name="pays" value={formData.pays} onChange={handleChange}>
+                  <select id="pays" name="pays" value={formData.pays} onChange={handleChange} disabled={!!editingTenant}>
                     <option value="Madagascar">Madagascar</option>
                     <option value="Comores">Comores</option>
                     <option value="Maurice">Maurice</option>
@@ -1144,11 +1426,11 @@ const SuperAdmin = () => {
                 </div>
                 <div className="form-group full-width">
                   <label htmlFor="adresse">Adresse</label>
-                  <input id="adresse" name="adresse" value={formData.adresse} onChange={handleChange} />
+                  <input id="adresse" name="adresse" value={formData.adresse} onChange={handleChange} disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="ville">Ville</label>
-                  <select id="ville" name="ville" value={formData.ville} onChange={handleChange}>
+                  <select id="ville" name="ville" value={formData.ville} onChange={handleChange} disabled={!!editingTenant}>
                     <option value="">Sélectionnez une ville</option>
                     {VILLES_MADAGASCAR.map(v => (
                       <option key={v} value={v}>{v}</option>
@@ -1157,7 +1439,7 @@ const SuperAdmin = () => {
                 </div>
                 <div className="form-group">
                   <label htmlFor="code_postal">Code postal</label>
-                  <input id="code_postal" name="code_postal" value={formData.code_postal} onChange={handleChange} />
+                  <input id="code_postal" name="code_postal" value={formData.code_postal} onChange={handleChange} disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="statut">Statut</label>

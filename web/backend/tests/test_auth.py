@@ -43,5 +43,5 @@ def test_login_rejects_incomplete_session_response(app):
 
     assert response.status_code == 500
     assert response.get_json() == {
-        'message': 'Le service dâ€™authentification nâ€™a pas gÃ©nÃ©rÃ© une session valide'
+        'message': 'Le service d\u2019authentification n\u2019a pas g\u00e9n\u00e9r\u00e9 une session valide'
     }
