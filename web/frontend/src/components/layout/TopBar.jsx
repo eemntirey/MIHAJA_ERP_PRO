@@ -198,8 +198,12 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
           )}
         </div>
 
-        {hasRole('super_admin') && (
+        {hasRole('super_admin') ? (
           <button type="button" className="topbar-icon" onClick={() => navigate('/super-admin/profile')} title="Profil utilisateur" aria-label="Profil utilisateur">
+            <i className="ti ti-user" aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className="topbar-icon" onClick={() => navigate('/profile')} title="Mon profil" aria-label="Mon profil">
             <i className="ti ti-user" aria-hidden="true" />
           </button>
         )}

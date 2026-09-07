@@ -6,7 +6,7 @@ Couvre :
 - premiere connexion -> flag must_change_password
 - endpoint /auth/first-login-change -> must_change_password=False
 - changement volontaire /auth/change-password (ancien + nouveau + confirmation)
-- mot de passe oublie (forgot-password) avec token hashé en base
+- mot de passe oublie (forgot-password) avec token hashÃ© en base
 - verification du token
 - reset-password + invalidation token
 - notification email apres changement/reset
@@ -22,7 +22,7 @@ import re
 import secrets
 from datetime import datetime, timedelta
 
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
 os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret')
 

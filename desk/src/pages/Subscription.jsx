@@ -34,10 +34,28 @@ const PLAN_COLORS = {
 };
 
 const PLAN_FEATURES = {
-  gratuit: ['1 utilisateur', 'Support email'],
-  starter: ['3 employés', 'Support prioritaire', 'Statistiques basiques'],
-  pro: ['7 employés', 'Support dédié', 'Modules presque complets', 'IA incluse'],
-  enterprise: ['Employés illimités', 'Support 24/7', 'Tous modules', 'SLA garanti', 'Formation'],
+  gratuit: [
+    '1 utilisateur (admin seul)',
+    'Support email',
+  ],
+  starter: [
+    '3 utilisateurs (admin + 2 employés)',
+    'Support prioritaire',
+    'Statistiques basiques',
+  ],
+  pro: [
+    '7 utilisateurs (admin + 6 employés)',
+    'Support dédié',
+    'Modules presque complets',
+    'IA incluse',
+  ],
+  enterprise: [
+    'Utilisateurs et employés illimités',
+    'Support 24/7',
+    'Tous modules',
+    'SLA garanti',
+    'Formation',
+  ],
 };
 
 const PAYMENT_METHODS = [
@@ -86,6 +104,11 @@ const Subscription = () => {
   const [tenantSummary, setTenantSummary] = useState(null);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [isFreePlan, setIsFreePlan] = useState(false);
+
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewPlan, setRenewPlan] = useState(null);
+  const [renewPaymentMethod, setRenewPaymentMethod] = useState('MVOLA');
 
   const paymentWindowRef = useRef(null);
   const messageHandlerRef = useRef(null);
@@ -100,6 +123,7 @@ const Subscription = () => {
       setSubscription(subRes.data?.abonnement ?? null);
       setCanRenew(Boolean(subRes.data?.can_renew));
       setTenantSummary(subRes.data?.tenant || null);
+      setIsFreePlan(Boolean(subRes.data?.is_free_plan));
       setHistorique(histRes.data?.abonnements || histRes.data || []);
       fetchSubscriptionStatus();
     } catch (err) {
@@ -251,8 +275,30 @@ const Subscription = () => {
   const handleRenouveler = async (subId) => {
     try {
       setActionLoading(true);
-      await subscriptionService.renouveler(subId);
-      toast.success('Abonnement renouvelé');
+      const payload = {};
+      if (renewPlan && subscription && renewPlan !== subscription.plan) {
+        payload.plan = renewPlan;
+      }
+      if (renewPaymentMethod) {
+        payload.payment_method = renewPaymentMethod;
+      }
+      await subscriptionService.renouveler(subId, payload);
+      const changedPlan = renewPlan && subscription && renewPlan !== subscription.plan;
+      const changedMethod = renewPaymentMethod && (
+        !subscription?.methode_paiement ||
+        subscription.methode_paiement.toUpperCase() !== renewPaymentMethod.toUpperCase()
+      );
+      if (changedPlan && changedMethod) {
+        toast.success('Abonnement renouvelé avec changement de plan et de mode de paiement');
+      } else if (changedPlan) {
+        toast.success('Abonnement renouvelé avec changement de plan');
+      } else if (changedMethod) {
+        toast.success('Abonnement renouvelé avec un nouveau mode de paiement');
+      } else {
+        toast.success('Abonnement renouvelé');
+      }
+      setShowRenewModal(false);
+      setRenewPlan(null);
       fetchData();
       fetchSubscriptionStatus();
     } catch (err) {
@@ -264,13 +310,23 @@ const Subscription = () => {
     }
   };
 
+  const openRenewModal = () => {
+    setRenewPlan(subscription?.plan || null);
+    setRenewPaymentMethod(
+      (subscription?.methode_paiement || 'MVOLA').toUpperCase()
+    );
+    setShowRenewModal(true);
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('fr-FR', {
       day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Indian/Antananarivo',
     });
   };
 
@@ -322,7 +378,7 @@ const Subscription = () => {
             {subscription.montant != null && (
               <div className="stat-card">
                 <div className="stat-label">Montant</div>
-                <div className="stat-value">{Number(subscription.montant).toLocaleString('mg-MG')} Ar</div>
+                <div className="stat-value">{Number(subscription.montant).toLocaleString('fr-FR')} Ar</div>
               </div>
             )}
             {subscription.max_utilisateurs != null && (
@@ -369,24 +425,44 @@ const Subscription = () => {
               </button>
             </div>
           )}
-          {(isExpired || isActive) && canRenew && (
+          {(isExpired || (isActive && !isFreePlan)) && canRenew && (
             <div className="subscription-status-card__actions">
               <button
                 className="btn-secondary"
-                onClick={() => handleRenouveler(subscription.id)}
+                onClick={openRenewModal}
                 disabled={actionLoading}
               >
                 {actionLoading ? 'Traitement...' : 'Renouveler'}
               </button>
             </div>
           )}
+          {isActive && isFreePlan && canRenew && (
+            <div className="subscription-status-card__actions">
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  const plansSection = document.getElementById('subscription-plans-anchor');
+                  if (plansSection) {
+                    plansSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                disabled={actionLoading}
+              >
+                Passer a un plan payant
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {(!subscription || isExpired) && canRenew ? (
-        <section className="subscription-plans-section">
+      {(!subscription || isExpired || isFreePlan) && canRenew ? (
+        <section className="subscription-plans-section" id="subscription-plans-anchor">
           <h3 style={{ marginBottom: '18px', fontSize: '18px', fontWeight: 700 }}>
-            {isExpired ? 'Choisissez un nouveau plan' : 'Choisissez votre plan'}
+            {isExpired
+              ? 'Choisissez un nouveau plan'
+              : isFreePlan
+              ? 'Passez à un plan payant'
+              : 'Choisissez votre plan'}
           </h3>
           {plansLoading ? (
             <div className="loading-screen">
@@ -395,7 +471,9 @@ const Subscription = () => {
             </div>
           ) : (
             <div className="subscription-plans-grid">
-                {plans.map((plan) => {
+                {plans
+                  .filter((plan) => plan.code !== 'gratuit')
+                  .map((plan) => {
                   const couleur = PLAN_COLORS[plan.code] || '#6e9b79';
                   const features = PLAN_FEATURES[plan.code] || [];
                   return (
@@ -419,7 +497,7 @@ const Subscription = () => {
                         disabled={actionLoading || selectedPlan === plan.code}
                         style={{ backgroundColor: couleur }}
                       >
-                        {selectedPlan === plan.code ? 'Traitement...' : plan.prix === 0 ? 'Commencer' : 'S\'abonner'}
+                        {selectedPlan === plan.code ? 'Traitement...' : 'S\'abonner'}
                       </button>
                     </div>
                   );
@@ -449,10 +527,10 @@ const Subscription = () => {
               <tbody>
                 {papiPayments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{payment.created_at ? new Date(payment.created_at).toLocaleDateString('mg-MG') : '-'}</td>
+                    <td>{payment.created_at ? formatDate(payment.created_at) : '-'}</td>
                     <td>{payment.external_reference || payment.reference || `#${payment.id}`}</td>
                     <td>{payment.payment_method || '-'}</td>
-                    <td>{Number(payment.montant || 0).toFixed(2)} Ar</td>
+                    <td>{Number(payment.montant || 0).toLocaleString('fr-FR')} Ar</td>
                     <td>
                       <span className={`badge ${getPaymentStatusBadge(payment.statut)}`}>
                         {payment.statut || 'INCONNU'}
@@ -496,7 +574,7 @@ const Subscription = () => {
                         background: selectedPaymentMethod === method.value ? '#eff6ff' : '#fff',
                       }}
                     >
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>{method.nom}</div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#1e293b' }}>{method.nom}</div>
                     </div>
                   ))}
                 </div>
@@ -516,6 +594,234 @@ const Subscription = () => {
                 disabled={actionLoading || !selectedPaymentMethod}
               >
                 {actionLoading ? 'Traitement...' : 'Payer maintenant'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenewModal && subscription && (
+        <div className="modal-overlay" onClick={() => !actionLoading && setShowRenewModal(false)}>
+          <div className="modal modal--renew" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Renouveler l'abonnement</h2>
+              <button
+                onClick={() => setShowRenewModal(false)}
+                className="btn-close"
+                disabled={actionLoading}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="renew-modal__intro">
+                Choisissez le plan pour votre renouvellement. Vous pouvez conserver
+                votre plan actuel ou en changer (upgrade / downgrade).
+              </p>
+
+              {plansLoading ? (
+                <div className="loading-screen">
+                  <div className="spinner-large"></div>
+                  <p>Chargement des plans...</p>
+                </div>
+              ) : (
+                <div className="subscription-plans-grid renew-modal__plans">
+                  {plans
+                    .filter((plan) => plan.code !== 'gratuit')
+                    .map((plan) => {
+                    const couleur = PLAN_COLORS[plan.code] || '#6e9b79';
+                    const features = PLAN_FEATURES[plan.code] || [];
+                    const isCurrent = subscription.plan === plan.code;
+                    const isSelected = renewPlan === plan.code;
+                    const order = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 };
+                    const currentOrder = order[subscription.plan] ?? 0;
+                    const planOrder = order[plan.code] ?? 0;
+                    const direction =
+                      planOrder > currentOrder
+                        ? 'upgrade'
+                        : planOrder < currentOrder
+                        ? 'downgrade'
+                        : 'same';
+                    return (
+                      <div
+                        key={plan.code}
+                        className={`subscription-plan-card renew-modal__plan ${isSelected ? 'renew-modal__plan--selected' : ''}`}
+                        style={{ borderTop: `3px solid ${couleur}` }}
+                        onClick={() => !actionLoading && setRenewPlan(plan.code)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ' ') && !actionLoading) {
+                            setRenewPlan(plan.code);
+                          }
+                        }}
+                      >
+                        <div className="subscription-plan-card__header">
+                          <div className="renew-modal__plan-title">
+                            <h4>{plan.label}</h4>
+                            {isCurrent && (
+                              <span className="badge badge-info renew-modal__current-badge">
+                                Actuel
+                              </span>
+                            )}
+                          </div>
+                          <div className="subscription-plan-card__price">
+                            <span className="subscription-plan-card__amount">{formatPlanPrice(plan.prix)}</span>
+                            {plan.prix > 0 && (
+                              <span className="subscription-plan-card__period">{formatPlanDuration(plan.duree_jours)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="subscription-plan-card__limits">
+                          {formatPlanLimits(plan.max_utilisateurs, plan.max_employees)}
+                        </p>
+                        <ul className="subscription-plan-card__features">
+                          {features.map((feature, idx) => (
+                            <li key={idx}>{feature}</li>
+                          ))}
+                        </ul>
+                        {direction === 'upgrade' && (
+                          <span className="renew-modal__direction renew-modal__direction--upgrade">
+                            ↑ Upgrade
+                          </span>
+                        )}
+                        {direction === 'downgrade' && (
+                          <span className="renew-modal__direction renew-modal__direction--downgrade">
+                            ↓ Downgrade
+                          </span>
+                        )}
+                        {direction === 'same' && !isCurrent && (
+                          <span className="renew-modal__direction renew-modal__direction--same">
+                            = Même niveau
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="renew-modal__payment">
+                <label className="renew-modal__payment-label">
+                  Mode de paiement pour ce renouvellement
+                </label>
+                <p className="renew-modal__payment-hint">
+                  Vous pouvez choisir un mode différent de votre paiement initial.
+                </p>
+                <div className="payment-methods-grid">
+                  {PAYMENT_METHODS.map((method) => {
+                    const isCurrentMethod =
+                      subscription?.methode_paiement &&
+                      subscription.methode_paiement.toUpperCase() === method.value;
+                    return (
+                      <div
+                        key={method.id}
+                        onClick={() => !actionLoading && setRenewPaymentMethod(method.value)}
+                        className={`renew-modal__payment-option ${
+                          renewPaymentMethod === method.value
+                            ? 'renew-modal__payment-option--selected'
+                            : ''
+                        }`}
+                      >
+                        <div className="renew-modal__payment-name">{method.nom}</div>
+                        {isCurrentMethod && (
+                          <span className="renew-modal__payment-current">Actuel</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {renewPlan && plans.find((p) => p.code === renewPlan) && (
+                <div className="renew-modal__summary">
+                  {(() => {
+                    const chosen = plans.find((p) => p.code === renewPlan);
+                    const currentOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[subscription.plan] ?? 0;
+                    const chosenOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[renewPlan] ?? 0;
+                    const isChange = chosenOrder !== currentOrder;
+                    const currentMethodLabel =
+                      PAYMENT_METHODS.find(
+                        (m) =>
+                          subscription?.methode_paiement &&
+                          subscription.methode_paiement.toUpperCase() === m.value
+                      )?.nom || subscription?.methode_paiement || '-';
+                    const newMethodLabel =
+                      PAYMENT_METHODS.find((m) => m.value === renewPaymentMethod)?.nom ||
+                      renewPaymentMethod;
+                    const isMethodChange =
+                      !subscription?.methode_paiement ||
+                      subscription.methode_paiement.toUpperCase() !== (renewPaymentMethod || '').toUpperCase();
+                    return (
+                      <>
+                        <div className="renew-modal__summary-row">
+                          <span>Plan actuel</span>
+                          <strong>{subscription.plan}</strong>
+                        </div>
+                        <div className="renew-modal__summary-row">
+                          <span>Nouveau plan</span>
+                          <strong>{chosen.label}</strong>
+                        </div>
+                        <div className="renew-modal__summary-row">
+                          <span>Montant</span>
+                          <strong>{formatPlanPrice(chosen.prix)}</strong>
+                        </div>
+                        <div className="renew-modal__summary-row">
+                          <span>Mode de paiement</span>
+                          <strong>
+                            {newMethodLabel}
+                            {isMethodChange && (
+                              <span className="renew-modal__summary-tag"> (changement)</span>
+                            )}
+                          </strong>
+                        </div>
+                        <p className="renew-modal__summary-note">
+                          {isChange
+                            ? 'Votre plan sera modifié pour ce renouvellement.'
+                            : 'Votre plan actuel sera conservé.'}
+                          {isMethodChange && (
+                            <> Le mode de paiement passera de <strong>{currentMethodLabel}</strong> à <strong>{newMethodLabel}</strong>.</>
+                          )}
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRenewModal(false);
+                  setRenewPlan(null);
+                  setRenewPaymentMethod('MVOLA');
+                }}
+                className="btn-secondary"
+                disabled={actionLoading}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRenouveler(subscription.id)}
+                className="btn-primary"
+                disabled={actionLoading || !renewPlan || !renewPaymentMethod}
+              >
+                {actionLoading
+                  ? 'Traitement...'
+                  : (() => {
+                      const planChanged =
+                        renewPlan && subscription && renewPlan !== subscription.plan;
+                      const methodChanged =
+                        !subscription?.methode_paiement ||
+                        subscription.methode_paiement.toUpperCase() !==
+                          (renewPaymentMethod || '').toUpperCase();
+                      if (planChanged && methodChanged) return 'Renouveler (plan + paiement)';
+                      if (planChanged) return 'Changer de plan et renouveler';
+                      if (methodChanged) return 'Renouveler avec ce mode de paiement';
+                      return 'Renouveler';
+                    })()}
               </button>
             </div>
           </div>

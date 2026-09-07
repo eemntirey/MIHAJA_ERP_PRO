@@ -10,7 +10,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
 os.environ.setdefault('PAPI_API_URL', 'https://test.papi.mg/dashboard/api/payment-links')
 os.environ.setdefault('PAPI_API_KEY', 'test-api-key')
 os.environ.setdefault('PAPI_ENVIRONMENT', 'sandbox')

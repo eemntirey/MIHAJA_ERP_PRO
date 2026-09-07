@@ -1,21 +1,21 @@
-"""Sécurité RBAC - module Rôles.
+"""SÃ©curitÃ© RBAC - module RÃ´les.
 
-Vérifie la règle métier stricte :
+VÃ©rifie la rÃ¨gle mÃ©tier stricte :
 
-    - Un SUPER_ADMIN voit SUPER_ADMIN + tous les rôles.
+    - Un SUPER_ADMIN voit SUPER_ADMIN + tous les rÃ´les.
     - Un TENANT (admin tenant) NE DOIT JAMAIS voir SUPER_ADMIN, ni dans la
       liste, ni dans les presets, ni via GET direct sur /roles/<id>, ni en
-      POST/création, ni en PUT/modification. Il ne peut pas non plus
-      assigner ce rôle à un utilisateur via /users (POST/PUT).
+      POST/crÃ©ation, ni en PUT/modification. Il ne peut pas non plus
+      assigner ce rÃ´le Ã  un utilisateur via /users (POST/PUT).
 
-Ce test couvre l'API backend. Le frontend (Roles.jsx) applique déjà un
-filtrage équivalent via useAuth().user.role comme défense en profondeur.
+Ce test couvre l'API backend. Le frontend (Roles.jsx) applique dÃ©jÃ  un
+filtrage Ã©quivalent via useAuth().user.role comme dÃ©fense en profondeur.
 """
 import os
 import sys
 from datetime import datetime, timedelta
 
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
 os.environ.setdefault('PAPI_API_URL', 'https://test.papi.mg/dashboard/api/payment-links')
 os.environ.setdefault('PAPI_API_KEY', 'test-api-key')
 os.environ.setdefault('PAPI_ENVIRONMENT', 'sandbox')
@@ -82,7 +82,7 @@ def _login_token(user_id, tenant_id=None, tenant_slug=None, role='admin'):
 
 
 # --------------------------------------------------------------------------- #
-# Cas 1 - SUPER_ADMIN : voit SUPER_ADMIN + autres rôles
+# Cas 1 - SUPER_ADMIN : voit SUPER_ADMIN + autres rÃ´les
 # --------------------------------------------------------------------------- #
 def test_super_admin_sees_super_admin_role_and_others():
     app = create_app()
@@ -100,11 +100,11 @@ def test_super_admin_sees_super_admin_role_and_others():
         assert r.status_code == 200, r.get_json()
         names = [x['name'] for x in r.get_json()['roles']]
         assert SUPER_ADMIN in names, (
-            f"SUPER_ADMIN doit voir le rôle '{SUPER_ADMIN}'. Liste={names}"
+            f"SUPER_ADMIN doit voir le rÃ´le '{SUPER_ADMIN}'. Liste={names}"
         )
-        # Et les autres rôles système
+        # Et les autres rÃ´les systÃ¨me
         for n in ('admin', 'manager', 'user', 'rh'):
-            assert n in names, f"Role système '{n}' manquant côté SUPER_ADMIN"
+            assert n in names, f"Role systÃ¨me '{n}' manquant cÃ´tÃ© SUPER_ADMIN"
 
 
 # --------------------------------------------------------------------------- #
@@ -132,7 +132,7 @@ def test_tenant_does_not_see_super_admin_in_list_or_presets():
             f"BUG RBAC : un tenant voit '{SUPER_ADMIN}' dans la liste. "
             f"Liste={names}"
         )
-        # Et les rôles normaux restent visibles
+        # Et les rÃ´les normaux restent visibles
         for n in ('admin', 'manager', 'user', 'rh'):
             assert n in names, f"Role '{n}' manquant pour le tenant"
 
@@ -141,13 +141,13 @@ def test_tenant_does_not_see_super_admin_in_list_or_presets():
         assert r.status_code == 200, r.get_json()
         presets = [p['name'] for p in r.get_json()['presets']]
         assert SUPER_ADMIN not in presets, (
-            f"BUG RBAC : '{SUPER_ADMIN}' présent dans les presets du tenant. "
+            f"BUG RBAC : '{SUPER_ADMIN}' prÃ©sent dans les presets du tenant. "
             f"Presets={presets}"
         )
 
 
 # --------------------------------------------------------------------------- #
-# Cas 3 - TENANT : impossible de récupérer SUPER_ADMIN par id
+# Cas 3 - TENANT : impossible de rÃ©cupÃ©rer SUPER_ADMIN par id
 # --------------------------------------------------------------------------- #
 def test_tenant_cannot_fetch_super_admin_role_by_id():
     app = create_app()
@@ -160,7 +160,7 @@ def test_tenant_cannot_fetch_super_admin_role_by_id():
         sa_role = RoleModel.query.filter(
             db.func.lower(RoleModel.name) == SUPER_ADMIN
         ).first()
-        assert sa_role is not None, "Le rôle SUPER_ADMIN doit exister en base"
+        assert sa_role is not None, "Le rÃ´le SUPER_ADMIN doit exister en base"
         t = _make_tenant('t_rbac_get')
         admin = _make_admin(t, 'admin_rbac_get')
         client = app.test_client()
@@ -174,7 +174,7 @@ def test_tenant_cannot_fetch_super_admin_role_by_id():
 
 
 # --------------------------------------------------------------------------- #
-# Cas 4 - TENANT : impossible de créer un rôle nommé 'super_admin'
+# Cas 4 - TENANT : impossible de crÃ©er un rÃ´le nommÃ© 'super_admin'
 # --------------------------------------------------------------------------- #
 def test_tenant_cannot_create_super_admin_role():
     app = create_app()
@@ -194,13 +194,13 @@ def test_tenant_cannot_create_super_admin_role():
                 'name': variant, 'display_name': 'X',
             })
             assert r.status_code == 403, (
-                f"BUG RBAC : un tenant peut créer le rôle '{variant}' "
+                f"BUG RBAC : un tenant peut crÃ©er le rÃ´le '{variant}' "
                 f"(status={r.status_code}, body={r.get_json()})"
             )
 
 
 # --------------------------------------------------------------------------- #
-# Cas 5 - TENANT : impossible de renommer un rôle en 'super_admin'
+# Cas 5 - TENANT : impossible de renommer un rÃ´le en 'super_admin'
 # --------------------------------------------------------------------------- #
 def test_tenant_cannot_rename_role_to_super_admin():
     app = create_app()
@@ -215,7 +215,7 @@ def test_tenant_cannot_rename_role_to_super_admin():
         client = app.test_client()
         token = _login_token(admin.id, t.id, t.slug, 'admin')
         h = {'Authorization': 'Bearer ' + token}
-        # Le tenant crée un rôle custom
+        # Le tenant crÃ©e un rÃ´le custom
         r = client.post('/api/v1/roles', headers=h, json={
             'name': 'role_a_renommer', 'display_name': 'A',
         })
@@ -228,7 +228,7 @@ def test_tenant_cannot_rename_role_to_super_admin():
             f"BUG RBAC : un tenant peut renommer en super_admin "
             f"(status={r.status_code}, body={r.get_json()})"
         )
-        # Et il ne doit pas avoir été renommé
+        # Et il ne doit pas avoir Ã©tÃ© renommÃ©
         r = client.get('/api/v1/roles', headers=h)
         names_after = [x['name'] for x in r.get_json()['roles']]
         assert 'role_a_renommer' in names_after
@@ -236,7 +236,7 @@ def test_tenant_cannot_rename_role_to_super_admin():
 
 
 # --------------------------------------------------------------------------- #
-# Cas 6 - TENANT : impossible de modifier le rôle SUPER_ADMIN
+# Cas 6 - TENANT : impossible de modifier le rÃ´le SUPER_ADMIN
 # --------------------------------------------------------------------------- #
 def test_tenant_cannot_modify_super_admin_role():
     app = create_app()
@@ -263,7 +263,7 @@ def test_tenant_cannot_modify_super_admin_role():
 
 
 # --------------------------------------------------------------------------- #
-# Cas 7 - TENANT : impossible d'assigner SUPER_ADMIN à un utilisateur
+# Cas 7 - TENANT : impossible d'assigner SUPER_ADMIN Ã  un utilisateur
 # --------------------------------------------------------------------------- #
 def test_tenant_cannot_assign_super_admin_to_user():
     app = create_app()
@@ -285,7 +285,7 @@ def test_tenant_cannot_assign_super_admin_to_user():
             'password': 'Password123!', 'role': 'super_admin',
         })
         assert r.status_code == 403, (
-            f"BUG RBAC : un tenant peut créer un user super_admin "
+            f"BUG RBAC : un tenant peut crÃ©er un user super_admin "
             f"(status={r.status_code}, body={r.get_json()})"
         )
 
@@ -306,13 +306,13 @@ def test_tenant_cannot_assign_super_admin_to_user():
         r = client.put(f'/api/v1/users/{target.id}', headers=h,
                        json={'custom_role_id': sa_role.id})
         assert r.status_code == 403, (
-            f"BUG RBAC : un tenant peut assigner le rôle custom SUPER_ADMIN "
+            f"BUG RBAC : un tenant peut assigner le rÃ´le custom SUPER_ADMIN "
             f"(status={r.status_code}, body={r.get_json()})"
         )
 
 
 # --------------------------------------------------------------------------- #
-# Cas 8 - SUPER_ADMIN : peut toujours créer / modifier SUPER_ADMIN
+# Cas 8 - SUPER_ADMIN : peut toujours crÃ©er / modifier SUPER_ADMIN
 # --------------------------------------------------------------------------- #
 def test_super_admin_can_still_create_super_admin():
     app = create_app()
@@ -328,7 +328,7 @@ def test_super_admin_can_still_create_super_admin():
         h = {'Authorization': 'Bearer ' + token}
         r = client.get('/api/v1/roles', headers=h)
         assert r.status_code == 200
-        # Le rôle SUPER_ADMIN reste visible pour SUPER_ADMIN
+        # Le rÃ´le SUPER_ADMIN reste visible pour SUPER_ADMIN
         names = [x['name'] for x in r.get_json()['roles']]
         assert SUPER_ADMIN in names
 
@@ -342,4 +342,4 @@ if __name__ == '__main__':
     test_tenant_cannot_modify_super_admin_role()
     test_tenant_cannot_assign_super_admin_to_user()
     test_super_admin_can_still_create_super_admin()
-    print('OK : tous les contrôles RBAC du module Rôles sont conformes.')
+    print('OK : tous les contrÃ´les RBAC du module RÃ´les sont conformes.')

@@ -160,6 +160,8 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             console.error('Erreur inscription:', error);
             const message =
                 error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.response?.statusText ||
                 error.message ||
                 'Erreur lors de la création du compte';
             toast.error(message);

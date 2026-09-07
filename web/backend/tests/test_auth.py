@@ -7,7 +7,7 @@ from app import create_app
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     app = create_app()
     app.config.update(TESTING=True)
     return app
@@ -43,5 +43,5 @@ def test_login_rejects_incomplete_session_response(app):
 
     assert response.status_code == 500
     assert response.get_json() == {
-        'message': 'Le service d’authentification n’a pas généré une session valide'
+        'message': 'Le service d\u2019authentification n\u2019a pas g\u00e9n\u00e9r\u00e9 une session valide'
     }

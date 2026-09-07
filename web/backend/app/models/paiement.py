@@ -36,6 +36,9 @@ class Paiement(BaseTenantModel):
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), index=True)
     fournisseur_id = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), index=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('abonnements.id'), index=True, nullable=True)
+    commande_client_id = db.Column(
+        db.Integer, db.ForeignKey('commandes_client.id'), index=True, nullable=True
+    )
     montant = db.Column(Numeric(10, 2), nullable=False, default=0.00)
     mode_paiement = db.Column(db.String(50), default='especes')  # espece/virement/cheque/orange_money/airtel_money
     operateur_mobile = db.Column(db.String(50))  # Orange, Airtel, etc.

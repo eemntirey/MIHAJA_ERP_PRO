@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { clientService } from '../services/api';
 import { toast } from 'react-toastify';
 import ClientModal from '../components/ClientModal';
+import AccessButton from '../components/common/AccessButton';
 import { CLIENT_TYPES, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 
@@ -27,7 +28,9 @@ const Clients = () => {
       console.error('Error fetching clients:', err);
       const msg = err.response?.data?.message || 'Échec du chargement des clients';
       setError(msg);
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -55,8 +58,10 @@ const Clients = () => {
         fetchClients();
       } catch (err) {
         console.error('Error deleting client:', err);
-        const msg = err.response?.data?.message || 'Échec de la suppression du client';
-        toast.error(msg);
+        if (err.response?.status !== 403) {
+          const msg = err.response?.data?.message || 'Échec de la suppression du client';
+          toast.error(msg);
+        }
       }
     }
   };
@@ -143,9 +148,9 @@ const Clients = () => {
           <p>Gestion du portefeuille clients et prospects</p>
         </div>
         <div className="header-actions">
-          <button onClick={() => openModal()} className="btn-primary">
+          <AccessButton permission="client.create" onClick={() => openModal()} className="btn-primary">
             + Ajouter un client
-          </button>
+          </AccessButton>
           <button onClick={fetchClients} className="btn-secondary" disabled={loading}>
             Rafraîchir
           </button>
@@ -238,20 +243,22 @@ const Clients = () => {
                     <td>{client.total_commandes || 0}</td>
                     <td>{(client.total_achats || 0).toFixed(2)} Ar</td>
                     <td>
-                      <button
+                      <AccessButton
+                        permission="client.update"
                         onClick={() => openModal(client)}
                         className="btn-small btn-edit"
                         title="Modifier"
                       >
                         <i className="ti ti-edit" aria-hidden="true" />
-                      </button>
-                      <button
+                      </AccessButton>
+                      <AccessButton
+                        permission="client.delete"
                         onClick={() => handleDelete(client.id)}
                         className="btn-small btn-delete"
                         title="Supprimer"
                       >
                         <i className="ti ti-trash" aria-hidden="true" />
-                      </button>
+                      </AccessButton>
                     </td>
                   </tr>
                 ))
