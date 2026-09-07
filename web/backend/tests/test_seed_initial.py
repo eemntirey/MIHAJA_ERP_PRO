@@ -19,7 +19,7 @@ from app import create_app, db
 @pytest.fixture
 def dev_app():
     import logging
-    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test'
     os.environ['JWT_SECRET_KEY'] = 'seed-secret'
     os.environ['SECRET_KEY'] = 'seed-secret'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
@@ -58,7 +58,7 @@ def dev_app():
 
 @pytest.fixture
 def prod_app():
-    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test'
     os.environ['JWT_SECRET_KEY'] = 'seed-secret'
     os.environ['SECRET_KEY'] = 'seed-secret'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'

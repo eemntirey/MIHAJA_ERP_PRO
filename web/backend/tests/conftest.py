@@ -1,12 +1,42 @@
 
 import pytest
 from app import create_app, db as _db
+from app.models.utilisateur import Role
+
+
+@pytest.fixture(scope='session')
+def _db(app):
+    """Alias session de la base de test."""
+    return _db
+
+
+@pytest.fixture(autouse=True)
+def _db_isolation(app):
+    """Isole chaque test via un SAVEPOINT PostgreSQL."""
+    with app.app_context():
+        conn = _db.engine.connect()
+        trans = conn.begin()
+        sess = _db.session
+        nested = sess.begin_nested()
+        yield
+        try:
+            sess.rollback()
+        finally:
+            try:
+                nested.rollback()
+            except Exception:
+                pass
+            try:
+                trans.rollback()
+            except Exception:
+                pass
+            conn.close()
 
 
 @pytest.fixture(scope='session')
 def app():
     import os
-    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
     os.environ['PAPI_API_KEY'] = 'test-api-key'
     os.environ['PAPI_ENVIRONMENT'] = 'sandbox'
@@ -17,7 +47,6 @@ def app():
 
     with app.app_context():
         from app.models.role_permission import RoleModel, Permission
-        from app.models.utilisateur import Role
         _db.drop_all()
         _db.create_all()
         from scripts.seed_roles import seed_roles

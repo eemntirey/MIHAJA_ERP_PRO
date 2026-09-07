@@ -15,7 +15,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
 os.environ.setdefault('PAPI_API_URL', 'https://test.papi.mg/dashboard/api/payment-links')
 os.environ.setdefault('PAPI_API_KEY', 'test-api-key')
 os.environ.setdefault('PAPI_ENVIRONMENT', 'sandbox')
@@ -212,8 +212,8 @@ class TestRBAC:
         assert r.status_code == 401
 
     def test_faux_super_admin_refuse(self, app, client, pay_data):
-        # Un tenant admin qui prétendrait le rôle super_admin dans ses claims
-        # doit être refusé : la vérification passe par l'utilisateur en base.
+        # Un tenant admin qui prÃ©tendrait le rÃ´le super_admin dans ses claims
+        # doit Ãªtre refusÃ© : la vÃ©rification passe par l'utilisateur en base.
         forged = create_access_token(
             identity=pay_data['admin_a_id'],
             additional_claims={'role': 'super_admin'})
@@ -420,7 +420,7 @@ class TestPagination:
 
 
 # --------------------------------------------------------------------------- #
-# Détail + options de filtres
+# DÃ©tail + options de filtres
 # --------------------------------------------------------------------------- #
 class TestDetail:
     def test_detail_complet(self, app, client, pay_data):

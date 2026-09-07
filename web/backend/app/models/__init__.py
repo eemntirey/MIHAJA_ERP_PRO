@@ -31,6 +31,7 @@ from app.models.document_genere import DocumentGenere
 from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat, StatutCommandeAchat
 from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir, StatutAvoir
 from app.models.password_reset_token import PasswordResetToken
+from app.models.token_blocklist import TokenBlocklist
 from app.models.payment_event import PaymentEvent
 from app.models.notification import Notification
 from app.models.audit_log import AuditLog, TypeActionAudit
@@ -95,11 +96,8 @@ __all__ = [
     'BonLivraison',
     'Avoir',
     'StatutAvoir',
-    'Tenant',
-    'StatutTenant',
-    'Abonnement',
-    'StatutAbonnement',
     'PasswordResetToken',
+    'TokenBlocklist',
     'PaymentEvent',
     'Notification',
     'AuditLog',
@@ -110,4 +108,12 @@ __all__ = [
     'SyncEvent',
     'RoleModel',
     'Permission',
+    'Tenant',
+    'StatutTenant',
+    'Abonnement',
+    'StatutAbonnement',
+    'Stagiaire',
+    'TypeContratStagiaire',
+    'SexeStagiaire',
+    'StatutStagiaire',
 ]
