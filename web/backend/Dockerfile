@@ -15,12 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN groupadd --system app && useradd --system --gid app --create-home --home-dir /home/app app
 
 # Copy only what is required to run the application (no .env, no logs, no venv).
-COPY app ./app
-COPY migrations ./migrations
-COPY scripts ./scripts
-COPY instance ./instance
-COPY uploads ./uploads
-COPY run.py run_socket.py ./
+COPY backend/app ./app
+COPY backend/migrations ./migrations
+COPY backend/scripts ./scripts
+COPY backend/instance ./instance
+COPY backend/uploads ./uploads
+COPY backend/run.py backend/run_socket.py ./
 
 RUN chown -R app:app /app
 USER app
