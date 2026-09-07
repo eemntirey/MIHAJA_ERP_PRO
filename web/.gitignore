@@ -6,7 +6,7 @@ __pycache__/
 .Python
 *.db
 instance/
-migrations/
+# migrations/   # MUST be versioned for production reproducibility (P0)
 .pytest_cache/
 *.log
 
