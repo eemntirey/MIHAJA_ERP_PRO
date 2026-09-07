@@ -22,13 +22,21 @@ def init_socketio(app):
         )
         return None
 
+    # Même liste d'origines que flask-cors (app.config['CORS_ORIGINS'],
+    # renseignée dans create_app). Le fallback couvre les deux identités
+    # d'hôte locales : localhost et 127.0.0.1.
+    allowed_origins = app.config.get('CORS_ORIGINS') or [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]
+
     socketio = SocketIO(
         app,
-        cors_allowed_origins=app.config.get('CORS_ORIGINS', ['http://localhost:3000']),
+        cors_allowed_origins=allowed_origins,
         async_mode="threading",
         path="/socket.io",
-        ping_timeout=60,
-        ping_interval=25,
+        ping_timeout=120,
+        ping_interval=20,
         max_http_buffer_size=2 * 1024 * 1024,
     )
     _register_handlers()

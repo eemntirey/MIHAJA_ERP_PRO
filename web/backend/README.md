@@ -47,7 +47,7 @@ web/backend/
    ```bash
    # Windows
    .\venv\Scripts\activate
-   
+
    # Linux/Mac
    source venv/bin/activate
    ```
@@ -61,16 +61,14 @@ web/backend/
    ```
    SECRET_KEY=your-secret-key
    JWT_SECRET_KEY=your-jwt-secret
-   DATABASE_URL=postgresql+psycopg://postgres:eemntirey@localhost:55432/erp
+   DATABASE_URL=postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db
    CORS_ORIGINS=http://localhost:3000
    ```
 
-5. Initialize PostgreSQL and run database migrations (PowerShell):
+5. Run database migrations:
    ```bash
-   .\setup_postgresql.ps1
+   flask db upgrade
    ```
-
-   For an already initialized database, run only `flask --app app:create_app db upgrade`.
 
 6. Start the application:
    ```bash
@@ -92,7 +90,7 @@ http://localhost:5000/docs/
 |----------|-------------|---------|
 | `SECRET_KEY` | Flask secret key | `dev-key` |
 | `JWT_SECRET_KEY` | JWT signing key | Required |
-| `DATABASE_URL` | Database connection string | `sqlite:///erp.db` |
+| `DATABASE_URL` | Database connection string | `postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db` |
 | `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
 | `JWT_ACCESS_TOKEN_EXPIRES` | Access token expiry (seconds) | `3600` |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |

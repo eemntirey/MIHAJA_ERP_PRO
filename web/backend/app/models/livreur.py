@@ -17,7 +17,11 @@ class Livreur(BaseTenantModel):
 
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True, index=True, unique=True)
 
-    vehicule_id = db.Column(db.Integer, db.ForeignKey('vehicules.id'), index=True)
+    vehicule_id = db.Column(
+        db.Integer,
+        db.ForeignKey('vehicules.id', use_alter=True, name='livreurs_vehicule_id_fkey'),
+        index=True,
+    )
 
     utilisateur = db.relationship('Utilisateur', backref='livreur_profile', foreign_keys='Livreur.utilisateur_id')
     vehicule = db.relationship('Vehicule', back_populates='chauffeurs', foreign_keys='Livreur.vehicule_id')
