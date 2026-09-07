@@ -10,50 +10,36 @@ from app.security.roles import is_super_admin, is_admin, is_manager
 
 logger = logging.getLogger(__name__)
 
-# Global flag to track if the tenant filter event is registered
 _tenant_filter_registered = False
 
 
 def register_tenant_filter_event():
-    """Register the global SQLAlchemy event listener for tenant filtering.
-    This should be called once during app initialization.
-    """
     global _tenant_filter_registered
     if _tenant_filter_registered:
         return
-    
+
     @event.listens_for(db.session, 'do_orm_execute')
     def _do_orm_execute(orm_execute_state):
-        # Skip if not a select statement
         if not orm_execute_state.is_select:
             return
-        
-        # Skip if execution options indicate no tenant filtering
         if orm_execute_state.execution_options.get('_skip_tenant_filter'):
             logger.warning(
                 "Tenant filter bypassed via _skip_tenant_filter on query: %s",
                 str(orm_execute_state.statement),
             )
             return
-        
-        # Get current tenant from Flask g
         from flask import has_request_context
         if not has_request_context():
             return
-        
         tenant = getattr(g, 'current_tenant', None)
         if tenant is None:
-            # No tenant filtering for SUPER_ADMIN (g.current_tenant is None)
             return
-        
         tenant_id = getattr(g, 'current_tenant_id', None)
         if tenant_id is None:
             try:
                 tenant_id = tenant.id
             except Exception:
                 return
-        
-        # Apply tenant filter to all entities in the query that have tenant_id
         if hasattr(orm_execute_state.statement, 'column_descriptions'):
             for desc in orm_execute_state.statement.column_descriptions:
                 entity = desc.get('entity')
@@ -65,7 +51,7 @@ def register_tenant_filter_event():
                     orm_execute_state.statement = orm_execute_state.statement.where(
                         entity.tenant_id == tenant_id
                     )
-    
+
     _tenant_filter_registered = True
 
 
@@ -74,15 +60,35 @@ def get_current_tenant():
 
 
 def get_current_tenant_id():
-    return getattr(g, 'current_tenant_id', None)
+    """Resolve tenant_id from request context (never implicit global for tenant users)."""
+    tid = getattr(g, 'current_tenant_id', None)
+    if tid is not None:
+        return tid
+    tenant = getattr(g, 'current_tenant', None)
+    if tenant is not None:
+        return getattr(tenant, 'id', None)
+    user = getattr(g, 'current_user', None)
+    if user is not None and not is_super_admin(getattr(user, 'role', None)):
+        return getattr(user, 'tenant_id', None)
+    return None
 
 
 def set_tenant_filter(query, model_class):
+    """Apply tenant isolation on a query (fail-closed).
+
+    - If current tenant_id is set -> filter by it.
+    - If super_admin without tenant scope -> no filter (global read).
+    - Otherwise -> impossible tenant_id filter (empty result, no cross-tenant leak).
+    """
+    if not hasattr(model_class, 'tenant_id'):
+        return query
     tenant_id = get_current_tenant_id()
     if tenant_id is not None:
-        if hasattr(model_class, 'tenant_id'):
-            query = query.filter(model_class.tenant_id == tenant_id)
-    return query
+        return query.filter(model_class.tenant_id == tenant_id)
+    user = getattr(g, 'current_user', None)
+    if user is not None and is_super_admin(getattr(user, 'role', None)):
+        return query
+    return query.filter(model_class.tenant_id == -1)
 
 
 def tenant_required(fn):
@@ -90,19 +96,20 @@ def tenant_required(fn):
     def wrapper(*args, **kwargs):
         from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
         from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
+        from datetime import datetime
 
         try:
             verify_jwt_in_request()
         except NoAuthorizationError:
-            return {'message': 'En-tête Authorization manquant ou invalide'}, 401
+            return {'message': 'En-tete Authorization manquant ou invalide'}, 401
         except InvalidHeaderError:
-            return {'message': 'En-tête Authorization invalide'}, 401
+            return {'message': 'En-tete Authorization invalide'}, 401
         except RevokedTokenError:
-            return {'message': 'Token JWT révoqué'}, 401
+            return {'message': 'Token JWT revoque'}, 401
         except JWTDecodeError:
             return {'message': 'Token JWT invalide'}, 401
         except Exception:
-            return {'message': 'Token JWT invalide ou expiré'}, 401
+            return {'message': 'Token JWT invalide ou expire'}, 401
 
         claims = get_jwt()
         tenant_id = claims.get('tenant_id')
@@ -114,7 +121,7 @@ def tenant_required(fn):
             user_id = int(user_id)
 
         utilisateur = db.session.get(Utilisateur, user_id)
-        
+
         if utilisateur and is_super_admin(utilisateur.role):
             g.current_tenant = None
             g.current_user = utilisateur
@@ -140,10 +147,9 @@ def tenant_required(fn):
             return {'message': 'Utilisateur introuvable'}, 401
         if utilisateur.tenant_id != tenant_id:
             return {'message': 'Acces refuse a ce tenant'}, 403
-        
+
         if utilisateur.role not in [Role.SUPER_ADMIN, Role.USER, Role.ACCOUNTANT]:
             from app.models.abonnement import Abonnement, StatutAbonnement
-            from datetime import datetime
             now = datetime.utcnow()
             abonnement_actif = Abonnement.query.filter(
                 Abonnement.tenant_id == tenant_id,
@@ -154,15 +160,13 @@ def tenant_required(fn):
             if not abonnement_actif:
                 if tenant.statut != StatutTenant.EN_ESSAI:
                     return {'message': 'Abonnement requis'}, 403
-        
+
         if utilisateur.role == Role.ADMIN:
             if utilisateur.admin_statut is not None and utilisateur.admin_statut != StatutAdmin.ACTIVE:
                 return {'message': 'Administrateur suspendu ou revoque'}, 403
 
             has_any_device = AdminDevice.query.filter_by(user_id=utilisateur.id).first() is not None
-            if not has_any_device:
-                pass
-            else:
+            if has_any_device:
                 if not utilisateur.device_id:
                     return {'message': 'Appareil non enregistre'}, 403
                 device = AdminDevice.query.filter_by(
@@ -172,11 +176,8 @@ def tenant_required(fn):
                 ).first()
                 if not device:
                     return {'message': 'Appareil non autorise'}, 403
-                # Mise a jour last_seen sans commit immediat : le commit
-                # sera declenche par la transaction en cours, ce qui
-                # elimine une requete par appel authentifie.
                 device.last_seen = datetime.utcnow()
-        
+
         g.current_tenant = tenant
         g.current_tenant_id = tenant_id
         g.current_user = utilisateur
@@ -193,7 +194,6 @@ def super_admin_readonly(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         from flask_jwt_extended import get_jwt
-        from app.security.roles import is_super_admin
 
         claims = get_jwt() or {}
         role = claims.get('role')
@@ -212,21 +212,21 @@ def tenant_required_readonly(fn):
 def tenant_admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
         from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
 
         try:
             verify_jwt_in_request()
         except NoAuthorizationError:
-            return {'message': 'En-tête Authorization manquant ou invalide'}, 401
+            return {'message': 'En-tete Authorization manquant ou invalide'}, 401
         except InvalidHeaderError:
-            return {'message': 'En-tête Authorization invalide'}, 401
+            return {'message': 'En-tete Authorization invalide'}, 401
         except RevokedTokenError:
-            return {'message': 'Token JWT révoqué'}, 401
+            return {'message': 'Token JWT revoque'}, 401
         except JWTDecodeError:
             return {'message': 'Token JWT invalide'}, 401
         except Exception:
-            return {'message': 'Token JWT invalide ou expiré'}, 401
+            return {'message': 'Token JWT invalide ou expire'}, 401
 
         user_id = get_jwt_identity()
         if isinstance(user_id, str) and user_id.isdigit():
@@ -243,18 +243,12 @@ def tenant_admin_required(fn):
 
 
 def get_current_tenant_id_or_none():
-    """Retourne le tenant_id courant ou None pour SUPER_ADMIN (pas de filtrage)."""
     tenant = get_current_tenant()
     return tenant.id if tenant else None
 
 
 def tenant_filtered_get(model_class, obj_id, allow_super_admin=True):
-    """Récupère un objet en appliquant le filtre tenant.
-
-    Pour SUPER_ADMIN, le filtre tenant n'est pas appliqué (accès global).
-    """
     from flask_jwt_extended import get_jwt
-    from app.security.roles import is_super_admin
 
     claims = get_jwt() or {}
     role = claims.get('role')
@@ -264,13 +258,15 @@ def tenant_filtered_get(model_class, obj_id, allow_super_admin=True):
         tenant_id = get_current_tenant_id_or_none()
         if tenant_id is not None and hasattr(model_class, 'tenant_id'):
             query = query.filter_by(tenant_id=tenant_id)
+        elif hasattr(model_class, 'tenant_id') and not is_super_admin(role):
+            query = query.filter_by(tenant_id=-1)
     return query.first()
 
 
 def resolve_tenant_from_header():
     tenant_slug = request.headers.get('X-Tenant-Slug')
     tenant_domaine = request.headers.get('X-Tenant-Domaine')
-    
+
     if tenant_slug:
         return Tenant.query.filter_by(slug=tenant_slug, is_active=True).first()
     elif tenant_domaine:
@@ -287,21 +283,22 @@ def ensure_tenant_for_model(model_instance):
 def subscription_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
         from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
+        from datetime import datetime
 
         try:
             verify_jwt_in_request()
         except NoAuthorizationError:
-            return {'message': 'En-tête Authorization manquant ou invalide'}, 401
+            return {'message': 'En-tete Authorization manquant ou invalide'}, 401
         except InvalidHeaderError:
-            return {'message': 'En-tête Authorization invalide'}, 401
+            return {'message': 'En-tete Authorization invalide'}, 401
         except RevokedTokenError:
-            return {'message': 'Token JWT révoqué'}, 401
+            return {'message': 'Token JWT revoque'}, 401
         except JWTDecodeError:
             return {'message': 'Token JWT invalide'}, 401
         except Exception:
-            return {'message': 'Token JWT invalide ou expiré'}, 401
+            return {'message': 'Token JWT invalide ou expire'}, 401
 
         user_id = get_jwt_identity()
         if isinstance(user_id, str) and user_id.isdigit():
@@ -319,7 +316,6 @@ def subscription_required(fn):
             return {'message': 'Aucun tenant associe a ce compte'}, 401
 
         from app.models.abonnement import Abonnement, StatutAbonnement
-        from datetime import datetime
         now = datetime.utcnow()
 
         abonnement_actif = Abonnement.query.filter(
@@ -336,5 +332,5 @@ def subscription_required(fn):
             return {'message': 'Abonnement requis'}, 403
 
         return fn(*args, **kwargs)
-    
+
     return wrapper
