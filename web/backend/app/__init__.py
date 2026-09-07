@@ -149,7 +149,16 @@ def create_app():
 
     @app.route('/health')
     def health():
-        return {'status': 'healthy', 'database': 'connected'}, 200
+        from sqlalchemy import text as sa_text
+        db_ok = False
+        try:
+            db.session.execute(sa_text('SELECT 1'))
+            db_ok = True
+        except Exception:
+            db_ok = False
+        status = 'healthy' if db_ok else 'degraded'
+        code = 200 if db_ok else 503
+        return {'status': status, 'database': 'connected' if db_ok else 'unavailable'}, code
 
     api = Api(
         app,
