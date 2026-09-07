@@ -1,4 +1,4 @@
-
+��
 import os
 from flask import current_app, request
 from flask_restx import Namespace, Resource
@@ -59,7 +59,7 @@ class AuthLogin(Resource):
     def post(self):
         data = request.get_json() or {}
 
-        identifier = data.get('username') or data.get('email')
+        identifier = data.get('username'or data.get('email')
         password = data.get('password')
         tenant_slug = data.get('tenant_slug')
         device_id = data.get('device_id')
@@ -91,7 +91,7 @@ class AuthLogin(Resource):
             }, 401
 
         access_token = result.get('access_token') if isinstance(result, dict) else None
-        user_data = result.get('user') if isinstance(result, dict) else None
+        user_data = result.get('user'if isinstance(result, dictelse None
         if not isinstance(access_token, str) or not access_token.strip() or not isinstance(user_data, dict):
             current_app.logger.error(
                 'Réponse d authentification incomplète pour %s',
@@ -141,7 +141,7 @@ class AuthMe(Resource):
                 'message': 'Utilisateur non trouve'
             }, 404
 
-        data = request.get_json() or {}
+        data = request.get_json(or {}
         sensitive_fields = {'email', 'password'}
         provided_fields = set(data.keys())
         if sensitive_fields & provided_fields:
@@ -165,7 +165,7 @@ class AuthRegister(Resource):
 
     @rate_limit(5, 300)
     def post(self):
-        data = request.get_json() or {}
+        data = request.get_json(or {}
 
         profile_type = data.get('profile_type', 'simple')
         email = data.get('email')
@@ -285,7 +285,7 @@ class AuthRegister(Resource):
                     email, exc
                 )
                 return {
-                    'message': 'Erreur lors de la creation de l\'entreprise. Verifiez les champs (slug/domaine uniques) et reessayez.'
+                    'message': 'Erreur lors de la creation de l\'entreprise. Verifiez les champs (slug/domaine uniqueset reessayez.'
                 }, 500
 
             access_token = create_access_token(
@@ -293,7 +293,7 @@ class AuthRegister(Resource):
                 additional_claims={
                     'username': user.username,
                     'email': user.email,
-                    'role': user.role.value if hasattr(user.role, 'value') else user.role,
+                    'role': user.role.value if hasattr(user.role, 'value'else user.role,
                     'tenant_id': tenant.id,
                     'tenant_slug': tenant.slug,
                 }
@@ -330,7 +330,7 @@ class AuthRegister(Resource):
             additional_claims={
                 'username': user.username,
                 'email': user.email,
-                'role': user.role.value if hasattr(user.role, 'value') else user.role,
+                'role': user.role.value if hasattr(user.role, 'value'else user.role,
                 'tenant_id': user.tenant_id,
             }
         )
@@ -379,7 +379,7 @@ class AuthRefresh(Resource):
             }
         )
 
-        if not isinstance(access_token, str) or not access_token.strip():
+        if not isinstance(access_token, stror not access_token.strip():
             current_app.logger.error(
                 'Impossible de générer un access_token pour l utilisateur %s',
                 user.id
@@ -433,7 +433,7 @@ class AuthForgotPassword(Resource):
             token = PasswordResetToken(
                 user_id=user.id,
                 token=hashed_token,
-                expires_at=datetime.utcnow() + timedelta(minutes=ttl_minutes),
+                expires_at=datetime.utcnow(+ timedelta(minutes=ttl_minutes),
                 ip_address=request.remote_addr,
             )
             db.session.add(token)
@@ -450,7 +450,7 @@ class AuthForgotPassword(Resource):
             # Envoi de l'e-mail de réinitialisation
             try:
                 from app.services.email_service import send_password_reset_email
-                tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+                tenant = db.session.get(Tenant, user.tenant_idif user.tenant_id else None
                 # Le service reconstruit lui-même le lien à partir de APP_URL
                 # et du raw_token ; on lui passe donc le token brut.
                 send_password_reset_email(user, tenant, raw_token, expires_in_minutes=ttl_minutes, app_url=app_url)
@@ -521,7 +521,7 @@ class AuthVerifyResetToken(Resource):
 class AuthResetPassword(Resource):
 
     def post(self):
-        data = request.get_json() or {}
+        data = request.get_json(or {}
         token = data.get('token')
         new_password = data.get('new_password')
         if not token or not new_password:
@@ -561,7 +561,7 @@ class AuthResetPassword(Resource):
         # Notification e-mail après reset
         try:
             from app.services.email_service import send_password_changed_email
-            tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+            tenant = db.session.get(Tenant, user.tenant_idif user.tenant_id else None
             send_password_changed_email(user, tenant=tenant)
         except Exception:
             current_app.logger.exception(
@@ -587,7 +587,7 @@ class AuthResetPassword(Resource):
 def _first_change_password_post():
     """Implémentation partagée entre /auth/first-change-password et
     /auth/first-login-change. Cette dernière URL est celle attendue
-    par le frontend (Login.jsx, FirstLoginChange.jsx) pour rester
+    par le frontend (Login.jsx, FirstLoginChange.jsxpour rester
     compatible avec les deux frontends (web et desktop)."""
     user_id = get_jwt_identity()
     user = db.session.get(Utilisateur, user_id)
@@ -623,7 +623,7 @@ def _first_change_password_post():
     # Notification e-mail
     try:
         from app.services.email_service import send_password_changed_email
-        tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
+        tenant = db.session.get(Tenant, user.tenant_idif user.tenant_id else None
         send_password_changed_email(user, tenant=tenant)
     except Exception:
         current_app.logger.exception(
@@ -682,7 +682,7 @@ class AuthChangePassword(Resource):
         if not user or not user.is_active:
             return {'message': 'Utilisateur non trouvé'}, 404
 
-        data = request.get_json() or {}
+        data = request.get_json(or {}
         old_password = data.get('old_password')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password')
