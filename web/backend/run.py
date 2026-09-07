@@ -4,9 +4,11 @@ import os
 app = create_app()
 
 if __name__ == '__main__':
-    from flask_migrate import upgrade
-    with app.app_context():
-        upgrade()
+    auto_migrate = os.getenv('AUTO_MIGRATE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+    if auto_migrate:
+        from flask_migrate import upgrade
+        with app.app_context():
+            upgrade()
     
     debug = os.getenv('FLASK_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
     host = os.getenv('FLASK_HOST', '0.0.0.0')

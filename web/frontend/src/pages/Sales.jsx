@@ -7,6 +7,7 @@ import { saleService, productService, clientService, devisService, bonLivraisonS
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import SelectField from '../components/ui/SelectField';
 import ToggleField from '../components/ui/ToggleField';
+import AccessButton from '../components/common/AccessButton';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -164,8 +165,10 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
       }
       onSuccess();
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde de la vente';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || err.message || 'Erreur lors de la sauvegarde de la vente';
+        toast.error(msg);
+      }
     }
   };
 
@@ -396,7 +399,9 @@ const Sales = () => {
     } catch (err) {
       const msg = err.response?.data?.message || 'Erreur chargement';
       setError(msg);
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -411,8 +416,10 @@ const Sales = () => {
       toast.success('Devis converti en vente');
       fetchData();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la conversion';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Erreur lors de la conversion';
+        toast.error(msg);
+      }
     } finally { setSaleActionLoading(false); }
   };
 
@@ -424,8 +431,10 @@ const Sales = () => {
       toast.success('Vente supprimée');
       fetchData();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Erreur lors de la suppression';
+        toast.error(msg);
+      }
     } finally { setSaleActionLoading(false); }
   };
 
@@ -463,8 +472,10 @@ const Sales = () => {
       toast.success('Avoir supprimé');
       fetchData();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la suppression';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Erreur lors de la suppression';
+        toast.error(msg);
+      }
     } finally { setSaleActionLoading(false); }
   };
 
@@ -521,17 +532,18 @@ const Sales = () => {
         data.date_validite = devisForm.date_validite;
       }
       if (editingDevis) {
-        await devisService.update(editingDevis.id, data);
+await devisService.update(editingDevis.id, data);
         toast.success('Devis mis à jour');
       } else {
         await devisService.create(data);
         toast.success('Devis créé');
       }
       closeDevisModal();
-      fetchData();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors de la création du devis';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Erreur lors de la création du devis';
+        toast.error(msg);
+      }
     }
   };
 
@@ -639,7 +651,7 @@ const Sales = () => {
       {tab === 'ventes' && (
         <div className="card">
           <div className="card-actions">
-            <button className="btn-primary" onClick={() => setShowModal(true)}>Nouvelle vente</button>
+            <AccessButton permission="sale.create" className="btn-primary" onClick={() => setShowModal(true)}>Nouvelle vente</AccessButton>
           </div>
           <div className="filter-controls">
             <div className="search-box">
@@ -681,15 +693,15 @@ const Sales = () => {
                         <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
                         <td>{getModePaiementLabel(s.mode_paiement)}</td>
                         <td>
-                          <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(s)} disabled={saleActionLoading}>
+                          <AccessButton permission="sale.view" className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(s)} disabled={saleActionLoading}>
                             {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-eye" />}
-                          </button>
-                          <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(s)} disabled={saleActionLoading}>
+                          </AccessButton>
+                          <AccessButton permission="sale.update" className="btn-small btn-edit" title="Modifier" onClick={() => handleEditSale(s)} disabled={saleActionLoading}>
                             {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-edit" />}
-                          </button>
-                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(s.id)} disabled={saleActionLoading}>
+                          </AccessButton>
+                          <AccessButton permission="sale.delete" className="btn-small btn-delete" title="Supprimer" onClick={() => handleDeleteSale(s.id)} disabled={saleActionLoading}>
                             {saleActionLoading ? <span className="btn-spinner" /> : <i className="ti ti-trash" />}
-                          </button>
+                          </AccessButton>
                         </td>
                       </tr>
                     );
@@ -768,9 +780,9 @@ const Sales = () => {
       {tab === 'devis' && (
         <div className="card">
           <div className="card-actions">
-            <button className="btn-primary btn-create-devis" onClick={() => openDevisModal()}>
+            <AccessButton permission="quote.create" className="btn-primary btn-create-devis" onClick={() => openDevisModal()}>
               <i className="ti ti-plus" /> Créer un devis
-            </button>
+            </AccessButton>
           </div>
           <div className="table-container">
             <table className="data-table">
@@ -804,12 +816,12 @@ const Sales = () => {
                         <td>{formatDate(d.date_validite)}</td>
                         <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
                         <td>
-                          <button className="btn-small btn-edit" title="Modifier" onClick={() => openDevisModal(d)} disabled={saleActionLoading}>
+                          <AccessButton permission="quote.update" className="btn-small btn-edit" title="Modifier" onClick={() => openDevisModal(d)} disabled={saleActionLoading}>
                             <i className="ti ti-edit" />
-                          </button>
-                          <button className="btn-small btn-view" title="Convertir en vente" onClick={() => handleConvertDevis(d.id)} disabled={saleActionLoading || d.statut === 'converti'}>
+                          </AccessButton>
+                          <AccessButton permission="quote.create" className="btn-small btn-view" title="Convertir en vente" onClick={() => handleConvertDevis(d.id)} disabled={saleActionLoading || d.statut === 'converti'}>
                             <i className="ti ti-refresh" />
-                          </button>
+                          </AccessButton>
                         </td>
                       </tr>
                     );

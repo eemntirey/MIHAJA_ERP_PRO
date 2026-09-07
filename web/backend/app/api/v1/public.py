@@ -5,6 +5,11 @@ from app.models.tenant import Tenant
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.commande_client import CommandeClient
 from app.services.commande_service import CommandeService
+from app.services.commande_papi_service import (
+    CommandePapiError,
+    create_commande_papi_payment,
+    ELECTRONIC_METHODS,
+)
 from app import db
 from app.security.rate_limit import rate_limit
 from datetime import datetime
@@ -61,18 +66,32 @@ def _scope_query_to_tenant(query):
 
 
 def _get_active_tenant_ids():
+    """Liste des tenants exposés sur la vitrine commune.
+
+    Un tenant apparaît dans la vitrine publique si et seulement si :
+    - il a un Abonnement actif non expiré ;
+    - il a configuré son compte marchand Papi ;
+    - il a explicitement activé le toggle vitrine (vitrine_enabled=True).
+
+    Ces trois conditions cumulatives évitent d'exposer un tenant qui n'est
+    pas prêt à recevoir des paiements en ligne pour ses commandes.
+    """
     now = datetime.utcnow()
-    active_ids = [
+    eligible_ids = {
         row[0] for row in db.session.query(Abonnement.tenant_id)
         .filter(
             Abonnement.statut == StatutAbonnement.ACTIF,
             Abonnement.date_fin > now,
-            Abonnement.is_active == True
+            Abonnement.is_active == True,
         )
         .distinct()
         .all()
-    ]
-    return set(active_ids)
+    }
+    if not eligible_ids:
+        return set()
+
+    tenants = Tenant.query.filter(Tenant.id.in_(eligible_ids)).all()
+    return {t.id for t in tenants if t.is_vitrine_active()}
 
 
 @ns_public.route('/produits')
@@ -230,6 +249,105 @@ class PublicCommandeTracking(Resource):
             'statut': statut_value,
             'updated_at': commande.updated_at.isoformat() if commande.updated_at else None,
         }, 200
+
+
+@ns_public.route('/commandes/<string:ref>/papi-payment')
+class PublicCommandePapiPayment(Resource):
+    @rate_limit(5, 300)
+    def post(self, ref):
+        """Crée un lien de paiement Papi (compte marchand du tenant) pour
+        une commande vitrine existante. Le client est ensuite redirigé
+        vers le ``paymentLink`` retourné.
+        """
+        commande = CommandeService.get_by_reference(ref)
+        if not commande:
+            return {'message': 'Commande introuvable'}, 404
+
+        tenant = db.session.get(Tenant, commande.tenant_id) if commande.tenant_id else None
+        if not tenant:
+            return {'message': 'Vendeur introuvable'}, 404
+
+        if not tenant.is_vitrine_active():
+            return {
+                'message': (
+                    "Le paiement en ligne n'est pas disponible pour ce vendeur. "
+                    "Veuillez choisir le paiement à la livraison."
+                )
+            }, 400
+
+        data = request.get_json() or {}
+        payment_method = (data.get('payment_method') or 'MVOLA').upper()
+        if payment_method not in ELECTRONIC_METHODS:
+            return {
+                'message': (
+                    f"Mode de paiement invalide. "
+                    f"Choisissez parmi: {', '.join(ELECTRONIC_METHODS)}"
+                )
+            }, 400
+
+        # Récupération des infos client pour pré-remplir le payload Papi
+        client_info = data.get('client') or {}
+        customer_name = (
+            f"{commande.prenom_client or ''} {commande.nom_client or ''}".strip()
+            or client_info.get('nom')
+            or ''
+        )
+        customer_email = commande.email_client or client_info.get('email') or ''
+        customer_phone = (
+            commande.telephone_client
+            or client_info.get('telephone')
+            or ''
+        )
+
+        try:
+            result = create_commande_papi_payment(
+                commande_id=commande.id,
+                payment_method=payment_method,
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                is_test_mode=bool(data.get('is_test_mode', False)),
+            )
+        except CommandePapiError as exc:
+            current_app.logger.warning(
+                'Commande Papi payment error: ref=%s err=%s', ref, exc
+            )
+            return {'message': str(exc)}, 400
+        except Exception:
+            current_app.logger.exception(
+                'Erreur inattendue paiement Papi commande: ref=%s', ref
+            )
+            return {'message': 'Erreur lors de la création du paiement'}, 500
+
+        return result, 200
+
+
+@ns_public.route('/commandes/<string:ref>/papi-status')
+class PublicCommandePapiStatus(Resource):
+    """Permet au frontend de savoir si la commande a été payée."""
+
+    def get(self, ref):
+        commande = CommandeService.get_by_reference(ref)
+        if not commande:
+            return {'message': 'Commande introuvable'}, 404
+
+        from app.models.paiement import Paiement
+        paiement = Paiement.query.filter_by(
+            commande_client_id=commande.id,
+            provider='papi',
+            is_active=True,
+        ).order_by(Paiement.created_at.desc()).first()
+
+        data = {
+            'reference': commande.reference,
+            'statut': (
+                commande.statut.value
+                if hasattr(commande.statut, 'value')
+                else commande.statut
+            ),
+            'paiement': paiement.to_dict() if paiement else None,
+        }
+        return data, 200
 
 
 @ns_public.route('/notifications')
