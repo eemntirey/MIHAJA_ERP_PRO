@@ -7,7 +7,6 @@ from flask_cors import CORS, cross_origin
 from flask_restx import Api
 from flask_jwt_extended import JWTManager
 
-
 import os
 from dotenv import load_dotenv
 import logging
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 def create_app():
-
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -41,10 +39,9 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    # Connection pool tuned for PostgreSQL (prod-safe defaults, overridable via env)
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,   # detect stale connections
-        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', '1800')),  # seconds
+        'pool_pre_ping': True,
+        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', '1800')),
         'pool_size': int(os.getenv('DB_POOL_SIZE', '10')),
         'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', '20')),
         'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', '30')),
@@ -60,7 +57,6 @@ def create_app():
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
 
     from datetime import timedelta
-
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(
         seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
     )
@@ -78,15 +74,10 @@ def create_app():
     with app.app_context():
         register_tenant_filter_event()
 
-    CORS_ORIGINS = os.getenv(
-        'CORS_ORIGINS',
-        'http://localhost:3000'
-    ).split(',')
-
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
     if '*' in CORS_ORIGINS:
         raise ValueError(
-            "CORS_ORIGINS cannot contain '*' when supports_credentials=True. "
-            "Specify explicit allowed origins."
+            "CORS_ORIGINS cannot contain '*' when supports_credentials=True."
         )
 
     CORS(
@@ -100,10 +91,8 @@ def create_app():
 
     jwt.init_app(app)
 
-    # --- JWT Blocklist (revocation reelle) ---
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
-        """Retourne True si le JTI est dans la blocklist -> token rejete."""
         from app.models.token_blocklist import TokenBlocklist
         jti = jwt_payload.get('jti')
         return TokenBlocklist.is_revoked(jti)
@@ -112,7 +101,9 @@ def create_app():
     def revoked_token_callback(jwt_header, jwt_payload):
         return {'message': 'Token JWT revoque'}, 401
 
-    from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
+    from flask_jwt_extended.exceptions import (
+        NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
+    )
 
     @jwt.unauthorized_loader
     def unauthorized_callback(err):
@@ -197,6 +188,7 @@ def create_app():
     from app.api.v1.papi import ns as papi_ns
     from app.api.v1.notifications import ns as notifications_ns
     from app.api.v1.super_admin import ns as super_admin_ns
+    from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
     from app.api.v1.desk import desk_bp
 
@@ -242,9 +234,16 @@ def create_app():
     api.add_namespace(permissions_ns, path='/api/v1/permissions')
     api.add_namespace(users_ns, path='/api/v1/users')
     api.add_namespace(papi_ns, path='/api/v1/papi')
+    api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
 
     app.register_blueprint(desk_bp)
+
+    try:
+        from app.realtime.socket_server import init_socketio
+        app.socketio = init_socketio(app)
+    except Exception:
+        logger.warning('SocketIO init skipped', exc_info=True)
 
     @app.before_request
     def before_request():
@@ -252,6 +251,7 @@ def create_app():
         from app.security.tenant import resolve_tenant_from_header
 
         g.current_tenant = None
+        g.current_tenant_id = None
         g.current_user = None
 
         try:
@@ -265,6 +265,7 @@ def create_app():
                     tenant = db.session.get(Tenant, tenant_id)
                     if tenant:
                         g.current_tenant = tenant
+                        g.current_tenant_id = tenant.id
                         return
         except Exception:
             pass
@@ -273,13 +274,21 @@ def create_app():
             tenant = resolve_tenant_from_header()
             if tenant:
                 g.current_tenant = tenant
+                g.current_tenant_id = tenant.id
         except Exception:
             logger.warning(
-                "Impossible de resoudre le tenant depuis les headers HTTP",
+                'Impossible de resoudre le tenant depuis les headers HTTP',
                 exc_info=True,
             )
             g.current_tenant = None
 
-    # NOTE: seeding via CLI / endpoint, not at import time.
+    try:
+        from app.models.role_permission import RoleModel
+        if db.session.query(RoleModel.id).first() is None:
+            from scripts.seed_roles import seed_roles
+            seed_roles(app)
+            logger.info('Auto-seed roles/permissions effectue (base vide).')
+    except Exception:
+        logger.warning('Auto-seed roles/permissions a echoue', exc_info=True)
 
     return app
