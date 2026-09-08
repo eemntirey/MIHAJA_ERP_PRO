@@ -11,8 +11,8 @@
   --color-text: #f1f5f9;
   --color-text-muted: #94a3b8;
   --color-text-dim: #64748b;
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
+  --color-primary: #d4af37;
+  --color-primary-hover: #cda233;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -64,7 +64,7 @@ button:disabled {
 
 .btn-primary {
   background: var(--color-primary);
-  color: white;
+  color: #000000;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -736,7 +736,7 @@ input:focus, select:focus, textarea:focus {
 
 .plan-option--selected {
   border-color: var(--color-primary);
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(212, 175, 55, 0.1);
 }
 
 .plan-option-name {

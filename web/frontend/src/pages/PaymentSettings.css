@@ -49,7 +49,7 @@
 }
 
 .ps-help a {
-  color: #2563eb;
+  color: var(--color-info-600);
 }
 
 .form-row {
@@ -75,8 +75,8 @@
 
 .form-row input:focus,
 .form-row select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--color-info-600);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12);
 }
 
 .ps-actions {
@@ -98,8 +98,8 @@
 }
 
 .btn-primary {
-  background: #2563eb;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
 }
 
 .btn-secondary {

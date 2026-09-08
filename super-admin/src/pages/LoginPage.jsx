@@ -44,14 +44,14 @@ const LoginPage = () => {
 
         <form onSubmit={handleSubmit} className="sa-login-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email ou nom d'utilisateur</label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="superadmin@mihaja.mg"
-              autoComplete="email"
+              placeholder="superadmin ou superadmin@mihaja.mg"
+              autoComplete="username"
             />
           </div>
 
