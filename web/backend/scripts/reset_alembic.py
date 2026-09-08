@@ -1,6 +1,6 @@
 import sqlite3, os, shutil, sys
 
-db_path = os.path.join('web', 'backend', 'instance', 'erp.db')
+db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance', 'erp.db')
 bak_path = db_path + '.bak'
 
 if not os.path.exists(bak_path):
