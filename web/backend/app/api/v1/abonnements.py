@@ -79,7 +79,7 @@ class MonAbonnement(Resource):
         utilisateur = db.session.get(Utilisateur, user_id)
 
         if utilisateur and is_super_admin(utilisateur.role):
-            return {'abonnement': None, 'can_renew': True, 'tenant': None}, 200
+            return {'abonnement': None, 'can_renew': True, 'tenant': None, 'is_free_plan': False}, 200
 
         tenant_id = claims.get('tenant_id')
         if not tenant_id:
@@ -93,6 +93,26 @@ class MonAbonnement(Resource):
             tenant = None
         abonnement = AbonnementService.get_active_by_tenant(tenant_id)
         can_renew = _is_principal_admin(utilisateur, tenant)
+        is_free_plan = (abonnement.plan == 'gratuit') if abonnement else False
+
+        from app.security.plans import (
+            get_plan_price,
+            compute_effective_subscription_price,
+            days_since_expiration,
+        )
+
+        def _pricing_payload(abn):
+            if not abn:
+                return None
+            prix_base = get_plan_price(abn.plan)
+            nb_jours_expires = days_since_expiration(abn)
+            expired = nb_jours_expires > 0 or (abn.statut and (
+                (hasattr(abn.statut, 'value') and abn.statut.value == 'expire')
+                or abn.statut == 'expire'
+            ))
+            return compute_effective_subscription_price(
+                prix_base, abn.plan, expired=expired, days_after_expiry=nb_jours_expires
+            )
 
         if not abonnement:
             tenant_summary = None
@@ -121,11 +141,19 @@ class MonAbonnement(Resource):
                     'users_count': users_count,
                     'employees_count': employees_count,
                 }
-            return {'abonnement': None, 'can_renew': can_renew, 'tenant': tenant_summary}, 200
+            return {'abonnement': None, 'can_renew': can_renew, 'tenant': tenant_summary, 'is_free_plan': False, 'pricing': None}, 200
 
         else:
             if tenant is None:
-                return {'abonnement': abonnement.to_dict(), 'can_renew': can_renew, 'tenant': None}, 200
+                pricing = _pricing_payload(abonnement)
+                payload = {
+                    'abonnement': abonnement.to_dict(),
+                    'can_renew': can_renew,
+                    'tenant': None,
+                    'is_free_plan': is_free_plan,
+                    'pricing': pricing,
+                }
+                return payload, 200
             users_count = Utilisateur.query.filter_by(
                 tenant_id=tenant.id, is_active=True
             ).count()
@@ -150,7 +178,14 @@ class MonAbonnement(Resource):
                 'users_count': users_count,
                 'employees_count': employees_count,
             }
-            return {'abonnement': abonnement.to_dict(), 'can_renew': can_renew, 'tenant': tenant_summary}, 200
+            pricing = _pricing_payload(abonnement)
+            return {
+                'abonnement': abonnement.to_dict(),
+                'can_renew': can_renew,
+                'tenant': tenant_summary,
+                'is_free_plan': is_free_plan,
+                'pricing': pricing,
+            }, 200
 
 
 @ns.route('/mon-historique')
@@ -235,14 +270,27 @@ class PayerAbonnement(Resource):
 class RenouvelerAbonnement(Resource):
     @jwt_required()
     def post(self, id):
+        data = request.get_json(silent=True) or {}
+        new_plan = data.get('plan')
+        payment_method = data.get('payment_method')
+
         utilisateur = db.session.get(Utilisateur, get_jwt_identity())
 
         # §12 : le Super Admin gère la plateforme et peut renouveler.
         if utilisateur and utilisateur.is_super_admin:
-            result = AbonnementService.renew_subscription(id)
+            try:
+                result = AbonnementService.renew_subscription(
+                    id, new_plan=new_plan, payment_method=payment_method
+                )
+            except ValueError as e:
+                return {'message': str(e)}, 400
             if not result:
                 return {'message': 'Abonnement non trouve'}, 404
             abonnement, paiement = result
+            try:
+                broadcast_to_tenant(abonnement.tenant_id, 'subscription:updated', abonnement.to_dict())
+            except Exception:
+                pass
             return {
                 'abonnement': abonnement.to_dict(),
                 'paiement': paiement.to_dict()
@@ -263,7 +311,12 @@ class RenouvelerAbonnement(Resource):
         if not _is_principal_admin(utilisateur, tenant):
             return {'message': 'Seul l\'administrateur principal du tenant peut renouveler l\'abonnement'}, 403
 
-        result = AbonnementService.renew_subscription(id)
+        try:
+            result = AbonnementService.renew_subscription(
+                id, new_plan=new_plan, payment_method=payment_method
+            )
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not result:
             return {'message': 'Abonnement non trouve'}, 404
         abonnement, paiement = result

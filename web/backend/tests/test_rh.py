@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -76,7 +76,7 @@ def test_create_stagiaire(app):
         'matricule': 'STG-001',
         'nom': 'Dupont',
         'prenom': 'Jean',
-        'etablissement': 'Université A',
+        'etablissement': 'UniversitÃ© A',
         'formation': 'Informatique',
         'type_contrat': 'stage_initiation',
         'date_debut': '2026-01-01',

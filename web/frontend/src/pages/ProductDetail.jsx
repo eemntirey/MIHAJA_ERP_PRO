@@ -16,8 +16,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
-  const isUser = (user?.role || '').toLowerCase() === 'user';
-  const canBuy = isUser && isAuthenticated;
+  // Tout visiteur (connecté ou non) peut acheter via la vitrine publique
+  const canBuy = true;
 
   useEffect(() => {
     const fetchProduct = async () => {

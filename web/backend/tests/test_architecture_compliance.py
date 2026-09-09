@@ -1,11 +1,11 @@
-"""Tests de conformité de l'architecture SUPER ADMIN =| TENANT == ADMIN =| USER.
+"""Tests de conformitÃ© de l'architecture SUPER ADMIN =| TENANT == ADMIN =| USER.
 
-Vérifie notamment :
-- §5  : la création d'un Tenant crée aussi Admin principal + abonnement initial
-- §8  : les données sensibles ne sont jamais retournées en clair par l'API
-- §10/§11 : seul l'Admin principal du Tenant peut renouveler / payer (pas seulement un rôle admin)
-- §4  : les quotas d'utilisateurs sont indépendants par Tenant
-- §16  : l'employee_key est privée au Tenant et jamais exposée au Super Admin
+VÃ©rifie notamment :
+- Â§5  : la crÃ©ation d'un Tenant crÃ©e aussi Admin principal + abonnement initial
+- Â§8  : les donnÃ©es sensibles ne sont jamais retournÃ©es en clair par l'API
+- Â§10/Â§11 : seul l'Admin principal du Tenant peut renouveler / payer (pas seulement un rÃ´le admin)
+- Â§4  : les quotas d'utilisateurs sont indÃ©pendants par Tenant
+- Â§16  : l'employee_key est privÃ©e au Tenant et jamais exposÃ©e au Super Admin
 """
 import pytest
 from datetime import datetime, timedelta
@@ -19,17 +19,13 @@ from app.security.auth import hash_password, verify_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch, tmp_path):
-    # Base de données fichier temporaire par test -> isolation totale
-    # (évite le partage de la base :memory: entre les tests de la session).
-    db_file = tmp_path / 'test.db'
-    monkeypatch.setenv('DATABASE_URL', f'sqlite:///{db_file}')
+    # Base de donnÃ©es PostgreSQL de test, partagÃ©e au niveau session.
+    # L'isolation entre tests est assurÃ©e par des SAVEPOINTs (cf. conftest).
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     application = create_app()
     application.config['TESTING'] = True
-    application.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {'timeout': 30},
-    }
     with application.app_context():
         db.create_all()
         yield application
@@ -75,7 +71,7 @@ def _create_user(client, headers, username, role='user'):
 
 
 # ---------------------------------------------------------------------------
-# §5 : création simultanée Tenant + Admin principal + abonnement
+# Â§5 : crÃ©ation simultanÃ©e Tenant + Admin principal + abonnement
 # ---------------------------------------------------------------------------
 class TestCreationTenant:
 
@@ -88,15 +84,15 @@ class TestCreationTenant:
         with app.app_context():
             tenant = Tenant.query.filter_by(slug='entreprise-a').first()
             assert tenant is not None
-            # Admin principal lié au tenant
+            # Admin principal liÃ© au tenant
             assert tenant.admin_principal_id is not None
             principal = db.session.get(Utilisateur, tenant.admin_principal_id)
             assert principal is not None
             assert principal.role == Role.ADMIN
             assert principal.tenant_id == tenant.id
-            # Admin principal rattaché au tenant
+            # Admin principal rattachÃ© au tenant
             assert tenant.admin_principal_id is not None
-            # Abonnement initial rattaché au tenant
+            # Abonnement initial rattachÃ© au tenant
             abo = Abonnement.query.filter_by(tenant_id=tenant.id).first()
             assert abo is not None
 
@@ -105,7 +101,7 @@ class TestCreationTenant:
         r = _register_company(client, 'Entreprise B', 'b@b.mg')
         assert r.status_code == 201
         data = r.get_json()
-        # Le tenant reçoit un admin principal et le hash n'est jamais renvoyé dans la réponse.
+        # Le tenant reÃ§oit un admin principal et le hash n'est jamais renvoyÃ© dans la rÃ©ponse.
         assert data.get('tenant', {}).get('admin_principal_id') is not None
         assert 'admin_key_hash' not in data
         assert 'admin_key_hash' not in data.get('tenant', {})
@@ -113,15 +109,15 @@ class TestCreationTenant:
 
 
 # ---------------------------------------------------------------------------
-# §10/§11 : renouvellement réservé à l'Admin principal du Tenant
+# Â§10/Â§11 : renouvellement rÃ©servÃ© Ã  l'Admin principal du Tenant
 # ---------------------------------------------------------------------------
 class TestRenouvellement:
 
     def _principal_and_abonnement(self, client, name, email):
         r = _register_company(client, name, email)
         headers = _auth(client, email)
-        # L'abonnement initial est EN_ATTENTE (non encore payé) : on le récupère
-        # via l'historique plutôt que via /mon-abonnement (qui ne renvoie que l'actif).
+        # L'abonnement initial est EN_ATTENTE (non encore payÃ©) : on le rÃ©cupÃ¨re
+        # via l'historique plutÃ´t que via /mon-abonnement (qui ne renvoie que l'actif).
         rh = client.get('/api/v1/abonnements/mon-historique', headers=headers)
         abo_id = rh.get_json()['abonnements'][0]['id']
         return headers, abo_id
@@ -138,11 +134,11 @@ class TestRenouvellement:
         headers = _auth(client, 'tb@b.mg')
         rh = client.get('/api/v1/abonnements/mon-historique', headers=headers)
         abo_id = rh.get_json()['abonnements'][0]['id']
-        # L'admin principal crée un employé
+        # L'admin principal crÃ©e un employÃ©
         ru = _create_user(client, headers, 'employe_b')
         assert ru.status_code == 201, ru.get_json()
         emp_email = ru.get_json()['email']
-        # L'employé se connecte avec email + mot de passe (connexion professionnelle).
+        # L'employÃ© se connecte avec email + mot de passe (connexion professionnelle).
         rl = client.post('/api/v1/auth/login', json={
             'username': emp_email, 'password': 'Employe123'
         })
@@ -153,7 +149,7 @@ class TestRenouvellement:
 
 
 # ---------------------------------------------------------------------------
-# §5/§6 : connexion professionnelle des utilisateurs du Tenant
+# Â§5/Â§6 : connexion professionnelle des utilisateurs du Tenant
 # ---------------------------------------------------------------------------
 class TestConnexionProfessionnelle:
 
@@ -210,7 +206,7 @@ class TestConnexionProfessionnelle:
 
 
 # ---------------------------------------------------------------------------
-# §2/§17 : quotas par plan (Starter=3, Pro=7, Enterprise=illimité)
+# Â§2/Â§17 : quotas par plan (Starter=3, Pro=7, Enterprise=illimitÃ©)
 # ---------------------------------------------------------------------------
 class TestQuotaPlans:
 
@@ -226,7 +222,7 @@ class TestQuotaPlans:
     def test_starter_max_trois(self, app):
         client = app.test_client()
         headers = TestConnexionProfessionnelle()._setup_tenant(client, 'S', 's@s.mg', 'starter')
-        # admin + 2 = 3 (OK) ; 4e refusé
+        # admin + 2 = 3 (OK) ; 4e refusÃ©
         assert _create_user(client, headers, 's1').status_code == 201
         assert _create_user(client, headers, 's2').status_code == 201
         assert _create_user(client, headers, 's3').status_code == 403
@@ -264,7 +260,7 @@ class TestQuotaPlans:
 
 
 # ---------------------------------------------------------------------------
-# §4 : quotas d'utilisateurs indépendants par Tenant (Starter = 3 max)
+# Â§4 : quotas d'utilisateurs indÃ©pendants par Tenant (Starter = 3 max)
 # ---------------------------------------------------------------------------
 class TestQuotaParTenant:
 
@@ -275,17 +271,17 @@ class TestQuotaParTenant:
         ha = _auth(client, 'qa@a.mg')
         hb = _auth(client, 'qb@b.mg')
 
-        # Tenant A : 1 admin + 2 employés = 3 (limite Starter). Le 4e est refusé.
+        # Tenant A : 1 admin + 2 employÃ©s = 3 (limite Starter). Le 4e est refusÃ©.
         assert _create_user(client, ha, 'a_emp1').status_code == 201
         assert _create_user(client, ha, 'a_emp2').status_code == 201
         assert _create_user(client, ha, 'a_emp3').status_code == 403
 
-        # Tenant B indépendant : peut encore créer un utilisateur.
+        # Tenant B indÃ©pendant : peut encore crÃ©er un utilisateur.
         assert _create_user(client, hb, 'b_emp1').status_code == 201
 
 
 # ---------------------------------------------------------------------------
-# §16 : employee_key privée au Tenant, jamais exposée au Super Admin
+# Â§16 : employee_key privÃ©e au Tenant, jamais exposÃ©e au Super Admin
 # ---------------------------------------------------------------------------
 class TestEmployeeKeyConfidentiality:
 

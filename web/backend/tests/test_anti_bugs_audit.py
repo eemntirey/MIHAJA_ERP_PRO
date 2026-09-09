@@ -57,7 +57,7 @@ _audit_app = None
 def _get_audit_app():
     global _audit_app
     if _audit_app is None:
-        os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+        os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test'
         os.environ['JWT_SECRET_KEY'] = 'audit-secret'
         os.environ['SECRET_KEY'] = 'audit-secret'
         os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
@@ -588,7 +588,7 @@ class Test10JwtCrossTenant:
 # ===========================================================================
 class Test11EmployeeKey:
     def test_employee_key_non_exposee_dans_register(self, app):
-        """L'employee_key ne doit jamais être exposée dans la réponse d'inscription."""
+        """L'employee_key ne doit jamais Ãªtre exposÃ©e dans la rÃ©ponse d'inscription."""
         client = app.test_client()
         r = _register_company(client, 'KA', 'ka@k.mg', 'pro')
         data = r.get_json()
@@ -597,7 +597,7 @@ class Test11EmployeeKey:
         _record('16 employee_key non exposee dans register', 'PASS')
 
     def test_employee_key_non_exposee_dans_me(self, app):
-        """L'employee_key ne doit jamais être exposée dans /me."""
+        """L'employee_key ne doit jamais Ãªtre exposÃ©e dans /me."""
         client = app.test_client()
         r = _register_company(client, 'KB', 'kb@k.mg', 'pro')
         h = _auth(client, 'kb@k.mg')
@@ -886,7 +886,7 @@ class Test23RechercheBugs:
         client = app.test_client()
         r = _register_company(client, 'Bug', 'bug@b.mg', 'pro')
         h = _auth(client, 'bug@b.mg')
-        # Le plan limite à 1 admin. On insère directement en DB pour tester la propriété.
+        # Le plan limite Ã  1 admin. On insÃ¨re directement en DB pour tester la propriÃ©tÃ©.
         with app.app_context():
             from app.models.utilisateur import Utilisateur as U, Role
             from app.security.auth import hash_password

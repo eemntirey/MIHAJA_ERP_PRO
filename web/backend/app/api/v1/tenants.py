@@ -171,9 +171,9 @@ class TenantResource(Resource):
         if not tenant:
             return {'message': 'Tenant non trouve'}, 404
         data = request.get_json() or {}
-        for key, value in data.items():
-            if key in _ALLOWED_TENANT_FIELDS:
-                setattr(tenant, key, value)
+        # En modification, seul le statut peut etre change par le SUPER_ADMIN.
+        # Les autres champs (nom, email, telephone, adresse, ville, code_postal,
+        # pays) sont en lecture seule cote UI et ignores cote backend.
         if data.get('statut') is not None:
             statut = _coerce_statut(data['statut'])
             if statut is not None:

@@ -278,6 +278,12 @@ export const publicCatalogueService = {
 
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
+
+    createCommandePapiPayment: (ref, data) =>
+        publicApi.post(`/public/commandes/${ref}/papi-payment`, data),
+
+    getCommandePapiStatus: (ref) =>
+        publicApi.get(`/public/commandes/${ref}/papi-status`),
 };
 
 // ======================================================
@@ -762,8 +768,8 @@ export const subscriptionService = {
     payer: (id, data) =>
         api.post(`/abonnements/${id}/payer`, data),
 
-    renouveler: (id) =>
-        api.post(`/abonnements/${id}/renouveler`),
+    renouveler: (id, data) =>
+        api.post(`/abonnements/${id}/renouveler`, data || {}),
 
     getHistoriqueByTenant: (tenantId) =>
         api.get(`/abonnements/historique/${tenantId}`),
@@ -791,6 +797,31 @@ export const papiService = {
 };
 
 // ======================================================
+// TENANT PAPI / VITRINE SETTINGS (admin principal uniquement)
+// ======================================================
+
+export const tenantPapiService = {
+    getStatus: () => api.get('/me/papi-settings'),
+
+    updateSettings: (data) => api.put('/me/papi-settings', data),
+
+    testConnection: () => api.post('/me/papi-settings/test'),
+
+    getVitrine: () => api.get('/me/vitrine'),
+
+    setVitrine: (enabled) => api.put('/me/vitrine', { enabled }),
+};
+
+// ======================================================
+// SUPER ADMIN — PAPI MARCHANDS OVERVIEW
+// ======================================================
+
+export const superAdminPapiService = {
+    getOverview: (params) =>
+        api.get('/super-admin/tenants/papi-overview', { params }),
+};
+
+// ======================================================
 // INTELLIGENCE ARTIFICIELLE
 // ======================================================
 
@@ -800,6 +831,30 @@ export const aiService = {
   getAnomalies: (params) => api.get('/ai/anomalies', { params }),
   getRecommendations: (params) => api.get('/ai/recommendations', { params }),
   getStockRuptures: () => api.get('/ai/stock-ruptures'),
+
+  // Insights proactifs
+  getInsights: () => api.get('/ai/insights'),
+  getAnalyticsStock: () => api.get('/ai/analytics/stock'),
+  getAnalyticsSales: (params) => api.get('/ai/analytics/sales', { params }),
+  getAnalyticsFinances: () => api.get('/ai/analytics/finances'),
+  getAnalyticsPurchases: (params) => api.get('/ai/analytics/purchases', { params }),
+  getAnalyticsClients: (params) => api.get('/ai/analytics/clients', { params }),
+
+  // Predictions
+  getDemandPrediction: (params) => api.get('/ai/predictions/demand', { params }),
+
+  // Assistant amélioré
+  askAssistantEnhanced: (data) => api.post('/ai/assistant/enhanced', data),
+
+  // Quick endpoints (pour dashboard / sidebar)
+  getQuickStockHealth: () => api.get('/ai/quick/stock-health'),
+  getQuickLowStock: (params) => api.get('/ai/quick/low-stock', { params }),
+  getQuickCustomerDebts: () => api.get('/ai/quick/customer-debts'),
+  getQuickTopProducts: (params) => api.get('/ai/quick/top-products', { params }),
+  getQuickSupplierPriceChanges: (params) => api.get('/ai/quick/supplier-price-changes', { params }),
+  getQuickPendingInvoices: () => api.get('/ai/quick/pending-invoices'),
+
+  // Méthodes existantes
   askAssistant: (data) => api.post('/ai/assistant', data),
   trainModels: (data) => api.post('/ai/train', data),
 };
