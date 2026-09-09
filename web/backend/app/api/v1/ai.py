@@ -1,4 +1,4 @@
-from flask import request, jsonify
+﻿from flask import request, jsonify, current_app
 from flask_restx import Namespace, Resource, fields
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
@@ -15,6 +15,14 @@ from app.ai import (
 from app.ai.anomalies import detect_sales_anomalies, detect_payment_anomalies
 from app.ai.recommendations import suggest_pricing_adjustments, suggest_cross_sell
 from app.ai.previsions import predict_stock_rupture
+from app.ai.ai_insights import generate_insights
+from app.ai.ai_analytics import analyze_stock, analyze_sales, analyze_finances, analyze_purchases, analyze_clients
+from app.ai.ai_predictions import predict_stock_rupture as predict_rupture_new, predict_sales_trend, predict_demand
+from app.ai.ai_tools import (
+    get_stock_health, get_low_stock_products, get_customer_debts,
+    get_pending_invoices, get_supplier_price_changes, get_top_products,
+)
+
 
 ns = Namespace('ai', description="Module d'Intelligence Artificielle et Prédictions")
 
@@ -274,4 +282,192 @@ class AIContextResource(Resource):
         except Exception as e:
             current_app.logger.exception('AI context error: %s', e)
             return {'message': 'Erreur lors de la mise à jour du contexte'}, 500
+
+# ============================================================
+# NOUVEAUX ENDPOINTS : Insights, Analytics, Predictions
+# ============================================================
+
+@ns.route('/insights')
+@ns.doc(responses={200: 'Insights generes', 500: 'Erreur serveur'})
+class InsightsResource(Resource):
+    @permission_required('report.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            insights = generate_insights()
+            return {'insights': insights, 'count': len(insights)}, 200
+        except Exception as e:
+            current_app.logger.exception('AI insights error: %s', e)
+            return {'message': 'Erreur lors de la generation des insights'}, 500
+
+# NOUVEAUX ENDPOINTS
+@ns.route('/analytics/finances')
+@ns.doc(responses={200: 'Analyse finances', 403: 'Permission refusee'})
+class AnalyticsFinancesResource(Resource):
+    @permission_required('invoice.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            result = analyze_finances()
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI analytics finances error: %s', e)
+            return {'message': 'Erreur lors de l analyse financiere'}, 500
+
+
+@ns.route('/analytics/purchases')
+@ns.doc(responses={200: 'Analyse achats', 403: 'Permission refusee'})
+class AnalyticsPurchasesResource(Resource):
+    @permission_required('purchase_order.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            days = request.args.get('days', default=180, type=int)
+            result = analyze_purchases(days=days)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI analytics purchases error: %s', e)
+            return {'message': 'Erreur lors de l analyse des achats'}, 500
+@ns.route('/analytics/clients')
+@ns.doc(responses={200: 'Analyse clients', 403: 'Permission refusee'})
+class AnalyticsClientsResource(Resource):
+    @permission_required('client.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            days = request.args.get('days', default=90, type=int)
+            result = analyze_clients(days=days)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI analytics clients error: %s', e)
+            return {'message': 'Erreur lors de l analyse des clients'}, 500
+
+@ns.route('/predictions/demand')
+@ns.doc(responses={200: 'Prevision de demande', 403: 'Permission refusee'})
+class PredictionsDemandResource(Resource):
+    @permission_required('report.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            product_id = request.args.get('product_id', default=None, type=int)
+            periods = request.args.get('periods', default=30, type=int)
+            result = predict_demand(product_id=product_id, periods=periods)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI predictions demand error: %s', e)
+            return {'message': 'Erreur lors de la prevision de demande'}, 500
+
+@ns.route('/assistant/enhanced')
+@ns.doc(responses={200: 'Reponse amelioree', 400: 'Requete invalide'})
+class AssistantEnhancedResource(Resource):
+    @permission_required('report.view')
+    @tenant_required_readonly
+    def post(self):
+        try:
+            body = request.get_json() or {}
+            prompt = body.get('prompt', '')
+            conversation = body.get('conversation', [])
+            user_id = body.get('user_id', 'default')
+
+            if not prompt or not isinstance(prompt, str) or len(prompt.strip()) < 3:
+                return {'message': 'Veuillez fournir une question valide (minimum 3 caracteres)'}, 400
+
+            from app.ai.assistant import ask_assistant_enhanced
+            response_text = ask_assistant_enhanced(
+                prompt=prompt,
+                conversation=conversation,
+                user_id=user_id
+            )
+            return {'prompt': prompt, 'response': response_text}, 200
+        except Exception as e:
+            current_app.logger.exception('AI assistant enhanced error: %s', e)
+            return {'message': 'Erreur avec l assistant'}, 500
+
+
+@ns.route('/quick/stock-health')
+@ns.doc(responses={200: 'Sante du stock', 403: 'Permission refusee'})
+class QuickStockHealthResource(Resource):
+    @permission_required('stock.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            result = get_stock_health()
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick stock health error: %s', e)
+            return {'message': 'Erreur'}, 500
+
+
+@ns.route('/quick/low-stock')
+@ns.doc(responses={200: 'Produits en rupture/alerte', 403: 'Permission refusee'})
+class QuickLowStockResource(Resource):
+    @permission_required('stock.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            limit = request.args.get('limit', default=20, type=int)
+            result = get_low_stock_products(limit=limit)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick low stock error: %s', e)
+            return {'message': 'Erreur'}, 500
+
+
+@ns.route('/quick/customer-debts')
+@ns.doc(responses={200: 'Creances clients', 403: 'Permission refusee'})
+class QuickCustomerDebtsResource(Resource):
+    @permission_required('invoice.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            result = get_customer_debts()
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick customer debts error: %s', e)
+            return {'message': 'Erreur'}, 500
+
+
+@ns.route('/quick/top-products')
+@ns.doc(responses={200: 'Top produits', 403: 'Permission refusee'})
+class QuickTopProductsResource(Resource):
+    @permission_required('sale.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            days = request.args.get('days', default=30, type=int)
+            limit = request.args.get('limit', default=10, type=int)
+            result = get_top_products(days=days, limit=limit)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick top products error: %s', e)
+            return {'message': 'Erreur'}, 500
+
+
+@ns.route('/quick/supplier-price-changes')
+@ns.doc(responses={200: 'Variations de prix fournisseurs', 403: 'Permission refusee'})
+class QuickSupplierPriceChangesResource(Resource):
+    @permission_required('purchase_order.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            days = request.args.get('days', default=180, type=int)
+            result = get_supplier_price_changes(days=days)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick supplier price error: %s', e)
+            return {'message': 'Erreur'}, 500
+
+
+@ns.route('/quick/pending-invoices')
+@ns.doc(responses={200: 'Factures en attente', 403: 'Permission refusee'})
+class QuickPendingInvoicesResource(Resource):
+    @permission_required('invoice.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            result = get_pending_invoices()
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI quick pending invoices error: %s', e)
+            return {'message': 'Erreur'}, 500
 

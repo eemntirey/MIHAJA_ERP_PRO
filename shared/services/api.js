@@ -831,6 +831,30 @@ export const aiService = {
   getAnomalies: (params) => api.get('/ai/anomalies', { params }),
   getRecommendations: (params) => api.get('/ai/recommendations', { params }),
   getStockRuptures: () => api.get('/ai/stock-ruptures'),
+
+  // Insights proactifs
+  getInsights: () => api.get('/ai/insights'),
+  getAnalyticsStock: () => api.get('/ai/analytics/stock'),
+  getAnalyticsSales: (params) => api.get('/ai/analytics/sales', { params }),
+  getAnalyticsFinances: () => api.get('/ai/analytics/finances'),
+  getAnalyticsPurchases: (params) => api.get('/ai/analytics/purchases', { params }),
+  getAnalyticsClients: (params) => api.get('/ai/analytics/clients', { params }),
+
+  // Predictions
+  getDemandPrediction: (params) => api.get('/ai/predictions/demand', { params }),
+
+  // Assistant amélioré
+  askAssistantEnhanced: (data) => api.post('/ai/assistant/enhanced', data),
+
+  // Quick endpoints (pour dashboard / sidebar)
+  getQuickStockHealth: () => api.get('/ai/quick/stock-health'),
+  getQuickLowStock: (params) => api.get('/ai/quick/low-stock', { params }),
+  getQuickCustomerDebts: () => api.get('/ai/quick/customer-debts'),
+  getQuickTopProducts: (params) => api.get('/ai/quick/top-products', { params }),
+  getQuickSupplierPriceChanges: (params) => api.get('/ai/quick/supplier-price-changes', { params }),
+  getQuickPendingInvoices: () => api.get('/ai/quick/pending-invoices'),
+
+  // Méthodes existantes
   askAssistant: (data) => api.post('/ai/assistant', data),
   trainModels: (data) => api.post('/ai/train', data),
 };
