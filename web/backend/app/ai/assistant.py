@@ -209,6 +209,55 @@ def _answer_internal(tenant_id, prompt_lower):
     return None
 
 
+def _detect_proactive_insights(tenant_id):
+    """Genere un bloc d'insights proactifs pour le tenant."""
+    try:
+        from app.ai.ai_insights import generate_insights, CRITIQUE, ATTENTION
+        insights = generate_insights(tenant_id=tenant_id)
+        if not insights:
+            return None
+        urgent = [i for i in insights if i['severity'] in (CRITIQUE, ATTENTION)][:3]
+        if not urgent:
+            return None
+        lines = ["", "", "**Alertes IA :**"]
+        for ins in urgent:
+            lines.append("- {} **{}** : {}".format(ins['icon'], ins['title'], ins['detail']))
+            if ins.get('recommendation'):
+                lines.append("  -> {}".format(ins['recommendation']))
+        return "\\n".join(lines)
+    except Exception as e:
+        logger.debug("Impossible de generer les insights: %s", e)
+        return None
+
+
+_conversation_memories = {}
+
+
+def _get_conversation_memory(tenant_id, user_id='default'):
+    """Recupere la memoire de conversation pour un utilisateur donne."""
+    key = "{}:{}".format(tenant_id, user_id)
+    return _conversation_memories.get(key, {'history': [], 'context': {}})
+
+
+def _update_conversation_memory(tenant_id, prompt, response, user_id='default'):
+    """Met a jour la memoire de conversation apres chaque echange."""
+    try:
+        key = "{}:{}".format(tenant_id, user_id)
+        mem = _conversation_memories.get(key, {'history': [], 'context': {}})
+        mem['history'].append({'prompt': prompt[:200], 'response': response[:500]})
+        if len(mem['history']) > 10:
+            mem['history'] = mem['history'][-10:]
+        prompt_lower = prompt.lower()
+        for domain in ['ventes', 'stock', 'clients', 'factures', 'achats', 'fournisseurs']:
+            if domain in prompt_lower:
+                mem['context']['last_domain'] = domain
+                break
+        _conversation_memories[key] = mem
+    except Exception as e:
+        logger.debug("Erreur memoire conversation: %s", e)
+
+
+
 def _enrich_with_external_ai(prompt, prompt_lower, system_prompt, context_block, internal_answer, conversation):
     enriched_query = (
         "Réponds en français, de façon professionnelle et concise.\n"

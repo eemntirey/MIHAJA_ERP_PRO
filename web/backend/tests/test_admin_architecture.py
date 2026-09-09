@@ -13,7 +13,7 @@ from app.security.roles import is_super_admin, is_admin
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -343,7 +343,7 @@ class TestArchitectureAdmin:
 
 
 class TestSubscriptionAdminPrincipal:
-    """Tests : seul l'admin principal du tenant peut gérer l'abonnement."""
+    """Tests : seul l'admin principal du tenant peut gÃ©rer l'abonnement."""
 
     def test_13_admin_principal_can_renew_subscription(self, app):
         tenant_a, admin_a = _make_admin_tenant('Tenant A', 'tenant-a')

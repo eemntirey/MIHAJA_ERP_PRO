@@ -27,7 +27,11 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = tokenStore.getAccessToken();
+        // Ne PAS écraser le header Authorization d'un appel /auth/refresh :
+        // l'intercepteur injecterait l'access token (expiré) à la place du
+        // refresh token passé explicitement par l'appelant -> boucle 401/404.
+        const isRefreshRequest = (config.url || '').includes('/auth/refresh');
+        const token = isRefreshRequest ? null : tokenStore.getAccessToken();
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

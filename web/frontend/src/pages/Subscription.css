@@ -82,6 +82,7 @@
 
 .subscription-plans-section {
   margin-top: 8px;
+  scroll-margin-top: 80px;
 }
 
 .subscription-plans-grid {
@@ -237,12 +238,324 @@
   }
 }
 
+/* ==================== RENEW MODAL ==================== */
+.modal--renew {
+  max-width: 880px;
+}
+
+.renew-modal__intro {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.renew-modal__plans {
+  margin-bottom: 16px;
+}
+
+.renew-modal__plan {
+  cursor: pointer;
+  position: relative;
+  outline: none;
+}
+
+.renew-modal__plan:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.renew-modal__plan:focus-visible {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+}
+
+.renew-modal__plan--selected {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 2px var(--color-primary, #3b82f6), 0 8px 28px rgba(0, 0, 0, 0.10);
+}
+
+.renew-modal__plan-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.renew-modal__plan-title h4 {
+  margin-bottom: 0;
+}
+
+.renew-modal__current-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.renew-modal__direction {
+  display: inline-block;
+  margin-top: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  align-self: flex-start;
+}
+
+.renew-modal__direction--upgrade {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.renew-modal__direction--downgrade {
+  background: rgba(234, 179, 8, 0.14);
+  color: #b45309;
+}
+
+.renew-modal__direction--same {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
+.renew-modal__summary {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.renew-modal__summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.renew-modal__summary-row:last-of-type {
+  border-bottom: none;
+}
+
+.renew-modal__summary-row span {
+  color: var(--color-text-secondary);
+}
+
+.renew-modal__summary-note {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.renew-modal__summary-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(234, 179, 8, 0.18);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.renew-modal__payment {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.renew-modal__payment-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--color-text);
+}
+
+.renew-modal__payment-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.renew-modal__payment-option {
+  position: relative;
+  padding: 12px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  background: var(--color-surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.renew-modal__payment-option:hover {
+  border-color: #93c5fd;
+}
+
+.renew-modal__payment-option--selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.renew-modal__payment-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.renew-modal__payment-current {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__payment-option {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__payment-option--selected {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #3b82f6;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__payment-name {
+  color: #e2e8f0;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__payment-current {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__summary-tag {
+  background: rgba(234, 179, 8, 0.22);
+  color: #fbbf24;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__plan {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__plan--selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px #3b82f6, 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.main-layout[data-theme='dark'] .renew-modal__summary {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__direction--upgrade {
+  background: rgba(34, 197, 94, 0.20);
+  color: #4ade80;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__direction--downgrade {
+  background: rgba(234, 179, 8, 0.20);
+  color: #fbbf24;
+}
+
+.main-layout[data-theme='dark'] .renew-modal__direction--same {
+  background: rgba(148, 163, 184, 0.20);
+  color: #cbd5e1;
+}
+
 /* ==================== PAYMENT METHODS ==================== */
 .payment-methods-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 8px;
+}
+
+.payment-methods-grid > div {
+  color: #1e293b;
+}
+
+.payment-methods-grid > div > div {
+  color: #1e293b;
+}
+
+.main-layout[data-theme='dark'] .payment-methods-grid > div {
+  color: #e2e8f0;
+}
+
+.main-layout[data-theme='dark'] .payment-methods-grid > div > div {
+  color: #e2e8f0;
+}
+
+/* ==================== EXPIRATION PENALTY ==================== */
+
+.subscription-penalty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: rgba(234, 88, 12, 0.10);
+  border: 1px solid rgba(234, 88, 12, 0.30);
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.subscription-penalty__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.subscription-penalty__detail {
+  font-size: 12px;
+  color: #7c2d12;
+}
+
+.subscription-price-strike {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.subscription-price-final {
+  font-weight: 800;
+  color: #9a3412;
+  font-size: 18px;
+}
+
+.main-layout[data-theme='dark'] .subscription-penalty {
+  background: rgba(234, 88, 12, 0.18);
+  border-color: rgba(234, 88, 12, 0.45);
+  color: #fed7aa;
+}
+
+.main-layout[data-theme='dark'] .subscription-penalty__detail {
+  color: #fdba74;
+}
+
+.main-layout[data-theme='dark'] .subscription-price-final {
+  color: #fdba74;
 }
 
 /* ==================== DARK MODE ==================== */
@@ -286,7 +599,7 @@
 }
 
 .main-layout[data-theme='dark'] .subscription-plan-card__cta {
-  color: #111111;
+  color: #fffafa;
 }
 
 

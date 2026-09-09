@@ -11,7 +11,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     app = create_app()
     app.config['TESTING'] = True
     with app.app_context():
@@ -79,7 +79,7 @@ class TestTenantModel:
 
 class TestMultiTenancy:
     def test_produit_tenant_isolation(self, app, tenant):
-        # Créer deux produits pour le même tenant
+        # CrÃ©er deux produits pour le mÃªme tenant
         p1 = Produit(
             nom='Produit 1',
             reference='P001',
@@ -97,11 +97,11 @@ class TestMultiTenancy:
         db.session.add_all([p1, p2])
         db.session.commit()
         
-        # Vérifier l'isolation
+        # VÃ©rifier l'isolation
         produits = Produit.query.filter_by(tenant_id=tenant.id, is_active=True).all()
         assert len(produits) == 2
         
-        # Un produit d'un autre tenant ne doit pas apparaître
+        # Un produit d'un autre tenant ne doit pas apparaÃ®tre
         autre_tenant = Tenant(nom='Autre', slug='autre', statut=StatutTenant.ACTIF)
         db.session.add(autre_tenant)
         db.session.commit()

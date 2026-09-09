@@ -8,12 +8,22 @@ class BaseModel(db.Model):
     __abstract__ = True
     
     id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), index=True)
+    tenant_id = db.Column(
+        db.Integer,
+        db.ForeignKey('tenants.id', use_alter=True, name='fk_basemodel_tenant_id'),
+        index=True,
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'))
-    updated_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'))
+    created_by = db.Column(
+        db.Integer,
+        db.ForeignKey('utilisateurs.id', use_alter=True, name='fk_basemodel_created_by'),
+    )
+    updated_by = db.Column(
+        db.Integer,
+        db.ForeignKey('utilisateurs.id', use_alter=True, name='fk_basemodel_updated_by'),
+    )
     
     @validates('tenant_id')
     def validate_tenant_id(self, key, value):
@@ -58,4 +68,9 @@ class BaseModel(db.Model):
 
 class BaseTenantModel(BaseModel):
     __abstract__ = True
-    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    tenant_id = db.Column(
+        db.Integer,
+        db.ForeignKey('tenants.id', use_alter=True, name='fk_basetenantmodel_tenant_id'),
+        nullable=False,
+        index=True,
+    )

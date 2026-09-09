@@ -20,7 +20,7 @@ EMPLOYEE_ROLES = [
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     app = create_app()
     app.config['TESTING'] = True
@@ -60,10 +60,10 @@ def _login(client, identifier, password, tenant_slug=None):
 
 
 class TestCreationEmployeSystemeRoles:
-    """Vérifie qu'un rôle système (non-custom) n'est jamais traité comme un custom_role.
+    """VÃ©rifie qu'un rÃ´le systÃ¨me (non-custom) n'est jamais traitÃ© comme un custom_role.
 
-    Régression : le frontend envoie `custom_role_id: ''` quand aucun rôle custom
-    n'est sélectionné. Le backend ne doit pas déclencher la logique
+    RÃ©gression : le frontend envoie `custom_role_id: ''` quand aucun rÃ´le custom
+    n'est sÃ©lectionnÃ©. Le backend ne doit pas dÃ©clencher la logique
     _validate_custom_role dans ce cas.
     """
 
@@ -153,7 +153,7 @@ class TestCreationEmployeSystemeRoles:
         assert r.get_json()['custom_role_id'] is None
 
     def test_creation_avec_custom_role_id_invalide_retourne_404(self, app):
-        """Un custom_role_id non-numérique doit toujours produire l'erreur 'Role personnalise introuvable'."""
+        """Un custom_role_id non-numÃ©rique doit toujours produire l'erreur 'Role personnalise introuvable'."""
         _make_context()
         client = app.test_client()
         headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')

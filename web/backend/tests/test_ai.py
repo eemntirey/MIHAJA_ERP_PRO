@@ -11,7 +11,7 @@ from app.models.stock import MouvementStock, TypeMouvement
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:eemntirey@localhost:55432/erp_test')
     app = create_app()
     app.config['TESTING'] = True
     with app.app_context():
@@ -64,10 +64,10 @@ def test_ask_assistant(app, tenant):
 
 
 def test_training_does_not_deserialize_pickle(app):
-    """Sécurité: le module d'entraînement/chargement IA ne doit jamais
-    désérialiser un fichier .pkl via pickle (risque RCE sur fichier
-    altéré/non fiable). Les modèles sont écrits mais jamais relus par
-    l'application ; les prédictions sont calculées en live.
+    """SÃ©curitÃ©: le module d'entraÃ®nement/chargement IA ne doit jamais
+    dÃ©sÃ©rialiser un fichier .pkl via pickle (risque RCE sur fichier
+    altÃ©rÃ©/non fiable). Les modÃ¨les sont Ã©crits mais jamais relus par
+    l'application ; les prÃ©dictions sont calculÃ©es en live.
     """
     import inspect
     import app.ai.training as training
@@ -79,51 +79,51 @@ def test_training_does_not_deserialize_pickle(app):
     for mod in (training, previsions, anomalies, recommendations, assistant):
         src = inspect.getsource(mod)
         assert 'pickle.load' not in src, (
-            f"{mod.__name__} utilise pickle.load (risque désérialisation)"
+            f"{mod.__name__} utilise pickle.load (risque dÃ©sÃ©rialisation)"
         )
         assert 'pickle.loads' not in src, (
-            f"{mod.__name__} utilise pickle.loads (risque désérialisation)"
+            f"{mod.__name__} utilise pickle.loads (risque dÃ©sÃ©rialisation)"
         )
 
 
 def test_training_writes_only_within_models_dir(app):
-    """Les chemins d'écriture des .pkl doivent rester confinés au
-    répertoire de modèles configuré (pas d'écriture arbitraire sur disque).
+    """Les chemins d'Ã©criture des .pkl doivent rester confinÃ©s au
+    rÃ©pertoire de modÃ¨les configurÃ© (pas d'Ã©criture arbitraire sur disque).
     """
     import os
     import inspect
     from app.ai import training
 
     src = inspect.getsource(training)
-    # Toutes les écritures .pkl utilisent MODELS_DIR
+    # Toutes les Ã©critures .pkl utilisent MODELS_DIR
     assert "os.path.join(MODELS_DIR" in src
     assert "MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')" in src
-    # Aucune écriture vers un chemin dérivé de l'utilisateur
+    # Aucune Ã©criture vers un chemin dÃ©rivÃ© de l'utilisateur
     assert "data.get('path'" not in src
     assert "request.json" not in src
     assert os.path.isdir(os.path.join(os.path.dirname(training.__file__), 'models'))
 
 
 def test_ai_endpoints_use_message_key(app):
-    """Les endpoints AI doivent retourner un format d'erreur standardisé
-    avec la clé 'message' (cohérent avec le reste du projet) et ne jamais
+    """Les endpoints AI doivent retourner un format d'erreur standardisÃ©
+    avec la clÃ© 'message' (cohÃ©rent avec le reste du projet) et ne jamais
     exposer str(exception) au client.
     """
     import inspect
     from app.api.v1 import ai as ai_module
     src = inspect.getsource(ai_module)
 
-    # Toutes les réponses d'erreur utilisent la clé "message"
-    # (clé normalisée dans tout le projet)
+    # Toutes les rÃ©ponses d'erreur utilisent la clÃ© "message"
+    # (clÃ© normalisÃ©e dans tout le projet)
     assert "{" in src  # sanity
 
-    # str(e) ne doit pas être exposé dans les réponses
+    # str(e) ne doit pas Ãªtre exposÃ© dans les rÃ©ponses
     # (sinon fuite de stack trace interne)
     assert "{str(e)}".replace("{", "").replace("}", "") not in src  # no f"... {str(e)}"
     assert "f'Erreur lors" not in src or "str(e)" not in src
 
-    # Aucune réponse d'erreur ne s'appuie uniquement sur 'error'
-    # (clé réservée au frontend qui consomme 'message')
+    # Aucune rÃ©ponse d'erreur ne s'appuie uniquement sur 'error'
+    # (clÃ© rÃ©servÃ©e au frontend qui consomme 'message')
     forbidden_only_error = "    return {'error':"
     assert forbidden_only_error not in src, (
         "ai.py ne doit pas retourner un payload sans 'message'"
@@ -131,7 +131,7 @@ def test_ai_endpoints_use_message_key(app):
 
 
 def test_ai_endpoints_invalid_period_returns_message(client, app):
-    """Test end-to-end: un period invalide renvoie un message standardisé."""
+    """Test end-to-end: un period invalide renvoie un message standardisÃ©."""
     from app.models.tenant import Tenant, StatutTenant
     from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
     from app.security.auth import hash_password
