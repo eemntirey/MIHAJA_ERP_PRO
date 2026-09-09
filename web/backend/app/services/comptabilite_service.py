@@ -396,8 +396,8 @@ class TresorerieService:
             query = query.filter(cls.model.date >= date_debut)
         if date_fin:
             query = query.filter(cls.model.date <= date_fin)
-        entrees = query.filter(cls.model.type_operation == 'entree').with_entities(func.sum(cls.model.montant)).scalar() or 0
-        sorties = query.filter(cls.model.type_operation == 'sortie').with_entities(func.sum(cls.model.montant)).scalar() or 0
+        entrees = query.filter(cls.model.type_operation == TypeTresorerie.ENTREE).with_entities(func.sum(cls.model.montant)).scalar() or 0
+        sorties = query.filter(cls.model.type_operation == TypeTresorerie.SORTIE).with_entities(func.sum(cls.model.montant)).scalar() or 0
         return float(entrees) - float(sorties)
 
     @classmethod

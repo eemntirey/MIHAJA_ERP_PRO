@@ -8,6 +8,7 @@ from app.security.tenant import get_current_tenant_id
 from app.ai.previsions import predict_sales, predict_stock_rupture
 from app.ai.recommendations import suggest_reorders
 from app.ai.external_services import external_ai, web_search, context_manager
+from app.ai.ai_insights import generate_insights, CRITIQUE, ATTENTION, SURVEILLANCE, OPPORTUNITE
 from app import db
 import logging
 
@@ -24,7 +25,7 @@ def _get_tenant_name(tenant_id):
 
 
 def _build_context_block(tenant_id):
-    """Construit un contexte métier synthétique pour l'IA."""
+    """Construit un contexte mÃ©tier synthÃ©tique pour l'IA."""
     try:
         produits = Produit.query.filter_by(is_active=True)
         if tenant_id:
@@ -58,13 +59,13 @@ def _build_context_block(tenant_id):
         nb_alertes = alertes.count()
 
         return (
-            f"Contexte métier actuel : {nb_produits} produits, {nb_clients} clients, "
+            f"Contexte mÃ©tier actuel : {nb_produits} produits, {nb_clients} clients, "
             f"{nb_ventes} ventes, CA total {ca_total:.2f} Ar, {nb_factures} factures, "
             f"{nb_alertes} alerte(s) stock."
         )
     except Exception as e:
         logger.error(f"Erreur build_context_block: {str(e)}")
-        return "Contexte métier indisponible pour le moment."
+        return "Contexte mÃ©tier indisponible pour le moment."
 
 
 def ask_assistant(tenant_id=None, prompt="", conversation=None):
@@ -72,13 +73,13 @@ def ask_assistant(tenant_id=None, prompt="", conversation=None):
     prompt_lower = prompt.lower().strip() if prompt else ""
 
     if not prompt_lower:
-        return "Bonjour ! Je suis l'assistant IA de votre ERP. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur les stocks, les ventes, les clients, les factures ou les prévisions."
+        return "Bonjour ! Je suis l'assistant IA de votre ERP. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur les stocks, les ventes, les clients, les factures ou les prÃ©visions."
 
     tenant_name = _get_tenant_name(tenant_id)
     system_prompt = context_manager.build_system_prompt(tenant_name)
     context_block = _build_context_block(tenant_id)
 
-    # Réponse interne forte pour les requêtes métier classiques
+    # RÃ©ponse interne forte pour les requÃªtes mÃ©tier classiques
     internal_answer = _answer_internal(tenant_id, prompt_lower)
     if internal_answer:
         if external_ai.is_configured():
@@ -94,7 +95,7 @@ def ask_assistant(tenant_id=None, prompt="", conversation=None):
                 return enriched
         return internal_answer
 
-    # Si pas de réponse interne, demander à l'IA externe si dispo
+    # Si pas de rÃ©ponse interne, demander Ã  l'IA externe si dispo
     if external_ai.is_configured():
         external_answer = _ask_external(
             prompt=prompt,
@@ -107,33 +108,33 @@ def ask_assistant(tenant_id=None, prompt="", conversation=None):
             return external_answer
 
     return ("**Assistant IA ERP** : Je peux vous assister sur plusieurs sujets :\n"
-            "- *« Quel est l'état du stock ? »*\n"
-            "- *« Quel est notre chiffre d'affaires ? »*\n"
-            "- *« Quelles sont les prévisions de ventes ? »*\n"
-            "- *« Combien de clients avons-nous ? »*\n"
-            "- *« Quel est le montant des factures impayées ? »*")
+            "- *Â« Quel est l'Ã©tat du stock ? Â»*\n"
+            "- *Â« Quel est notre chiffre d'affaires ? Â»*\n"
+            "- *Â« Quelles sont les prÃ©visions de ventes ? Â»*\n"
+            "- *Â« Combien de clients avons-nous ? Â»*\n"
+            "- *Â« Quel est le montant des factures impayÃ©es ? Â»*")
 
 
 def _answer_internal(tenant_id, prompt_lower):
-    if any(w in prompt_lower for w in ['prévision', 'prevision', 'projections', 'futur', 'tendance']):
+    if any(w in prompt_lower for w in ['prÃ©vision', 'prevision', 'projections', 'futur', 'tendance']):
         prev = predict_sales(tenant_id=tenant_id, periods=30)
-        return (f"**Prévisions de Ventes (30 prochains jours)** :\n"
-                f"- Chiffre d'affaires estimé : **{prev['total_predicted']:.2f} Ar**\n"
-                f"- Moyenne journalière : **{prev['average_daily_predicted']:.2f} Ar/jour**\n"
-                f"- Tendance observée : **{prev['trend'].upper()}**\n"
-                f"- Indice de confiance du modèle : **{int(prev['confidence_score']*100)}%**")
+        return (f"**PrÃ©visions de Ventes (30 prochains jours)** :\n"
+                f"- Chiffre d'affaires estimÃ© : **{prev['total_predicted']:.2f} Ar**\n"
+                f"- Moyenne journaliÃ¨re : **{prev['average_daily_predicted']:.2f} Ar/jour**\n"
+                f"- Tendance observÃ©e : **{prev['trend'].upper()}**\n"
+                f"- Indice de confiance du modÃ¨le : **{int(prev['confidence_score']*100)}%**")
 
-    if any(w in prompt_lower for w in ['réapprovision', 'réapprovisionnement', 'reorder', 'commande fournisseur', 'stock à commander', 'approvisionnement']):
+    if any(w in prompt_lower for w in ['rÃ©approvision', 'rÃ©approvisionnement', 'reorder', 'commande fournisseur', 'stock Ã  commander', 'approvisionnement']):
         recommandations = suggest_reorders(tenant_id=tenant_id)
         suggestions = recommandations.get('recommendations') if isinstance(recommandations, dict) else None
         if not suggestions:
-            return "Aucune recommandation de réapprovisionnement n'a été trouvée pour le moment."
+            return "Aucune recommandation de rÃ©approvisionnement n'a Ã©tÃ© trouvÃ©e pour le moment."
         lines = []
         for item in suggestions[:5]:
             label = item.get('nom') or item.get('product_name') or 'Produit inconnu'
             quantity = item.get('quantite_suggeree') or item.get('suggested_quantity') or 0
-            lines.append(f"- {label} : quantité suggérée {quantity}")
-        return "**Réapprovisionnement recommandé** :\n" + "\n".join(lines)
+            lines.append(f"- {label} : quantitÃ© suggÃ©rÃ©e {quantity}")
+        return "**RÃ©approvisionnement recommandÃ©** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['stock', 'inventaire', 'rupture', 'seuil', 'alerte']):
         produits = Produit.query.filter_by(is_active=True)
@@ -151,7 +152,7 @@ def _answer_internal(tenant_id, prompt_lower):
         else:
             msg = f"**Stock au vert** : Les {len(produits_list)} produits du catalogue disposent d'un niveau de stock suffisant.\n"
         if nb_recommandations > 0:
-            msg += f"**Conseil IA** : {nb_recommandations} réapprovisionnement(s) suggéré(s)."
+            msg += f"**Conseil IA** : {nb_recommandations} rÃ©approvisionnement(s) suggÃ©rÃ©(s)."
         return msg
 
     if any(w in prompt_lower for w in ['top produit', 'meilleur produit', 'meilleures ventes', 'produits les plus vendus', 'top ventes']):
@@ -165,7 +166,7 @@ def _answer_internal(tenant_id, prompt_lower):
             results = results.filter(Vente.tenant_id == tenant_id)
         results = results.group_by(LigneVente.produit_id).order_by(db.desc('quantite_vendue')).limit(3).all()
         if not results:
-            return "Je n'ai pas trouvé de données de vente suffisantes pour établir un top des produits."
+            return "Je n'ai pas trouvÃ© de donnÃ©es de vente suffisantes pour Ã©tablir un top des produits."
         lines = []
         for row in results:
             produit_query = Produit.query.filter_by(id=row.produit_id)
@@ -173,7 +174,7 @@ def _answer_internal(tenant_id, prompt_lower):
                 produit_query = produit_query.filter_by(tenant_id=tenant_id)
             produit = produit_query.first()
             label = produit.nom if produit else f'Produit #{row.produit_id}'
-            lines.append(f"- {label} : {float(row.quantite_vendue):.0f} unités vendues, {float(row.montant_total or 0):.2f} Ar")
+            lines.append(f"- {label} : {float(row.quantite_vendue):.0f} unitÃ©s vendues, {float(row.montant_total or 0):.2f} Ar")
         return "**Produits les plus vendus** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['vente', 'ca', 'chiffre', 'chiffre d\'affaires', 'revenu']):
@@ -182,89 +183,40 @@ def _answer_internal(tenant_id, prompt_lower):
             ventes = ventes.filter_by(tenant_id=tenant_id)
         ventes_list = ventes.all()
         total_ca = sum(float(v.total_ttc or 0) for v in ventes_list)
-        return f"**Chiffre d'Affaires Total** : **{total_ca:.2f} Ar** générés sur un total de **{len(ventes_list)} ventes** enregistrées."
+        return f"**Chiffre d'Affaires Total** : **{total_ca:.2f} Ar** gÃ©nÃ©rÃ©s sur un total de **{len(ventes_list)} ventes** enregistrÃ©es."
 
-    if any(w in prompt_lower for w in ['facture', 'impayé', 'impayee', 'retard', 'paiement']):
+    if any(w in prompt_lower for w in ['facture', 'impayÃ©', 'impayee', 'retard', 'paiement']):
         factures = Facture.query.filter_by(is_active=True)
         if tenant_id:
             factures = factures.filter_by(tenant_id=tenant_id)
         factures_list = factures.all()
         impayees = [f for f in factures_list if getattr(f.statut, 'value', str(f.statut)).lower() in ['non_payee', 'payee_partiel', 'en_attente']]
         montant_impaye = sum(float(f.total_ttc or 0) for f in impayees)
-        return f"**Factures** : **{len(impayees)} facture(s) en attente ou non payée(s)** pour un montant total restant dû de **{montant_impaye:.2f} Ar** sur {len(factures_list)} factures émises."
+        return f"**Factures** : **{len(impayees)} facture(s) en attente ou non payÃ©e(s)** pour un montant total restant dÃ» de **{montant_impaye:.2f} Ar** sur {len(factures_list)} factures Ã©mises."
 
     if any(w in prompt_lower for w in ['client', 'acheteur']):
         clients = Client.query.filter_by(is_active=True)
         if tenant_id:
             clients = clients.filter_by(tenant_id=tenant_id)
         nb_clients = clients.count()
-        return f"**Portefeuille Clients** : Vous avez actuellement **{nb_clients} client(s) actif(s)** enregistrés dans le système."
+        return f"**Portefeuille Clients** : Vous avez actuellement **{nb_clients} client(s) actif(s)** enregistrÃ©s dans le systÃ¨me."
 
     if any(w in prompt_lower for w in ['fournisseur', 'achat', 'commande']):
         fournisseurs = Fournisseur.query.filter_by(is_active=True)
         if tenant_id:
             fournisseurs = fournisseurs.filter_by(tenant_id=tenant_id)
-        return f"**Fournisseurs** : **{fournisseurs.count()} fournisseur(s)** enregistrés."
+        return f"**Fournisseurs** : **{fournisseurs.count()} fournisseur(s)** enregistrÃ©s."
 
     return None
 
 
-def _detect_proactive_insights(tenant_id):
-    """Genere un bloc d'insights proactifs pour le tenant."""
-    try:
-        from app.ai.ai_insights import generate_insights, CRITIQUE, ATTENTION
-        insights = generate_insights(tenant_id=tenant_id)
-        if not insights:
-            return None
-        urgent = [i for i in insights if i['severity'] in (CRITIQUE, ATTENTION)][:3]
-        if not urgent:
-            return None
-        lines = ["", "", "**Alertes IA :**"]
-        for ins in urgent:
-            lines.append("- {} **{}** : {}".format(ins['icon'], ins['title'], ins['detail']))
-            if ins.get('recommendation'):
-                lines.append("  -> {}".format(ins['recommendation']))
-        return "\\n".join(lines)
-    except Exception as e:
-        logger.debug("Impossible de generer les insights: %s", e)
-        return None
-
-
-_conversation_memories = {}
-
-
-def _get_conversation_memory(tenant_id, user_id='default'):
-    """Recupere la memoire de conversation pour un utilisateur donne."""
-    key = "{}:{}".format(tenant_id, user_id)
-    return _conversation_memories.get(key, {'history': [], 'context': {}})
-
-
-def _update_conversation_memory(tenant_id, prompt, response, user_id='default'):
-    """Met a jour la memoire de conversation apres chaque echange."""
-    try:
-        key = "{}:{}".format(tenant_id, user_id)
-        mem = _conversation_memories.get(key, {'history': [], 'context': {}})
-        mem['history'].append({'prompt': prompt[:200], 'response': response[:500]})
-        if len(mem['history']) > 10:
-            mem['history'] = mem['history'][-10:]
-        prompt_lower = prompt.lower()
-        for domain in ['ventes', 'stock', 'clients', 'factures', 'achats', 'fournisseurs']:
-            if domain in prompt_lower:
-                mem['context']['last_domain'] = domain
-                break
-        _conversation_memories[key] = mem
-    except Exception as e:
-        logger.debug("Erreur memoire conversation: %s", e)
-
-
-
 def _enrich_with_external_ai(prompt, prompt_lower, system_prompt, context_block, internal_answer, conversation):
     enriched_query = (
-        "Réponds en français, de façon professionnelle et concise.\n"
-        f"Contexte interne vérifié : {context_block}\n"
-        f"Réponse interne validée : {internal_answer}\n"
+        "RÃ©ponds en franÃ§ais, de faÃ§on professionnelle et concise.\n"
+        f"Contexte interne vÃ©rifiÃ© : {context_block}\n"
+        f"RÃ©ponse interne validÃ©e : {internal_answer}\n"
         f"Question de l'utilisateur : {prompt}\n"
-        "Si des sources externes peuvent préciser la réponse, cite-les clairement."
+        "Si des sources externes peuvent prÃ©ciser la rÃ©ponse, cite-les clairement."
     )
     messages = context_manager.build_messages(conversation or [], enriched_query)
     result = external_ai.chat(messages=messages, system_prompt=system_prompt)
@@ -281,7 +233,7 @@ def _enrich_with_external_ai(prompt, prompt_lower, system_prompt, context_block,
             sources.extend([{**r, 'type': 'web'} for r in web_results])
         if sources:
             source_lines = "\n\n**Sources** :\n" + "\n".join(
-                f"- {s['name']}: {s['url'] or 'réponse générée'}" for s in sources
+                f"- {s['name']}: {s['url'] or 'rÃ©ponse gÃ©nÃ©rÃ©e'}" for s in sources
             )
             return result['content'] + source_lines
         return result['content']
@@ -290,10 +242,10 @@ def _enrich_with_external_ai(prompt, prompt_lower, system_prompt, context_block,
 
 def _ask_external(prompt, prompt_lower, system_prompt, context_block, conversation):
     enriched_query = (
-        "Réponds en français, de façon professionnelle et concise.\n"
+        "RÃ©ponds en franÃ§ais, de faÃ§on professionnelle et concise.\n"
         f"Contexte interne : {context_block}\n"
         f"Question : {prompt}\n"
-        "Tu peux utiliser des recherches web si nécessaire."
+        "Tu peux utiliser des recherches web si nÃ©cessaire."
     )
     messages = context_manager.build_messages(conversation or [], enriched_query)
     result = external_ai.chat(messages=messages, system_prompt=system_prompt)
@@ -310,7 +262,7 @@ def _ask_external(prompt, prompt_lower, system_prompt, context_block, conversati
             sources.extend([{**r, 'type': 'web'} for r in web_results])
         if sources:
             source_lines = "\n\n**Sources** :\n" + "\n".join(
-                f"- {s['name']}: {s['url'] or 'réponse générée'}" for s in sources
+                f"- {s['name']}: {s['url'] or 'rÃ©ponse gÃ©nÃ©rÃ©e'}" for s in sources
             )
             return result['content'] + source_lines
         return result['content']
@@ -319,8 +271,82 @@ def _ask_external(prompt, prompt_lower, system_prompt, context_block, conversati
 
 def _should_web_search(prompt_lower: str) -> bool:
     triggers = [
-        'marché', 'tendance', 'concurrent', 'prix du marché',
-        'norme', 'réglementation', 'loi', 'actualité', 'news'
+        'marchÃ©', 'tendance', 'concurrent', 'prix du marchÃ©',
+        'norme', 'rÃ©glementation', 'loi', 'actualitÃ©', 'news'
     ]
     return any(t in prompt_lower for t in triggers)
 
+# Version amelioree de ask_assistant avec insights proactifs et memoire de conversation
+def ask_assistant_enhanced(tenant_id=None, prompt="", conversation=None, user_id='default'):
+    tenant_id = get_current_tenant_id() or tenant_id
+    prompt_lower = prompt.lower().strip() if prompt else ""
+    
+    # Mettre a jour la memoire de conversation si ce n'est pas une requete vide
+    if prompt_lower:
+        # On ne met a jour la memoire qu'apres avoir genere la reponse
+        pass
+    
+    if not prompt_lower:
+        # Message d'accueil ameliore avec suggestion proactive
+        welcome_msg = ("Bonjour ! Je suis l'assistant IA de votre ERP. Comment puis-je vous aider aujourd'hui ? "
+                      "Vous pouvez me poser des questions sur les stocks, les ventes, les clients, les factures "
+                      "ou les prevision. Je peux egalement vous fournir des insights proactifs sur votre activite.")
+        return welcome_msg
+
+    tenant_name = _get_tenant_name(tenant_id)
+    system_prompt = context_manager.build_system_prompt(tenant_name)
+    context_block = _build_context_block(tenant_id)
+
+    # Verifier d'abord les insights proactifs (nouvelle fonctionnalite)
+    proactive_insights = _detect_proactive_insights(tenant_id)
+    
+    # Reponse interne forte pour les requetes metier classiques
+    internal_answer = _answer_internal(tenant_id, prompt_lower)
+    if internal_answer:
+        if external_ai.is_configured():
+            enriched = _enrich_with_external_ai(
+                prompt=prompt,
+                prompt_lower=prompt_lower,
+                system_prompt=system_prompt,
+                context_block=context_block,
+                internal_answer=internal_answer,
+                conversation=conversation
+            )
+            if enriched:
+                # Mettre a jour la memoire de conversation
+                _update_conversation_memory(tenant_id, prompt, enriched, user_id)
+                return enriched
+        # Mettre a jour la memoire de conversation
+        _update_conversation_memory(tenant_id, prompt, internal_answer, user_id)
+        return internal_answer
+
+    # Si pas de réponse interne, demander à l'IA externe si disponible
+    if external_ai.is_configured():
+        external_answer = _ask_external(
+            prompt=prompt,
+            prompt_lower=prompt_lower,
+            system_prompt=system_prompt,
+            context_block=context_block,
+            conversation=conversation
+        )
+        if external_answer:
+            # Mettre a jour la memoire de conversation
+            _update_conversation_memory(tenant_id, prompt, external_answer, user_id)
+            return external_answer
+
+    # Reponse de secours amelioree
+    base_response = ("**Assistant IA ERP** : Je peux vous assister sur plusieurs sujets :\n"
+                    "- *« Quel est l'etat du stock ? »*\n"
+                    "- *« Quel est notre chiffre d'affaires ? »*\n"
+                    "- *« Quelles sont les prevision de ventes ? »*\n"
+                    "- *« Combien de clients avons-nous ? »*\n"
+                    "- *« Quel est le montant des factures impayees ? »*\n"
+                    "- *« Donnez-moi des insights sur mon activite »*")
+    
+    # Ajouter les insights proactifs meme en reponse de secours
+    if proactive_insights:
+        base_response += proactive_insights
+    
+    # Mettre a jour la memoire de conversation
+    _update_conversation_memory(tenant_id, prompt, base_response, user_id)
+    return base_response

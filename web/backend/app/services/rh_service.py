@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 class EmployeService:
     model = Employe
@@ -53,7 +54,14 @@ class EmployeService:
             data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -64,7 +72,14 @@ class EmployeService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -73,6 +88,11 @@ class EmployeService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
 class PresenceService:
@@ -117,7 +137,14 @@ class PresenceService:
             data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -128,7 +155,14 @@ class PresenceService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -137,7 +171,11 @@ class PresenceService:
         if not instance:
             return False
         db.session.delete(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
     @classmethod
@@ -236,7 +274,14 @@ class SalaireService:
         instance = cls.model(**data)
         instance.calculer_salaire()
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -248,7 +293,14 @@ class SalaireService:
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by'):
                 setattr(instance, key, value)
         instance.calculer_salaire()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -257,7 +309,11 @@ class SalaireService:
         if not instance:
             return False
         db.session.delete(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
     @classmethod
@@ -369,7 +425,14 @@ class PrimeService:
             data['tenant_id'] = tenant_id
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -380,7 +443,14 @@ class PrimeService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -389,5 +459,9 @@ class PrimeService:
         if not instance:
             return False
         db.session.delete(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True

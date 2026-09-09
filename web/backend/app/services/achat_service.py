@@ -3,6 +3,7 @@ from app import db
 from app.models.commande_achat import CommandeAchat, ReceptionAchat
 from app.models.ligne_achat import LigneAchat
 from app.security.tenant import get_current_tenant_id
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 def _gen_reference(prefix, id_val=None):
     ts = datetime.utcnow().strftime('%Y%m%d%H%M%S')
@@ -70,7 +71,14 @@ class CommandeAchatService:
             total_ttc += float(ligne_obj.total_ht or 0) * (1 + float(ligne.get('taux_tva', 20)) / 100)
         instance.total_ht = total_ht
         instance.total_ttc = total_ttc
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -94,7 +102,14 @@ class CommandeAchatService:
                 total_ttc += float(ligne_obj.total_ht or 0) * (1 + float(ligne.get('taux_tva', 20)) / 100)
             instance.total_ht = total_ht
             instance.total_ttc = total_ttc
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -103,6 +118,11 @@ class CommandeAchatService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
 class ReceptionAchatService:
@@ -143,7 +163,14 @@ class ReceptionAchatService:
             data['reference'] = _gen_reference('REC')
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -154,7 +181,14 @@ class ReceptionAchatService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -163,4 +197,9 @@ class ReceptionAchatService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True

@@ -208,7 +208,7 @@ class Produit(BaseTenantModel):
             'image_url', 'qr_code_data', 'tags', 'statut', 'est_service',
             'est_dechirable', 'est_dangereux', 'poids', 'longueur',
             'largeur', 'hauteur', 'volume', 'reference', 'code_barre',
-            'code_interne',
+            'code_interne', 'quantite_stock', 'seuil_alerte',
         }
         data = {}
         for column in self.__table__.columns:

@@ -89,7 +89,7 @@ const calculateTotals = (items) => {
 
 const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
   const defaultValues = {
-    client_id: '',
+    client_id: null,
     client_passager: false,
     date: new Date().toISOString().split('T')[0],
     statut: 'en_attente',
@@ -99,7 +99,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   };
 
   const editValues = initialData ? {
-    client_id: initialData.client_id || '',
+    client_id: initialData.client_id || null,
     client_passager: false,
     date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
     statut: initialData.statut || 'en_attente',
@@ -141,8 +141,9 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   const onSubmit = async (data) => {
     try {
       const isPassager = Boolean(data.client_passager);
+      const clientId = data.client_id === '' ? null : Number(data.client_id);
       const payload = {
-        client_id: isPassager ? null : Number(data.client_id),
+        client_id: isPassager ? null : clientId,
         client_passager: isPassager,
         date: data.date,
         statut: data.statut,
@@ -369,9 +370,9 @@ const Sales = () => {
 
   const [showDevisModal, setShowDevisModal] = useState(false);
   const [editingDevis, setEditingDevis] = useState(null);
-  const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
-  const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
-  const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
+  const [devisForm, setDevisForm] = useState({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+  const [blForm, setBlForm] = useState({ vente_id: '', client_id: null, livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
+  const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: null, montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
 
   const fetchData = async () => {
     setLoading(true);
@@ -483,7 +484,7 @@ const Sales = () => {
     setEditingDevis(devis);
     if (devis) {
       setDevisForm({
-        client_id: devis.client_id ?? '',
+        client_id: devis.client_id ?? null,
         total_ht: devis.total_ht ?? '',
         total_ttc: devis.total_ttc ?? '',
         date_validite: devis.date_validite ? String(devis.date_validite).split('T')[0] : '',
@@ -492,15 +493,15 @@ const Sales = () => {
         remarque: devis.remarque || '',
       });
     } else {
-      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+      setDevisForm({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
     }
     setShowDevisModal(true);
   };
 
-  const closeDevisModal = () => {
+const closeDevisModal = () => {
     setShowDevisModal(false);
     setEditingDevis(null);
-    setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+    setDevisForm({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   };
 
   const handleCreateDevis = async (e) => {
@@ -532,13 +533,14 @@ const Sales = () => {
         data.date_validite = devisForm.date_validite;
       }
       if (editingDevis) {
-await devisService.update(editingDevis.id, data);
+        await devisService.update(editingDevis.id, data);
         toast.success('Devis mis à jour');
       } else {
         await devisService.create(data);
         toast.success('Devis créé');
       }
       closeDevisModal();
+      fetchData();
     } catch (err) {
       if (err.response?.status !== 403) {
         const msg = err.response?.data?.message || 'Erreur lors de la création du devis';
@@ -553,7 +555,7 @@ await devisService.update(editingDevis.id, data);
       const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
       await bonLivraisonService.create(data);
       toast.success('Bon de livraison créé');
-      setBlForm({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
+      setBlForm({ vente_id: '', client_id: null, livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
   };
@@ -564,7 +566,7 @@ await devisService.update(editingDevis.id, data);
       const data = { ...avoirForm, vente_id: avoirForm.vente_id ? Number(avoirForm.vente_id) : null, facture_id: avoirForm.facture_id ? Number(avoirForm.facture_id) : null, client_id: Number(avoirForm.client_id), montant_ht: Number(avoirForm.montant_ht), montant_ttc: Number(avoirForm.montant_ttc) };
       await avoirService.create(data);
       toast.success('Avoir créé');
-      setAvoirForm({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
+      setAvoirForm({ vente_id: '', facture_id: '', client_id: null, montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
   };
