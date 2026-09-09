@@ -74,7 +74,7 @@ def create_app():
         origin.strip()
         for origin in os.getenv(
             'CORS_ORIGINS',
-            'http://localhost:3000,http://127.0.0.1:3000'
+            'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
         ).split(',')
         if origin.strip()
     ]
@@ -160,18 +160,25 @@ def create_app():
         # (and on the Api namespace); ignore them here.
         from flask_jwt_extended.exceptions import (
             NoAuthorizationError, InvalidHeaderError,
-            RevokedTokenError, JWTDecodeError,
+            RevokedTokenError, JWTDecodeError, WrongTokenError,
         )
-        if isinstance(e, (NoAuthorizationError, InvalidHeaderError,
-                           RevokedTokenError, JWTDecodeError)):
+        from jwt.exceptions import ExpiredSignatureError
+        if isinstance(e, (
+            NoAuthorizationError, InvalidHeaderError,
+            RevokedTokenError, JWTDecodeError,
+            WrongTokenError, ExpiredSignatureError,
+        )):
+            # Re-lève pour laisser error_router (flask_restx) retomber sur le
+            # handler Flask de flask-jwt-extended -> réponse 401 propre au lieu
+            # d'un 500 "'Response' object has no attribute 'get'".
             raise e
         logger.exception('Unhandled exception during request: %s', e)
-        response = jsonify({
+        # Tuple (dict, code) et non Response: flask_restx.Api.handle_error fait
+        # default_data.get(...) -> crash si default_data est une Response Flask.
+        return {
             'message': 'Erreur interne du serveur',
             'code': 500,
-        })
-        response.status_code = 500
-        return response
+        }, 500
 
     api = Api(
         app,
@@ -314,11 +321,12 @@ def create_app():
     # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
     # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
     try:
-        from app.models.role_permission import RoleModel
-        if db.session.query(RoleModel.id).first() is None:
-            from scripts.seed_roles import seed_roles
-            seed_roles(app)
-            logger.info("Auto-seed rôles/permissions effectué (base vide).")
+        with app.app_context():
+            from app.models.role_permission import RoleModel
+            if db.session.query(RoleModel.id).first() is None:
+                from scripts.seed_roles import seed_roles
+                seed_roles(app)
+                logger.info("Auto-seed rôles/permissions effectué (base vide).")
     except Exception:
         logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 

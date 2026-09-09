@@ -509,7 +509,7 @@ class SuperAdminTenantDetail(Resource):
             Utilisateur.tenant_id == tenant.id,
             Utilisateur.is_active == True,
         ).filter(
-            Utilisateur.role.in_(['admin', 'super_admin'])
+            Utilisateur.role.in_([Role.ADMIN, Role.SUPER_ADMIN])
         ).all()
         for admin in admins:
             tenant_data['administrateurs'].append({

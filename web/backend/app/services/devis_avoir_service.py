@@ -3,6 +3,7 @@ from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
 from app.security.tenant import get_current_tenant_id
 from typing import Optional, Dict, Any, List, Tuple
 import datetime
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 def _gen_reference(prefix):
     ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
@@ -47,7 +48,14 @@ class DevisService:
             data['reference'] = _gen_reference('DEV')
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -58,7 +66,14 @@ class DevisService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -67,6 +82,11 @@ class DevisService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
     @classmethod
@@ -168,7 +188,14 @@ class BonLivraisonService:
         clean['reference'] = _gen_reference('BL')
         instance = cls.model(**clean)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -179,7 +206,14 @@ class BonLivraisonService:
         clean = cls._sanitize_payload(data)
         for key, value in clean.items():
             setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -188,6 +222,11 @@ class BonLivraisonService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
 
 class AvoirService:
@@ -229,7 +268,14 @@ class AvoirService:
             data['reference'] = _gen_reference('AV')
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -240,7 +286,14 @@ class AvoirService:
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur d'intégrité: {str(e.orig)}")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return instance
 
     @classmethod
@@ -249,4 +302,9 @@ class AvoirService:
         if not instance:
             return False
         instance.delete()
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur de base de données: {str(e)}")
         return True

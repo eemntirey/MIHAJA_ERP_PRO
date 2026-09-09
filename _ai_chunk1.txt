@@ -1,0 +1,21 @@
+// src/pages/AI.jsx
+// Interface conversationnelle style DeepSeek
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { aiService } from '../services/api';
+import { useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useAuth } from '../contexts/AuthContext';
+import './AIConversation.css';
+
+// ======================================================
+// CONSTANTES
+// ======================================================
+
+const SUGGESTIONS = [
+  { icon: 'ti-package', text: 'Quel est l\'état du stock ?' },
+  { icon: 'ti-chart-line', text: 'Quel est notre chiffre d\'affaires ?' },
+  { icon: 'ti-sparkles', text: 'Quelles sont les prévisions de ventes ?' },
+  { icon: 'ti-trophy', text: 'Quels sont les produits les plus vendus ?' },
+  { icon: 'ti-credit-card', text: 'Quel est le montant des factures impayées ?' },
+  { icon: 'ti-users', text: 'Combien de clients avons-nous ?' },
+];

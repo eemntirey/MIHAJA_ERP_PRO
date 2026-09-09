@@ -2169,6 +2169,16 @@
   display: none;
 }
 
+/* Correction : le bouton de suivi doit rester cliquable même si .is-empty est présent */
+.orders-track {
+  display: flex !important;
+}
+.orders-track__btn {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
 .orders-track__field {
   position: relative;
   flex: 1;

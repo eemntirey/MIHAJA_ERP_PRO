@@ -298,7 +298,7 @@ const Checkout = () => {
                   border: '1px solid var(--color-border)',
                   borderRadius: '10px',
                   cursor: 'pointer',
-                  background: paymentMode === 'delivery' ? 'rgba(37,99,235,0.05)' : 'transparent',
+                  background: paymentMode === 'delivery' ? 'rgba(212,175,55,0.05)' : 'transparent',
                 }}
               >
                 <input
@@ -327,7 +327,7 @@ const Checkout = () => {
                     border: '1px solid var(--color-border)',
                     borderRadius: '10px',
                     cursor: 'pointer',
-                    background: paymentMode === 'online' ? 'rgba(37,99,235,0.05)' : 'transparent',
+                    background: paymentMode === 'online' ? 'rgba(212,175,55,0.05)' : 'transparent',
                   }}
                 >
                   <input

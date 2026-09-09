@@ -204,13 +204,20 @@ def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
             or_(Utilisateur.username == identifier, Utilisateur.email == identifier)
         ).first()
     else:
+        # Recherche ameliorée pour permettre aux super-admins de se connecter sans restriction de tenant
         user = Utilisateur.query.filter(
             Utilisateur.is_active == True,
             or_(Utilisateur.username == identifier, Utilisateur.email == identifier)
         ).first()
+        
+        # Si on trouve un utilisateur avec un tenant_id, on récupère le tenant associé
         if user and user.tenant_id:
             tenant = db.session.get(Tenant, user.tenant_id)
-
+        # Si l'utilisateur est un super-admin et qu'on ne trouve pas de tenant associé,
+        # on continue quand meme car les super-admins peuvent ne pas etre associés à un tenant
+        elif user and user.role == Role.SUPER_ADMIN:
+            tenant = None  # Le super-admin n'a pas necessairement de tenant associé
+            
     if not user:
         return None, "Utilisateur non trouve"
 
@@ -247,3 +254,4 @@ def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
         "tenant": tenant.to_dict() if tenant else None,
         "must_change_password": bool(user.must_change_password),
     }, None
+
