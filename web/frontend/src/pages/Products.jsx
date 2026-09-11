@@ -1,5 +1,6 @@
 // src/pages/Products.jsx
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import SelectField from '../components/ui/SelectField';
 import { productService } from '../services/api';
 import { toast } from 'react-toastify';
 import { UNITS } from '../constants/erpConstants';
@@ -22,6 +23,7 @@ const EMPTY_FORM = {
   quantite_stock: 0,
   categorie: '',
   code_barre: '',
+  code_barre_mode: 'manuel',
   seuil_alerte: 0,
   unite: 'piece',
 };
@@ -53,6 +55,7 @@ const Products = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [barcodeMode, setBarcodeMode] = useState('manuel');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -85,6 +88,14 @@ const Products = () => {
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    if (barcodeMode === 'auto' && showModal) {
+      const base = formData.reference || formData.nom || Date.now().toString();
+      const autoCode = `CB-${base.replace(/\s+/g, '-').substring(0, 15)}-${Date.now().toString().slice(-4)}`;
+      setFormData((prev) => ({ ...prev, code_barre: autoCode }));
+    }
+  }, [barcodeMode, formData.reference, formData.nom, showModal]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -95,6 +106,8 @@ const Products = () => {
 
   const openModal = (product = null) => {
     setCurrentProduct(product);
+    const mode = product ? 'manuel' : 'manuel';
+    setBarcodeMode(mode);
     setFormData(
       product
         ? {
@@ -106,10 +119,11 @@ const Products = () => {
             quantite_stock: product.quantite_stock || 0,
             categorie: product.categorie || '',
             code_barre: product.code_barre || '',
+            code_barre_mode: mode,
             seuil_alerte: product.seuil_alerte || 0,
             unite: product.unite || 'piece',
           }
-        : { ...EMPTY_FORM }
+        : { ...EMPTY_FORM, code_barre_mode: mode }
     );
     setShowModal(true);
   };
@@ -121,12 +135,13 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { code_barre_mode, ...submitData } = formData;
     try {
       if (currentProduct) {
-        await productService.update(currentProduct.id, formData);
+        await productService.update(currentProduct.id, submitData);
         toast.success('Produit mis à jour avec succès');
       } else {
-        await productService.create(formData);
+        await productService.create(submitData);
         toast.success('Produit créé avec succès');
       }
       draft.clear(); // brouillon inutile après un enregistrement réussi
@@ -463,6 +478,22 @@ console.error('Error deleting product:', err);
                     placeholder="Référence produit"
                   />
                 </FormField>
+                <FormField label="Mode code barre" htmlFor="produit-mode-code-barre">
+                  <SelectField
+                    id="produit-mode-code-barre"
+                    name="code_barre_mode"
+                    value={barcodeMode}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBarcodeMode(val);
+                      setFormData((prev) => ({ ...prev, code_barre_mode: val }));
+                    }}
+                    options={[
+                      { value: 'auto', label: 'Automatique' },
+                      { value: 'manuel', label: 'Manuel' },
+                    ]}
+                  />
+                </FormField>
                 <FormField label="Code barre" htmlFor="produit-code-barre">
                   <input
                     id="produit-code-barre"
@@ -471,7 +502,14 @@ console.error('Error deleting product:', err);
                     value={formData.code_barre}
                     onChange={handleChange}
                     placeholder="Code barre"
+                    readOnly={barcodeMode === 'auto'}
+                    list="code-barre-suggestions"
                   />
+                  <datalist id="code-barre-suggestions">
+                    {products.map((p) => (
+                      p.code_barre ? <option key={p.id} value={p.code_barre} /> : null
+                    ))}
+                  </datalist>
                 </FormField>
                 <FormField label="Catégorie" htmlFor="produit-categorie">
                   <input

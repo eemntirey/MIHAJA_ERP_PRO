@@ -251,6 +251,15 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
         bottomMargin=margin + 1.6 * cm,
     )
 
+    from datetime import datetime
+    import random, string
+    if not reference:
+        ts = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        prefix_map = {'facture': 'FAC', 'devis': 'DEV', 'contrat': 'CON', 'bon_livraison': 'BL', 'avoir': 'AVO'}
+        prefix = prefix_map.get(type_document, 'DOC')
+        reference = f"{prefix}-{ts}-{suffix}"
+
     story = []
     logo = None
     if modele and modele.get('logo_url'):

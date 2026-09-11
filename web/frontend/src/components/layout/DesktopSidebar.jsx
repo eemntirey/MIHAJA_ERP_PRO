@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { NAV_ITEMS, NAV_GROUPS } from './navConfig';
 import { canAccessNavItem, filterNavGroups } from '@shared/utils/navPermissions';
+import { useTranslation } from '../../i18n';
 import './DesktopSidebar.css';
 
 const FAVORITES_KEY = 'desktop_favorites';
@@ -37,6 +38,7 @@ const DesktopSidebar = ({
 }) => {
   const { user, hasRole, hasAnyPermission, hasPermission, isModuleEnabled, getAllowedModules } = useAuth();
   const location = useLocation();
+  const { t, tNav, tGroup } = useTranslation();
   const isSuperAdmin = hasRole('super_admin');
   const isAdmin = hasRole('admin') || isSuperAdmin;
   const allowedModules = getAllowedModules();
@@ -124,11 +126,11 @@ const DesktopSidebar = ({
             className={({ isActive }) =>
               `desktop-sidebar__item${isActive ? ' is-active' : ''}`
             }
-            title={collapsed ? item.label : undefined}
-            data-label={item.label}
+            title={collapsed ? tNav(item.path, item.label) : undefined}
+            data-label={tNav(item.path, item.label)}
           >
           <i className={`ti ${item.icon}`} aria-hidden="true" />
-          {!collapsed && <span className="desktop-sidebar__label">{item.label}</span>}
+          {!collapsed && <span className="desktop-sidebar__label">{tNav(item.path, item.label)}</span>}
           {!collapsed && badge > 0 && <span className="desktop-sidebar__badge">{badge}</span>}
           {collapsed && badge > 0 && <span className="desktop-sidebar__badge desktop-sidebar__badge--dot" />}
         </NavLink>
@@ -137,8 +139,8 @@ const DesktopSidebar = ({
             type="button"
             className={`desktop-sidebar__star${isFav ? ' is-active' : ''}`}
             onClick={() => toggleFavorite(item.path)}
-            title={isFav ? 'Retirer des favoris' : 'Épingler aux favoris'}
-            aria-label={isFav ? 'Retirer des favoris' : 'Épingler aux favoris'}
+            title={isFav ? t('sidebar.unpin') : t('sidebar.pin')}
+            aria-label={isFav ? t('sidebar.unpin') : t('sidebar.pin')}
           >
             <i className="ti ti-star" aria-hidden="true" />
           </button>
@@ -148,7 +150,7 @@ const DesktopSidebar = ({
   };
 
   return (
-    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Navigation principale">
+    <aside className={`desktop-sidebar${collapsed ? ' collapsed' : ''}`} aria-label={t('rail.mainNav')}>
       <div className="desktop-sidebar__header">
         <Link to="/" className="desktop-sidebar__brand" aria-label="ERP Pro accueil">
           <span className="desktop-sidebar__brand-mark" aria-hidden="true">ERP</span>
@@ -158,8 +160,8 @@ const DesktopSidebar = ({
           type="button"
           className="desktop-sidebar__collapse"
           onClick={onToggleCollapse}
-          title={collapsed ? 'Déplier la barre' : 'Réduire la barre'}
-          aria-label={collapsed ? 'Déplier la barre' : 'Réduire la barre'}
+          title={collapsed ? t('topbar.expand') : t('topbar.collapse')}
+          aria-label={collapsed ? t('topbar.expand') : t('topbar.collapse')}
         >
           <i className={`ti ti-${collapsed ? 'chevrons-right' : 'chevrons-left'}`} aria-hidden="true" />
         </button>
@@ -168,7 +170,7 @@ const DesktopSidebar = ({
       {!collapsed && (
         <button type="button" className="desktop-sidebar__search" onClick={onOpenPalette}>
           <i className="ti ti-search" aria-hidden="true" />
-          <span>Rechercher…</span>
+          <span>{t('sidebar.searchPlaceholder')}</span>
           <kbd>⌘K</kbd>
         </button>
       )}
@@ -177,7 +179,7 @@ const DesktopSidebar = ({
         {!collapsed && favoriteItems.length > 0 && (
           <div className="desktop-sidebar__group">
             <span className="desktop-sidebar__group-label">
-              <i className="ti ti-pin" aria-hidden="true" /> Favoris
+              <i className="ti ti-pin" aria-hidden="true" /> {t('common.favorites')}
             </span>
             <div className="desktop-sidebar__items">
               {favoriteItems.map(renderNavItem)}
@@ -187,7 +189,7 @@ const DesktopSidebar = ({
 
         {visibleGroups.map((group) => (
           <div className="desktop-sidebar__group" key={group}>
-            {!collapsed && <span className="desktop-sidebar__group-label">{group}</span>}
+            {!collapsed && <span className="desktop-sidebar__group-label">{tGroup(group)}</span>}
             <div className="desktop-sidebar__items">
               {NAV_ITEMS.filter(
                 (item) => item.group === group && isItemVisible(item)
@@ -218,18 +220,18 @@ const DesktopSidebar = ({
           <div className="desktop-sidebar__menu" role="menu">
             {isSuperAdmin ? (
               <Link to="/super-admin/profile" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
-                <i className="ti ti-user" aria-hidden="true" /> Profil
+                <i className="ti ti-user" aria-hidden="true" /> {t('common.profile')}
               </Link>
             ) : (
               <Link to="/profile" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
-                <i className="ti ti-user" aria-hidden="true" /> Profil
+                <i className="ti ti-user" aria-hidden="true" /> {t('common.profile')}
               </Link>
             )}
 <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
-                <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+                <i className="ti ti-credit-card" aria-hidden="true" /> {t('common.subscription')}
               </Link>
               <Link to="/payment-settings" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
-                <i className="ti ti-settings-cog" aria-hidden="true" /> Paramètres de paiement
+                <i className="ti ti-settings-cog" aria-hidden="true" /> {t('common.paymentSettings')}
               </Link>
             <button
               type="button"
@@ -238,7 +240,7 @@ const DesktopSidebar = ({
               onClick={() => { setProfileOpen(false); onToggleDarkMode(!darkMode); }}
             >
               <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-              {darkMode ? 'Mode clair' : 'Mode sombre'}
+              {darkMode ? t('common.lightMode') : t('common.darkMode')}
             </button>
             <button
               type="button"
@@ -246,7 +248,7 @@ const DesktopSidebar = ({
               role="menuitem"
               onClick={onLogout}
             >
-              <i className="ti ti-logout" aria-hidden="true" /> Se déconnecter
+              <i className="ti ti-logout" aria-hidden="true" /> {t('common.logout')}
             </button>
           </div>
         )}

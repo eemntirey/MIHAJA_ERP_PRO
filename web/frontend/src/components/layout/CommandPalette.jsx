@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NAV_ITEMS } from './navConfig';
+import { useTranslation } from '../../i18n';
 import './CommandPalette.css';
 
 const QUICK_ACTIONS = [
@@ -25,6 +26,7 @@ const fuzzyScore = (query, text) => {
 
 const CommandPalette = ({ open, onClose }) => {
   const navigate = useNavigate();
+  const { t, tNav } = useTranslation();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -40,21 +42,25 @@ const CommandPalette = ({ open, onClose }) => {
   }, [open]);
 
   const items = useMemo(() => {
+    // Libellés traduits : actions rapides (clé par destination, sauf l'export
+    // du chiffre d'affaires qui a sa propre clé) et pages (par chemin navConfig).
+    const decorate = (item) => ({
+      ...item,
+      displayLabel:
+        item.kind === 'action'
+          ? t(item.id === 'qa-ca' ? 'action.qa-ca' : `action.${item.to}`, undefined, item.label)
+          : tNav(item.path, item.label),
+    });
     const all = [
       ...QUICK_ACTIONS,
       ...NAV_ITEMS.map((n) => ({ ...n, kind: 'page' })),
-    ];
-    if (!query) {
-      return [
-        ...QUICK_ACTIONS,
-        ...NAV_ITEMS.map((n) => ({ ...n, kind: 'page' })),
-      ];
-    }
+    ].map(decorate);
+    if (!query) return all;
     return all
-      .map((item) => ({ ...item, _score: fuzzyScore(query, item.label) }))
+      .map((item) => ({ ...item, _score: fuzzyScore(query, item.displayLabel) }))
       .filter((item) => item._score > 0)
       .sort((a, b) => b._score - a._score);
-  }, [query]);
+  }, [query, t, tNav]);
 
   useEffect(() => {
     setActive(0);
@@ -92,7 +98,7 @@ const CommandPalette = ({ open, onClose }) => {
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Palette de commandes"
+        aria-label={t('common.palette')}
       >
         <div className="command-palette__input">
           <i className="ti ti-search" aria-hidden="true" />
@@ -102,15 +108,15 @@ const CommandPalette = ({ open, onClose }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Rechercher pages, actions, clients, produits…"
-            aria-label="Recherche"
+            placeholder={t('common.searchPlaceholder')}
+            aria-label={t('common.search')}
           />
           <kbd>ESC</kbd>
         </div>
 
         <ul className="command-palette__list">
           {items.length === 0 && (
-            <li className="command-palette__empty">Aucun résultat</li>
+            <li className="command-palette__empty">{t('common.noResults')}</li>
           )}
           {items.map((item, idx) => (
             <li
@@ -120,9 +126,9 @@ const CommandPalette = ({ open, onClose }) => {
               onMouseDown={() => go(item)}
             >
               <i className={`ti ${item.icon}`} aria-hidden="true" />
-              <span className="command-palette__label">{item.label}</span>
+              <span className="command-palette__label">{item.displayLabel || item.label}</span>
               <span className="command-palette__hint">
-                {item.kind === 'action' ? 'Action' : 'Page'}
+                {item.kind === 'action' ? t('common.action') : t('common.page')}
               </span>
             </li>
           ))}

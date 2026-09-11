@@ -239,7 +239,8 @@ export default function Documents() {
                             </select>
                         </div>
                         <div className="form-group">
-                            <input placeholder="Référence" value={docForm.reference} onChange={e => setDocForm({...docForm, reference: e.target.value})} required />
+                            <label htmlFor="reference">Référence</label>
+                            <input id="reference" name="reference" placeholder="Référence" value={docForm.reference} onChange={e => setDocForm({...docForm, reference: e.target.value})} autoComplete="on" required />
                         </div>
                         <div className="form-group">
                             <select value={docForm.type_document} onChange={e => setDocForm({...docForm, type_document: e.target.value})}>

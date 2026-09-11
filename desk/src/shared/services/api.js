@@ -158,7 +158,7 @@ api.interceptors.request.use(
 );
 
 // ======================================================
-// API PUBLIQUE (sans token)
+// API PUBLIQUE (sans token) - avec headers tenant
 // ======================================================
 
 export const publicApi = axios.create({
@@ -169,6 +169,37 @@ export const publicApi = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+const getPublicTenantHeaders = () => {
+    try {
+        if (typeof localStorage === 'undefined') return {};
+        const slug = localStorage.getItem('public_tenant_slug');
+        const domaine = localStorage.getItem('public_tenant_domaine');
+        const headers = {};
+        if (slug) headers['X-Tenant-Slug'] = slug;
+        if (domaine) headers['X-Tenant-Domaine'] = domaine;
+        return headers;
+    } catch {
+        return {};
+    }
+};
+
+publicApi.interceptors.request.use((config) => {
+    config.headers = { ...(config.headers || {}), ...getPublicTenantHeaders() };
+    return config;
+});
+
+export const setPublicTenantContext = (tenant) => {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        if (tenant?.slug) localStorage.setItem('public_tenant_slug', tenant.slug);
+        else localStorage.removeItem('public_tenant_slug');
+        if (tenant?.domaine) localStorage.setItem('public_tenant_domaine', tenant.domaine);
+        else localStorage.removeItem('public_tenant_domaine');
+    } catch {
+        /* ignore */
+    }
+};
 
 // ======================================================
 // SERVICE PUBLIC (catalogue, commandes, suivi)

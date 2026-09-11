@@ -3,10 +3,11 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
-import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService } from '../services/api';
+import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService, factureService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import SelectField from '../components/ui/SelectField';
 import ToggleField from '../components/ui/ToggleField';
+import ConfirmModal from '../components/common/ConfirmModal';
 import './Pages.css';
 
 const formatCurrency = (amount) => {
@@ -87,8 +88,9 @@ const calculateTotals = (items) => {
 };
 
 const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
+  const [pendingConfirm, setPendingConfirm] = useState({ open: false, venteId: null });
   const defaultValues = {
-    client_id: '',
+    client_id: null,
     client_passager: false,
     date: new Date().toISOString().split('T')[0],
     statut: 'en_attente',
@@ -140,8 +142,9 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   const onSubmit = async (data) => {
     try {
       const isPassager = Boolean(data.client_passager);
+      const clientId = data.client_id === '' ? null : Number(data.client_id);
       const payload = {
-        client_id: isPassager ? null : Number(data.client_id),
+        client_id: isPassager ? null : clientId,
         client_passager: isPassager,
         date: data.date,
         statut: data.statut,
@@ -159,8 +162,12 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
         await saleService.update(initialData.id, payload);
         toast.success('Vente modifiée avec succès');
       } else {
-        await saleService.create(payload);
+        const res = await saleService.create(payload);
         toast.success(isPassager ? 'Vente créée (client passager)' : 'Vente créée avec succès');
+        const venteId = res?.data?.id || res?.id;
+        if (venteId) {
+          setPendingConfirm({ open: true, venteId });
+        }
       }
       onSuccess();
     } catch (err) {
@@ -188,18 +195,18 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                 options={clients.map(c => ({ value: c.id, label: c.nom_complet || c.nom }))}
                 error={errors.client_id?.message}
                 helperText={watch('client_passager') ? 'Vente enregistrée sans client.' : undefined}
-                {...register('client_id', { required: !watch('client_passager') ? 'Veuillez sélectionner un client' : false })}
+                register={register}
+                name="client_id"
+                registerOptions={{ required: !watch('client_passager') ? 'Veuillez sélectionner un client' : false }}
               />
               <ToggleField
                 id="sale-client-passager"
                 label="Client passager"
                 description="Activer pour une vente sans client enregistré."
-                {...register('client_passager')}
+                register={register}
+                name="client_passager"
                 onChange={(e) => {
                   setValue('client_passager', e.target.checked, { shouldValidate: true });
-                  if (e.target.checked) {
-                    setValue('client_id', null, { shouldValidate: true });
-                  }
                 }}
               />
             </div>
@@ -340,7 +347,26 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
           </div>
         </form>
       </div>
-    </div>
+      {pendingConfirm.open && (
+        <ConfirmModal
+        title="Générer la facture"
+        message="Voulez-vous créer automatiquement la facture pour cette vente ?"
+        confirmText="Oui, créer"
+        cancelText="Non, plus tard"
+        confirmClass="btn-primary"
+        onConfirm={async () => {
+          try {
+            await factureService.fromVente(pendingConfirm.venteId);
+            toast.success('Facture créée automatiquement');
+          } catch (err) {
+            const msg = err.response?.data?.message || err.message || 'Erreur lors de la création automatique de la facture';
+            toast.error(msg);
+          }
+          setPendingConfirm({ open: false, venteId: null });
+        }}
+        onCancel={() => setPendingConfirm({ open: false, venteId: null })}
+      />
+    )}
   );
 };
 

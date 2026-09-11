@@ -100,6 +100,7 @@ def create_with_lignes(data):
 
     data['total_ht'] = total_ht
     data['total_ttc'] = total_ttc
+    facture_auto = data.pop('facture_auto', None) or data.pop('confirmer_facture', None)
     sale = Vente(**data)
     db.session.add(sale)
     db.session.flush()
@@ -154,6 +155,32 @@ def create_with_lignes(data):
         db.session.rollback()
         raise ValueError("; ".join(stock_errors))
     db.session.commit()
+    # Confirmation de facture auto : créer la facture liée à la vente
+    if facture_auto:
+        from app.models.facture import Facture
+        try:
+            # Vérifier qu'il n'existe pas déjà une facture active pour cette vente
+            existing = Facture.query.filter_by(
+                vente_id=sale.id, is_active=True, tenant_id=sale.tenant_id
+            ).first()
+            if not existing:
+                ref_facture = f"FAC-{sale.reference}"
+                # Éviter duplicata sur la même session
+                if not Facture.query.filter_by(reference=ref_facture, is_active=True, tenant_id=sale.tenant_id).first():
+                    facture = Facture(
+                        vente_id=sale.id,
+                        client_id=sale.client_id,
+                        tenant_id=sale.tenant_id,
+                        reference=ref_facture,
+                        total_ht=sale.total_ht,
+                        total_ttc=sale.total_ttc,
+                        statut='non_payee',
+                    )
+                    db.session.add(facture)
+                    db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Erreur lors de la creation automatique de la facture')
     return sale
 
 
