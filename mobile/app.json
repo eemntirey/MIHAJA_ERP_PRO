@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "ERP PRO",
+    "slug": "mihaja-erp-pro-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "erppro",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "mg.tiainfo.erppro",
+      "adaptiveIcon": {
+        "backgroundColor": "#1E3A8A"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "mg.tiainfo.erppro",
+      "supportsTablet": true
+    },
+    "plugins": []
+  }
+}

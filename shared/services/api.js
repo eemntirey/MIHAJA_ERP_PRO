@@ -737,6 +737,42 @@ export const stockService = {
 };
 
 // ======================================================
+// ENTREPOTS (Multi-Warehouse)
+// ======================================================
+
+export const entrepotService = {
+    getAll: (params) =>
+        api.get('/entrepots', { params }),
+
+    getById: (id) =>
+        api.get(`/entrepots/${id}`),
+
+    create: (data) =>
+        api.post('/entrepots', data),
+
+    update: (id, data) =>
+        api.put(`/entrepots/${id}`, data),
+
+    delete: (id) =>
+        api.delete(`/entrepots/${id}`),
+
+    getStocks: (entrepotId) =>
+        api.get(`/entrepots/${entrepotId}/stocks`),
+
+    getAllStocks: () =>
+        api.get('/entrepots/stocks'),
+
+    createStock: (data) =>
+        api.post('/entrepots/stocks', data),
+
+    updateStock: (id, data) =>
+        api.put(`/entrepots/stocks/${id}`, data),
+
+    deleteStock: (id) =>
+        api.delete(`/entrepots/stocks/${id}`),
+};
+
+// ======================================================
 // DASHBOARD
 // ======================================================
 

@@ -36,6 +36,8 @@ class Produit(BaseTenantModel):
     
     # Stock
     quantite_stock = db.Column(Numeric(10, 2), default=0)
+    stock_min = db.Column(Numeric(10, 2), default=0)
+    stock_max = db.Column(Numeric(10, 2))
     seuil_alerte = db.Column(Numeric(10, 2), default=10)
     seuil_critique = db.Column(Numeric(10, 2), default=5)
     emplacement = db.Column(db.String(100))
@@ -77,6 +79,7 @@ class Produit(BaseTenantModel):
     mouvements_stock = db.relationship('MouvementStock', back_populates='produit', lazy='dynamic')
     lignes_vente = db.relationship('LigneVente', back_populates='produit', lazy='dynamic')
     lignes_achat = db.relationship('LigneAchat', back_populates='produit', lazy='dynamic')
+    stocks_entrepot = db.relationship('StockEntrepot', back_populates='produit', lazy='dynamic')
     
     __table_args__ = (
         Index('idx_produit_nom_categorie', 'nom', 'categorie'),
@@ -198,6 +201,10 @@ class Produit(BaseTenantModel):
         data['taux_marque'] = float(self.taux_marque)
         data['est_en_rupture'] = self.est_en_rupture
         data['est_alerte_stock'] = self.est_alerte_stock
+        if hasattr(self, 'stock_min') and self.stock_min is not None:
+            data['stock_min'] = float(self.stock_min)
+        if hasattr(self, 'stock_max') and self.stock_max is not None:
+            data['stock_max'] = float(self.stock_max)
         return data
 
     def to_public_dict(self):
@@ -208,7 +215,8 @@ class Produit(BaseTenantModel):
             'image_url', 'qr_code_data', 'tags', 'statut', 'est_service',
             'est_dechirable', 'est_dangereux', 'poids', 'longueur',
             'largeur', 'hauteur', 'volume', 'reference', 'code_barre',
-            'code_interne', 'quantite_stock', 'seuil_alerte',
+            'code_interne', 'quantite_stock', 'seuil_alerte', 'stock_min',
+            'stock_max',
         }
         data = {}
         for column in self.__table__.columns:

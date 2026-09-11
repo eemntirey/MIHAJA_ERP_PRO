@@ -12,6 +12,7 @@ import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../compon
 import useFormDraft from '../hooks/useFormDraft';
 import { applyFilters, applySearch } from '../utils/filterUtils';
 import { exportRowsToCsv, timestampedFilename } from '../utils/exportUtils';
+import { QRCodeDisplay } from '../components/ui/QRCode';
 import './Pages.css';
 
 const EMPTY_FORM = {
@@ -62,6 +63,7 @@ const Products = () => {
   const [filters, setFilters] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [qrCodeProduct, setQrCodeProduct] = useState(null);
 
   const draftKey = showModal ? `produits:${currentProduct?.id || 'new'}` : null;
   const draft = useFormDraft(draftKey, formData, { enabled: showModal });
@@ -241,7 +243,7 @@ console.error('Error deleting product:', err);
       {
         key: 'actions',
         label: 'Actions',
-        width: 110,
+        width: 140,
         sortable: false,
         resizable: false,
         exportable: false,
@@ -264,6 +266,13 @@ console.error('Error deleting product:', err);
             >
               <i className="ti ti-trash" aria-hidden="true" />
             </AccessButton>
+            <button
+              onClick={() => setQrCodeProduct(row)}
+              className="btn-small btn-qr"
+              title="QR Code"
+            >
+              <i className="ti ti-qrcode" aria-hidden="true" />
+            </button>
           </span>
         ),
       },
@@ -603,6 +612,28 @@ console.error('Error deleting product:', err);
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {qrCodeProduct && (
+        <div className="modal-overlay" onClick={() => setQrCodeProduct(null)}>
+          <div className="modal modal-qr" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>QR Code - {qrCodeProduct.nom || qrCodeProduct.reference}</h2>
+              <button onClick={() => setQrCodeProduct(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-body">
+              <QRCodeDisplay
+                data={qrCodeProduct.id}
+                label={`${qrCodeProduct.reference || qrCodeProduct.code_barre || 'Produit'}`}
+                onClose={() => setQrCodeProduct(null)}
+              />
+              <p className="qr-code-info">
+                Référence: {qrCodeProduct.reference || 'N/A'}<br />
+                Code barre: {qrCodeProduct.code_barre || 'N/A'}
+              </p>
+            </div>
           </div>
         </div>
       )}
