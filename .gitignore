@@ -353,6 +353,14 @@ Desktop.ini
 .ai-cache/
 .ai-temp/
 
+# Kilo Code - fichiers de configuration et cache locaux
+.kilo/kilo.json
+.kilo/plugins/AGENTS.md
+
+# Graphify - rapport de graphe de connaissances local
+graphify-out/
+RAPPORT_DETAIL.txt
+
 # Ne pas ignorer automatiquement les règles du projet.
 
 
