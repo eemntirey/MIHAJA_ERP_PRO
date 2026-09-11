@@ -1,0 +1,98 @@
+/* web/frontend/src/components/layout/LanguageSwitcher.css */
+/* Sélecteur de langue FR/MG — réutilise les tokens et les classes existantes
+   (topbar-icon) pour s'intégrer au design sans le modifier. */
+
+@import '../../styles/tokens.css';
+
+.language-switcher {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+button.topbar-icon.language-switcher__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  min-width: 36px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.language-switcher__trigger .ti {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.language-switcher__code {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 1;
+}
+
+.language-switcher__dropdown {
+  position: fixed;
+  top: 0;
+  right: 10px;
+  min-width: 150px;
+  background: var(--color-surface-elevated, #fff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.12));
+  padding: var(--space-1, 4px);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.main-layout[data-theme='dark'] .language-switcher__dropdown,
+.desktop-layout[data-theme='dark'] .language-switcher__dropdown {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.language-switcher__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: none;
+  background: transparent;
+  color: var(--color-text, #111827);
+  font-size: var(--text-body, 13px);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md, 8px);
+  transition: background 180ms ease;
+}
+
+.language-switcher__option:hover {
+  background: var(--color-background, #f3f4f6);
+}
+
+.language-switcher__option.is-active {
+  color: var(--color-primary, #4f46e5);
+  font-weight: 700;
+}
+
+.language-switcher__flag {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.language-switcher__option .ti-check {
+  margin-left: auto;
+  font-size: 14px;
+}
+
+.language-switcher__option.is-active .ti-check {
+  color: var(--color-primary, #4f46e5);
+}
+
+@media (max-width: 768px) {
+  .language-switcher__dropdown {
+    min-width: 140px;
+  }
+}

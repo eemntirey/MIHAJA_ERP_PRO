@@ -25,6 +25,7 @@ import MainLayout from './components/layout/MainLayout';
 // Contextes
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { LanguageProvider, useTranslation } from './i18n';
 
 // Pages
 import Home from './pages/Home';
@@ -84,12 +85,13 @@ const ProtectedRoute = ({ children }) => {
     hasRole,
   } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const hasToken = !!authStorage.getAccessToken();
   const shouldAllow = isAuthenticated || hasToken;
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   if (!shouldAllow) {
@@ -145,6 +147,40 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Modale « limite de plan » — libellés traduits via i18n (design inchangé).
+const PlanLimitModal = ({ message, onClose }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{t('planLimit.title')}</h2>
+          <button onClick={onClose} className="btn-close">×</button>
+        </div>
+        <div className="modal-body">
+          <p>{message}</p>
+        </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            onClick={() => { onClose(); window.location.href = '/subscription'; }}
+            className="btn-primary"
+          >
+            {t('planLimit.change')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-secondary"
+          >
+            {t('planLimit.close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   useRealtimeSync();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
@@ -158,7 +194,8 @@ function App() {
   }, []);
 
   return (
-    <SyncProvider>
+    <LanguageProvider>
+      <SyncProvider>
       <NotificationProvider>
           <CartProvider>
             <BrowserRouter>
@@ -233,39 +270,17 @@ function App() {
               />
 
               {planLimitModal.open && (
-                <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
-                  <div className="modal" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-header">
-                      <h2>Limite du plan atteinte</h2>
-                      <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
-                    </div>
-                    <div className="modal-body">
-                      <p>{planLimitModal.message}</p>
-                    </div>
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.href = '/subscription'; }}
-                        className="btn-primary"
-                      >
-                        Modifier mon abonnement
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); }}
-                        className="btn-secondary"
-                      >
-                        Fermer
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <PlanLimitModal
+                  message={planLimitModal.message}
+                  onClose={() => setPlanLimitModal({ open: false, message: '' })}
+                />
               )}
             </div>
           </BrowserRouter>
         </CartProvider>
       </NotificationProvider>
-    </SyncProvider>
+      </SyncProvider>
+    </LanguageProvider>
 );
 }
 

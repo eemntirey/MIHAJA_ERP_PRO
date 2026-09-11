@@ -97,6 +97,7 @@ class DevisService:
         from app.models.vente import Vente
         from app.models.ligne_vente import LigneVente
         vente = Vente(
+            reference=_gen_reference('VEN'),
             client_id=devis.client_id,
             commercial_id=devis.commercial_id,
             total_ht=devis.total_ht,
@@ -108,7 +109,11 @@ class DevisService:
         db.session.add(vente)
         db.session.flush()
         devis.statut = 'converti'
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise ValueError(f"Erreur lors de la conversion: {str(e)}")
         return vente
 
 class BonLivraisonService:

@@ -663,6 +663,9 @@ export const factureService = {
 
     delete: (id) =>
         api.delete(`/factures/${id}`),
+
+    fromVente: (venteId) =>
+        api.post(`/factures/from-vente/${venteId}`),
 };
 
 // ======================================================

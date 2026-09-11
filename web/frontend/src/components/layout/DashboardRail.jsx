@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { NAV_ITEMS, buildNavGroups } from './navConfig';
 import { filterNavGroups } from '@shared/utils/navPermissions';
+import { useTranslation } from '../../i18n';
 import './DashboardRail.css';
 
 // Groupes dérivés de NAV_ITEMS (navConfig) : une seule déclaration des
@@ -25,20 +26,21 @@ const formatRole = (role) => {
   return String(role).replace(/_/g, ' ');
 };
 
-const formatNotifTime = (value) => {
+const formatNotifTime = (value, t) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const diff = (Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return "à l'instant";
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  if (diff < 60) return t('common.justNow');
+  if (diff < 3600) return t('common.minutesAgo', { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t('common.hoursAgo', { n: Math.floor(diff / 3600) });
   return date.toLocaleDateString();
 };
 
 const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEditName, onSaveName, nameForm, onUpdateNameField, darkMode, onToggleDarkMode, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead, onOpenPalette }) => {
   const { hasPermission, hasAnyPermission, hasRole, getAllowedModules } = useAuth();
   const navigate = useNavigate();
+  const { t, tNav, tGroup, language, toggleLanguage } = useTranslation();
   const { refresh: refreshNotifications } = useNotifications();
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -113,7 +115,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
 
   return (
     <>
-    <aside className="dashboard-rail" aria-label="Navigation principale">
+    <aside className="dashboard-rail" aria-label={t('rail.mainNav')}>
       <Link to="/" className="dashboard-rail__brand" aria-label="ERP Pro accueil">
         <span className="dashboard-rail__brand-mark" aria-hidden="true">ERP</span>
         <span className="dashboard-rail__wordmark">PRO</span>
@@ -154,8 +156,8 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
             }
             setNotifOpen((o) => !o);
           }}
-          title="Notifications"
-          aria-label={`${unreadCount > 0 ? unreadCount : notifications.length} notifications`}
+          title={t('common.notifications')}
+          aria-label={`${unreadCount > 0 ? unreadCount : notifications.length} ${t('common.notifications')}`}
         >
           <i className="ti ti-bell" aria-hidden="true" />
           {(unreadCount > 0 || notifications.length > 0) && (
@@ -165,25 +167,25 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
         {notifOpen && (
           <div className="dashboard-rail__notif-dropdown" role="menu" style={{ position: 'fixed', top: notifPosition.current.top, left: notifPosition.current.left, width: window.innerWidth <= 760 ? 'calc(100vw - 32px)' : '300px', maxWidth: '300px' }}>
             <div className="dashboard-rail__notif-dropdown-head">
-              <strong>Notifications</strong>
+              <strong>{t('common.notifications')}</strong>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   className="dashboard-rail__notif-action"
                   onClick={(e) => { e.stopPropagation(); onMarkAllAsRead(); }}
                 >
-                  Tout marquer comme lu
+                  {t('common.markAllRead')}
                 </button>
               )}
             </div>
             {notifications.length === 0 ? (
-              <div className="dashboard-rail__notif-empty">Aucune notification</div>
+              <div className="dashboard-rail__notif-empty">{t('common.noNotifications')}</div>
             ) : (
               <ul className="dashboard-rail__notif-list">
                 {notifications.map((n, i) => {
                   const title = n.titre || n.title || n.message || n.type || 'Alerte';
                   const detail = n.message || n.detail || n.description || n.montant || '';
-                  const time = formatNotifTime(n.created_at);
+                  const time = formatNotifTime(n.created_at, t);
                   return (
                     <li
                       key={n.id || i}
@@ -196,7 +198,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                           navigate(n.link);
                         }
                       }}
-                      title={n.link ? 'Cliquer pour ouvrir' : undefined}
+                      title={n.link ? t('common.clickToOpen') : undefined}
                     >
                       <i className="ti ti-alert-circle" aria-hidden="true" />
                       <span>
@@ -218,8 +220,8 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
         type="button"
         className="dashboard-rail__menu-btn"
         onClick={() => setMobileNavOpen(true)}
-        title="Menu des modules"
-        aria-label="Menu des modules"
+        title={t('common.modulesMenu')}
+        aria-label={t('common.modulesMenu')}
         aria-expanded={mobileNavOpen}
       >
         <i className="ti ti-menu" aria-hidden="true" />
@@ -228,7 +230,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
       <nav className="dashboard-rail__nav">
         {filteredNavGroups.map((group) => (
           <div className="dashboard-rail__group" key={group.label}>
-            <span className="dashboard-rail__group-label">{group.label}</span>
+            <span className="dashboard-rail__group-label">{tGroup(group.label)}</span>
             <div className="dashboard-rail__items">
               {group.items.map((item) => {
                 const badge = badgeValue(item);
@@ -240,8 +242,8 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                     className={({ isActive }) => (
                       `dashboard-rail__item${isActive ? ' is-active' : ''}`
                     )}
-                    title={item.label}
-                    aria-label={item.label}
+                    title={tNav(item.path, item.label)}
+                    aria-label={tNav(item.path, item.label)}
                   >
                     <i className={`ti ${item.icon}`} aria-hidden="true" />
                     {badge > 0 && <span className="dashboard-rail__badge">{badge > 99 ? '99+' : badge}</span>}
@@ -329,8 +331,8 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
             type="button"
             className="dashboard-rail__logout"
             onClick={onLogout}
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
+            aria-label={t('common.logout')}
+            title={t('common.logout')}
           >
             <i className="ti ti-logout" aria-hidden="true" />
           </button>
@@ -351,19 +353,27 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
               </div>
               {isSuperAdmin ? (
                 <Link to="/super-admin/profile" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
-                  <i className="ti ti-user" aria-hidden="true" /> Profil
+                  <i className="ti ti-user" aria-hidden="true" /> {t('common.profile')}
                 </Link>
               ) : (
                 <Link to="/profile" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
-                  <i className="ti ti-user" aria-hidden="true" /> Profil
+                  <i className="ti ti-user" aria-hidden="true" /> {t('common.profile')}
                 </Link>
               )}
               <Link to="/subscription" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
-                <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+                <i className="ti ti-credit-card" aria-hidden="true" /> {t('common.subscription')}
               </Link>
               <Link to="/payment-settings" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
-                <i className="ti ti-settings-cog" aria-hidden="true" /> Paramètres de paiement
+                <i className="ti ti-settings-cog" aria-hidden="true" /> {t('common.paymentSettings')}
               </Link>
+              <button
+                type="button"
+                className="dashboard-rail__mobile-menu-item"
+                role="menuitem"
+                onClick={toggleLanguage}
+              >
+                <i className="ti ti-language" aria-hidden="true" /> {t('common.language')} : {language === 'fr' ? 'FR' : 'MG'}
+              </button>
               <button
                 type="button"
                 className="dashboard-rail__mobile-menu-item"
@@ -371,7 +381,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                 onClick={() => { setMobileProfileOpen(false); onToggleDarkMode?.(!darkMode); }}
               >
                 <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-                {darkMode ? 'Mode clair' : 'Mode sombre'}
+                {darkMode ? t('common.lightMode') : t('common.darkMode')}
               </button>
               <button
                 type="button"
@@ -396,15 +406,15 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
       <nav
         className="dashboard-rail__mobile-nav"
         onClick={(e) => e.stopPropagation()}
-        aria-label="Menu des modules"
+        aria-label={t('common.modulesMenu')}
       >
         <div className="dashboard-rail__mobile-nav-header">
-          <span className="dashboard-rail__mobile-nav-title">Modules</span>
+          <span className="dashboard-rail__mobile-nav-title">{t('common.modules')}</span>
           <button
             type="button"
             className="dashboard-rail__mobile-nav-close"
             onClick={() => setMobileNavOpen(false)}
-            aria-label="Fermer le menu"
+            aria-label={t('common.closeMenu')}
           >
             <i className="ti ti-x" aria-hidden="true" />
           </button>
@@ -412,7 +422,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
         <div className="dashboard-rail__mobile-nav-groups">
           {filteredNavGroups.map((group) => (
             <div className="dashboard-rail__mobile-nav-group" key={group.label}>
-              <div className="dashboard-rail__mobile-nav-group-label">{group.label}</div>
+              <div className="dashboard-rail__mobile-nav-group-label">{tGroup(group.label)}</div>
               <div className="dashboard-rail__mobile-nav-items">
                 {group.items.map((item) => {
                   const badge = badgeValue(item);
@@ -425,10 +435,10 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                         `dashboard-rail__mobile-nav-item${isActive ? ' is-active' : ''}`
                       }
                       onClick={() => setMobileNavOpen(false)}
-                      aria-label={item.label}
+                      aria-label={tNav(item.path, item.label)}
                     >
                       <i className={`ti ${item.icon}`} aria-hidden="true" />
-                      <span>{item.label}</span>
+                      <span>{tNav(item.path, item.label)}</span>
                       {badge > 0 && (
                         <span className="dashboard-rail__mobile-nav-badge">
                           {badge > 99 ? '99+' : badge}
@@ -445,10 +455,18 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
           <button
             type="button"
             className="dashboard-rail__mobile-nav-item dashboard-rail__mobile-nav-item--footer"
+            onClick={toggleLanguage}
+          >
+            <i className="ti ti-language" aria-hidden="true" />
+            <span>{t('common.language')} : {language === 'fr' ? 'FR' : 'MG'}</span>
+          </button>
+          <button
+            type="button"
+            className="dashboard-rail__mobile-nav-item dashboard-rail__mobile-nav-item--footer"
             onClick={() => { setMobileNavOpen(false); onToggleDarkMode?.(!darkMode); }}
           >
             <i className={`ti ti-${darkMode ? 'sun' : 'moon'}`} aria-hidden="true" />
-            <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
+            <span>{darkMode ? t('common.lightMode') : t('common.darkMode')}</span>
           </button>
           <button
             type="button"
@@ -456,7 +474,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
             onClick={() => { setMobileNavOpen(false); onLogout(); }}
           >
             <i className="ti ti-logout" aria-hidden="true" />
-            <span>Se déconnecter</span>
+            <span>{t('common.logout')}</span>
           </button>
         </div>
       </nav>
