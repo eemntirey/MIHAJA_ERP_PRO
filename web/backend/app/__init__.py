@@ -230,6 +230,7 @@ def create_app():
     from app.api.v1.super_admin import ns as super_admin_ns
     from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
+    from app.api.v1.entrepots import ns as entrepots_ns
     from app.api.v1.desk import desk_bp
 
     api.add_namespace(super_admin_ns, path='/api/v1/super-admin')
@@ -276,6 +277,7 @@ def create_app():
     api.add_namespace(papi_ns, path='/api/v1/papi')
     api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
+    api.add_namespace(entrepots_ns, path='/api/v1/entrepots')
 
     app.register_blueprint(desk_bp)
 

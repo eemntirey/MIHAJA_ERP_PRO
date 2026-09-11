@@ -1,0 +1,16 @@
+# Dépendances
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+*.log
+
+# Environnement (contient l'IP locale de chaque machine)
+.env
+.env.local
+
+# Système
+.DS_Store
+*.orig.*

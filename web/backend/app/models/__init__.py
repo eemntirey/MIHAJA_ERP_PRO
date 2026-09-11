@@ -4,6 +4,8 @@ from app.models.fournisseur import Fournisseur, TypeFournisseur
 from app.models.client import Client, TypeClient, SecteurActivite
 from app.models.produit import Produit
 from app.models.stock import MouvementStock, TypeMouvement
+from app.models.stock_entrepot import StockEntrepot
+from app.models.entrepot import Entrepot
 from app.models.vente import Vente
 from app.models.facture import Facture
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
@@ -54,6 +56,8 @@ __all__ = [
     'Produit',
     'MouvementStock',
     'TypeMouvement',
+    'StockEntrepot',
+    'Entrepot',
     'Vente',
     'Facture',
     'Paiement',
