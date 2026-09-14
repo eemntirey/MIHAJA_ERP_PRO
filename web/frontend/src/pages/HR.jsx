@@ -129,7 +129,19 @@ export default function HR() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled && loading) {
+        setLoading(false);
+      }
+    }, 10000); // timeout de sécurité pour éviter le blocage indéfini (P1 audit)
+    fetchAll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const tabCounts = {
     employes: employes.length,

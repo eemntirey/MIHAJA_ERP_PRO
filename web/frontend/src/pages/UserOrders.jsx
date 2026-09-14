@@ -1,9 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import './Pages.css';
+
+const STATUT_META = {
+  en_attente: { label: 'En attente', kind: 'info', icon: 'ti-bell' },
+  confirmee: { label: 'Confirmée', kind: 'success', icon: 'ti-circle-check' },
+  expediee: { label: 'Expédiée', kind: 'success', icon: 'ti-truck' },
+  livree: { label: 'Livrée', kind: 'success', icon: 'ti-circle-check' },
+  annulee: { label: 'Annulée', kind: 'warning', icon: 'ti-alert-triangle' },
+};
+
+const getStatutMeta = (statut) =>
+  STATUT_META[statut] || { label: statut || 'Inconnu', kind: 'info', icon: 'ti-bell' };
 
 const getNotifKind = (notif) => {
   const text = `${notif?.message || notif || ''}`.toLowerCase();
@@ -12,36 +23,77 @@ const getNotifKind = (notif) => {
   return 'info';
 };
 
+const formatDate = (value) => {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString('fr-FR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  } catch {
+    return value;
+  }
+};
+
 const UserOrders = () => {
   const { isAuthenticated, user, loading } = useAuth();
+  const [commandes, setCommandes] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [trackingRef, setTrackingRef] = useState('');
   const [searching, setSearching] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
+  const fetchMesCommandes = useCallback(async () => {
+    try {
+      setOrdersLoading(true);
+      const response = await publicCatalogueService.getMesCommandes();
+      setOrdersError('');
+      setCommandes(response.data?.commandes || []);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      // Uniquement en cas de session réellement expirée (401)
+      if (err.response?.status === 401) {
+        setOrdersError('');
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        // Échec réseau/serveur réel (ex: 500) : message discret dans l'UI, pas de toast
+        setOrdersError('Impossible de charger l\'historique pour le moment.');
+      }
+      setCommandes([]);
+    } finally {
+      setOrdersLoading(false);
     }
   }, []);
 
-  const fetchNotifications = async (ref) => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMesCommandes();
+    }
+  }, [isAuthenticated, fetchMesCommandes]);
+
+  const handleTrack = async (e) => {
+    e.preventDefault();
+    const ref = (trackingRef || '').trim();
+    if (!ref) {
+      toast.warn('Saisissez une référence de commande.');
+      return;
+    }
     try {
       setSearching(true);
-      const response = await publicCatalogueService.getNotifications(ref || undefined);
-      setNotifications(response.data?.notifications || response.data || []);
+      const response = await publicCatalogueService.getNotifications(ref);
+      setNotifications(response.data?.notifications || []);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
-      if (err.response?.status === 401) {
-        toast.error('Session expirée. Veuillez vous reconnecter.');
+      console.error('Error tracking order:', err);
+      if (err.response?.status === 404) {
+        toast.error('Aucune commande trouvée pour cette référence.');
+      } else {
+        toast.error('Recherche indisponible pour le moment.');
       }
+      setNotifications([]);
     } finally {
       setSearching(false);
     }
-  };
-
-  const handleTrack = (e) => {
-    e.preventDefault();
-    fetchNotifications(trackingRef);
   };
 
   if (loading) {
@@ -88,22 +140,12 @@ const UserOrders = () => {
           </button>
         </form>
 
-        {notifications.length === 0 ? (
-          <div className="orders-empty">
-            <span className="orders-empty__icon" aria-hidden="true">
-              <i className="ti ti-bell-off" />
-            </span>
-            <p className="orders-empty__text">Aucune notification pour le moment.</p>
-            <span className="orders-empty__hint">
-              Les mises à jour de vos commandes apparaîtront ici.
-            </span>
-          </div>
-        ) : (
-          <ul className="orders-list">
+        {notifications.length > 0 && (
+          <ul className="orders-list" style={{ marginBottom: '16px' }}>
             {notifications.map((notif, idx) => {
               const type = getNotifKind(notif);
               return (
-                <li className="orders-list__item" key={idx}>
+                <li className="orders-list__item" key={`track-${idx}`}>
                   <span
                     className={`orders-list__status orders-list__status--${type}`}
                     aria-hidden="true"
@@ -120,9 +162,70 @@ const UserOrders = () => {
                   </span>
                   <div className="orders-list__body">
                     <p className="orders-list__primary">{notif.message || notif}</p>
-                    {notif.created_at && (
-                      <p className="orders-list__secondary">{notif.created_at}</p>
+                    {notif.date && (
+                      <p className="orders-list__secondary">{formatDate(notif.date)}</p>
                     )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <h2 style={{ fontSize: '1rem', margin: '12px 0 4px' }}>
+          Historique de mes commandes
+        </h2>
+
+        {ordersLoading ? (
+          <div className="orders-empty">
+            <p className="orders-empty__text">Chargement de vos commandes...</p>
+          </div>
+        ) : commandes.length === 0 ? (
+          <div className="orders-empty">
+            <span className="orders-empty__icon" aria-hidden="true">
+              <i className="ti ti-package" />
+            </span>
+            {ordersError ? (
+              <>
+                <p className="orders-empty__text">{ordersError}</p>
+                <span className="orders-empty__hint">
+                  Veuillez réessayer plus tard.
+                </span>
+              </>
+            ) : (
+              <>
+                <p className="orders-empty__text">Aucune commande pour le moment.</p>
+                <span className="orders-empty__hint">
+                  Vos commandes confirmées apparaîtront ici, même après déconnexion.
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <ul className="orders-list">
+            {commandes.map((cmd) => {
+              const meta = getStatutMeta(cmd.statut);
+              return (
+                <li className="orders-list__item" key={cmd.id}>
+                  <span
+                    className={`orders-list__status orders-list__status--${meta.kind}`}
+                    aria-hidden="true"
+                  >
+                    <i className={`ti ${meta.icon}`} />
+                  </span>
+                  <div className="orders-list__body">
+                    <p className="orders-list__primary">
+                      <Link to={`/order-tracking/${cmd.reference}`}>
+                        {cmd.reference}
+                      </Link>{' '}
+                      — {meta.label}
+                    </p>
+                    <p className="orders-list__secondary">
+                      {typeof cmd.total_ttc === 'number'
+                        ? `${cmd.total_ttc.toLocaleString('fr-FR')} Ar`
+                        : ''}
+                      {cmd.created_at ? ` · ${formatDate(cmd.created_at)}` : ''}
+                    </p>
                   </div>
                 </li>
               );

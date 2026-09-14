@@ -71,6 +71,37 @@ const roleFallbackForPath = (pathname) => {
   return Array.isArray(item?.roleFallback) ? item.roleFallback : null;
 };
 
+// Écran d'accès refusé explicite (audit P1 ordre 3) : remplace toute
+// redirection silencieuse vers /dashboard par un message 403 exploitable
+// (permission manquante + module du plan). Aucune donnée n'est exposée.
+const AccessDenied = ({ pathname }) => {
+  const { t } = useTranslation();
+  const required = PATH_PERMISSION_MAP[pathname] || [];
+  const module = PATH_MODULE_MAP[pathname] || null;
+  return (
+    <div className="page-container">
+      <div className="card full-width" role="alert" style={{ textAlign: 'center', padding: '48px' }}>
+        <p className="stat-label">403 — Accès refusé</p>
+        <h1 style={{ margin: '8px 0 12px' }}>{t('accessDenied.title', undefined, 'Module non accessible')}</h1>
+        <p className="text-muted" style={{ maxWidth: '560px', margin: '0 auto 12px' }}>
+          {t(
+            'accessDenied.body',
+            { path: pathname, module: module || '—', permissions: required.join(', ') || '—' },
+            `La page ${pathname} nécessite ${
+              module ? `le module « ${module} » de votre abonnement` : 'une autorisation'
+            }${required.length ? ` et la permission (${required.join(', ')})` : ''}. ` +
+              `Contactez votre administrateur ou changez d'abonnement. Aucune redirection silencieuse n'a eu lieu.`
+          )}
+        </p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '12px' }}>
+          <a className="btn-primary" href="/dashboard">Retour au tableau de bord</a>
+          <a className="btn-secondary" href="/subscription">Voir mon abonnement</a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProtectedRoute = ({ children }) => {
   const {
     isAuthenticated,
@@ -140,7 +171,8 @@ const ProtectedRoute = ({ children }) => {
       skipModuleGatePaths: ADMIN_PATHS,
     });
     if (!ok) {
-      return <Navigate to="/dashboard" replace />;
+      // P1-3 : jamais de retour muet au dashboard — écran 403 explicite.
+      return <AccessDenied pathname={location.pathname} />;
     }
   }
 
@@ -182,7 +214,7 @@ const PlanLimitModal = ({ message, onClose }) => {
 };
 
 function App() {
-  useRealtimeSync();
+  // useRealtimeSync();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
   useEffect(() => {
@@ -195,8 +227,7 @@ function App() {
 
   return (
     <LanguageProvider>
-      <AuthProvider>
-        <SyncProvider>
+      <SyncProvider>
         <NotificationProvider>
           <CartProvider>
             <BrowserRouter>
@@ -281,7 +312,6 @@ function App() {
         </CartProvider>
       </NotificationProvider>
         </SyncProvider>
-      </AuthProvider>
     </LanguageProvider>
 );
 }

@@ -1,5 +1,5 @@
 // src/pages/Checkout.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService, setPublicTenantContext } from '../services/api';
@@ -23,6 +23,11 @@ const Checkout = () => {
 
   const [loading, setLoading] = useState(cart.length === 0);
   const [submitting, setSubmitting] = useState(false);
+  // Clé d'idempotence STABLE par intention de commande : générée une seule
+  // fois (au premier envoi), réutilisée en cas de rafraîchissement/retry tant
+  // que la commande n'a pas abouti. Générer la clé à chaque envoi (comme
+  // avant) aurait rendu l'idempotence inopérante contre le double-clic.
+  const idempotencyKeyRef = useRef(null);
   const [orderRef, setOrderRef] = useState(null);
   const [products, setProducts] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
@@ -82,6 +87,25 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Idempotence frontend : ignore les doubles soumissions (double-clic,
+    // touche Entrée répétée, refresh pendant l'envoi). Le bouton est déjà
+    // `disabled={submitting}` ; ce garde-fou couvre le cas où l'événement
+    // submit est réémis avant le re-render.
+    if (submitting) return;
+    const email = (formData.email || '').trim();
+    const tel = (formData.telephone || '').trim();
+    if (!formData.nom.trim() || !email || !tel || !formData.adresse.trim() || !formData.ville.trim()) {
+      toast.error('Veuillez renseigner nom, email, téléphone, adresse et ville.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      toast.error('Adresse email invalide.');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Votre panier est vide.');
+      return;
+    }
     try {
       setSubmitting(true);
       const items = cart.map(item => ({
@@ -101,7 +125,18 @@ const Checkout = () => {
         },
         items,
       };
-      const response = await publicCatalogueService.createCommande(payload);
+      // Clé d'idempotence : première soumission -> nouvelle clé ; toute
+      // resoumission (double-clic, refresh, retry après échec réseau) réutilise
+      // la même clé et le backend renvoie la commande déjà créée au lieu d'en
+      // créer une seconde (fix doublons audit 14/09/2026).
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `order:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+      }
+      const idempotencyKey = idempotencyKeyRef.current;
+      const response = await publicCatalogueService.createCommande(payload, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      idempotencyKeyRef.current = null; // commande aboutie -> prochaine commande = nouvelle clé
       const resData = response.data;
       const ref =
         resData?.commande?.reference ||

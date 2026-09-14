@@ -45,6 +45,9 @@ const Invoices = () => {
   });
 
   const [statusFilter, setStatusFilter] = useState('');
+  // Verrou anti double-soumission (audit 14/09/2026 : factures #5/#6/#7
+  // creees pour la meme vente par double-clic).
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchInvoices = async () => {
     try {
@@ -134,6 +137,8 @@ const Invoices = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // anti double-clic
+    setSubmitting(true);
     try {
       const reference = `FAC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       await factureService.create({ ...formData, reference });
@@ -142,8 +147,22 @@ const Invoices = () => {
       closeModal();
     } catch (err) {
       console.error('Error creating invoice:', err);
-      const msg = err.response?.data?.message || 'Échec de la création de la facture';
-      toast.error(msg);
+      if (err.response?.status === 409) {
+        // Idempotence backend : une facture existe déjà pour cette vente.
+        const existingRef = err.response?.data?.facture?.reference;
+        toast.info(
+          existingRef
+            ? `Une facture existe déjà pour cette vente : ${existingRef}`
+            : (err.response?.data?.message || 'Une facture existe déjà pour cette vente')
+        );
+        fetchInvoices();
+        closeModal();
+      } else {
+        const msg = err.response?.data?.message || 'Échec de la création de la facture';
+        toast.error(msg);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -305,6 +324,8 @@ const Invoices = () => {
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // anti double-clic
+    setSubmitting(true);
     try {
       await paiementService.create(paymentData);
       toast.success('Paiement enregistré avec succès');
@@ -314,6 +335,8 @@ const Invoices = () => {
       console.error('Error recording payment:', err);
       const msg = err.response?.data?.message || 'Échec de l\'enregistrement du paiement';
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -615,8 +638,8 @@ const Invoices = () => {
                 <button type="button" onClick={closeModal} className="btn-secondary">
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary" disabled={!formData.vente_id}>
-                  Créer la facture
+                <button type="submit" className="btn-primary" disabled={!formData.vente_id || submitting}>
+                  {submitting ? 'Création en cours…' : 'Créer la facture'}
                 </button>
               </div>
             </form>
@@ -730,8 +753,8 @@ const Invoices = () => {
                 <button type="button" onClick={closePaymentModal} className="btn-secondary">
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary">
-                  Enregistrer le paiement
+                <button type="submit" className="btn-primary" disabled={submitting}>
+                  {submitting ? 'Enregistrement…' : 'Enregistrer le paiement'}
                 </button>
               </div>
           </form>
