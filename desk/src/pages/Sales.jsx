@@ -415,7 +415,6 @@ const Sales = () => {
       const failed = [sRes, dRes, bRes, aRes, pRes, cRes].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Erreur chargement';

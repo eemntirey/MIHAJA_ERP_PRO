@@ -70,7 +70,6 @@ export default function Delivery() {
       const failed = [lRes, vRes, iRes, liRes].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
     } catch (e) {
       toast.error('Erreur lors du chargement');

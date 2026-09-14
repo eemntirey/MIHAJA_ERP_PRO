@@ -83,6 +83,12 @@ const Subscriptions = () => {
         <button onClick={fetchSubscriptions} className="btn-secondary" disabled={loading}>
           Rafraîchir
         </button>
+        <button onClick={async () => { try { await superAdminSubscriptionService.setAllFree(); toast.success('Tous au plan pro'); fetchSubscriptions(); } catch (e) { toast.error('Erreur'); } }} className="btn-secondary" style={{ marginLeft: 8 }}>
+          Appliquer le plan pro partout
+        </button>
+        <button onClick={async () => { try { await superAdminSubscriptionService.notifyActivation(); toast.success('Notification 30j envoyée'); } catch (e) { toast.error('Erreur notification'); } }} className="btn-primary" style={{ marginLeft: 8 }}>
+          Activer plans (notification 30j)
+        </button>
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>

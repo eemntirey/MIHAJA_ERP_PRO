@@ -1,6 +1,6 @@
 from app.models.base import BaseTenantModel
 from app import db
-from sqlalchemy import Index
+from sqlalchemy import Index, UniqueConstraint
 
 
 class StockEntrepot(BaseTenantModel):
@@ -26,6 +26,7 @@ class StockEntrepot(BaseTenantModel):
     entrepot = db.relationship('Entrepot', back_populates='stocks')
 
     __table_args__ = (
+        UniqueConstraint('produit_id', 'entrepot_id', name='uq_stock_entrepot_produit_entrepot'),
         Index('idx_stock_entrepot_produit', 'produit_id', 'entrepot_id'),
         Index('idx_stock_entrepot_entrepot', 'entrepot_id'),
     )

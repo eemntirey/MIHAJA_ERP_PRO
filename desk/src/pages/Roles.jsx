@@ -1,6 +1,7 @@
 // src/pages/Roles.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { roleService, permissionService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import './Pages.css';
 
@@ -16,6 +17,8 @@ const PRESET_LABELS = {
 };
 
 const Roles = () => {
+  const { hasPermission } = useAuth();
+  const canManageRoles = !!hasPermission && hasPermission('admin.access');
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [presets, setPresets] = useState([]);
@@ -43,9 +46,15 @@ const Roles = () => {
       setRoles(response.data?.roles || response.data || []);
     } catch (err) {
       console.error('Error fetching roles:', err);
-      const msg = err.response?.data?.message || 'Échec du chargement des rôles';
-      setError(msg);
-      toast.error(msg);
+      // Pas de toastify pour un refus de permission (403) : l'utilisateur
+      // n'a simplement pas accès, les boutons sont désactivés.
+      if (err.response?.status === 403) {
+        setError("Vous n'avez pas la permission d'accéder à la gestion des rôles");
+      } else {
+        const msg = err.response?.data?.message || 'Échec du chargement des rôles';
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -178,6 +187,7 @@ const Roles = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (!canManageRoles) return;
       if (currentRole) {
         await roleService.update(currentRole.id, formData);
         toast.success('Rôle mis à jour');
@@ -188,18 +198,24 @@ const Roles = () => {
       closeModal();
       fetchRoles();
     } catch (err) {
+      // Refus de permission (403) : pas de notification toastify,
+      // l'action était de toute façon désactivée pour ce rôle.
+      if (err.response?.status === 403) return;
       const msg = err.response?.data?.message || "Erreur lors de l'enregistrement";
       toast.error(msg);
     }
   };
 
   const handleDelete = async (id) => {
+    if (!canManageRoles) return;
     if (!window.confirm('Supprimer ce rôle ?')) return;
     try {
       await roleService.delete(id);
       toast.success('Rôle supprimé');
       fetchRoles();
     } catch (err) {
+      // Refus de permission (403) : pas de notification toastify.
+      if (err.response?.status === 403) return;
       const msg = err.response?.data?.message || 'Erreur lors de la suppression';
       toast.error(msg);
     }
@@ -235,7 +251,7 @@ const Roles = () => {
           <p>Configurez les rôles et leurs permissions</p>
         </div>
         <div className="header-actions">
-          <button className="btn-primary" onClick={() => openModal()}>
+          <button className="btn-primary" onClick={() => canManageRoles && openModal()} disabled={!canManageRoles}>
             <i className="ti ti-plus" /> Nouveau rôle
           </button>
         </div>
@@ -281,11 +297,11 @@ const Roles = () => {
                   </td>
                   <td>{r.permissions?.length || 0} permissions</td>
                   <td>
-                    <button className="btn-small btn-secondary" title="Modifier" onClick={() => openModal(r)}>
+                    <button className="btn-small btn-secondary" title="Modifier" onClick={() => canManageRoles && openModal(r)} disabled={!canManageRoles}>
                       <i className="ti ti-edit" />
                     </button>
                     {!r.is_system && (
-                      <button className="btn-small btn-danger" title="Supprimer" onClick={() => handleDelete(r.id)}>
+                      <button className="btn-small btn-danger" title="Supprimer" onClick={() => canManageRoles && handleDelete(r.id)} disabled={!canManageRoles}>
                         <i className="ti ti-trash" />
                       </button>
                     )}
@@ -317,7 +333,7 @@ const Roles = () => {
                   {!currentRole && (
                     <div className="form-group full-width">
                       <label>Preset de rôle</label>
-                      <select value={selectedPreset} onChange={handlePresetChange} className="form-select">
+                      <select value={selectedPreset} onChange={handlePresetChange} className="form-select" disabled={!canManageRoles}>
                         <option value="">-- Sélectionner un preset --</option>
                         {presets.map(p => (
                           <option key={p.name} value={p.name}>{p.display_name || p.name}</option>
@@ -329,29 +345,29 @@ const Roles = () => {
                   <div className="form-grid">
                     <div className="form-group">
                       <label>Nom du code</label>
-                      <input type="text" name="name" value={formData.name} onChange={handleChange} required disabled={!!currentRole} placeholder="manager" />
+                      <input type="text" name="name" value={formData.name} onChange={handleChange} required disabled={!!currentRole || !canManageRoles} placeholder="manager" />
                     </div>
                     <div className="form-group">
                       <label>Nom affiché</label>
-                      <input type="text" name="display_name" value={formData.display_name} onChange={handleChange} required placeholder="Manager" />
+                      <input type="text" name="display_name" value={formData.display_name} onChange={handleChange} required disabled={!canManageRoles} placeholder="Manager" />
                     </div>
                   </div>
 
                   <div className="form-group full-width">
                     <label>Description</label>
-                    <textarea name="description" value={formData.description} onChange={handleChange} rows={3} placeholder="Description courte du rôle..." />
+                    <textarea name="description" value={formData.description} onChange={handleChange} rows={3} placeholder="Description courte du rôle..." disabled={!canManageRoles} />
                   </div>
 
                   <div className="role-flags">
                     <label className="role-flag">
-                      <input type="checkbox" name="is_default" checked={formData.is_default} onChange={handleChange} />
+                      <input type="checkbox" name="is_default" checked={formData.is_default} onChange={handleChange} disabled={!canManageRoles} />
                       <span className="role-flag-text">
                         <span className="role-flag-title">Rôle par défaut</span>
                         <span className="role-flag-desc">Ce rôle sera utilisé par défaut pour les nouveaux utilisateurs.</span>
                       </span>
                     </label>
                     <label className="role-flag">
-                      <input type="checkbox" name="is_system" checked={formData.is_system} onChange={handleChange} />
+                      <input type="checkbox" name="is_system" checked={formData.is_system} onChange={handleChange} disabled={!canManageRoles} />
                       <span className="role-flag-text">
                         <span className="role-flag-title">Rôle système</span>
                         <span className="role-flag-desc">Ce rôle est protégé par le système.</span>
@@ -382,7 +398,8 @@ const Roles = () => {
                             <input
                               type="checkbox"
                               checked={formData.permission_ids.includes(perm.id)}
-                              onChange={() => togglePermission(perm.id)}
+                              onChange={() => canManageRoles && togglePermission(perm.id)}
+                              disabled={!canManageRoles}
                             />
                             <span>{perm.code}</span>
                           </label>
@@ -397,7 +414,7 @@ const Roles = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
-                <button type="submit" className="btn-primary">Enregistrer</button>
+                <button type="submit" className="btn-primary" disabled={!canManageRoles}>Enregistrer</button>
               </div>
             </form>
           </div>

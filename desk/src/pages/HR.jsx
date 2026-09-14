@@ -116,7 +116,6 @@ export default function HR() {
       const failed = [e, st, p, s, pr].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
       setEmployes((e.status === 'fulfilled' ? e.value?.data?.employes || e.value?.data || [] : []));
       setStagiaires((st.status === 'fulfilled' ? st.value?.data?.stagiaires || st.value?.data || [] : []));

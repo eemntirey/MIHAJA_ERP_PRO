@@ -4,7 +4,10 @@ from app import db
 from app.models.entrepot import Entrepot
 from app.models.stock_entrepot import StockEntrepot
 from app.models.produit import Produit
-from app.security.tenant import tenant_required_readonly
+from app.security.tenant import (
+    get_current_tenant_id,
+    tenant_required_readonly,
+)
 from app.security.permissions import permission_required
 
 ns = Namespace('entrepots', description='Gestion des entrepôts (multi-entrepôts)')
@@ -43,7 +46,7 @@ class EntrepotListResource(Resource):
     @tenant_required_readonly
     def get(self):
         """Liste tous les entrepôts"""
-        entrepots = Entrepot.query.all()
+        entrepots = Entrepot.query.filter_by(is_active=True).all()
         return {'entrepots': [e.to_dict() for e in entrepots], 'total': len(entrepots)}, 200
 
     @ns.doc('create_entrepot')
@@ -52,7 +55,14 @@ class EntrepotListResource(Resource):
     def post(self):
         """Crée un nouvel entrepôt"""
         data = request.get_json()
+        # Source de vérité du tenant : le contexte authentifié. Un tenant_id
+        # explicite n'est accepté que hors contexte (provisioning plateforme),
+        # même logique que BaseService.create.
+        tenant_id = get_current_tenant_id() or data.get('tenant_id')
+        if not tenant_id:
+            return {'message': 'Tenant requis pour creer un entrepot'}, 400
         entrepot = Entrepot(
+            tenant_id=tenant_id,
             nom=data['nom'],
             code=data.get('code'),
             adresse=data.get('adresse'),
@@ -73,7 +83,7 @@ class EntrepotResource(Resource):
     @tenant_required_readonly
     def get(self, entrepot_id):
         """Récupère un entrepôt par son ID"""
-        entrepot = Entrepot.query.get(entrepot_id)
+        entrepot = Entrepot.query.filter_by(id=entrepot_id, is_active=True).first()
         if not entrepot:
             return {'message': 'Entrepôt non trouvé'}, 404
         return entrepot.to_dict(), 200
@@ -83,7 +93,7 @@ class EntrepotResource(Resource):
     @tenant_required_readonly
     def put(self, entrepot_id):
         """Met à jour un entrepôt"""
-        entrepot = Entrepot.query.get(entrepot_id)
+        entrepot = Entrepot.query.filter_by(id=entrepot_id, is_active=True).first()
         if not entrepot:
             return {'message': 'Entrepôt non trouvé'}, 404
         data = request.get_json()
@@ -98,7 +108,7 @@ class EntrepotResource(Resource):
     @tenant_required_readonly
     def delete(self, entrepot_id):
         """Supprime un entrepôt"""
-        entrepot = Entrepot.query.get(entrepot_id)
+        entrepot = Entrepot.query.filter_by(id=entrepot_id, is_active=True).first()
         if not entrepot:
             return {'message': 'Entrepôt non trouvé'}, 404
         if entrepot.principal:
@@ -114,10 +124,10 @@ class EntrepotStockResource(Resource):
     @tenant_required_readonly
     def get(self, entrepot_id):
         """Liste tous les stocks dans un entrepôt"""
-        entrepot = Entrepot.query.get(entrepot_id)
+        entrepot = Entrepot.query.filter_by(id=entrepot_id, is_active=True).first()
         if not entrepot:
             return {'message': 'Entrepôt non trouvé'}, 404
-        stocks = entrepot.stocks.all()
+        stocks = entrepot.stocks.filter_by(is_active=True).all()
         return {'stocks': [s.to_dict() for s in stocks], 'total': len(stocks)}, 200
 
 
@@ -128,7 +138,7 @@ class StockEntrepotListResource(Resource):
     @tenant_required_readonly
     def get(self):
         """Liste tous les stocks par entrepôt"""
-        stocks = StockEntrepot.query.all()
+        stocks = StockEntrepot.query.filter_by(is_active=True).all()
         return {'stocks': [s.to_dict() for s in stocks], 'total': len(stocks)}, 200
 
     @ns.doc('create_stock_entrepot')
@@ -140,11 +150,11 @@ class StockEntrepotListResource(Resource):
         produit_id = data['produit_id']
         entrepot_id = data['entrepot_id']
         
-        produit = Produit.query.get(produit_id)
+        produit = Produit.query.filter_by(id=produit_id, is_active=True).first()
         if not produit:
             return {'message': 'Produit non trouvé'}, 404
         
-        entrepot = Entrepot.query.get(entrepot_id)
+        entrepot = Entrepot.query.filter_by(id=entrepot_id, is_active=True).first()
         if not entrepot:
             return {'message': 'Entrepôt non trouvé'}, 404
         
@@ -159,8 +169,12 @@ class StockEntrepotListResource(Resource):
                 stock.seuil_min = data['seuil_min']
             if 'seuil_max' in data:
                 stock.seuil_max = data['seuil_max']
+            # Réactivation explicite : l'upsert doit redevenir visible
+            # après un soft delete antérieur.
+            stock.is_active = True
         else:
             stock = StockEntrepot(
+                tenant_id=entrepot.tenant_id or get_current_tenant_id(),
                 produit_id=produit_id,
                 entrepot_id=entrepot_id,
                 quantite=data.get('quantite', 0),
@@ -174,14 +188,13 @@ class StockEntrepotListResource(Resource):
 
 
 @ns.route('/stocks/<int:stock_id>')
-@ns.route('/stocks/<int:stock_id>')
 class StockEntrepotResource(Resource):
     @ns.doc('get_stock_entrepot')
     @permission_required('stock.view')
     @tenant_required_readonly
     def get(self, stock_id):
         """Récupère un stock par son ID"""
-        stock = StockEntrepot.query.get(stock_id)
+        stock = StockEntrepot.query.filter_by(id=stock_id, is_active=True).first()
         if not stock:
             return {'message': 'Stock non trouvé'}, 404
         return stock.to_dict(), 200
@@ -191,7 +204,7 @@ class StockEntrepotResource(Resource):
     @tenant_required_readonly
     def put(self, stock_id):
         """Met à jour un stock"""
-        stock = StockEntrepot.query.get(stock_id)
+        stock = StockEntrepot.query.filter_by(id=stock_id, is_active=True).first()
         if not stock:
             return {'message': 'Stock non trouvé'}, 404
         data = request.get_json()
@@ -206,7 +219,7 @@ class StockEntrepotResource(Resource):
     @tenant_required_readonly
     def delete(self, stock_id):
         """Supprime un stock"""
-        stock = StockEntrepot.query.get(stock_id)
+        stock = StockEntrepot.query.filter_by(id=stock_id, is_active=True).first()
         if not stock:
             return {'message': 'Stock non trouvé'}, 404
         stock.delete()
