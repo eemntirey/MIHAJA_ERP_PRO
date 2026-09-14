@@ -32,8 +32,18 @@ class FactureList(Resource):
     def post(self):
         """Creation de facture"""
         from flask import request
-        data = request.get_json()
-        facture = issue_invoice(data)
+        from app.services.facturation_service import FactureDejaExistante
+        data = request.get_json() or {}
+        try:
+            facture = issue_invoice(data)
+        except FactureDejaExistante as exc:
+            # Idempotence : la facture existante est renvoyee pour que
+            # l'utilisateur recupere la bonne reference (jamais de doublon).
+            db.session.rollback()
+            return {'message': str(exc), 'facture': exc.facture.to_dict() if exc.facture else None}, 409
+        except ValueError as e:
+            db.session.rollback()
+            return {'message': str(e)}, 400
         return facture.to_dict(), 201
 
 @api.route('/<int:id>')

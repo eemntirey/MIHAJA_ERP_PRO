@@ -11,6 +11,18 @@ FACTURE_ALLOWED_KEYS = {
 }
 
 
+class FactureDejaExistante(ValueError):
+    """Levee quand une facture active existe deja pour la meme vente.
+
+    Permet a l'API de distinguer un 409 (conflit idempotent, facture
+    existante incluse) d'une erreur de validation classique (400).
+    """
+
+    def __init__(self, message, facture=None):
+        super().__init__(message)
+        self.facture = facture
+
+
 def _filter_facture_payload(data):
     """Ne garde que les colonnes du modele Facture pour eviter
     TypeError avec SQLAlchemy 2.x (rejette les kwargs non-colonnes)."""
@@ -26,6 +38,15 @@ def issue_invoice(data):
     tenant_id = get_current_tenant_id()
     if tenant_id:
         data['tenant_id'] = tenant_id
+    # Idempotence metier : une seule facture active par vente (audit 14/09/2026,
+    # double soumission -> factures #5/#6/#7 pour la meme vente).
+    vente_id = data.get('vente_id')
+    existing_query = Facture.query.filter_by(vente_id=vente_id, is_active=True)
+    if tenant_id is not None:
+        existing_query = existing_query.filter_by(tenant_id=tenant_id)
+    existing = existing_query.first()
+    if existing:
+        raise FactureDejaExistante(f"Une facture existe deja pour cette vente", existing)
     reference = data.get('reference')
     if reference:
         # Unicite de la reference par tenant
