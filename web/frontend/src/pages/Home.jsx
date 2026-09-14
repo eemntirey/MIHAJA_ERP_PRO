@@ -67,18 +67,31 @@ const Home = () => {
 
   const fetchNotifications = async (ref) => {
     try {
+      if (!ref) {
+        // Utilisateur connecté : charger les vraies commandes de son compte
+        // (persistantes, même après déconnexion/reconnexion).
+        const res = await publicCatalogueService.getMesCommandes();
+        const commandes = res.data?.commandes || [];
+        setNotifications(commandes.map((c) => ({
+          message: `${c.reference} — ${(c.statut || '').replace('_', ' ')}`,
+          created_at: c.created_at,
+          statut: c.statut,
+          reference: c.reference,
+        })));
+        return;
+      }
       const response = await publicCatalogueService.getNotifications(ref);
       setNotifications(response.data?.notifications || response.data || []);
     } catch (err) {
       console.error('Error fetching notifications:', err);
       const status = err.response?.status;
-      const msg =
-        status === 404
-          ? 'Aucune commande trouvée pour cette référence.'
-          : status === 401
-            ? 'Session expirée. Veuillez vous reconnecter.'
-            : 'Recherche indisponible pour le moment.';
-      toast.error(msg);
+      if (ref && status === 404) {
+        toast.error('Aucune commande trouvée pour cette référence.');
+      } else if (status !== 401) {
+        // 401 = session expirée : silencieux, la redirection de session gère
+        toast.error('Impossible de charger vos commandes.');
+      }
+      setNotifications([]);
     }
   };
 

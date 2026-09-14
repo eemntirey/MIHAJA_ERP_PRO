@@ -18,6 +18,9 @@ export const SUPPORTED_LANGUAGES = LANGUAGES.map((l) => l.code);
 
 export const translations = {
   fr: {
+    // --- Accès refusé explicite (P1-3 : jamais de redirection silencieuse) ---
+    'accessDenied.title': 'Module non accessible',
+    'accessDenied.body': 'La page {path} nécessite {module} et la permission ({permissions}). Contactez votre administrateur ou changez d\u2019abonnement. Aucune redirection silencieuse n\u2019a eu lieu.',
     // --- Commun ---
     'common.language': 'Langue',
     'common.home': 'Accueil',
@@ -112,10 +115,15 @@ export const translations = {
     // --- Modale limite de plan (App.js) ---
     'planLimit.title': 'Limite du plan atteinte',
     'planLimit.close': 'Fermer',
-    'planLimit.change': 'Modifier mon abonnement',
+    'planLimit.change': "Modifier mon abonnement",
+    // --- Abonnement ---
+    'subscription.upgradePlan': 'Passer à un plan payant',
   },
 
   mg: {
+    // --- Accès refusé explicite (P1-3 : jamais de redirection silencieuse) ---
+    'accessDenied.title': 'Tsy afaka miditra',
+    'accessDenied.body': 'Ny pejy {path} dia mitaky {module} sy ny alalana ({permissions}). Mifandraisa amin\u2019ny mpitantana na ovay ny abonema. Tsy nisy famerenana mangina.',
     // --- Commun ---
     'common.language': 'Fiteny',
     'common.home': 'Fandraisana',
@@ -208,8 +216,10 @@ export const translations = {
     'sidebar.searchPlaceholder': 'Hikaroka…',
 
     // --- Modale limite de plan (App.js) ---
-    'planLimit.title': 'Fetra tratra amin’ny abonema',
+    'planLimit.title': "Fetra tratra amin'ny abonema",
     'planLimit.close': 'Hidiana',
     'planLimit.change': 'Hanova ny abonema',
+    // --- Abonnement ---
+    'subscription.upgradePlan': 'Miakatra ho drafitra mandoa vola',
   },
 };

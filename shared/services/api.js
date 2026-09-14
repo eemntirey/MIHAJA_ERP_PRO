@@ -270,8 +270,57 @@ export const publicCatalogueService = {
     getTenant: (id) =>
         publicApi.get(`/public/tenants/${id}`),
 
-    createCommande: (data) =>
-        publicApi.post('/public/commandes', data),
+    // Clé d'idempotence partagée (P1 audit 14/09/2026) : même clé entre le
+    // panier et le checkout pour éviter les doublons au re-clic/refresh.
+    getOrderIdempotencyKey: () => {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                let key = sessionStorage.getItem('public_order_idempotency_key');
+                if (!key) {
+                    key = (
+                        (typeof crypto !== 'undefined' && crypto.randomUUID)
+                            ? crypto.randomUUID()
+                            : `order-${Date.now()}-${Math.random().toString(16).slice(2)}`
+                    );
+                    sessionStorage.setItem('public_order_idempotency_key', key);
+                }
+                return key;
+            }
+        } catch {
+            /* ignore */
+        }
+        return `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    },
+
+    resetOrderIdempotencyKey: () => {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.removeItem('public_order_idempotency_key');
+            }
+        } catch {
+            /* ignore */
+        }
+    },
+
+    createCommande: (data, { idempotencyKey } = {}) => {
+        // Si l'utilisateur est connecté, on envoie le JWT pour que le backend
+        // lie la commande à son compte (Mes Commandes après reconnexion).
+        const token = tokenStore.getAccessToken();
+        const key = idempotencyKey || publicCatalogueService.getOrderIdempotencyKey();
+        const headers = {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Idempotency-Key': key,
+        };
+        return publicApi.post('/public/commandes', data, { headers });
+    },
+
+    getMesCommandes: () => {
+        const token = tokenStore.getAccessToken();
+        const config = token
+            ? { headers: { Authorization: `Bearer ${token}` } }
+            : undefined;
+        return publicApi.get('/public/mes-commandes', config);
+    },
 
     getCommandeTracking: (ref) =>
         publicApi.get(`/public/commandes/tracking/${ref}`),
@@ -1050,6 +1099,10 @@ export const tresorerieService = {
     },
     getMouvements: (params) => api.get('/tresorerie/mouvements', { params }),
     export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
+};
+
+export const resultatService = {
+    getResultats: (params) => api.get('/resultats', { params }),
 };
 
 // ======================================================

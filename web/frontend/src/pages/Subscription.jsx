@@ -474,7 +474,7 @@ const Subscription = () => {
                 }}
                 disabled={actionLoading}
               >
-                Passer a un plan payant
+                  Passer à un plan payant
               </button>
             </div>
           )}
