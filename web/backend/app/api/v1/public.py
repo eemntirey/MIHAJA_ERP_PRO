@@ -241,7 +241,12 @@ class PublicCommandeCreate(Resource):
 
     @rate_limit(30, 300)
     def post(self):
-        data = request.get_json() or {}
+        # silent=True : un corps JSON invalide ne doit jamais produire un 500
+        # (werkzeug BadRequest non interceptee par flask-restx) mais un 4xx
+        # explicite et exploitable (audit #7 - jamais de 500 sur saisie invalide).
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
+            return {'message': "Corps de requete JSON invalide ou vide"}, 400
 
         data.pop('tenant_id', None)
         data.pop('is_active', None)
