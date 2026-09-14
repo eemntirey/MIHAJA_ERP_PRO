@@ -135,6 +135,91 @@
   border-radius: 9999px;
 }
 
+.sa-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 40px;
+  background-color: #1e293b;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.sa-page h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.sa-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sa-form label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: block;
+  color: #e2e8f0;
+}
+
+.sa-form input:not([type="checkbox"]) {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  font-size: 14px;
+}
+
+.sa-form input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  outline: none;
+}
+
+.sa-form button {
+  background-color: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-size: 14px;
+}
+
+.sa-form button:hover {
+  background-color: #2563eb;
+}
+
+.sa-form button:disabled {
+  background-color: #475569;
+  cursor: not-allowed;
+}
+
+.sa-form input[type="checkbox"] {
+  width: auto;
+  height: auto;
+  appearance: checkbox;
+  margin-right: 8px;
+  padding: 0;
+  background-color: transparent;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sa-text-muted {
+  color: #94a3b8;
+  margin-bottom: 2rem;
+}
+
 .sa-content {
   flex: 1;
   padding: 24px;

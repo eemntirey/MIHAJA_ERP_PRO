@@ -40,7 +40,6 @@ const Payments = () => {
       const failed = [paymentsResponse, facturesResponse, clientsResponse].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
     } catch (err) {
       console.error('Error fetching payments data:', err);

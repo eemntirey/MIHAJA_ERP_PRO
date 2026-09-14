@@ -22,7 +22,7 @@ export const useAuth = () => {
     return context;
 };
 
-export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
+export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
     const [user, setUser] = useState(null);
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -316,9 +316,9 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
                     return;
                 }
                 console.error('[AuthContext] fetchSubscriptionStatus error', err);
-            setSubscription(null);
-            authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
-        }
+                setSubscription(null);
+                authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
+            }
     })();
     fetchSubscriptionStatus._inflight = inflight;
     try {
@@ -503,4 +503,4 @@ const value = {
             {children}
         </AuthContext.Provider>
     );
-};
+}

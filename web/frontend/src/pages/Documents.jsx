@@ -43,7 +43,6 @@ export default function Documents() {
             const failed = [m, d].filter(r => r.status === 'rejected');
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-              toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
             }
             setModeles((m.status === 'fulfilled' ? m.value?.data?.modeles || m.value?.data || [] : []));
             setDocuments((d.status === 'fulfilled' ? d.value?.data?.documents || d.value?.data || [] : []));

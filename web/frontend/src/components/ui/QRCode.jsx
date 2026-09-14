@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './Button';
+import Button from './Button';
 
 export const QRCodeDisplay = ({ data, size = 128, label = 'QR Code', onClose }) => {
   const [qrBase64, setQrBase64] = useState(null);

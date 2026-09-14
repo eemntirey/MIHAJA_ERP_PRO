@@ -172,7 +172,7 @@ api.interceptors.response.use(
             }
         }
 
-        if (error.response && error.response.status !== 401) {
+        if (error.response && error.response.status !== 401 && error.response.status !== 403) {
             const msg = error.response.data?.message || error.response.data?.error || 'Une erreur est survenue';
             toast.error(msg);
         }

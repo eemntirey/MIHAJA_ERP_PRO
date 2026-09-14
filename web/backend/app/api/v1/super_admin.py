@@ -47,7 +47,7 @@ from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
 from sqlalchemy.orm import contains_eager, joinedload
-import json
+import json, os
 
 ns = Namespace('super-admin', description='Endpoints réservés au SUPER_ADMIN')
 
@@ -1749,6 +1749,64 @@ def _cascade_delete_tenant_data(tenant_id):
         user.mark_deleted()
 
 
+@ns.route('/email-config')
+class SuperAdminEmailConfig(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        try:
+            import os
+            cfg = {
+                'MAIL_HOST': os.getenv('MAIL_HOST', ''),
+                'MAIL_PORT': int(os.getenv('MAIL_PORT', '587')),
+                'MAIL_USERNAME': os.getenv('MAIL_USERNAME', os.getenv('MAIL_USER', '')),
+                'MAIL_FROM': os.getenv('MAIL_FROM', 'no-reply@mihaja-erp.local'),
+                'MAIL_FROM_NAME': os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP'),
+                'MAIL_USE_TLS': os.getenv('MAIL_USE_TLS', '1') == '1',
+            }
+            return cfg, 200
+        except Exception as e:
+            return {'message': f'Erreur lecture config email: {str(e)}'}, 500
+
+    @jwt_required()
+    def put(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        data = request.get_json() or {}
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), '.env')
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                lines = f.read().splitlines(keepends=True)
+        new_vars = {
+            'MAIL_HOST': data.get('MAIL_HOST'),
+            'MAIL_PORT': str(data.get('MAIL_PORT', 587)),
+            'MAIL_USERNAME': data.get('MAIL_USERNAME'),
+            'MAIL_FROM': data.get('MAIL_FROM'),
+            'MAIL_FROM_NAME': data.get('MAIL_FROM_NAME'),
+            'MAIL_USE_TLS': '1' if data.get('MAIL_USE_TLS', True) else '0',
+        }
+        updated = {}
+        for i, line in enumerate(lines):
+            for key in new_vars:
+                if line.startswith(key + '='):
+                    lines[i] = f"{key}={new_vars[key]}\n"
+                    updated[key] = True
+                    break
+        for key, val in new_vars.items():
+            if key not in updated:
+                lines.append(f"{key}={val}\n")
+        try:
+            with open(env_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+            return {'message': 'Configuration email mise à jour'}, 200
+        except Exception as e:
+            return {'message': f'Erreur écriture config: {str(e)}'}, 500
+
+
 def _hard_delete_tenant_data(tenant_id):
     """Supprime physiquement toutes les donnees d'un tenant.
 
@@ -2000,3 +2058,80 @@ class SuperAdminUserDetail(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': f'Erreur lors de la suppression: {str(e)}'}, 500
+
+
+@ns.route('/subscriptions/notify-activation')
+class SuperAdminSubscriptionsNotifyActivation(Resource):
+    @jwt_required()
+    def post(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        try:
+            from app.services.notification_service import create_notification
+            from app.models.abonnement import Abonnement
+            abonnements = Abonnement.query.filter(Abonnement.is_active == True, Abonnement.statut != 'expire').all()
+            count = 0
+            for ab in abonnements:
+                tenant = db.session.get(Tenant, ab.tenant_id) if ab.tenant_id else None
+                if tenant:
+                    create_notification(
+                        tenant_id=ab.tenant_id,
+                        title='Activation du système d\'abonnement',
+                        message='Vous avez 30 jours pour activer votre abonnement. Passé ce délai, le compte pourra être bloqué.',
+                        notif_type='subscription_reminder',
+                        link='/subscriptions',
+                        commit=False,
+                    )
+                    count += 1
+            db.session.commit()
+            return {'message': 'Notification 30j envoyée', 'notified': count}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur: {str(e)}'}, 500
+
+@ns.route('/subscriptions/send-reminder-3j')
+class SuperAdminSubscriptionsSendReminder3j(Resource):
+    @jwt_required()
+    def post(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        try:
+            from app.services.notification_service import create_notification
+            from app.models.abonnement import Abonnement
+            abonnements = Abonnement.query.filter(Abonnement.is_active == True, Abonnement.statut != 'expire').all()
+            count = 0
+            for ab in abonnements:
+                tenant = db.session.get(Tenant, ab.tenant_id) if ab.tenant_id else None
+                if tenant:
+                    create_notification(
+                        tenant_id=ab.tenant_id,
+                        title='Rappel abonnement : -3 jours',
+                        message='Il reste 3 jours pour activer votre abonnement. Après ce délai, le compte pourra être bloqué.',
+                        notif_type='subscription_reminder_3j',
+                        link='/subscriptions',
+                        commit=False,
+                    )
+                    count += 1
+            db.session.commit()
+            return {'message': 'Rappel -3j envoyé automatiquement', 'notified': count}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur: {str(e)}'}, 500
+
+@ns.route('/subscriptions/set-all-free')
+class SuperAdminSubscriptionsSetAllFree(Resource):
+    @jwt_required()
+    def post(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        try:
+            updated = Abonnement.query.filter(Abonnement.is_active == True).update({Abonnement.plan: 'pro'}, synchronize_session=False)
+            db.session.commit()
+            return {'message': 'Tous les abonnements passés au plan pro', 'updated': updated}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur: {str(e)}'}, 500

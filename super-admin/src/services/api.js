@@ -121,6 +121,15 @@ export const superAdminSubscriptionService = {
 
   getHistoriqueByTenant: (tenantId, params) =>
     api.get(`/abonnements/historique/${tenantId}`, { params }),
+
+  setAllFree: () =>
+    api.post('/super-admin/subscriptions/set-all-free'),
+
+  notifyActivation: () =>
+    api.post('/super-admin/subscriptions/notify-activation'),
+
+  sendReminder3j: () =>
+    api.post('/super-admin/subscriptions/send-reminder-3j'),
 };
 
 export const superAdminDashboardService = {

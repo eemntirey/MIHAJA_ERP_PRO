@@ -1,7 +1,7 @@
 // src/pages/SuperAdmin.jsx
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import {
+import api, {
   tenantService,
   subscriptionService,
   superAdminPaymentService,
@@ -121,6 +121,39 @@ const SuperAdmin = () => {
     papi: '',
     vitrine: '',
   });
+
+  // ====== FOURNISSEUR EMAIL / API ======
+  const [emailConfig, setEmailConfig] = useState({
+    MAIL_HOST: 'smtp.gmail.com',
+    MAIL_PORT: 587,
+    MAIL_USERNAME: '',
+    MAIL_FROM: 'no-reply@mihaja-erp.local',
+    MAIL_FROM_NAME: 'MIHAJA ERP',
+    MAIL_USE_TLS: true,
+  });
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  const fetchEmailConfig = useCallback(async () => {
+    try {
+      const { data } = await api.get('/super-admin/email-config');
+      setEmailConfig(data);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const saveEmailConfig = async (e) => {
+    e.preventDefault();
+    setEmailLoading(true);
+    try {
+      await api.put('/super-admin/email-config', emailConfig);
+      toast.success('Configuration email mise à jour');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Erreur mise à jour');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!hasRole('SUPER_ADMIN')) {
@@ -319,6 +352,8 @@ const SuperAdmin = () => {
       fetchPaymentsStats(paymentsFilters);
     } else if (activeTab === 'papi') {
       fetchPapiOverview(papiFilters);
+    } else if (activeTab === 'email') {
+      fetchEmailConfig();
     }
     // NB : le rechargement des paiements est déclenché explicitement par
     // handlePaymentsSearch / handlePaymentsPageChange / handlePaymentsReset
@@ -464,6 +499,12 @@ const SuperAdmin = () => {
           onClick={() => setActiveTab('papi')}
         >
           Papi marchands
+        </button>
+        <button
+          className={`superadmin-tab ${activeTab === 'email' ? 'superadmin-tab--active' : ''}`}
+          onClick={() => setActiveTab('email')}
+        >
+          Fournisseur Email
         </button>
       </div>
 
@@ -1260,6 +1301,44 @@ const SuperAdmin = () => {
             </div>
           )}
         </>
+      )}
+
+      {activeTab === 'email' && (
+        <div className="card full-width">
+          <h3>Configuration Fournisseur Email (SMTP / API)</h3>
+          <p className="text-muted">Ces paramètres sont partagés par tous les tenants. Seul le super administrateur peut les modifier.</p>
+          <form onSubmit={saveEmailConfig} className="form-grid" style={{ maxWidth: '600px' }}>
+            <div className="form-group">
+              <label>MAIL_HOST</label>
+              <input type="text" value={emailConfig.MAIL_HOST || ''} onChange={e => setEmailConfig({ ...emailConfig, MAIL_HOST: e.target.value })} className="form-input" />
+            </div>
+            <div className="form-group">
+              <label>MAIL_PORT</label>
+              <input type="number" value={emailConfig.MAIL_PORT || 587} onChange={e => setEmailConfig({ ...emailConfig, MAIL_PORT: parseInt(e.target.value, 10) || 587 })} className="form-input" />
+            </div>
+            <div className="form-group">
+              <label>MAIL_USERNAME (Gmail / SMTP)</label>
+              <input type="text" value={emailConfig.MAIL_USERNAME || ''} onChange={e => setEmailConfig({ ...emailConfig, MAIL_USERNAME: e.target.value })} className="form-input" />
+            </div>
+            <div className="form-group">
+              <label>MAIL_FROM</label>
+              <input type="text" value={emailConfig.MAIL_FROM || ''} onChange={e => setEmailConfig({ ...emailConfig, MAIL_FROM: e.target.value })} className="form-input" />
+            </div>
+            <div className="form-group">
+              <label>MAIL_FROM_NAME</label>
+              <input type="text" value={emailConfig.MAIL_FROM_NAME || ''} onChange={e => setEmailConfig({ ...emailConfig, MAIL_FROM_NAME: e.target.value })} className="form-input" />
+            </div>
+            <div className="form-group full-width">
+              <label className="role-flag">
+                <input type="checkbox" checked={!!emailConfig.MAIL_USE_TLS} onChange={e => setEmailConfig({ ...emailConfig, MAIL_USE_TLS: e.target.checked })} />
+                <span>MAIL_USE_TLS (TLS actif)</span>
+              </label>
+            </div>
+            <div className="form-group full-width">
+              <button type="submit" className="btn-primary" disabled={emailLoading}>{emailLoading ? 'Enregistrement...' : 'Enregistrer la configuration'}</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {showPaymentDetail && paymentDetail && (

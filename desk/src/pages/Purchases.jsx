@@ -22,7 +22,6 @@ export default function Purchases() {
             const failed = [c, r].filter(r => r.status === 'rejected');
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-              toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
             }
             setCommandes((c.status === 'fulfilled' ? c.value?.data?.commandes || c.value?.data || [] : []));
             setReceptions((r.status === 'fulfilled' ? r.value?.data?.receptions || r.value?.data || [] : []));

@@ -42,7 +42,6 @@ export default function Accounting() {
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
               const errMsg = msgs.join(', ');
-              toast.warning(`Chargement partiel: ${errMsg}`);
               setLoadError(errMsg);
             }
             setComptes((c.status === 'fulfilled' ? c.value?.data?.comptes || c.value?.data || [] : []));

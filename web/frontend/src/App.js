@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
 import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
@@ -195,8 +195,9 @@ function App() {
 
   return (
     <LanguageProvider>
-      <SyncProvider>
-      <NotificationProvider>
+      <AuthProvider>
+        <SyncProvider>
+        <NotificationProvider>
           <CartProvider>
             <BrowserRouter>
               <div className="app">
@@ -279,7 +280,8 @@ function App() {
           </BrowserRouter>
         </CartProvider>
       </NotificationProvider>
-      </SyncProvider>
+        </SyncProvider>
+      </AuthProvider>
     </LanguageProvider>
 );
 }
