@@ -209,7 +209,7 @@ class Produit(BaseTenantModel):
 
     def to_public_dict(self):
         allowed_public_fields = {
-            'id', 'nom', 'description_courte', 'description_longue',
+            'id', 'tenant_id', 'nom', 'description_courte', 'description_longue',
             'categorie', 'sous_categorie', 'famille', 'marque', 'modele',
             'unite', 'prix_vente_ht', 'prix_vente_ttc', 'taux_tva',
             'image_url', 'qr_code_data', 'tags', 'statut', 'est_service',

@@ -32,6 +32,16 @@ class Avoir(BaseTenantModel):
         data = super().to_dict(exclude)
         if self.statut:
             data['statut'] = self.statut.value
+        # Corrige le mapping cassé du client (audit P1 point 6)
+        data['client_nom'] = None
+        if self.client_id:
+            try:
+                from app.models.client import Client
+                client = Client.query.filter_by(id=self.client_id, is_active=True, tenant_id=self.tenant_id).first()
+                if client:
+                    data['client_nom'] = client.nom
+            except Exception:
+                pass
         return data
 
     def __repr__(self):

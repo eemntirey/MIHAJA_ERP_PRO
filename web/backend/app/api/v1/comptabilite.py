@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource
 from flask import request, Response, current_app
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
-from app.services.comptabilite_service import CompteComptableService, EcritureComptableService, TresorerieService, ComptaImportService
+from app.services.comptabilite_service import CompteComptableService, EcritureComptableService, TresorerieService, ComptaImportService, ResultatService
 from datetime import date
 from sqlalchemy import func
 import io
@@ -344,3 +344,37 @@ class TresorerieImport(Resource):
         except Exception:
             current_app.logger.exception('Erreur serveur lors de l import de tresorerie')
             return {'message': 'Erreur serveur lors de l import de tresorerie'}, 500
+
+
+ns_resultats = Namespace('resultats', description='Resultats comptables (produits - charges par periode)')
+
+
+@ns_resultats.route('/')
+class ResultatsResource(Resource):
+    @ns_resultats.doc('get_resultats')
+    @tenant_required_readonly
+    @permission_required('ecriture.view')
+    def get(self):
+        """P&L : produits et charges sur la période demandée (par jour/mois/an)."""
+        date_debut = request.args.get('date_debut')
+        date_fin = request.args.get('date_fin')
+        periode = request.args.get('periode', 'mois')
+        debut = None
+        fin = None
+        if date_debut:
+            try:
+                debut = date.fromisoformat(date_debut)
+            except (ValueError, TypeError):
+                return {'message': 'Format de date_debut invalide (YYYY-MM-DD)'}, 400
+        if date_fin:
+            try:
+                fin = date.fromisoformat(date_fin)
+            except (ValueError, TypeError):
+                return {'message': 'Format de date_fin invalide (YYYY-MM-DD)'}, 400
+        if periode not in ResultatService.PERIODES:
+            return {'message': 'Periode invalide (jour, mois ou annee)'}, 400
+        try:
+            return ResultatService.get_resultats(debut, fin, periode), 200
+        except Exception:
+            current_app.logger.exception('Erreur calcul des resultats comptables')
+            return {'message': 'Erreur serveur lors du calcul des resultats'}, 500

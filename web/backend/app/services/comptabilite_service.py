@@ -425,6 +425,113 @@ class TresorerieService:
         return result
 
 
+class ResultatService:
+    """Résultats comptables (produits - charges) par période.
+
+    S'appuie exclusivement sur les écritures VALIDÉES rattachées à des
+    comptes de type PRODUIT / CHARGE :
+    - compte PRODUIT : le crédit augmente les produits (ventes),
+      le débit les diminue (contrepassations, retours) ;
+    - compte CHARGE  : le débit augmente les charges (achats, frais),
+      le crédit les diminue.
+    Le résultat net vaut produits - charges. Le regroupement par période
+    accepte ``jour``, ``mois`` (défaut) ou ``annee``.
+    """
+
+    PERIODES = ('jour', 'mois', 'annee')
+
+    @staticmethod
+    def _period_key(d, periode):
+        if periode == 'jour':
+            return d.isoformat()
+        if periode == 'annee':
+            return str(d.year)
+        return d.strftime('%Y-%m')
+
+    @classmethod
+    def get_resultats(cls, date_debut=None, date_fin=None, periode='mois'):
+        tenant_id = get_current_tenant_id()
+        query = (
+            db.session.query(EcritureComptable, CompteComptable)
+            .join(CompteComptable, EcritureComptable.compte_id == CompteComptable.id)
+            .filter(
+                EcritureComptable.is_active.is_(True),
+                EcritureComptable.statut == StatutEcriture.VALIDE,
+                CompteComptable.is_active.is_(True),
+                CompteComptable.type_compte.in_([TypeCompte.PRODUIT, TypeCompte.CHARGE]),
+            )
+        )
+        if tenant_id is not None:
+            query = query.filter(EcritureComptable.tenant_id == tenant_id)
+        if date_debut:
+            query = query.filter(EcritureComptable.date >= date_debut)
+        if date_fin:
+            query = query.filter(EcritureComptable.date <= date_fin)
+
+        rows = query.order_by(EcritureComptable.date, EcritureComptable.id).all()
+
+        total_produits = Decimal('0')
+        total_charges = Decimal('0')
+        par_periode: Dict[str, Dict[str, Decimal]] = {}
+        details: Dict[int, Dict[str, Any]] = {}
+
+        for ecriture, compte in rows:
+            debit = Decimal(str(ecriture.montant_debit or 0))
+            credit = Decimal(str(ecriture.montant_credit or 0))
+            if compte.type_compte == TypeCompte.PRODUIT:
+                net = credit - debit
+                total_produits += net
+            else:
+                net = debit - credit
+                total_charges += net
+
+            if net != 0:
+                detail = details.get(compte.id)
+                if detail is None:
+                    detail = {
+                        'compte_id': compte.id,
+                        'numero': compte.numero,
+                        'nom': compte.nom,
+                        'type_compte': compte.type_compte.value,
+                        'montant': net,
+                    }
+                    details[compte.id] = detail
+                else:
+                    detail['montant'] += net
+
+            key = cls._period_key(ecriture.date, periode)
+            bucket = par_periode.get(key)
+            if bucket is None:
+                bucket = {'produits': Decimal('0'), 'charges': Decimal('0')}
+                par_periode[key] = bucket
+            if compte.type_compte == TypeCompte.PRODUIT:
+                bucket['produits'] += net
+            else:
+                bucket['charges'] += net
+
+        return {
+            'date_debut': date_debut.isoformat() if date_debut else None,
+            'date_fin': date_fin.isoformat() if date_fin else None,
+            'periode': periode,
+            'total_produits': float(round(total_produits, 2)),
+            'total_charges': float(round(total_charges, 2)),
+            'resultat_net': float(round(total_produits - total_charges, 2)),
+            'par_periode': [
+                {
+                    'periode': key,
+                    'produits': float(round(v['produits'], 2)),
+                    'charges': float(round(v['charges'], 2)),
+                    'resultat': float(round(v['produits'] - v['charges'], 2)),
+                }
+                for key, v in sorted(par_periode.items())
+            ],
+            'details': [
+                {**d, 'montant': float(round(d['montant'], 2))}
+                for d in sorted(details.values(), key=lambda x: x['numero'])
+            ],
+        }
+
+
 class ComptaImportService:
     @classmethod
     def import_comptes(cls, file):
