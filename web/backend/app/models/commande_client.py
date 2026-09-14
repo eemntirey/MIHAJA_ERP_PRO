@@ -37,6 +37,12 @@ class CommandeClient(BaseTenantModel):
     
     notes = db.Column(db.Text)
     
+    # Client connecté (vitrine) : NULL pour une commande passée en invité
+    utilisateur_id = db.Column(
+        db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True, index=True
+    )
+    utilisateur = db.relationship('Utilisateur', foreign_keys=[utilisateur_id])
+    
     @property
     def items_list(self):
         if self.items:
@@ -59,6 +65,7 @@ class CommandeClient(BaseTenantModel):
         )
         data['total_ht'] = float(self.total_ht)
         data['total_ttc'] = float(self.total_ttc)
+        data['utilisateur_id'] = self.utilisateur_id
         enriched_items = []
         for item in self.items_list:
             produit = None

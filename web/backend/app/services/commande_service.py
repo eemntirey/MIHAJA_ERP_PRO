@@ -51,6 +51,14 @@ class CommandeService(BaseService):
         if not isinstance(items, list) or len(items) == 0:
             raise ValueError("Le panier doit contenir au moins un article")
 
+        # Compte client connecté (optionnel : commande invité si absent)
+        utilisateur_id = data.get('utilisateur_id')
+        if utilisateur_id is not None:
+            try:
+                utilisateur_id = int(utilisateur_id)
+            except (TypeError, ValueError):
+                utilisateur_id = None
+
         # Validate and collect products by produit_id
         validated_items = []
         total_ht = 0
@@ -115,6 +123,7 @@ class CommandeService(BaseService):
             total_ht=total_ht,
             total_ttc=total_ttc,
             tenant_id=tenant_id,
+            utilisateur_id=utilisateur_id,
             notes=data.get('notes')
         )
         

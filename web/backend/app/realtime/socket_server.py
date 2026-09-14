@@ -22,17 +22,33 @@ def init_socketio(app):
         )
         return None
 
-    # Même liste d'origines que flask-cors (app.config['CORS_ORIGINS'],
-    # renseignée dans create_app). Le fallback couvre les deux identités
-    # d'hôte locales : localhost et 127.0.0.1.
-    allowed_origins = app.config.get('CORS_ORIGINS') or [
+    # P0 audit 14/09/2026 : accepter les origines dynamiques (tunnels
+    # devtunnels.ms, LAN) comme flask-cors, sinon le handshake socket
+    # échoue avec « Not an accepted origin » et le tunnel semble mort.
+    import re as _re
+
+    static_origins = list(app.config.get('CORS_ORIGINS') or [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-    ]
+    ])
+    patterns = list(app.config.get('CORS_DYNAMIC_PATTERNS') or [])
+
+    def _socket_origin_allowed(origin):
+        if not origin:
+            return False
+        if origin in static_origins:
+            return True
+        for _pat in patterns:
+            try:
+                if _re.match(_pat, origin):
+                    return True
+            except Exception:
+                continue
+        return False
 
     socketio = SocketIO(
         app,
-        cors_allowed_origins=allowed_origins,
+        cors_allowed_origins=_socket_origin_allowed,
         async_mode="threading",
         path="/socket.io",
         ping_timeout=120,

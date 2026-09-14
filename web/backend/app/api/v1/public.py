@@ -67,7 +67,6 @@ def _scope_query_to_tenant(query):
 
 def _get_active_tenant_ids():
     """Liste des tenants exposés sur la vitrine commune.
-
     Un tenant apparaît dans la vitrine publique si et seulement si :
     - il a un Abonnement actif non expiré ;
     - il a configuré son compte marchand Papi ;
@@ -92,6 +91,31 @@ def _get_active_tenant_ids():
 
     tenants = Tenant.query.filter(Tenant.id.in_(eligible_ids)).all()
     return {t.id for t in tenants if t.is_vitrine_active()}
+
+
+def _infer_tenant_from_items(items):
+    """Déduit le tenant vendeur depuis le premier produit du panier.
+
+    Utilisé uniquement quand aucun en-tête X-Tenant-* n'est fourni
+    (Checkout sans contexte vendeur). Le service refuse ensuite tout
+    panier mélangeant plusieurs tenants (ValueError -> 400), donc ce
+    fallback ne peut jamais élargir l'accès : il lève 400/404 au pire.
+    """
+    try:
+        if not isinstance(items, list) or not items:
+            return None
+        first = items[0] if isinstance(items[0], dict) else None
+        if not first:
+            return None
+        produit_id = first.get('produit_id')
+        if not produit_id:
+            return None
+        produit = db.session.get(Produit, int(produit_id))
+        if not produit or not getattr(produit, 'tenant_id', None):
+            return None
+        return db.session.get(Tenant, produit.tenant_id)
+    except Exception:
+        return None
 
 
 @ns_public.route('/produits')
@@ -175,6 +199,7 @@ class PublicTenantDetail(Resource):
             'id': tenant.id,
             'nom': tenant.nom,
             'slug': tenant.slug,
+            'domaine': tenant.domaine,
             'ville': tenant.ville,
             'pays': tenant.pays,
             'statut': tenant.statut.value if hasattr(tenant.statut, 'value') else tenant.statut,
@@ -185,19 +210,87 @@ class PublicTenantDetail(Resource):
 
 @ns_public.route('/commandes')
 class PublicCommandeCreate(Resource):
-    @rate_limit(3, 300)
+    # Cache d'idempotence en mémoire (clé -> reference de commande).
+    # Évite les doublons sur double-clic / refresh pendant l'envoi.
+    # TTL : 10 minutes. En multi-processus, chaque worker garde son cache :
+    # la collision de référence reste impossible (référence unique en DB) et
+    # le pire cas est une commande en double si deux workers reçoivent la
+    # même clé simultanément — le frontend verrouille déjà le bouton.
+    _idempotency_cache = {}
+    _idempotency_ttl_s = 600
+
+    @classmethod
+    def _idempotency_get(cls, key):
+        import time
+        entry = cls._idempotency_cache.get(key)
+        if not entry:
+            return None
+        ref, ts = entry
+        if time.time() - ts > cls._idempotency_ttl_s:
+            cls._idempotency_cache.pop(key, None)
+            return None
+        return ref
+
+    @classmethod
+    def _idempotency_put(cls, key, ref):
+        import time
+        # Borne anti-fuite mémoire : 2000 entrées max.
+        if len(cls._idempotency_cache) > 2000:
+            cls._idempotency_cache.clear()
+        cls._idempotency_cache[key] = (ref, time.time())
+
+    @rate_limit(30, 300)
     def post(self):
         data = request.get_json() or {}
 
         data.pop('tenant_id', None)
         data.pop('is_active', None)
 
-        # Résolution du tenant via les en-têtes publics (slug ou domaine)
+        # Idempotence : même clé = même réponse, jamais de 2e commande.
+        idempotency_key = request.headers.get('Idempotency-Key')
+        if idempotency_key:
+            cached_ref = self._idempotency_get(idempotency_key)
+            if cached_ref:
+                commande = CommandeService.get_by_reference(cached_ref)
+                if commande:
+                    return commande.to_dict(), 200
+
+        # Lier la commande au compte connecté (si un JWT valide est présent).
+        # Une commande invité (sans JWT) reste valide : utilisateur_id = None.
+        utilisateur_id = None
+        try:
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+            verify_jwt_in_request(optional=True)
+            ident = get_jwt_identity()
+            if ident is not None and str(ident).isdigit():
+                utilisateur_id = int(ident)
+        except Exception:
+            utilisateur_id = None
+        data['utilisateur_id'] = utilisateur_id
+
+        # Résolution du tenant via les en-têtes publics (slug ou domaine).
+        # Fallback : si aucun en-tête (panier multi-produits sans contexte),
+        # on déduit le tenant depuis le premier produit du panier — le
+        # service refuse ensuite tout panier multi-tenant (ValueError 400).
         tenant = _resolve_public_tenant()
+        if not tenant:
+            tenant = _infer_tenant_from_items(data.get('items', []))
         if not tenant:
             return {
                 'message': 'Tenant requis (X-Tenant-Slug ou X-Tenant-Domaine)'
             }, 400
+
+        # Vérifier que le tenant est actif sur la vitrine
+        try:
+            active_tenant_ids = _get_active_tenant_ids()
+        except Exception:
+            current_app.logger.exception('Vérification vitrine impossible')
+            return {
+                'message': 'Service de commande momentanément indisponible, réessayez.',
+            }, 503
+        if not active_tenant_ids or tenant.id not in active_tenant_ids:
+            return {'message': 'Ce vendeur ne prend pas de commandes publiques actuellement'}, 403
+
         data['tenant_id'] = tenant.id
 
         client = data.get('client') or {}
@@ -224,13 +317,19 @@ class PublicCommandeCreate(Resource):
                 db.session.delete(commande)
                 db.session.commit()
                 return {'message': 'Montant de commande trop eleve pour un achat public'}, 403
+            if idempotency_key:
+                self._idempotency_put(idempotency_key, commande.reference)
             return commande.to_dict(), 201
         except ValueError as e:
             return {'message': str(e)}, 400
-        except Exception:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.exception('Erreur création commande publique')
-            return {'message': 'Erreur lors de la création de la commande'}, 500
+            current_app.logger.exception('Erreur création commande publique: %s', exc)
+            # Ne jamais retourner 500 générique sans contexte exploitable (P1 ordre 5)
+            return {
+                'message': 'Erreur lors de la création de la commande. Vérifiez les coordonnées, le panier et le mode de paiement.',
+                'detail': str(exc) if str(exc) else 'Exception inconnue',
+            }, 500
 
 
 @ns_public.route('/commandes/tracking/<string:ref>')
@@ -348,6 +447,39 @@ class PublicCommandePapiStatus(Resource):
             'paiement': paiement.to_dict() if paiement else None,
         }
         return data, 200
+
+
+@ns_public.route('/mes-commandes')
+class PublicMesCommandes(Resource):
+    def get(self):
+        """Liste les commandes du compte connecté (tous vendeurs confondus).
+
+        Nécessite un JWT valide (utilisateur "particulier" connecté sur la
+        vitrine). Le filtrage par utilisateur_id garantit l'isolation des
+        données : le bypass du filtre tenant global est nécessaire car les
+        commandes appartiennent aux tenants vendeurs, pas au client.
+        """
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+        try:
+            verify_jwt_in_request()
+        except Exception:
+            return {'message': 'Authentification requise'}, 401
+
+        user_id = get_jwt_identity()
+        if isinstance(user_id, str) and user_id.isdigit():
+            user_id = int(user_id)
+        if not user_id:
+            return {'message': 'Authentification requise'}, 401
+
+        commandes = (
+            CommandeClient.query
+            .filter_by(utilisateur_id=user_id, is_active=True)
+            .order_by(CommandeClient.created_at.desc())
+            .limit(50)
+            .execution_options(_skip_tenant_filter=True)
+            .all()
+        )
+        return {'commandes': [c.to_dict() for c in commandes]}, 200
 
 
 @ns_public.route('/notifications')

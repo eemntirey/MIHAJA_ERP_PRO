@@ -36,6 +36,18 @@ def _normalize_payment_data(data):
     normalized.setdefault('statut', StatutPaiement.CONFIRME)
     normalized.setdefault('type', TypePaiement.VENTE)
     normalized.setdefault('mode_paiement', 'especes')
+    # Corrige le mapping cassé : provider doit refléter le mode de paiement réel (audit P1 point 6)
+    if not normalized.get('provider') or normalized.get('provider') == 'especes':
+        mode = normalized.get('mode_paiement', 'especes')
+        provider_map = {
+            'especes': 'especes',
+            'virement': 'virement',
+            'cheque': 'cheque',
+            'mvola': 'mvola',
+            'orange_money': 'orange_money',
+            'airtel_money': 'airtel_money',
+        }
+        normalized['provider'] = provider_map.get(str(mode).lower(), 'especes')
 
     if normalized.get('statut') and not hasattr(normalized['statut'], 'value'):
         try:

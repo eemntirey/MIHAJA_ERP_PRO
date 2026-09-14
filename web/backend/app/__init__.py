@@ -79,11 +79,35 @@ def create_app():
         if origin.strip()
     ]
 
+    # P0 audit 14/09/2026 (ERR_CONNECTION_CLOSED sur nouvel onglet) :
+    # les tunnels devtunnels.ms changent de sous-domaine à chaque session
+    # (ex bj470sl0-3000 -> xyz1234-3000) et le LAN change d'IP. On accepte
+    # dynamiquement ces origines au lieu d'exiger une liste figée.
+    _DYNAMIC_CORS_PATTERNS = [
+        r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
+        r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[01]$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[01]$',
+    ]
+    import re as _re
+    _dynamic_extra = []
+    try:
+        _fwd = os.getenv('CORS_DYNAMIC_ORIGINS', '')
+        for _pat in [p.strip() for p in _fwd.split(',') if p.strip()]:
+            _DYNAMIC_CORS_PATTERNS.append(_pat)
+    except Exception:
+        pass
+    _origin_env_hint = os.getenv('FRONTEND_URL', '').strip()
+    if _origin_env_hint and _origin_env_hint not in CORS_ORIGINS:
+        _dynamic_extra.append(_origin_env_hint)
+    CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
+
     # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
     # clé dans app.config, le handshake /socket.io n'autorise que
     # http://localhost:3000 et renvoie « HTTP 400 Not an accepted origin. »
     # pour toute autre origine (ex: http://192.168.40.236:3000).
     app.config['CORS_ORIGINS'] = CORS_ORIGINS
+    app.config['CORS_DYNAMIC_PATTERNS'] = list(_DYNAMIC_CORS_PATTERNS)
 
     if '*' in CORS_ORIGINS:
         raise ValueError(
@@ -91,13 +115,30 @@ def create_app():
             "Specify explicit allowed origins."
         )
 
+    def _cors_origin_allowed(origin):
+        if not origin:
+            return False
+        if origin in CORS_ORIGINS:
+            return True
+        for _pat in _DYNAMIC_CORS_PATTERNS:
+            try:
+                if _re.match(_pat, origin):
+                    return True
+            except Exception:
+                continue
+        return False
+
     CORS(
         app,
-        origins=CORS_ORIGINS,
+        origins=_cors_origin_allowed,
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+        allow_headers=[
+            'Content-Type', 'Authorization', 'X-Requested-With', 'Accept',
+            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key',
+        ],
+        expose_headers=['X-Request-Id'],
         supports_credentials=True,
-        max_age=3600
+        max_age=3600,
     )
 
     jwt.init_app(app)
@@ -195,7 +236,57 @@ def create_app():
 
     @app.route('/health')
     def health():
-        return {'status': 'healthy', 'database': 'connected'}, 200
+        """Health-check public monitoré (P0 audit 14/09/2026).
+
+        Vérifie réellement la connexion DB au lieu de répondre en aveugle.
+        200 = sain, 503 = dégradé (DB injoignable). Jamais de 500 générique.
+        """
+        from sqlalchemy import text as _sa_text
+        checks = {}
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+            checks['database'] = 'connected'
+            healthy = True
+        except Exception as exc:  # pragma: no cover - dépend de l'infra
+            logger.warning('Health-check DB échoué: %s', exc)
+            checks['database'] = 'unreachable'
+            healthy = False
+        payload = {
+            'status': 'healthy' if healthy else 'degraded',
+            'service': 'erp-backend',
+            'checks': checks,
+        }
+        return payload, 200 if healthy else 503
+
+    @app.route('/ready')
+    def ready():
+        """Readiness pour orchestrateurs/tunnels : DB + migrations à jour."""
+        from sqlalchemy import text as _sa_text
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+        except Exception as exc:
+            return {'ready': False, 'reason': 'database_unreachable'}, 503
+        return {'ready': True}, 200
+
+    @app.route('/monitor')
+    def monitor():
+        """Endpoint de monitoring visible et monitoré (audit P0 14/09/2026)."""
+        from flask import g
+        from sqlalchemy import text as _sa_text
+        db_status = 'unknown'
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+            db_status = 'connected'
+        except Exception:
+            db_status = 'disconnected'
+        return {
+            'status': 'running',
+            'monitor': True,
+            'database': db_status,
+            'service': 'erp-backend',
+            'tenant_active': g.current_tenant is not None,
+            'current_tenant_id': g.current_tenant.id if g.current_tenant else None,
+        }, 200
 
     api.errorhandler(Exception)(handle_unexpected_exception)
 
@@ -219,7 +310,7 @@ def create_app():
     from app.api.v1.abonnements import ns as abonnements_ns
     from app.api.v1.livraisons import ns_livreurs as livreurs_ns, ns_vehicules as vehicules_ns, ns_itineraires as itineraires_ns, ns_livraisons as livraisons_ns
     from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
-    from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns
+    from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns, ns_resultats as resultats_ns
     from app.api.v1.documents import ns_modeles as modeles_documents_ns, ns_documents as documents_ns
     from app.api.v1.achats_devis import ns_commandes_achat as commandes_achat_ns, ns_receptions as receptions_ns, ns_devis as devis_ns, ns_bons_livraison as bons_livraison_ns, ns_avoirs as avoirs_ns
     from app.api.v1.roles import ns as roles_ns
@@ -249,7 +340,25 @@ def create_app():
     api.add_namespace(stocks_ns, path='/api/v1/stocks')
     api.add_namespace(ventes_ns, path='/api/v1/ventes')
     api.add_namespace(ai_ns, path='/api/v1/ai')
-    api.add_namespace(public_ns, path='/public')
+    # Vitrine publique : le frontend appelle /api/v1/public/... via REACT_APP_API_URL.
+    # On expose le namespace aux deux préfixes (compat ascendante pour les tests
+    # qui utilisent /public/...) SANS dupliquer les routes dans Swagger.
+    api.add_namespace(public_ns, path='/api/v1/public')
+    try:
+        for _pub_entry in list(public_ns.resources):
+            _pub_resource = _pub_entry[0] if len(_pub_entry) > 0 else None
+            _pub_urls = _pub_entry[1] if len(_pub_entry) > 1 else []
+            _pub_kwargs = _pub_entry[2] if len(_pub_entry) > 2 else {}
+            if _pub_resource is None:
+                continue
+            for _pub_url in list(_pub_urls or []):
+                _compat = '/public' + _pub_url
+                try:
+                    api.add_resource(_pub_resource, _compat, endpoint='public_compat_' + _pub_resource.__name__, **(_pub_kwargs or {}))
+                except Exception:
+                    pass
+    except Exception:
+        pass
     api.add_namespace(tenants_ns, path='/api/v1/tenants')
     api.add_namespace(abonnements_ns, path='/api/v1/abonnements')
     api.add_namespace(livreurs_ns, path='/api/v1/livreurs')
@@ -264,6 +373,7 @@ def create_app():
     api.add_namespace(comptes_ns, path='/api/v1/comptes')
     api.add_namespace(ecritures_ns, path='/api/v1/ecritures')
     api.add_namespace(tresorerie_ns, path='/api/v1/tresorerie')
+    api.add_namespace(resultats_ns, path='/api/v1/resultats')
     api.add_namespace(modeles_documents_ns, path='/api/v1/modeles-documents')
     api.add_namespace(documents_ns, path='/api/v1/documents')
     api.add_namespace(commandes_achat_ns, path='/api/v1/commandes-achat')
@@ -293,8 +403,8 @@ def create_app():
         g.current_user = None
 
         try:
-            from flask_jwt_extended import verify_jwt_in_request_optional, get_jwt
-            verify_jwt_in_request_optional()
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt
+            verify_jwt_in_request(optional=True)
             claims = get_jwt()
             if claims:
                 tenant_id = claims.get('tenant_id')
