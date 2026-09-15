@@ -363,6 +363,10 @@ RAPPORT_DETAIL.txt
 
 # Ne pas ignorer automatiquement les règles du projet.
 
+# Fichiers d'environnement dans les worktrees Kilo
+.kilo/worktrees/*/.env
+.kilo/worktrees/**/.env
+
 
 # ============================================================
 # 14. OS / CONFIGURATION LOCALE
