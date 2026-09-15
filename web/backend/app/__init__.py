@@ -57,8 +57,15 @@ def create_app():
         seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
     )
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(
-        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 30))
+        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 7))
     )
+
+    # I2 FIX (P0) : MAX_CONTENT_LENGTH n'etait defini que dans Config (jamais
+    # charge via app.config.from_object) -> uploads/Excel illimites (DoS pandas).
+    app.config['MAX_CONTENT_LENGTH'] = int(
+        os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
+    )
+    app.config['MAX_FORM_MEMORY_SIZE'] = 2 * 1024 * 1024
 
     app.config['PROPAGATE_EXCEPTIONS'] = True
     app.url_map.strict_slashes = False
@@ -79,11 +86,11 @@ def create_app():
         if origin.strip()
     ]
 
-    # P0 audit 14/09/2026 (ERR_CONNECTION_CLOSED sur nouvel onglet) :
-    # les tunnels devtunnels.ms changent de sous-domaine à chaque session
-    # (ex bj470sl0-3000 -> xyz1234-3000) et le LAN change d'IP. On accepte
-    # dynamiquement ces origines au lieu d'exiger une liste figée.
-    _DYNAMIC_CORS_PATTERNS = [
+    # I4 FIX : allow-list stricte en production (patterns LAN/tunnels = DEV only).
+    _is_prod_cors = os.getenv('FLASK_ENV', '').lower() == 'production'
+    _DYNAMIC_CORS_PATTERNS = []
+    if not _is_prod_cors:
+        _DYNAMIC_CORS_PATTERNS = [
         r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
         r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
         r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[01]$',
@@ -94,7 +101,10 @@ def create_app():
     try:
         _fwd = os.getenv('CORS_DYNAMIC_ORIGINS', '')
         for _pat in [p.strip() for p in _fwd.split(',') if p.strip()]:
-            _DYNAMIC_CORS_PATTERNS.append(_pat)
+            if _is_prod_cors:
+                logger.warning('CORS_DYNAMIC_ORIGINS ignore en production: %s', _pat)
+            else:
+                _DYNAMIC_CORS_PATTERNS.append(_pat)
     except Exception:
         pass
     _origin_env_hint = os.getenv('FRONTEND_URL', '').strip()
@@ -218,11 +228,21 @@ def create_app():
             'code': 500,
         }, 500
 
+    @app.after_request
+    def _security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()'
+        return response
+
     api = Api(
         app,
         title='ERP Commercial API',
         version='1.0',
-        doc='/docs/',
+        doc='/docs/' if os.getenv('FLASK_ENV', '').lower() != 'production' else False,
         decorators=[cross_origin()]
     )
 
@@ -396,8 +416,14 @@ def create_app():
         from flask import g
         from app.security.tenant import resolve_tenant_from_header
 
+        # g.current_tenant_id doit être remis à zéro comme les deux autres :
+        # dans un contexte applicatif partagé (client de test, serveur
+        # embarqué, worker), `g` survit d'une requête à l'autre et le
+        # tenant_id de la requête précédente fuitait dans la suivante
+        # (filtrage tenant erroné, 403 « Abonnement requis » aléatoires).
         g.current_tenant = None
         g.current_user = None
+        g.current_tenant_id = None
 
         try:
             from flask_jwt_extended import verify_jwt_in_request, get_jwt
@@ -440,5 +466,16 @@ def create_app():
         logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 
     # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
+
+    # P2 : en-têtes de sécurité (Helmet-like) sans dépendance externe.
+    @app.after_request
+    def _security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none';"
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        return response
 
     return app
