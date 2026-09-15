@@ -232,6 +232,91 @@ class AbonnementService:
         return abonnement, paiement
 
     @classmethod
+    def downgrade_to_free_plan(cls, tenant_id, trigger='automatique', user_id=None):
+        from app.models.subscription_audit import SubscriptionAuditTrail
+        tenant = db.session.get(Tenant, tenant_id)
+        if not tenant:
+            raise ValueError("Tenant non trouvé")
+        abn_pro = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.ACTIF,
+            Abonnement.is_active == True,
+            Abonnement.plan == 'pro'
+        ).order_by(Abonnement.created_at.desc()).first()
+        ancien_plan = abn_pro.plan if abn_pro else 'pro'
+        if abn_pro:
+            abn_pro.statut = StatutAbonnement.EXPIRE
+            db.session.add(abn_pro)
+        now = datetime.utcnow()
+        from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
+        duree = get_plan_duration_days('gratuit')
+        date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
+        abn_gratuit = Abonnement(
+            tenant_id=tenant_id,
+            montant=0,
+            devise='MGA',
+            date_debut=now,
+            date_fin=date_fin,
+            statut=StatutAbonnement.ACTIF,
+            plan='gratuit',
+        )
+        apply_plan_to_abonnement(abn_gratuit, 'gratuit')
+        db.session.add(abn_gratuit)
+        tenant.plan = 'gratuit'
+        db.session.add(tenant)
+        audit = SubscriptionAuditTrail(
+            tenant_id=tenant_id,
+            abonnement_id=abn_gratuit.id,
+            date_changement=now,
+            ancien_plan=ancien_plan,
+            nouveau_plan='gratuit',
+            declencheur=trigger,
+            description=f"Rétrogradation vers Gratuit (trigger={trigger})",
+            utilisateur_id=user_id,
+        )
+        db.session.add(audit)
+        db.session.commit()
+        return abn_gratuit, audit
+
+    @classmethod
+    def upgrade_to_pro(cls, tenant_id, trigger='manuel', user_id=None):
+        from app.models.subscription_audit import SubscriptionAuditTrail
+        tenant = db.session.get(Tenant, tenant_id)
+        if not tenant:
+            raise ValueError("Tenant non trouvé")
+        from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
+        now = datetime.utcnow()
+        duree = get_plan_duration_days('pro')
+        date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
+        abn_pro = Abonnement(
+            tenant_id=tenant_id,
+            montant=PLAN_CONFIG.get('pro', {}).get('prix', 15000),
+            devise='MGA',
+            date_debut=now,
+            date_fin=date_fin,
+            statut=StatutAbonnement.ACTIF,
+            plan='pro',
+        )
+        apply_plan_to_abonnement(abn_pro, 'pro')
+        db.session.add(abn_pro)
+        tenant.plan = 'pro'
+        db.session.add(tenant)
+        ancien_plan = tenant.plan if tenant else 'gratuit'
+        audit = SubscriptionAuditTrail(
+            tenant_id=tenant_id,
+            abonnement_id=abn_pro.id,
+            date_changement=now,
+            ancien_plan=ancien_plan,
+            nouveau_plan='pro',
+            declencheur=trigger,
+            description=f"Ré-abonnement vers Pro (trigger={trigger})",
+            utilisateur_id=user_id,
+        )
+        db.session.add(audit)
+        db.session.commit()
+        return abn_pro, audit
+
+    @classmethod
     def cancel_subscription(cls, abonnement_id):
         abonnement = Abonnement.query.filter_by(id=abonnement_id, is_active=True).first()
         if not abonnement:

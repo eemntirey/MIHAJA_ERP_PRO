@@ -3,9 +3,13 @@
 
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { API_BASE_URL as ENV_API_BASE_URL } from '../config/env';
 
 // En émulateur Android, 10.0.2.2 pointe vers le localhost de la machine hôte.
-export const API_BASE_URL = 'http://10.0.2.2:8000';
+// L'URL effective vient de EXPO_PUBLIC_API_URL (mobile/.env) via config/env.js :
+// en test externe, elle pointe vers le tunnel HTTPS unique
+// https://bj470sl0-3000.inc1.devtunnels.ms/api/v1
+export const API_BASE_URL = ENV_API_BASE_URL;
 
 export const TOKEN_KEY = 'erp_mobile_token';
 export const USER_KEY = 'erp_mobile_user';

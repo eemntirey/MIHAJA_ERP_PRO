@@ -17,10 +17,10 @@ export function PrimaryButton({
   style,
 }) {
   const palette = {
-    primary: { bg: colors.primary, fg: '#FFFFFF' },
-    secondary: { bg: colors.neutralBg, fg: colors.text },
-    danger: { bg: colors.danger, fg: '#FFFFFF' },
-    success: { bg: colors.success, fg: '#FFFFFF' },
+    primary: { bg: colors.primary, fg: colors.textInverse },
+    secondary: { bg: colors.surfaceActive, fg: colors.text },
+    danger: { bg: colors.danger, fg: colors.textInverse },
+    success: { bg: colors.success, fg: colors.textInverse },
   }[variant];
 
   return (

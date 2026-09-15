@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def send_email(recipient, subject, body, smtp_config=None):
     if not recipient:
-        return {' : 'error', 'message': 'Destinataire manquant'}
+        return {'status': 'error', 'message': 'Destinataire manquant'}
     if not smtp_config:
         smtp_config = {
             'host': 'localhost',
@@ -44,15 +44,15 @@ def send_email(recipient, subject, body, smtp_config=None):
             if user:
                 server.login(user, password or '')
             server.send_message(msg)
-        return {' : 'sent', 'recipient': recipient}
+        return {'status': 'sent', 'recipient': recipient}
     except Exception as exc:
         logger.exception('Echec envoi email a %s', recipient)
-        return {' : 'error', 'message': str(exc), 'recipient': recipient}
+        return {'status': 'error', 'message': str(exc), 'recipient': recipient}
 
 
 def send_invoice_email(invoice_id, recipient_email, smtp_config=None):
     if not recipient_email:
-        return {' : 'error', 'message': 'Destinataire manquant'}
+        return {'status': 'error', 'message': 'Destinataire manquant'}
     return send_email(
         recipient_email,
         f'Facture #{invoice_id}',
@@ -63,7 +63,7 @@ def send_invoice_email(invoice_id, recipient_email, smtp_config=None):
 
 def send_payment_confirmation(payment_id, recipient_email, smtp_config=None):
     if not recipient_email:
-        return {' : 'error', 'message': 'Destinataire manquant'}
+        return {'status': 'error', 'message': 'Destinataire manquant'}
     return send_email(
         recipient_email,
         f'Confirmation paiement #{payment_id}',
@@ -74,7 +74,7 @@ def send_payment_confirmation(payment_id, recipient_email, smtp_config=None):
 
 def send_stock_alert(product_id, threshold, recipient_email, smtp_config=None):
     if not recipient_email:
-        return {' : 'error', 'message': 'Destinataire manquant'}
+        return {'status': 'error', 'message': 'Destinataire manquant'}
     return send_email(
         recipient_email,
         f'Alerte stock produit #{product_id}',

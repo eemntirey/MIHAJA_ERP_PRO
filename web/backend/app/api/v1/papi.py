@@ -185,7 +185,10 @@ class PapiWebhook(Resource):
         )
 
         try:
-            result = process_papi_webhook(payload, headers=dict(request.headers))
+            # Le corps brut est requis pour vérifier la signature HMAC telle
+            # qu'émise par Papi (cf. services/papi/webhook.py).
+            raw_body = request.get_data(cache=True) or b''
+            result = process_papi_webhook(payload, headers=dict(request.headers), raw_body=raw_body)
             status_code = 200
             if result.get('status') == 'already_processed':
                 status_code = 200

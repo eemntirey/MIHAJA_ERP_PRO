@@ -166,6 +166,9 @@ class TestUsersApiSecurity:
         assert r.status_code == 403, r.get_json()
 
     def test_creation_user_tenant_inexistant_refuse(self, app):
+        # Depuis la matrice read-only (2026-09), SUPER_ADMIN n'a plus
+        # 'user.create' : la requête est bloquée par la permission (403)
+        # avant même la validation du tenant (404 historique).
         _make_context()
         client = app.test_client()
         headers = _login(client, 'super', 'Super123!')
@@ -173,7 +176,8 @@ class TestUsersApiSecurity:
         r = client.post('/api/v1/users', headers=headers,
                         json={'username': 'ghost', 'email': 'ghost@x.mg',
                               'password': 'Pass123!', 'tenant_id': 99999})
-        assert r.status_code == 404, r.get_json()
+        assert r.status_code == 403, r.get_json()
+        assert 'user.create' in r.get_json().get('required_any_of', [])
 
     def test_creation_user_mot_de_passe_faible_refuse(self, app):
         _make_context()
@@ -255,7 +259,11 @@ class TestUsersApiSecurity:
         assert log is not None
         assert 'audit1' in log.description
 
-    def test_super_admin_peut_creer_user_tenant_existant(self, app):
+    def test_super_admin_ne_peut_pas_creer_user_tenant(self, app):
+        # SUPER_ADMIN = lecture seule sur les données métier des tenants
+        # (cf. app/security/permission_matrix.py). La création d'un employé
+        # revient à l'admin du tenant; la création d'un tenant provisionne
+        # son admin principal via POST /api/v1/tenants.
         _make_context()
         client = app.test_client()
         headers = _login(client, 'super', 'Super123!')
@@ -264,8 +272,9 @@ class TestUsersApiSecurity:
         r = client.post('/api/v1/users', headers=headers,
                         json={'username': 'supernew', 'email': 'supernew@a.mg',
                               'password': 'Pass123!', 'tenant_id': ta.id})
-        assert r.status_code == 201, r.get_json()
-        assert r.get_json()['tenant_id'] == ta.id
+        assert r.status_code == 403, r.get_json()
+        created = Utilisateur.query.filter_by(email='supernew@a.mg').first()
+        assert created is None
 
     def test_delete_user_cascade_admin_devices(self, app):
         ta, admin_a, super_admin, user_a, user_b = _make_context()
@@ -316,10 +325,20 @@ class TestSuperAdminTenantDeletion:
         assert r.status_code == 200, r.get_json()
 
         db.session.expunge_all()
-        assert Tenant.query.filter_by(id=ta_id).first() is None
-        assert Utilisateur.query.filter_by(id=user_a_id).first() is None
-        assert Utilisateur.query.filter_by(id=admin_a_id).first() is None
-        assert AdminDevice.query.filter_by(id=device_id).first() is None
+        # Soft-delete : le tenant et les utilisateurs sont desactivés, pas supprimés.
+        ta_row = Tenant.query.filter_by(id=ta_id).first()
+        assert ta_row is not None
+        assert ta_row.is_active is False
+        assert ta_row.statut == StatutTenant.INACTIF
+        user_a_row = Utilisateur.query.filter_by(id=user_a_id).first()
+        assert user_a_row is not None
+        assert user_a_row.is_active is False
+        admin_a_row = Utilisateur.query.filter_by(id=admin_a_id).first()
+        assert admin_a_row is not None
+        assert admin_a_row.is_active is False
+        device_row = AdminDevice.query.filter_by(id=device_id).first()
+        assert device_row is not None
+        assert device_row.statut == StatutDevice.REVOKED
 
     def test_delete_tenant_clears_admin_principal(self, app):
         ta, admin_a, super_admin, user_a, user_b = _make_context()
@@ -336,7 +355,10 @@ class TestSuperAdminTenantDeletion:
         assert r.status_code == 200, r.get_json()
 
         db.session.expunge_all()
-        assert Tenant.query.filter_by(id=ta_id).first() is None
+        # Soft-delete : le tenant reste en base, désactivé.
+        ta_row = Tenant.query.filter_by(id=ta_id).first()
+        assert ta_row is not None
+        assert ta_row.is_active is False
 
     def test_delete_tenant_updates_list_count(self, app):
         ta, admin_a, super_admin, user_a, user_b = _make_context()

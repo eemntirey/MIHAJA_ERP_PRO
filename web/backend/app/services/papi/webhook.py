@@ -41,11 +41,14 @@ def _resolve_webhook_secret(payload: dict) -> str:
     return getattr(Config, 'PAPI_WEBHOOK_SECRET', None) or ''
 
 
-def _verify_webhook_signature(payload: dict, headers) -> bool:
+def _verify_webhook_signature(payload: dict, headers, raw_body=None) -> bool:
     secret = _resolve_webhook_secret(payload)
     if not secret:
-        logger.warning('Aucun secret webhook Papi disponible; vérification ignorée')
-        return True
+        # Fail-closed : sans secret configuré, impossible de vérifier
+        # l'authenticité de la notification. Accepter le webhook ouvrirait
+        # la porte à des notifications forgées (paiements marqués SUCCESS).
+        logger.error('Aucun secret webhook Papi disponible; webhook refuse')
+        return False
     signature_headers = [
         headers.get('X-Papi-Signature'),
         headers.get('X-Hub-Signature-256'),
@@ -56,10 +59,22 @@ def _verify_webhook_signature(payload: dict, headers) -> bool:
     if not received_sig:
         logger.error('Papi webhook missing signature header')
         return False
-    raw_body = str(payload)
+    # Tolère le préfixe d'algorithme ("sha256=<hex>") utilisé par la
+    # plupart des plateformes de paiement.
+    if received_sig.lower().startswith('sha256='):
+        received_sig = received_sig.split('=', 1)[1]
+    # La signature doit couvrir le corps HTTP BRUT reçu (standard webhook),
+    # pas une re-sérialisation Python : Flask re-sérialise le JSON avec des
+    # clés triées, donc str(payload) ne reflète pas les octets envoyés.
+    if raw_body is None:
+        raw_body = str(payload)
+    if isinstance(raw_body, bytes):
+        raw_body_bytes = raw_body
+    else:
+        raw_body_bytes = str(raw_body).encode('utf-8')
     expected = hmac.new(
         secret.encode('utf-8'),
-        raw_body.encode('utf-8'),
+        raw_body_bytes,
         hashlib.sha256,
     ).hexdigest()
     if not hmac.compare_digest(expected, received_sig):
@@ -68,12 +83,15 @@ def _verify_webhook_signature(payload: dict, headers) -> bool:
     return True
 
 
-def process_papi_webhook(payload: dict, headers=None) -> dict:
+def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
     """Process an incoming Papi webhook notification.
 
     Args:
         payload: The JSON body from Papi webhook.
         headers: HTTP headers for signature verification.
+        raw_body: Raw HTTP request body (bytes/str) as received. When
+            provided, the HMAC signature is verified over these exact
+            bytes (standard webhook practice) instead of str(payload).
 
     Returns:
         Dict with processing result.
@@ -86,7 +104,7 @@ def process_papi_webhook(payload: dict, headers=None) -> dict:
     if headers is None:
         headers = {}
 
-    if not _verify_webhook_signature(payload, headers):
+    if not _verify_webhook_signature(payload, headers, raw_body=raw_body):
         raise PapiWebhookError('Signature du webhook invalide')
 
     payment_reference = payload.get('paymentReference')

@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surfaceActive,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,

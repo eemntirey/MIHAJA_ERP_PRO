@@ -1,4 +1,10 @@
 
+import os
+
+# Doit etre pose AVANT tout import de `app` : Config lit les variables
+# PAPI_* au moment de l'import (attributs de classe), pas a l'appel.
+os.environ.setdefault('PAPI_WEBHOOK_SECRET', 'test-webhook-secret')
+
 import pytest
 from app import create_app, db as app_db
 from app.models.utilisateur import Role

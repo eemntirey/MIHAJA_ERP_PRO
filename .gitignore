@@ -571,3 +571,30 @@ settings.local.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# ============================================================
+# 26. ARTEFACTS LOCAUX NON VERSIONNABLES (ajout 2026-09-15)
+# ============================================================
+
+# Etat de session Playwright / e2e (cookies, tokens)
+storage_state.json
+login_result.json
+sc1_*.png
+
+# Backups et base sqlite locale du backend
+web/backend/backups/
+web/backend/.env_sqlite
+
+# Sorties de diagnostic temporaires du backend
+web/backend/_*.txt
+web/backend/_*.py
+web/backend/_*.ps1
+
+# Export web statique genere (mobile)
+mobile/dist-web/
+
+# Etat local des outils d'agents
+.freebuff/
+.kilo/diag/
+.kilocode/tasks/
+.refact/
