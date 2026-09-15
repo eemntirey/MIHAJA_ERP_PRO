@@ -71,7 +71,7 @@ export default function LivraisonScreen() {
             (busyId === item.id || item.statut === 'livree' || pressed) && { opacity: 0.6 },
           ]}
         >
-          <Ionicons name="play" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Ionicons name="play" size={14} color={colors.textInverse} style={{ marginRight: 6 }} />
           <Text style={styles.avancerText}>
             {item.statut === 'livree' ? 'Livrée' : 'Avancer'}
           </Text>
@@ -158,8 +158,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   avancerText: {
-    color: '#FFFFFF',
-    fontSize: fontSizes.xs,
+    color: colors.textInverse,
+    fontSize: fontSizes.sm,
     fontWeight: '700',
   },
 });

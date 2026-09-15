@@ -14,7 +14,7 @@ from app.models.client import Client
 from app.models.fournisseur import Fournisseur
 from app.models.employe import Employe
 from app.models.stagiaire import Stagiaire
-from app.models.admin_device import AdminDevice
+from app.models.admin_device import AdminDevice, StatutDevice
 from app.models.livreur import Livreur
 from app.models.vehicule import Vehicule
 from app.models.itineraire import Itineraire
@@ -551,18 +551,24 @@ class SuperAdminTenantDetail(Resource):
 
             tenant_nom = tenant.nom
             tenant_id_log = tenant.id
-            _hard_delete_tenant_data(tenant_id)
+            backup_path = _backup_tenant_data(tenant_id)
+            _tenant_soft_delete(tenant)
             db.session.commit()
 
             _log_audit(
                 TypeActionAudit.SUPPRESSION_TENANT,
-                f"Suppression definitive du tenant {tenant_nom} (id={tenant_id_log})",
+                f"Suppression (soft) du tenant {tenant_nom} (id={tenant_id_log}), backup: {backup_path}",
                 tenant_id=tenant_id_log,
-                metadata={'action': 'delete_tenant'},
+                metadata={'action': 'delete_tenant', 'backup': backup_path},
             )
 
+            try:
+                broadcast_to_tenant(tenant_id_log, 'tenant:updated', tenant.to_dict())
+            except Exception:
+                pass
+
             return {
-                'message': 'Tenant supprime definitivement',
+                'message': 'Tenant desactive (suppression logique), donnees archivees',
                 'tenant': {'id': tenant_id_log, 'nom': tenant_nom},
             }, 200
         except Exception as e:
@@ -1705,7 +1711,7 @@ def _cascade_delete_tenant_data(tenant_id):
     from app.models.audit_log import AuditLog
     from app.models.document_genere import DocumentGenere
     from app.models.notification import Notification
-    from app.models.admin_device import AdminDevice
+    from app.models.admin_device import AdminDevice, StatutDevice
     from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
     from app.models.password_reset_token import PasswordResetToken
     from app.models.ligne_vente import LigneVente
@@ -1807,95 +1813,77 @@ class SuperAdminEmailConfig(Resource):
             return {'message': f'Erreur écriture config: {str(e)}'}, 500
 
 
-def _hard_delete_tenant_data(tenant_id):
-    """Supprime physiquement toutes les donnees d'un tenant.
-
-    Cette fonction effectue une suppression reelle de toutes les donnees
-    associees au tenant dans l'ordre des dependances FK pour eviter
-    les violations de contrainte.
+def _tenant_soft_delete(tenant):
+    """Soft-delete complet d'un tenant : archive les utilisateurs et révoque
+    les appareils admin sans supprimer aucune donnée physique. L'historique
+    (ventes, factures, audit) reste intégralement en base et consultable.
     """
-    from app.models.stagiaire import Stagiaire
-    from app.models.presence import Presence
-    from app.models.salaire import Salaire
-    from app.models.prime import Prime
-    from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat
-    from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
-    from app.models.livraison import Livraison
-    from app.models.stock import MouvementStock
-    from app.models.compte_comptable import CompteComptable
-    from app.models.ecriture_comptable import EcritureComptable
-    from app.models.audit_log import AuditLog
-    from app.models.document_genere import DocumentGenere
-    from app.models.notification import Notification
-    from app.models.admin_device import AdminDevice
-    from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
-    from app.models.password_reset_token import PasswordResetToken
-    from app.models.ligne_vente import LigneVente
-    from app.models.ligne_achat import LigneAchat
-    from app.models.commande_client import CommandeClient
-    from app.models.suivi_livraison import SuiviLivraison
-    from app.models.payment_event import PaymentEvent
-    from app.models.facture_fournisseur import FactureFournisseur
-    from app.models.livreur import Livreur
-    from app.models.vehicule import Vehicule
-    from app.models.itineraire import Itineraire
+    users = Utilisateur.query.filter_by(tenant_id=tenant.id).all()
+    for user in users:
+        AdminDevice.query.filter_by(user_id=user.id).update(
+            {'statut': StatutDevice.REVOKED}, synchronize_session=False
+        )
+        if user.is_active:
+            user.is_active = False
+            # Libere les contraintes d'unicite email/username (meme strategie
+            # que Utilisateur.mark_deleted) sans detruire l'historique.
+            if '@' in (user.email or ''):
+                user.email = f"deleted-tenant.{user.id}@{user.email.split('@', 1)[1]}"
+            user.username = f"deleted-tenant.{user.id}.{user.username}"
+            db.session.add(user)
 
-    hard_delete_order = [
-        SyncEvent,
-        PasswordResetToken,
-        Notification,
-        DeskFavorite,
-        DeskFilterPreset,
-        DeskColumnConfig,
-        AdminDevice,
-        Presence,
-        Salaire,
-        Prime,
-        Stagiaire,
-        PaymentEvent,
-        LigneVente,
-        LigneAchat,
-        SuiviLivraison,
-        EcritureComptable,
-        DocumentGenere,
-        Paiement,
-        Avoir,
-        BonLivraison,
-        Facture,
-        Vente,
-        Devis,
-        Livraison,
-        CommandeClient,
-        CommandeFournisseur,
-        QualiteAchat,
-        ReceptionAchat,
-        CommandeAchat,
-        FactureFournisseur,
-        MouvementStock,
-        Produit,
-        Client,
-        Fournisseur,
-        Employe,
-        Livreur,
-        Vehicule,
-        Itineraire,
-        Abonnement,
-        CompteComptable,
-        Tresorerie,
-        ModeleDocument,
-        Utilisateur,
+    tenant.is_active = False
+    tenant.statut = StatutTenant.INACTIF
+    tenant.vitrine_enabled = False
+    db.session.add(tenant)
+
+
+def _backup_tenant_data(tenant_id):
+    """Exporte un instantané JSON des données du tenant avant suppression.
+
+    Le fichier est écrit dans BACKUP_DIR (config) ; il permet une
+    consultation ou une restauration manuelle après le soft-delete.
+    Aucune exception n'est remontée : l'échec de sauvegarde est journalisé
+    mais ne bloque pas la suppression.
+    """
+    import os
+    import logging
+    import json as _json
+
+    models = [
+        Utilisateur, Produit, Client, Fournisseur, Vente, LigneVente,
+        Facture, Paiement, CommandeClient, CommandeFournisseur,
+        CommandeAchat, FactureFournisseur, MouvementStock, Abonnement,
+        Employe, Presence, Salaire, Prime, Stagiaire, Livreur, Vehicule,
+        Itineraire, Livraison, Devis, BonLivraison, Avoir,
+        CompteComptable, EcritureComptable, Tresorerie, DocumentGenere,
+        ModeleDocument, Notification,
     ]
-
-    for user in Utilisateur.query.filter_by(tenant_id=tenant_id):
-        AdminDevice.query.filter_by(user_id=user.id).delete(synchronize_session=False)
-
-    for model in hard_delete_order:
+    snapshot = {
+        'tenant_id': tenant_id,
+        'created_at': datetime.utcnow().isoformat(),
+        'models': {},
+    }
+    for model in models:
         try:
-            model.query.filter_by(tenant_id=tenant_id).delete(synchronize_session=False)
+            rows = model.query.filter_by(tenant_id=tenant_id).all()
+            snapshot['models'][model.__tablename__] = [r.to_dict() for r in rows]
         except Exception:
-            pass
+            continue
 
-    Tenant.query.filter_by(id=tenant_id).delete(synchronize_session=False)
+    backup_dir = os.path.join(os.getcwd(), os.getenv('BACKUP_DIR', 'backups'))
+    os.makedirs(backup_dir, exist_ok=True)
+    path = os.path.join(backup_dir, f'tenant_{tenant_id}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.json')
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            _json.dump(snapshot, f, ensure_ascii=False, default=str)
+        logger = logging.getLogger(__name__)
+        logger.info('Backup tenant %s écrit: %s', tenant_id, path)
+        return path
+    except OSError as exc:
+        logger = logging.getLogger(__name__)
+        logger.exception('Échec de la sauvegarde du tenant %s: %s', tenant_id, exc)
+        return None
 
 
 @ns.route('/users')
@@ -2033,8 +2021,15 @@ class SuperAdminUserDetail(Resource):
             if is_admin and tenant_id:
                 tenant = db.session.get(Tenant, tenant_id)
                 tenant_nom = tenant.nom if tenant else "inconnu"
-                _hard_delete_tenant_data(tenant_id)
-                message = f"Admin {user_username}, tenant {tenant_nom} et toutes ses données ont été supprimés"
+                if tenant and tenant.is_active:
+                    backup_path = _backup_tenant_data(tenant_id)
+                    _tenant_soft_delete(tenant)
+                    message = (
+                        f"Admin {user_username} désactivé, tenant {tenant_nom} "
+                        f"désactivé (suppression logique), données archivées"
+                    )
+                else:
+                    message = f"Admin {user_username} désactivé"
             else:
                 user.mark_deleted()
                 message = f"Utilisateur {user_username} désactivé"

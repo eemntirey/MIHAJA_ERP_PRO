@@ -877,6 +877,10 @@ export const tresorerieService = {
     export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
 };
 
+export const resultatService = {
+    getResultats: (params) => api.get('/resultats', { params }),
+};
+
 // ======================================================
 // DOCUMENTS
 // ======================================================

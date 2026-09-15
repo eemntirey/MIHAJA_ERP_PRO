@@ -13,8 +13,6 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { DeviceEventEmitter } from 'react-native';
-
 import { authService } from '../services/services';
 import { setUnauthorizedHandler } from '../services/api';
 import { session } from '../storage/session';
@@ -48,14 +46,6 @@ export function AuthProvider({ children }) {
     setUnauthorizedHandler(() => {
       clearSession();
     });
-  }, [clearSession]);
-
-  // Déconnexion forcée (diffusée par services/api.js via DeviceEventEmitter).
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('auth:logout', () => {
-      clearSession();
-    });
-    return () => sub.remove();
   }, [clearSession]);
 
   // Bootstrap : restaure la session persistée, puis resynchronise /auth/me.

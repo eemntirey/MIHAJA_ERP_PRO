@@ -367,6 +367,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
         onCancel={() => setPendingConfirm({ open: false, venteId: null })}
       />
     )}
+    </div>
   );
 };
 

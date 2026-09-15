@@ -1,5 +1,8 @@
 
+import hashlib
+import hmac
 import json
+import os
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -7,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from app import db
+from app.config.settings import Config
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement, ProviderPaiement
 from app.models.payment_event import PaymentEvent
 from app.models.abonnement import Abonnement, StatutAbonnement
@@ -69,6 +73,32 @@ def auth_headers(app):
             'Content-Type': 'application/json',
         }
         return headers, tenant.id, user.id, abonnement.id
+
+
+PAPI_WEBHOOK_SECRET_TEST = (
+    getattr(Config, 'PAPI_WEBHOOK_SECRET', None) or 'test-webhook-secret'
+)
+
+
+def _papi_webhook_headers(raw_body):
+    """Headers d'un webhook Papi authentique : HMAC-SHA256 du corps brut."""
+    signature = hmac.new(
+        PAPI_WEBHOOK_SECRET_TEST.encode('utf-8'),
+        raw_body.encode('utf-8') if isinstance(raw_body, str) else raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return {'X-Papi-Signature': signature, 'Content-Type': 'application/json'}
+
+
+def _post_webhook(client, payload):
+    """Poste un webhook Papi avec une signature valide (corps brut signé)."""
+    raw_body = json.dumps(payload)
+    return client.post(
+        '/api/v1/papi/webhook',
+        data=raw_body,
+        content_type='application/json',
+        headers=_papi_webhook_headers(raw_body),
+    )
 
 
 def _papi_response(payment_link='https://pay.papi.mg/payment/abc123', notification_token='token-xyz', reference=None):
@@ -299,11 +329,7 @@ class TestPapiWebhook:
                 'payerPhone': '+261340000000',
             }
 
-            response = client.post(
-                '/api/v1/papi/webhook',
-                data=json.dumps(webhook_payload),
-                content_type='application/json',
-            )
+            response = _post_webhook(client, webhook_payload)
 
         assert response.status_code == 200
         data = response.get_json()
@@ -369,18 +395,10 @@ class TestPapiWebhook:
                 'message': 'Paiement effectué avec succès.',
             }
 
-            response1 = client.post(
-                '/api/v1/papi/webhook',
-                data=json.dumps(webhook_payload),
-                content_type='application/json',
-            )
+            response1 = _post_webhook(client, webhook_payload)
             assert response1.status_code == 200
 
-            response2 = client.post(
-                '/api/v1/papi/webhook',
-                data=json.dumps(webhook_payload),
-                content_type='application/json',
-            )
+            response2 = _post_webhook(client, webhook_payload)
             assert response2.status_code == 200
             assert response2.get_json()['status'] == 'already_processed'
 
@@ -417,11 +435,7 @@ class TestPapiWebhook:
                 'message': 'Paiement échoué.',
             }
 
-            response = client.post(
-                '/api/v1/papi/webhook',
-                data=json.dumps(webhook_payload),
-                content_type='application/json',
-            )
+            response = _post_webhook(client, webhook_payload)
 
         assert response.status_code == 200
         with app.app_context():
@@ -432,12 +446,40 @@ class TestPapiWebhook:
             assert abonnement.statut != StatutAbonnement.ACTIF
 
     def test_webhook_missing_fields(self, client):
+        # Payload signé mais champ requis manquant -> 403
+        webhook_payload = {
+            'paymentStatus': 'SUCCESS',
+            'paymentReference': 'SUB-1-1-NOFIELDS',
+        }
+        response = _post_webhook(client, webhook_payload)
+        assert response.status_code == 403
+
+    def test_webhook_forged_signature(self, client, app, auth_headers):
+        # Signature calculee avec un mauvais secret -> 403 (fail-closed)
+        webhook_payload = {
+            'paymentStatus': 'SUCCESS',
+            'paymentMethod': 'MVOLA',
+            'currency': 'MGA',
+            'amount': 15000,
+            'paymentReference': 'SUB-1-1-FORGED',
+            'notificationToken': 'token-xyz',
+            'message': 'Paiement effectue avec succes.',
+        }
+        raw_body = json.dumps(webhook_payload)
+        forged_sig = hmac.new(
+            b'attacker-secret', raw_body.encode('utf-8'), hashlib.sha256
+        ).hexdigest()
         response = client.post(
             '/api/v1/papi/webhook',
-            data=json.dumps({'paymentStatus': 'SUCCESS'}),
+            data=raw_body,
             content_type='application/json',
+            headers={'X-Papi-Signature': forged_sig},
         )
         assert response.status_code == 403
+        with app.app_context():
+            assert Paiement.query.filter_by(
+                external_reference='SUB-1-1-FORGED'
+            ).first() is None
 
 
 class TestPapiPaymentList:

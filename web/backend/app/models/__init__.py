@@ -39,6 +39,7 @@ from app.models.notification import Notification
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.models.role_permission import RoleModel, Permission
+from app.models.subscription_audit import SubscriptionAuditTrail
 from app import db
 from app.models.tenant import Tenant, StatutTenant
 
@@ -116,6 +117,7 @@ __all__ = [
     'StatutTenant',
     'Abonnement',
     'StatutAbonnement',
+    'SubscriptionAuditTrail',
     'Stagiaire',
     'TypeContratStagiaire',
     'SexeStagiaire',

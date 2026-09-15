@@ -12,8 +12,8 @@ import { Screen, ScreenHeader } from '../components/Screen';
 import { StatCard } from '../components/Card';
 import { TopProductsCard, AlertsCard } from '../components/Lists';
 import { ErrorBanner, LoadingScreen } from '../components/States';
-import { formatMoney } from '../utils/format';
-import { colors } from '../theme';
+import { formatMoney, formatNumber } from '../utils/format';
+import { spacing } from '../theme';
 
 export default function HomeScreen() {
   const [stats, setStats] = useState(null);
@@ -105,11 +105,11 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    padding: colors.md ? 16 : 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   statRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
 });

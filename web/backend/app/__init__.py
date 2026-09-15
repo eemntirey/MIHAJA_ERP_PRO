@@ -115,22 +115,19 @@ def create_app():
             "Specify explicit allowed origins."
         )
 
-    def _cors_origin_allowed(origin):
-        if not origin:
-            return False
-        if origin in CORS_ORIGINS:
-            return True
-        for _pat in _DYNAMIC_CORS_PATTERNS:
-            try:
-                if _re.match(_pat, origin):
-                    return True
-            except Exception:
-                continue
-        return False
+    # flask-cors n'accepte ni les callables ni les fonctions dans ``origins``
+    # (il les encapsule dans une liste puis appelle ``c in origin`` → TypeError
+    # sur toute réponse qui ne passe pas par le décorateur cross_origin, ex:
+    # une NoAuthorizationError levée avant la vue → 500 au lieu de 401).
+    # On passe donc les origines statiques + les patterns dynamiques compilés,
+    # que flask-cors sait matcher nativement via ``try_match_any``.
+    _cors_origins_config = list(CORS_ORIGINS) + [
+        _re.compile(_pat) for _pat in _DYNAMIC_CORS_PATTERNS
+    ]
 
     CORS(
         app,
-        origins=_cors_origin_allowed,
+        origins=_cors_origins_config,
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allow_headers=[
             'Content-Type', 'Authorization', 'X-Requested-With', 'Accept',

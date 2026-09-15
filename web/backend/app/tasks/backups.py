@@ -35,7 +35,7 @@ def backup_database(config):
             conn.close()
     except Exception as exc:
         logger.exception('Echec de la sauvegarde SQLite (%s)', exc)
-        return {' : 'error', 'message': str(exc), 'timestamp': timestamp}
+        return {'status': 'error', 'message': str(exc), 'timestamp': timestamp}
 
     # Retention : purger les sauvegardes plus vieilles que BACKUP_RETENTION_DAYS
     try:
@@ -54,7 +54,7 @@ def backup_database(config):
     except Exception:
         logger.exception('Erreur pendant la purge des sauvegardes')
 
-    return {' : 'success', 'path': backup_path, 'timestamp': timestamp}
+        return {'status': 'success', 'path': backup_path, 'timestamp': timestamp}
 
 
 def backup_generic(config):
@@ -71,7 +71,7 @@ def backup_generic(config):
     try:
         if db_path and os.path.exists(db_path):
             shutil.copy2(db_path, target)
-        return {' : 'success', 'path': target, 'timestamp': timestamp}
+        return {'status': 'success', 'path': target, 'timestamp': timestamp}
     except Exception as exc:
         logger.exception('Echec de la sauvegarde generique (%s)', exc)
-        return {' : 'error', 'message': str(exc), 'timestamp': timestamp}
+        return {'status': 'error', 'message': str(exc), 'timestamp': timestamp}

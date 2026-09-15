@@ -4,7 +4,7 @@
 // Gère la file d'attente hors-ligne, l'hydratation au démarrage,
 // et les mises à jour temps-réel.
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { syncEngine } from '../utils/syncEngine';
 import { syncService } from '../services/api';
 import { useRealtime } from '../hooks/useRealtime';
@@ -28,6 +28,48 @@ export const SyncProvider = ({ children }) => {
   const [lastSync, setLastSync] = useState(null);
   const [migrationReport, setMigrationReport] = useState(null);
 
+  // Ref de garde : le listener 'online' est enregistré une seule fois (deps [])
+  // et ne doit pas dépendre d'un state qui peut être stale (closure) au moment
+  // où l'événement réseau se déclenche. Un flush simultané est ainsi évité.
+  const isSyncingRef = useRef(false);
+
+  const flushQueue = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+
+    try {
+      const queue = syncEngine.getQueue();
+      if (queue.length === 0) return;
+
+      const result = await syncEngine.flush(async (entry) => {
+        await syncService.push({
+          mutations: [{
+            entity: entry.entity,
+            op: entry.op,
+            payload: entry.payload,
+          }],
+        });
+      });
+
+      if (result.flushed > 0) {
+        toast.success(`${result.flushed} modification(s) synchronisée(s)`);
+      }
+
+      if (result.failed > 0) {
+        toast.error(`${result.failed} modification(s) n'ont pas pu être synchronisées`);
+      }
+
+      setLastSync(new Date());
+      setSyncQueue(syncEngine.getQueue());
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
+    }
+  }, []);
+
   // Surveiller l'état du réseau
   useEffect(() => {
     const updateOnlineStatus = () => {
@@ -46,7 +88,7 @@ export const SyncProvider = ({ children }) => {
       window.removeEventListener('online', updateOnlineStatus);
       window.removeEventListener('offline', updateOnlineStatus);
     };
-  }, []);
+  }, [flushQueue]);
 
   // Migration au premier démarrage
   useEffect(() => {
@@ -71,42 +113,6 @@ export const SyncProvider = ({ children }) => {
   useEffect(() => {
     setSyncQueue(syncEngine.getQueue());
   }, [lastSync]);
-
-  const flushQueue = useCallback(async () => {
-    if (isSyncing) return;
-
-    const queue = syncEngine.getQueue();
-    if (queue.length === 0) return;
-
-    setIsSyncing(true);
-
-    try {
-      const result = await syncEngine.flush(async (entry) => {
-        await syncService.push({
-          mutations: [{
-            entity: entry.entity,
-            op: entry.op,
-            payload: entry.payload,
-          }],
-        });
-      });
-
-      if (result.flushed > 0) {
-        toast.success(`${result.flushed} modification(s) synchronisée(s)`);
-      }
-
-      if (result.failed > 0) {
-        toast.error(`${result.failed} modification(s) n'ont pas pu être synchronisées`);
-      }
-
-      setLastSync(new Date());
-      setSyncQueue(syncEngine.getQueue());
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing]);
 
   const handleRealtimeEvent = useCallback((event) => {
     const entity = event.entity || event.type || '';

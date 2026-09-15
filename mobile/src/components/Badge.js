@@ -14,9 +14,9 @@ const STATUS_STYLES = {
   annulee: { label: 'Annulée', bg: colors.dangerBg, fg: colors.danger },
   // Livraisons
   chargee: { label: 'Chargée', bg: colors.infoBg, fg: colors.info },
-  en_route: { label: 'En route', bg: `${colors.accent}1A`, fg: colors.accent },
+  en_route: { label: 'En route', bg: colors.primaryTint, fg: colors.primary },
   livree: { label: 'Livrée', bg: colors.successBg, fg: colors.success },
-  retournee: { label: 'Retournée', bg: colors.neutralBg, fg: colors.neutral },
+  retournee: { label: 'Retournée', bg: colors.surfaceActive, fg: colors.textMuted },
   echec: { label: 'Échec', bg: colors.dangerBg, fg: colors.danger },
   // Stocks
   rupture: { label: 'Rupture', bg: colors.dangerBg, fg: colors.danger },
@@ -27,8 +27,8 @@ const STATUS_STYLES = {
 export function Badge({ status, customLabel, bg, fg }) {
   const s = STATUS_STYLES[status] || {
     label: customLabel || status || '—',
-    bg: colors.neutralBg,
-    fg: colors.neutral,
+    bg: colors.surfaceActive,
+    fg: colors.textMuted,
   };
   return (
     <View style={[styles.badge, { backgroundColor: bg || s.bg }]}>

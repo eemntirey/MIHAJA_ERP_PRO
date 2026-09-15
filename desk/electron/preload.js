@@ -27,7 +27,13 @@ const secureStore = {
     try {
       return safeStorage.decryptString(Buffer.from(v, 'base64'));
     } catch {
-      return v;
+      // Déchiffrement impossible (clé OS changée, donnée corrompue ou écrite
+      // en clair par une ancienne version). Retourner la valeur brute
+      // remonterait une donnée corrompue au renderer : on purge l'entrée
+      // et on renvoie null pour forcer une reconnexion/re-saisie propre.
+      delete _cache[key];
+      _persist();
+      return null;
     }
   },
   set: (key, value) => {

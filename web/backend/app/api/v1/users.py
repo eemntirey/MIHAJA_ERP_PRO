@@ -243,17 +243,8 @@ class UserList(Resource):
         except Exception:
             pass
 
-        if temp_password_plain:
-            try:
-                from app.services.email_service import send_welcome_email
-                tenant_obj = db.session.get(Tenant, tenant_id) if tenant_id else None
-                send_welcome_email(user, tenant_obj, temp_password_plain)
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning(
-                    'send_welcome_email echoue pour %s : %s', user.email, exc
-                )
-
+        # Mot de passe temporaire envoyé directement (pas par email) pour impression
+        # L'impression du mot de passe est gérée par le client desktop
         try:
             broadcast_to_tenant(tenant_id, 'user:updated', user.to_dict())
             broadcast_to_user(user.id, 'user:updated', user.to_dict())
