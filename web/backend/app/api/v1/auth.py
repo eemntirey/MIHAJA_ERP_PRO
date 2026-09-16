@@ -1,4 +1,4 @@
-
+��
 import os
 from flask import current_app, request
 from flask_restx import Namespace, Resource
@@ -61,7 +61,7 @@ class AuthLogin(Resource):
     def post(self):
         data = request.get_json() or {}
 
-        identifier = data.get('username') or data.get('email')
+        identifier = data.get('username'or data.get('email')
         password = data.get('password')
         tenant_slug = data.get('tenant_slug')
         device_id = data.get('device_id')
@@ -93,7 +93,7 @@ class AuthLogin(Resource):
             }, 401
 
         access_token = result.get('access_token') if isinstance(result, dict) else None
-        user_data = result.get('user') if isinstance(result, dict) else None
+        user_data = result.get('user'if isinstance(result, dictelse None
         if not isinstance(access_token, str) or not access_token.strip() or not isinstance(user_data, dict):
             current_app.logger.error(
                 'Réponse d authentification incomplète pour %s',
@@ -143,7 +143,7 @@ class AuthMe(Resource):
                 'message': 'Utilisateur non trouve'
             }, 404
 
-        data = request.get_json() or {}
+        data = request.get_json(or {}
         sensitive_fields = {'email', 'password'}
         provided_fields = set(data.keys())
         if sensitive_fields & provided_fields:
@@ -167,7 +167,7 @@ class AuthRegister(Resource):
 
     @rate_limit(5, 300)
     def post(self):
-        data = request.get_json() or {}
+        data = request.get_json(or {}
 
         profile_type = data.get('profile_type', 'simple')
         email = data.get('email')
@@ -284,7 +284,7 @@ class AuthRegister(Resource):
                     email, exc
                 )
                 return {
-                    'message': 'Erreur lors de la creation de l\'entreprise. Verifiez les champs (slug/domaine uniques) et reessayez.'
+                    'message': 'Erreur lors de la creation de l\'entreprise. Verifiez les champs (slug/domaine uniqueset reessayez.'
                 }, 500
 
             from app.security.auth import create_access_token_for_user
@@ -351,7 +351,7 @@ class AuthRefresh(Resource):
         from app.security.auth import create_access_token_for_user
         access_token = create_access_token_for_user(user, tenant)
 
-        if not isinstance(access_token, str) or not access_token.strip():
+        if not isinstance(access_token, stror not access_token.strip():
             current_app.logger.error(
                 'Impossible de générer un access_token pour l utilisateur %s',
                 user.id
@@ -458,7 +458,7 @@ class AuthForgotPassword(Resource):
             token = PasswordResetToken(
                 user_id=user.id,
                 token=hashed_token,
-                expires_at=datetime.utcnow() + timedelta(minutes=ttl_minutes),
+                expires_at=datetime.utcnow(+ timedelta(minutes=ttl_minutes),
                 ip_address=request.remote_addr,
             )
             db.session.add(token)
@@ -542,7 +542,7 @@ class AuthVerifyResetToken(Resource):
 class AuthResetPassword(Resource):
 
     def post(self):
-        data = request.get_json() or {}
+        data = request.get_json(or {}
         token = data.get('token')
         new_password = data.get('new_password')
         if not token or not new_password:
