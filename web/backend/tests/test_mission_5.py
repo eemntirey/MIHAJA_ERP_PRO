@@ -441,8 +441,10 @@ class TestInterfaceFormulaires:
         with app.app_context():
             created_clients = []
             for city, cp in cities:
+                # ``clients.code`` est une colonne String(20) : on tronque le
+                # nom de ville (le code postal garde l'unicité).
                 c = Client(
-                    code=f'CLI-CITY-{city}',
+                    code=f'CLI-{cp}-{city[:6]}',
                     nom=f'Test {city}',
                     email=f'test-{city}@test.mg',
                     telephone='+261 34 111 1111',

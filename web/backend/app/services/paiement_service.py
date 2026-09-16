@@ -86,6 +86,10 @@ def _recompute_facture_status(facture_id):
         facture.statut = 'payee_partiel'
     else:
         facture.statut = 'non_payee'
+    # Trigger P0 #2 : le statut de la vente suit celui de la facture
+    # (fini Vente.en_attente alors que Facture est payee).
+    from app.services.facturation_service import _sync_vente_status
+    _sync_vente_status(facture)
     db.session.commit()
 
 

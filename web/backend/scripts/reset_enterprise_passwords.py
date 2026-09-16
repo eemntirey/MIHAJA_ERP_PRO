@@ -92,9 +92,9 @@ def main():
                 print(f"Cree: {item['tenant']['nom']} | {item['user']['email']}")
 
         db.session.commit()
-        print("\nListe des users entreprise:")
+        print("\nListe des users entreprise (ne jamais afficher les mots de passe):")
         for item in ENTERPRISE_USERS:
-            print(f"- {item['user']['email']} / {item['user']['password']} ({item['user']['role'].value})")
+            print(f"- {item['user']['email']} ({item['user']['role'].value})")
 
 
 if __name__ == '__main__':

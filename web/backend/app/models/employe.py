@@ -44,6 +44,7 @@ class Employe(BaseTenantModel):
     salaire_base = db.Column(Numeric(10, 2), default=0)
     coefficient = db.Column(db.String(20))
     anciennete = db.Column(db.Integer, default=0)
+    conges_credit_annuel = db.Column(db.Integer, default=30)
 
     banque_nom = db.Column(db.String(100))
     banque_iban = db.Column(db.String(50))
@@ -55,6 +56,7 @@ class Employe(BaseTenantModel):
     notes = db.Column(db.Text)
 
     presences = db.relationship('Presence', back_populates='employe', lazy='dynamic')
+    conges = db.relationship('Conge', back_populates='employe', lazy='dynamic')
     salaires = db.relationship('Salaire', back_populates='employe', lazy='dynamic')
     primes = db.relationship('Prime', back_populates='employe', lazy='dynamic')
 

@@ -24,6 +24,7 @@
   border-collapse: collapse;
   font-size: var(--text-table);
   min-width: 600px;
+  table-layout: fixed;
 }
 
 .data-table th,

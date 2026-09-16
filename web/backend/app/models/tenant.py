@@ -34,7 +34,7 @@ class Tenant(BaseModel):
         default=StatutTenant.EN_ESSAI,
         nullable=False,
     )
-    plan = db.Column(db.String(50), default='gratuit')  # gratuit, starter, pro, enterprise
+    plan = db.Column(db.String(50), default='gratuit')  # gratuit, pro, enterprise
     date_debut_essai = db.Column(db.DateTime)
     date_fin_essai = db.Column(db.DateTime)
     date_abonnement = db.Column(db.DateTime)

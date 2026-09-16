@@ -8,11 +8,10 @@ from sqlalchemy import func
 
 
 def suggest_reorders(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    query = Produit.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    produits = query.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'recommendations': [], 'count': 0, 'message': 'Tenant non défini.'}
+    produits = Produit.query.filter_by(is_active=True, tenant_id=tid).all()
 
     recommendations = []
     for p in produits:
@@ -27,7 +26,11 @@ def suggest_reorders(tenant_id=None):
             is_critique = stock_actuel <= seuil_critique or stock_actuel == 0
             score = (seuil_alerte - stock_actuel) / max(seuil_alerte, 1) if seuil_alerte > 0 else 1.0
 
-            fournisseur = db.session.get(Fournisseur, p.fournisseur_id) if getattr(p, 'fournisseur_id', None) else None
+            fournisseur = None
+            if getattr(p, 'fournisseur_id', None):
+                fournisseur = Fournisseur.query.filter_by(
+                    id=p.fournisseur_id, tenant_id=tid, is_active=True
+                ).first()
 
             recommendations.append({
                 'produit_id': p.id,
@@ -49,32 +52,30 @@ def suggest_reorders(tenant_id=None):
 
 def suggest_cross_sell(client_id):
     from app.models.ligne_vente import LigneVente
-    tenant_id = get_current_tenant_id()
-    ventes = Vente.query.filter_by(client_id=client_id, is_active=True)
-    if tenant_id:
-        ventes = ventes.filter_by(tenant_id=tenant_id)
-    ventes = ventes.all()
+    tid = get_current_tenant_id()
+    if tid is None:
+        return {'recommendations': [], 'count': 0, 'message': 'Tenant non défini.'}
+    ventes = Vente.query.filter_by(client_id=client_id, is_active=True, tenant_id=tid).all()
     if not ventes:
-        popular = Produit.query.filter_by(is_active=True)
-        if tenant_id:
-            popular = popular.filter_by(tenant_id=tenant_id)
-        popular = popular.limit(5).all()
+        popular = Produit.query.filter_by(is_active=True, tenant_id=tid).limit(5).all()
         return {
             'recommendations': [{'produit_id': p.id, 'nom': p.nom, 'prix': float(p.prix_vente_ht or 0)} for p in popular],
             'count': len(popular)
         }
 
     vente_ids = [v.id for v in ventes]
-    lignes = LigneVente.query.filter(LigneVente.vente_id.in_(vente_ids), LigneVente.is_active == True).all()
+    lignes = LigneVente.query.filter(
+        LigneVente.vente_id.in_(vente_ids),
+        LigneVente.tenant_id == tid,
+        LigneVente.is_active == True
+    ).all()
     produits_achetes = set(l.produit_id for l in lignes)
 
     autres_produits = Produit.query.filter(
         Produit.is_active == True,
+        Produit.tenant_id == tid,
         ~Produit.id.in_(produits_achetes)
-    )
-    if tenant_id:
-        autres_produits = autres_produits.filter_by(tenant_id=tenant_id)
-    autres_produits = autres_produits.limit(5).all()
+    ).limit(5).all()
 
     return {
         'recommendations': [{'produit_id': p.id, 'nom': p.nom, 'prix': float(p.prix_vente_ht or 0)} for p in autres_produits],
@@ -83,11 +84,10 @@ def suggest_cross_sell(client_id):
 
 
 def suggest_pricing_adjustments(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    query = Produit.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    produits = query.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'suggestions': [], 'count': 0, 'message': 'Tenant non défini.'}
+    produits = Produit.query.filter_by(is_active=True, tenant_id=tid).all()
 
     suggestions = []
     for p in produits:

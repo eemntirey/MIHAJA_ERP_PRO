@@ -142,18 +142,22 @@ class TestFactureIdempotence:
             ).count() == 1
 
     def test_payload_invalide_400_pas_500(self, app, auth_headers, tenant, client_obj):
-        """Validation serveur : vente_id ou client_id manquant -> 400 explicite."""
+        """Validation serveur : vente_id manquant -> 400 explicite.
+
+        Depuis l'unification (P0 #2), le client est derive de la vente :
+        seul vente_id est requis. client_id libre dans le payload reste
+        accepte (fallback, pas d'ecrasement de la source de verite).
+        """
         with app.app_context():
-            vente = _make_vente('INVAL-001')
             test_client = app.test_client()
 
             r = test_client.post(
                 '/api/v1/factures/',
-                json={'vente_id': vente.id},  # client_id manquant
+                json={'client_id': client_obj.id},  # vente_id manquant
                 headers=auth_headers,
             )
             assert r.status_code == 400, r.get_json()
-            assert 'client_id' in r.get_json()['message']
+            assert 'vente_id' in r.get_json()['message']
 
     def test_ventes_distinctes_factures_distinctes(
         self, app, auth_headers, tenant, client_obj
@@ -177,3 +181,96 @@ class TestFactureIdempotence:
             assert r1.status_code == 201, r1.get_json()
             assert r2.status_code == 201, r2.get_json()
             assert r1.get_json()['reference'] != r2.get_json()['reference']
+
+
+class TestUnificationFacturation:
+    """P0 #2 : la vente est la source de verite de la facturation."""
+
+    def test_facture_sans_client_id_derive_de_la_vente(
+        self, app, auth_headers, tenant, client_obj
+    ):
+        """Client et montants viennent de la vente, pas du payload."""
+        with app.app_context():
+            vente = _make_vente('DERIV-001')
+            test_client = app.test_client()
+
+            r = test_client.post(
+                '/api/v1/factures/',
+                json={'vente_id': vente.id},  # sans client_id
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            body = r.get_json()
+            assert body['client_id'] == vente.client_id
+            assert float(body['total_ttc']) == float(vente.total_ttc)
+            assert body['reference'] == f"FAC-{vente.reference}"
+
+    def test_vente_statut_suit_facture(self, app, auth_headers, tenant, client_obj):
+        """Defaut : Vente.en_attente alors que Facture.payee (P0 #2)."""
+        with app.app_context():
+            vente = _make_vente('SYNC-001')
+            test_client = app.test_client()
+
+            r = test_client.post(
+                '/api/v1/factures/',
+                json={'vente_id': vente.id, 'client_id': client_obj.id},
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            facture_id = r.get_json()['id']
+            assert vente.statut == 'en_attente'
+
+            # Paiement partiel (60%) -> facture partielle, vente en_attente
+            part = round(float(vente.total_ttc) * 0.6, 2)
+            r = test_client.post(
+                '/api/v1/paiements/',
+                json={'facture_id': facture_id, 'montant': part, 'mode_paiement': 'MVOLA'},
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            db.session.refresh(vente)
+            assert vente.statut == 'en_attente'
+
+            # Solde -> facture payee, vente payee
+            solde = round(float(vente.total_ttc) - part, 2)
+            r = test_client.post(
+                '/api/v1/paiements/',
+                json={'facture_id': facture_id, 'montant': solde, 'mode_paiement': 'MVOLA'},
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            db.session.refresh(vente)
+            assert vente.statut == 'payee'
+
+    def test_suppression_paiement_retrograde_facture_et_vente(
+        self, app, auth_headers, tenant, client_obj
+    ):
+        """Supprimer le paiement retrograde la vente (payee -> en_attente)."""
+        with app.app_context():
+            vente = _make_vente('SYNC-002')
+            test_client = app.test_client()
+
+            r = test_client.post(
+                '/api/v1/factures/',
+                json={'vente_id': vente.id, 'client_id': client_obj.id},
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            facture_id = r.get_json()['id']
+
+            r = test_client.post(
+                '/api/v1/paiements/',
+                json={'facture_id': facture_id, 'montant': float(vente.total_ttc)},
+                headers=auth_headers,
+            )
+            assert r.status_code == 201, r.get_json()
+            paiement_id = r.get_json()['id']
+            db.session.refresh(vente)
+            assert vente.statut == 'payee'
+
+            r = test_client.delete(
+                f'/api/v1/paiements/{paiement_id}', headers=auth_headers
+            )
+            assert r.status_code == 200, r.get_json()
+            db.session.refresh(vente)
+            assert vente.statut == 'en_attente'

@@ -9,6 +9,9 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  // Erreur inline : le toast seul peut etre perdu (ex: rechargement de page),
+  // ce message lui reste toujours visible sous le formulaire.
+  const [error, setError] = useState('');
   const { login, isAuthenticated } = useSuperAdminAuth();
   const navigate = useNavigate();
 
@@ -20,17 +23,31 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     if (!email || !password) {
-      toast.error('Email et mot de passe requis');
+      const msg = 'Email et mot de passe requis';
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
     setLoading(true);
-    const result = await login(email, password);
+    let result;
+    try {
+      result = await login(email, password);
+    } catch (err) {
+      result = {
+        success: false,
+        error: err?.message || 'Erreur de connexion au serveur',
+      };
+    }
     setLoading(false);
 
     if (result.success) {
       navigate('/', { replace: true });
+    } else if (result.error) {
+      // Affiche l'erreur inline (toujours visible) en plus du toast.
+      setError(result.error);
     }
   };
 
@@ -66,6 +83,12 @@ const LoginPage = () => {
               autoComplete="current-password"
             />
           </div>
+
+          {error && (
+            <div className="sa-login-error" role="alert">
+              {error}
+            </div>
+          )}
 
           <button type="submit" className="sa-login-btn" disabled={loading}>
             {loading ? 'Connexion...' : 'Se connecter'}

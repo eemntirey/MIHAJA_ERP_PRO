@@ -40,9 +40,56 @@ class ProduitService(BaseService):
         elif type_mouvement == 'sortie':
             produit.retirer_stock(quantite, raison, utilisateur_id)
         else:
-            produit.quantite_stock = quantite
-            produit.save()
+            cls._set_stock_absolu(produit, quantite, type_mouvement, raison, utilisateur_id)
         return produit
+
+    @classmethod
+    def _set_stock_absolu(cls, produit, quantite, type_mouvement, raison='', utilisateur_id=None):
+        """Fixe le stock à une valeur absolue en traçant le mouvement.
+
+        Utilisé pour les types ``inventaire``, ``ajustement``, ``retour`` et
+        ``transfert`` : contrairement aux entrées/sorties, la quantité fournie
+        est la nouvelle quantité en stock. Le mouvement est historisé comme
+        pour les entrées/sorties afin que l'écran « Mouvements » et l'audit
+        restent exploitables (avant correctif, le stock changeait sans trace).
+        """
+        from decimal import Decimal
+        from app.models.stock import MouvementStock, TypeMouvement
+
+        type_value = (
+            type_mouvement.value if hasattr(type_mouvement, 'value') else str(type_mouvement)
+        )
+        types_valides = {t.value for t in TypeMouvement}
+        if type_value not in types_valides:
+            raise ValueError(
+                'Type de mouvement invalide: {0}. Attendu: {1}'.format(
+                    type_mouvement, ', '.join(sorted(types_valides))
+                )
+            )
+
+        try:
+            nouvelle_quantite = Decimal(str(quantite))
+        except Exception:
+            raise ValueError('Quantite invalide')
+        if nouvelle_quantite < 0:
+            raise ValueError('La quantite ne peut pas etre negative')
+
+        stock_avant = Decimal(str(produit.quantite_stock or 0))
+        produit.quantite_stock = nouvelle_quantite
+        produit.save()
+
+        mouvement = MouvementStock(
+            produit_id=produit.id,
+            type_mouvement=type_value,
+            quantite=nouvelle_quantite,
+            stock_avant=stock_avant,
+            stock_apres=nouvelle_quantite,
+            raison=raison,
+            created_by=utilisateur_id,
+            tenant_id=produit.tenant_id,
+        )
+        mouvement.save()
+        return mouvement
 
     @classmethod
     def get_stock_alert(cls):

@@ -27,6 +27,8 @@ const EMPTY_FORM = {
   code_barre_mode: 'manuel',
   seuil_alerte: 0,
   unite: 'piece',
+  image_url: '',
+  published: true,
 };
 
 const NUMERIC_FIELDS = ['prix_achat_ht', 'prix_vente_ht', 'quantite_stock', 'seuil_alerte'];
@@ -124,8 +126,10 @@ const Products = () => {
             code_barre_mode: mode,
             seuil_alerte: product.seuil_alerte || 0,
             unite: product.unite || 'piece',
+            image_url: product.image_url || '',
+            published: product.published !== false,
           }
-        : { ...EMPTY_FORM, code_barre_mode: mode }
+        : { ...EMPTY_FORM, code_barre_mode: mode, published: true }
     );
     setShowModal(true);
   };
@@ -411,7 +415,7 @@ console.error('Error deleting product:', err);
           <div className="search-box">
             <input
               type="text"
-              placeholder="Rechercher un produit..."
+              placeholder="Rechercher un produit…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -588,6 +592,39 @@ console.error('Error deleting product:', err);
                       <option key={u.value} value={u.value}>{u.label}</option>
                     ))}
                   </select>
+                </FormField>
+                <FormField label="Image (URL ou fichier local)" htmlFor="produit-image-url">
+                  <input
+                    id="produit-image-url"
+                    type="text"
+                    name="image_url"
+                    value={formData.image_url || ''}
+                    onChange={handleChange}
+                    placeholder="https://... ou chemin local"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData((prev) => ({ ...prev, image_url: URL.createObjectURL(file) }));
+                      }
+                    }}
+                    style={{ marginTop: '4px' }}
+                  />
+                </FormField>
+                <FormField label="Actif" htmlFor="produit-published">
+                  <label className="checkbox-label">
+                    <input
+                      id="produit-published"
+                      type="checkbox"
+                      name="published"
+                      checked={formData.published !== false}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, published: e.target.checked }))}
+                    />
+                    <span>Activer le produit</span>
+                  </label>
                 </FormField>
                 <FormField label="Description courte" span="full" htmlFor="produit-description">
                   <textarea

@@ -121,8 +121,19 @@ class Utilisateur(BaseModel):
         return _is_manager(self.role)
     
     def get_permissions(self):
-        if self.custom_role_id and self.custom_role and self.custom_role.permissions:
-            return [p.code for p in self.custom_role.permissions]
+        from app.models.role_permission import RoleModel
+        from sqlalchemy.orm import joinedload
+        if self.custom_role_id:
+            # Charger explicitement le rôle personnalisé avec ses permissions
+            # pour éviter que la session SQLAlchemy ne renvoie une liste vide.
+            role = db.session.get(
+                RoleModel,
+                self.custom_role_id,
+                options=[joinedload(RoleModel.permissions)]
+            )
+            if role is not None:
+                perms = [p.code for p in (role.permissions or [])]
+                return perms
         from app.security.permission_matrix import PERMISSIONS
         role_name = self.role.value if hasattr(self.role, 'value') else self.role
         return PERMISSIONS.get(role_name, [])

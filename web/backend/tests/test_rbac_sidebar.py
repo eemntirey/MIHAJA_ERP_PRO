@@ -118,7 +118,7 @@ def test_case_1_no_permission_returns_403():
             '/api/v1/ventes', '/api/v1/produits', '/api/v1/clients',
             '/api/v1/stocks', '/api/v1/comptes', '/api/v1/ecritures',
             '/api/v1/tresorerie', '/api/v1/employes', '/api/v1/salaires',
-            '/api/v1/presences', '/api/v1/primes', '/api/v1/stagiaires',
+            '/api/v1/presences', '/api/v1/primes', '/api/v1/stagiaires', '/api/v1/conges',
             '/api/v1/commandes-achat', '/api/v1/devis', '/api/v1/factures',
             '/api/v1/paiements', '/api/v1/fournisseurs', '/api/v1/livraisons',
         ]:

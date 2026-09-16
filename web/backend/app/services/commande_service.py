@@ -12,10 +12,10 @@ class CommandeService(BaseService):
     
     @classmethod
     def _generate_reference(cls):
+        import secrets
         prefix = 'CMD'
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        random_part = ''.join(random.choices(string.digits, k=4))
-        return f"{prefix}-{timestamp}-{random_part}"
+        random_part = secrets.token_urlsafe(10).replace('-', '').replace('_', '')[:12].upper()
+        return f"{prefix}-{random_part}"
     
     @classmethod
     def create_commande(cls, data):

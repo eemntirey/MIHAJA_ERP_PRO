@@ -533,8 +533,8 @@ class TestForgotPassword:
         assert r.status_code == 200
         # Email "password changed" envoye apres reset
         assert len(sent2) >= 1
-        assert 'modifie' in sent2[0].html_body.lower() or \
-               'changed' in sent2[0].html_body.lower()
+        body = sent2[0].html_body.lower()
+        assert 'modifie' in body or 'modifié' in body or 'changed' in body
 
         r2 = _login(client, admin["email"], 'BrandNew789!', tenant["slug"])
         assert r2.status_code == 200

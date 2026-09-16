@@ -1,0 +1,20 @@
+title = "MIHAJA_ERP_PRO Gitleaks Config"
+
+[[rules]]
+description = "Secrets génériques"
+regex = '''(?i)(secret|password|token|key|jwt)[:=][\s]*['"]?[a-zA-Z0-9_+\-./]{8,}['"]?'''
+secretGroup = 1
+entropy = 3.5
+
+[[rules]]
+description = "Clé Fernet / base64 longue"
+regex = '''[A-Za-z0-9_+\-]{32,}={0,2}'''
+entropy = 4.0
+
+[allowlist]
+paths = [
+  ".env.example",
+  ".gitignore",
+  ".github/workflows/*.yml",
+  "docs/",
+]

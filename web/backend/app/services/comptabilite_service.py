@@ -560,11 +560,14 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'numero', 'nom', 'type_compte', 'sous_compte_id', 'solde', 'is_actif', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for c in comptes:
             writer.writerow([
-                c.id, c.numero, c.nom,
-                c.type_compte.value if c.type_compte else '',
-                c.sous_compte_id or '', c.solde, c.is_actif, c.tenant_id,
+                c.id,
+                _sanitize_csv_cell(str(c.numero)),
+                _sanitize_csv_cell(str(c.nom)),
+                _sanitize_csv_cell(c.type_compte.value if c.type_compte else ''),
+                c.sous_compte_id or '', _sanitize_csv_cell(str(c.solde)), c.is_actif, c.tenant_id,
             ])
         return buf.getvalue()
 
@@ -580,10 +583,14 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'date', 'compte_id', 'montant_debit', 'montant_credit', 'libelle', 'piece_joint', 'reference_externe', 'entite_type', 'entite_id', 'statut', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for e in ecritures:
             writer.writerow([
-                e.id, e.date.isoformat() if e.date else '', e.compte_id, e.montant_debit, e.montant_credit, e.libelle,
-                e.piece_joint or '', e.reference_externe or '', e.entite_type or '', e.entite_id or '',
+                e.id, e.date.isoformat() if e.date else '', e.compte_id, e.montant_debit, e.montant_credit,
+                _sanitize_csv_cell(str(e.libelle)) if e.libelle else '',
+                _sanitize_csv_cell(str(e.piece_joint)) if e.piece_joint else '',
+                _sanitize_csv_cell(str(e.reference_externe)) if e.reference_externe else '',
+                e.entite_type or '', e.entite_id or '',
                 e.statut.value if e.statut else '', e.tenant_id,
             ])
         return buf.getvalue()
@@ -600,10 +607,15 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'date', 'type_operation', 'montant', 'mode_paiement', 'libelle', 'compte_bancaire', 'reference', 'is_reconcilie', 'compte_id', 'ecriture_id', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for t in entries:
             writer.writerow([
                 t.id, t.date.isoformat() if t.date else '',
-                t.type_operation.value if t.type_operation else '', t.montant, t.mode_paiement or '',
-                t.libelle, t.compte_bancaire or '', t.reference or '', t.is_reconcilie, t.compte_id or '', t.ecriture_id or '', t.tenant_id,
+                t.type_operation.value if t.type_operation else '', t.montant,
+                _sanitize_csv_cell(str(t.mode_paiement)) if t.mode_paiement else '',
+                _sanitize_csv_cell(str(t.libelle)) if t.libelle else '',
+                _sanitize_csv_cell(str(t.compte_bancaire)) if t.compte_bancaire else '',
+                _sanitize_csv_cell(str(t.reference)) if t.reference else '',
+                t.is_reconcilie, t.compte_id or '', t.ecriture_id or '', t.tenant_id,
             ])
         return buf.getvalue()

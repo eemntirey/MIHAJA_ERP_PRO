@@ -316,7 +316,7 @@ const Roles = () => {
           <h3>Liste des rôles ({visibleRoles.length})</h3>
           <input
             type="text"
-            placeholder="Rechercher un rôle..."
+            placeholder="Rechercher un rôle…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -437,7 +437,7 @@ const Roles = () => {
                       <i className="ti ti-search" />
                       <input
                         type="text"
-                        placeholder="Rechercher une permission..."
+                        placeholder="Rechercher une permission…"
                         value={permSearch}
                         onChange={(e) => setPermSearch(e.target.value)}
                       />

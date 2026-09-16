@@ -10,11 +10,10 @@ from app import db
 
 
 def detect_stock_anomalies(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    mouvements = MouvementStock.query.filter_by(is_active=True)
-    if tenant_id:
-        mouvements = mouvements.filter_by(tenant_id=tenant_id)
-    mouvements = mouvements.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'anomalies': [], 'count': 0, 'message': 'Tenant non défini.'}
+    mouvements = MouvementStock.query.filter_by(is_active=True, tenant_id=tid).all()
 
     if not mouvements:
         return {'anomalies': [], 'count': 0}
@@ -38,10 +37,7 @@ def detect_stock_anomalies(tenant_id=None):
         mean_qty = prod_df['quantite'].mean()
         std_qty = prod_df['quantite'].std()
 
-        produit_query = Produit.query.filter_by(id=int(produit_id))
-        if tenant_id:
-            produit_query = produit_query.filter_by(tenant_id=tenant_id)
-        produit = produit_query.first()
+        produit = Produit.query.filter_by(id=int(produit_id), tenant_id=tid).first()
         nom_produit = produit.nom if produit else f"Produit #{produit_id}"
 
         if std_qty == 0 or np.isnan(std_qty):
@@ -65,11 +61,10 @@ def detect_stock_anomalies(tenant_id=None):
 
 
 def detect_sales_anomalies(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    ventes = Vente.query.filter_by(is_active=True)
-    if tenant_id:
-        ventes = ventes.filter_by(tenant_id=tenant_id)
-    ventes = ventes.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'anomalies': [], 'count': 0, 'message': 'Tenant non défini.'}
+    ventes = Vente.query.filter_by(is_active=True, tenant_id=tid).all()
 
     if not ventes:
         return {'anomalies': [], 'count': 0}
@@ -111,12 +106,10 @@ def detect_sales_anomalies(tenant_id=None):
 
 
 def detect_payment_anomalies(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    query = Facture.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-
-    factures = query.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'anomalies': [], 'count': 0, 'message': 'Tenant non défini.'}
+    factures = Facture.query.filter_by(is_active=True, tenant_id=tid).all()
     anomalies = []
     today = datetime.utcnow().date()
 

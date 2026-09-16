@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { userService, roleService, subscriptionService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import TempPasswordCard from '@shared/components/TempPasswordCard';
 import './Pages.css';
 
 const ROLE_LABELS = {
@@ -40,6 +41,7 @@ const Users = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [tempCredentials, setTempCredentials] = useState(null);
   const canCreateUser = Boolean(
     hasRole && (hasRole('super_admin') || hasRole('admin') || hasRole('manager'))
   ) || (hasPermission && hasPermission('user.create'));
@@ -176,6 +178,12 @@ const Users = () => {
         if (response.data && response.data.id) {
           setUsers(prev => [...prev, response.data]);
         }
+        if (response.data && response.data.temporary_password) {
+          setTempCredentials({
+            email: response.data.email || response.data.username,
+            password: response.data.temporary_password,
+          });
+        }
       }
       closeModal();
       fetchUsers();
@@ -197,13 +205,15 @@ const Users = () => {
     }
   };
 
+  // Les limites du plan s'appliquent toujours (le backend les fait respecter).
+
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>Employés</h1>
         {canCreateUser && (
           <button className="btn-primary" onClick={() => openModal()}>
-            Nouvel employé
+            + Nouvel employé
           </button>
         )}
       </div>
@@ -213,7 +223,7 @@ const Users = () => {
           <i className="ti ti-search search-icon" aria-hidden="true" />
           <input
             type="text"
-            placeholder="Rechercher..."
+            placeholder="Rechercher un utilisateur…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -346,6 +356,14 @@ const Users = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {tempCredentials && (
+        <TempPasswordCard
+          email={tempCredentials.email}
+          password={tempCredentials.password}
+          onClose={() => setTempCredentials(null)}
+        />
       )}
     </div>
   );

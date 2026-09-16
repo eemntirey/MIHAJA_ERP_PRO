@@ -44,7 +44,7 @@ export function useRealtime(options = {}) {
         if (token) {
           socket = io(window.location.origin, {
             path: '/socket.io',
-            query: { token },
+            auth: { token },
             transports: ['polling', 'websocket'],
         upgrade: false,
           });

@@ -7,6 +7,24 @@ from typing import Optional, Dict, Any, List, Tuple
 
 class ClientService(BaseService):
     model = Client
+
+    # Longueur maximale de ``clients.code`` (colonne String(20)).
+    # Sans ce contrôle, une saisie plus longue provoquait une erreur
+    # PostgreSQL de troncature (HTTP 500) au lieu d'un 400 explicite.
+    CODE_MAX_LENGTH = 20
+
+    @classmethod
+    def _validate_code(cls, code) -> str:
+        value = str(code or '').strip()
+        if not value:
+            raise ValueError("Le code client est requis")
+        if len(value) > cls.CODE_MAX_LENGTH:
+            raise ValueError(
+                "Le code client ne peut pas depasser {0} caracteres".format(
+                    cls.CODE_MAX_LENGTH
+                )
+            )
+        return value
     
     @classmethod
     def _get_tenant_filter(cls, query):
@@ -64,7 +82,9 @@ class ClientService(BaseService):
         """Crée un nouveau client"""
         if 'code' not in data or not data['code']:
             raise ValueError("Le code client est requis")
-        
+
+        data['code'] = cls._validate_code(data['code'])
+
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("Aucun tenant associe a ce compte")
@@ -82,6 +102,13 @@ class ClientService(BaseService):
         
         data['tenant_id'] = tenant_id
         return super().create(data)
+
+    @classmethod
+    def update(cls, id: int, data: Dict[str, Any]) -> Optional[Client]:
+        """Met à jour un client (même validation de code qu'à la création)."""
+        if data.get('code') is not None:
+            data['code'] = cls._validate_code(data['code'])
+        return super().update(id, data)
     
     @classmethod
     def get_by_email(cls, email: str) -> Optional[Client]:

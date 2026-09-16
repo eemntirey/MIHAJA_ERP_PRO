@@ -3,6 +3,7 @@ from app import db
 from datetime import datetime, timedelta
 import secrets
 import hashlib
+import hmac
 
 
 class PasswordResetToken(BaseModel):
@@ -42,7 +43,7 @@ class PasswordResetToken(BaseModel):
 
     @staticmethod
     def verify_token(raw_token, stored_hash):
-        return PasswordResetToken.hash_token(raw_token) == stored_hash
+        return hmac.compare_digest(PasswordResetToken.hash_token(raw_token), stored_hash)
 
     @property
     def is_expired(self):
@@ -63,11 +64,8 @@ class PasswordResetToken(BaseModel):
 
     @classmethod
     def find_valid_token(cls, user_id, raw_token):
-        candidates = cls.query.filter_by(
-            user_id=user_id,
-            used=False,
-        ).all()
-        for candidate in candidates:
-            if candidate.verify_token(raw_token, candidate.token):
-                return candidate
+        """Recherche ciblée et indexée (pas de scan global)."""
+        token = cls.find_by_raw_token(raw_token)
+        if token and token.user_id == user_id:
+            return token
         return None

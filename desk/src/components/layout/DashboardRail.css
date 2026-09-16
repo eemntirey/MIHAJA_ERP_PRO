@@ -577,6 +577,13 @@
   }
 }
 
+.dashboard-rail.is-stretched {
+  min-height: 100vh;
+  height: 100vh;
+  align-items: stretch;
+  overflow-y: auto;
+}
+
 /* Mobile */
 @media (max-width: 760px) {
   .dashboard-rail {

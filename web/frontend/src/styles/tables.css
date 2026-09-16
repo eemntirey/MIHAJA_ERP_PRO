@@ -26,6 +26,7 @@
   border-collapse: collapse;
   font-size: var(--text-table);
   min-width: 600px;
+  table-layout: fixed;
 }
 
 .data-table th,
@@ -34,7 +35,9 @@
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .data-table th {

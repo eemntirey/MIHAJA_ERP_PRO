@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService, factureService } from '../services/api';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 import SelectField from '../components/ui/SelectField';
 import ToggleField from '../components/ui/ToggleField';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -43,6 +43,37 @@ const getModePaiementLabel = (mode) => {
   return PAYMENT_METHOD_LABELS[mode] || mode || 'N/A';
 };
 
+const getTypeVenteLabel = (typeVente) => {
+  return typeVente === 'gros' ? 'Gros' : 'Détail';
+};
+
+const GROS_CLIENT_TYPES = ['grossiste', 'semi_grossiste', 'revendeur'];
+
+const NIVEAUX_PRIX = {
+  grossiste: 'prix_grossiste',
+  semi_grossiste: 'prix_demi_gros',
+  revendeur: 'prix_revendeur',
+};
+
+const REPLI_GROS = ['prix_revendeur', 'prix_demi_gros', 'prix_grossiste', 'prix_vente_ht'];
+
+const deriveTypeVente = (clientType) => (GROS_CLIENT_TYPES.includes(clientType) ? 'gros' : 'detail');
+
+const resolvePrixUnitaire = (product, prixField, repli) => {
+  for (const field of [prixField, ...repli]) {
+    const value = product?.[field];
+    if (value != null) return Number(value);
+  }
+  return 0;
+};
+
+const getPrixAuto = (product, typeVente, clientType) => {
+  if (!product) return 0;
+  const prixField = typeVente === 'gros' ? (NIVEAUX_PRIX[clientType] || 'prix_grossiste') : 'prix_vente_ht';
+  const repli = typeVente === 'gros' ? REPLI_GROS : ['prix_vente_ht'];
+  return resolvePrixUnitaire(product, prixField, repli);
+};
+
 const saleLineSchema = yup.object().shape({
   produit_id: yup.number().required('Produit requis'),
   quantite: yup.number().required('Quantité requise').min(1, 'Quantité minimum 1'),
@@ -60,18 +91,10 @@ const saleSchema = yup.object().shape({
   date: yup.string().required('Date requise'),
   statut: yup.string().oneOf(['en_attente', 'payee', 'annulee', 'partielle']).default('en_attente'),
   mode_paiement: yup.string().oneOf(['especes', 'virement', 'cheque', 'mvola', 'orange_money', 'airtel_money']).default('especes'),
+  type_vente: yup.string().oneOf(['gros', 'detail']).default('detail'),
   remarque: yup.string().nullable(),
   lignes: yup.array().of(saleLineSchema).min(1, 'Au moins une ligne requise'),
 });
-
-const getProductDefaults = (products, produitId) => {
-  const product = products.find(p => p.id === Number(produitId));
-  if (!product) return { prix_unitaire: 0, taux_tva: 20 };
-  return {
-    prix_unitaire: product.prix_vente_ht || 0,
-    taux_tva: product.taux_tva || 20,
-  };
-};
 
 const calculateLineTotal = (quantite, prix_unitaire, taux_tva) => {
   const q = Number(quantite) || 0;
@@ -95,6 +118,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
     date: new Date().toISOString().split('T')[0],
     statut: 'en_attente',
     mode_paiement: 'especes',
+    type_vente: 'detail',
     remarque: '',
     lignes: [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
   };
@@ -105,6 +129,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
     date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
     statut: initialData.statut || 'en_attente',
     mode_paiement: initialData.mode_paiement || 'especes',
+    type_vente: initialData.type_vente || 'detail',
     remarque: initialData.remarque || '',
     lignes: initialData.lignes?.map(l => ({
       produit_id: l.produit_id ?? '',
@@ -133,10 +158,37 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   const watchedLines = watch('lignes');
   const totals = calculateTotals(watchedLines);
 
+  const applyLinePrices = (typeVente, clientId) => {
+    const clientType = clients.find(c => c.id === Number(clientId))?.type;
+    const lines = getValues('lignes') || [];
+    lines.forEach((l, index) => {
+      if (!l.produit_id) return;
+      const product = products.find(p => p.id === Number(l.produit_id));
+      if (product) {
+        setValue(`lignes.${index}.prix_unitaire`, getPrixAuto(product, typeVente, clientType), { shouldValidate: true });
+      }
+    });
+  };
+
+  const handleClientChange = (value) => {
+    const clientId = value === '' ? null : Number(value);
+    setValue('client_id', clientId, { shouldValidate: true });
+    const clientType = clients.find(c => c.id === clientId)?.type;
+    const derived = clientType ? deriveTypeVente(clientType) : 'detail';
+    setValue('type_vente', derived, { shouldValidate: true });
+    applyLinePrices(derived, clientId);
+  };
+
+  const handleTypeVenteChange = (value) => {
+    setValue('type_vente', value, { shouldValidate: true });
+    applyLinePrices(value, watch('client_id'));
+  };
+
   const handleProduitChange = (index, produitId) => {
-    const defaults = getProductDefaults(products, produitId);
-    setValue(`lignes.${index}.prix_unitaire`, defaults.prix_unitaire, { shouldValidate: true });
-    setValue(`lignes.${index}.taux_tva`, defaults.taux_tva, { shouldValidate: true });
+    const product = products.find(p => p.id === Number(produitId));
+    const clientType = clients.find(c => c.id === Number(watch('client_id')))?.type;
+    setValue(`lignes.${index}.prix_unitaire`, product ? getPrixAuto(product, watch('type_vente'), clientType) : 0, { shouldValidate: true });
+    setValue(`lignes.${index}.taux_tva`, product?.taux_tva || 20, { shouldValidate: true });
   };
 
   const onSubmit = async (data) => {
@@ -146,6 +198,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
       const payload = {
         client_id: isPassager ? null : clientId,
         client_passager: isPassager,
+        type_vente: data.type_vente || 'detail',
         date: data.date,
         statut: data.statut,
         mode_paiement: data.mode_paiement,
@@ -198,6 +251,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                 register={register}
                 name="client_id"
                 registerOptions={{ required: !watch('client_passager') ? 'Veuillez sélectionner un client' : false }}
+                onChange={(e) => handleClientChange(e.target.value)}
               />
               <ToggleField
                 id="sale-client-passager"
@@ -231,6 +285,14 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="form-group">
+              <label>Type de vente</label>
+              <select {...register('type_vente')} onChange={(e) => handleTypeVenteChange(e.target.value)}>
+                <option value="detail">Détail (prix public)</option>
+                <option value="gros">Gros (prix grossiste)</option>
+              </select>
+              <span className="field-hint">Auto-dérivé du client (grossiste, semi-grossiste, revendeur).</span>
             </div>
           </div>
 
@@ -586,7 +648,7 @@ const Sales = () => {
     );
   }
 
-  const sortedSales = getSortedFilteredData(sales, ['reference', 'client_nom', 'statut', 'mode_paiement']);
+  const sortedSales = getSortedFilteredData(sales, ['reference', 'client_nom', 'statut', 'mode_paiement', 'type_vente']);
   const sortedDevis = getSortedFilteredData(devisList, ['reference', 'client_nom', 'statut']);
   const sortedBls = getSortedFilteredData(bls, ['reference', 'client_nom', 'statut']);
   const sortedAvoirs = getSortedFilteredData(avoirs, ['reference', 'client_nom', 'motif', 'statut']);
@@ -607,7 +669,7 @@ const Sales = () => {
       {tab === 'ventes' && (
         <div className="card">
           <div className="card-actions">
-            <button className="btn-primary" onClick={() => setShowModal(true)}>Nouvelle vente</button>
+            <button className="btn-primary" onClick={() => setShowModal(true)}>+ Nouvelle vente</button>
           </div>
           <div className="filter-controls">
             <div className="search-box">
@@ -628,6 +690,7 @@ const Sales = () => {
                   <th onClick={() => handleSort('date')} className="sortable">Date{getSortIndicator('date')}</th>
                   <th onClick={() => handleSort('total_ttc')} className="sortable">Total TTC{getSortIndicator('total_ttc')}</th>
                   <th onClick={() => handleSort('statut')} className="sortable">Statut{getSortIndicator('statut')}</th>
+                  <th onClick={() => handleSort('type_vente')} className="sortable">Type{getSortIndicator('type_vente')}</th>
                   <th onClick={() => handleSort('mode_paiement')} className="sortable">Mode{getSortIndicator('mode_paiement')}</th>
                   <th>Actions</th>
                 </tr>
@@ -635,7 +698,7 @@ const Sales = () => {
               <tbody>
                 {sortedSales.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center">Aucune vente trouvée</td>
+                    <td colSpan="8" className="text-center">Aucune vente trouvée</td>
                   </tr>
                 ) : (
                   sortedSales.map(s => {
@@ -647,6 +710,7 @@ const Sales = () => {
                         <td>{formatDate(s.date)}</td>
                         <td>{formatCurrency(s.total_ttc)}</td>
                         <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                        <td>{getTypeVenteLabel(s.type_vente)}</td>
                         <td>{getModePaiementLabel(s.mode_paiement)}</td>
                         <td>
                           <button className="btn-small btn-view" title="Voir" onClick={() => handleViewSale(s)} disabled={saleActionLoading}>
@@ -691,6 +755,7 @@ const Sales = () => {
                     <div className="form-group"><label>Total HT</label><div>{formatCurrency(viewSale.total_ht)}</div></div>
                     <div className="form-group"><label>Total TTC</label><div>{formatCurrency(viewSale.total_ttc)}</div></div>
                     <div className="form-group"><label>Statut</label><div><span className={`badge ${getStatutBadge(viewSale.statut).class}`}>{getStatutBadge(viewSale.statut).label}</span></div></div>
+                    <div className="form-group"><label>Type</label><div>{getTypeVenteLabel(viewSale.type_vente)}</div></div>
                     <div className="form-group"><label>Mode de paiement</label><div>{getModePaiementLabel(viewSale.mode_paiement)}</div></div>
                   </div>
                   {viewSale.lignes && viewSale.lignes.length > 0 && (

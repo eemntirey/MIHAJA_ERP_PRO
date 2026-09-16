@@ -49,6 +49,18 @@ const Invoices = () => {
   // creees pour la meme vente par double-clic).
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (showJsonModal) {
+      const timer = setTimeout(() => {
+        const ta = document.getElementById('invoice-json-textarea');
+        if (!ta) return;
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showJsonModal, jsonPayload]);
+
   const fetchInvoices = async () => {
     try {
       setLoading(true);

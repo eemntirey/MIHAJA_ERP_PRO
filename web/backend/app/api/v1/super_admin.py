@@ -42,7 +42,7 @@ from app.models.prime import Prime
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
-from app.security.plans import apply_plan_to_abonnement
+from app.security.plans import apply_plan_to_abonnement, get_plan_price
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
@@ -57,6 +57,16 @@ def _ensure_super_admin():
     user = db.session.get(Utilisateur, user_id)
     if not user or not is_super_admin(user.role):
         return {'message': 'Acces super administrateur requis'}, 403
+    # Liveness + révocation (audit P1-4) : un super admin désactivé,
+    # suspendu ou révoqué ne doit plus gérer la plateforme, et un reset
+    # de mot de passe (token_version) doit fermer les sessions émises.
+    if not user.is_active or user.statut != StatutUtilisateur.ACTIF or (
+        user.admin_statut is not None and user.admin_statut != StatutAdmin.ACTIVE
+    ):
+        return {'message': 'Compte super administrateur inactif ou suspendu'}, 403
+    claims = get_jwt() or {}
+    if (user.token_version or 0) > claims.get('pwd_v', 0):
+        return {'message': 'Votre session a expire. Veuillez vous reconnecter.'}, 401
     return None
 
 
@@ -2115,18 +2125,30 @@ class SuperAdminSubscriptionsSendReminder3j(Resource):
             db.session.rollback()
             return {'message': f'Erreur: {str(e)}'}, 500
 
-@ns.route('/subscriptions/set-all-free')
-class SuperAdminSubscriptionsSetAllFree(Resource):
+@ns.route('/subscription-toggle')
+class SuperAdminSubscriptionToggle(Resource):
     @jwt_required()
-    def post(self):
+    def get(self):
         err = _ensure_super_admin()
         if err:
             return err
-        from app.models.abonnement import Abonnement, StatutAbonnement
-        try:
-            updated = Abonnement.query.filter(Abonnement.is_active == True).update({Abonnement.plan: 'pro'}, synchronize_session=False)
-            db.session.commit()
-            return {'message': 'Tous les abonnements passés au plan pro', 'updated': updated}, 200
-        except Exception as e:
-            db.session.rollback()
-            return {'message': f'Erreur: {str(e)}'}, 500
+        # Le toggle ne sert plus : le système d'abonnement est toujours actif.
+        return {
+            'subscription_active': True,
+        }, 200
+
+    @jwt_required()
+    def put(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        # No-op : le mode inactif a été supprimé, toujours actif.
+        return {
+            'subscription_active': True,
+            'is_subscription_active': True,
+            'message': 'Le mode abonnement est toujours actif',
+        }, 200
+
+    @jwt_required()
+    def post(self):
+        return self.put()

@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app, db
 from app.models.tenant import Tenant, StatutTenant
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
+from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.fournisseur import Fournisseur, TypeFournisseur
 from app.models.client import Client, TypeClient, SecteurActivite
 from app.models.produit import Produit
@@ -57,7 +58,7 @@ from app.utils.malagasy_data import VILLES_MADAGAS, tel_madag
 
 app = create_app()
 
-PASSWORD = "Test1234!"
+PASSWORD = os.getenv("SEED_MADA_PASSWORD", "Test1234!")
 TAUX_TVA = Decimal("10.00")
 
 DEPOT_PRINCIPAL = "Dépôt principal - Zone industrielle Andraisoro, Antananarivo"
@@ -78,7 +79,16 @@ def seed_tenant_and_users():
     tenant = Tenant.query.filter_by(slug='distrib-moderne').first()
     if tenant:
         print(f"  [SKIP] Tenant 'distrib-moderne' existe déjà (id={tenant.id})")
-        return tenant
+        users = {}
+        for role, username in (
+            ('admin', 'admin'),
+            ('commercial', 'jean.rakoto'),
+            ('stock', 'andry'),
+        ):
+            u = Utilisateur.query.filter_by(username=username, tenant_id=tenant.id).first()
+            if u:
+                users[role] = u
+        return {'tenant': tenant, 'users': users}
 
     now = datetime.utcnow()
 
@@ -154,13 +164,13 @@ def seed_tenant_and_users():
     db.session.flush()
 
     # Abonnement
-    abonnement = db.session... Abonnement(
+    abonnement = Abonnement(
         tenant_id=tenant.id,
         montant=Decimal('79.00'),
         devise='USD',
         date_debut=now,
         date_fin=now + timedelta(days=30),
-        statut=db.session... StatutAbonnement.ACTIF,
+        statut=StatutAbonnement.ACTIF,
         methode_paiement='virement',
         reference_paiement='SUB-DISTRIBMG-001',
         plan='pro',
@@ -904,7 +914,7 @@ VENTES_DATA = [
         'mode_paiement': 'especes',
         'credit_jours': 0,
         'echeance_jours_ago': 5,
-        'paiements': [{'montant': None, 'mode': 'especes', 'jours_ago': 5}, 'complete': True],
+        'paiements': [{'montant': None, 'mode': 'especes', 'jours_ago': 5, 'complete': True}],
         'notes': 'Livraison effectuée, règlement en espèces sur place',
     },
     # 2. Mobile Money — Épicerie Fitiavana
@@ -922,7 +932,7 @@ VENTES_DATA = [
         'mode_paiement': 'orange_money',
         'credit_jours': 0,
         'echeance_jours_ago': 4,
-        'paiements': [{'montant': None, 'mode': 'orange_money', 'jours_ago': 4}, 'complete': True],
+        'paiements': [{'montant': None, 'mode': 'orange_money', 'jours_ago': 4, 'complete': True}],
         'notes': 'Paiement Orange Money, reçu par SMS',
     },
     # 3. Crédit 7j, partiel — Shop Mada
@@ -939,7 +949,7 @@ VENTES_DATA = [
         'mode_paiement': 'a_voir',
         'credit_jours': 7,
         'echeance_jours_ago': 3,
-        'paiements': [{'montant': 800000, 'mode': 'orange_money', 'jours_ago': 3}, {'montant': None, 'mode': 'a_voir', 'jours_ago': 0}, 'complete': True],
+        'paiements': [{'montant': 800000, 'mode': 'orange_money', 'jours_ago': 3}, {'montant': None, 'mode': 'a_voir', 'jours_ago': 0, 'complete': True}],
         'notes': 'Crédit 7 jours — acompte de 800 000 Ar reçu, reste à régler',
     },
     # 4. Crédit 15j, payé à l'échéance — Supermarché Mahajy
@@ -957,7 +967,7 @@ VENTES_DATA = [
         'mode_paiement': 'virement',
         'credit_jours': 15,
         'echeance_jours_ago': 3,
-        'paiements': [{'montant': None, 'mode': 'virement', 'jours_ago': 3}, 'complete': True],
+        'paiements': [{'montant': None, 'mode': 'virement', 'jours_ago': 3, 'complete': True}],
         'notes': 'Crédit 15 jours — solde réglé à l\'échéance par virement bancaire',
     },
     # 5. Crédit 30j, reste à payer — Centrale des Épiceries
@@ -977,7 +987,7 @@ VENTES_DATA = [
         'mode_paiement': 'a_voir',
         'credit_jours': 30,
         'echeance_jours_ago': 5,
-        'paiements': [{'montant': 2500000, 'mode': 'virement', 'jours_ago': 5}, 'complete': False],
+        'paiements': [{'montant': 2500000, 'mode': 'virement', 'jours_ago': 5, 'complete': False}],
         'notes': 'Crédit 30 jours — acompte de 2 500 000 Ar reçu, reste à payer',
     },
     # 6. En attente, non payée — Restaurant Le Zebu
@@ -1014,7 +1024,7 @@ VENTES_DATA = [
         'mode_paiement': 'a_voir',
         'credit_jours': 15,
         'echeance_jours_ago': 2,
-        'paiements': [{'montant': 500000, 'mode': 'especes', 'jours_ago': 2}, 'complete': True],
+        'paiements': [{'montant': 500000, 'mode': 'especes', 'jours_ago': 2, 'complete': True}],
         'notes': 'Crédit 15 jours — 500 000 Ar remis en espèces, solde restant',
     },
     # 8. Livrée, non payée, crédit 15j — Dépôt de Quartier
@@ -1653,7 +1663,7 @@ def seed_all():
         print(f"  Produits     : {len(produits)}")
         print(f"  Ventes       : {len(ventes)}")
         print(f"  Achats       : {len(achats)}")
-        print(f"  Mot de passe : {PASSWORD}")
+        print(f"  Mot de passe : fourni via SEED_MADA_PASSWORD (non affiché)")
         print(f"  Admin email  : admin@distrib-moderne.mg")
         print(f"  Commercial   : jean.rakoto@distrib-moderne.mg")
         print("=" * 70)

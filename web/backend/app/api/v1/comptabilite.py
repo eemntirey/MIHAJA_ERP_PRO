@@ -1,7 +1,7 @@
 from flask_restx import Namespace, Resource
 from flask import request, Response, current_app
 from app.security.tenant import tenant_required_readonly
-from app.security.permissions import permission_required
+from app.security.permissions import permission_required, permission_required_all
 from app.services.comptabilite_service import CompteComptableService, EcritureComptableService, TresorerieService, ComptaImportService, ResultatService
 from datetime import date
 from sqlalchemy import func
@@ -49,7 +49,7 @@ class CompteResource(Resource):
         return compte.to_dict(), 200
 
     @tenant_required_readonly
-    @permission_required('compte.delete')
+    @permission_required_all('compte.delete')
     def delete(self, id):
         success = CompteComptableService.delete(id)
         if not success:

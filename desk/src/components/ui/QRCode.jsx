@@ -3,7 +3,7 @@
 // (web/frontend/src/components/ui/QRCode.jsx) avec le client API partagé
 // (token JWT auto-attaché) et le Button local du desk.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import Button from './Button';
 
@@ -45,14 +45,7 @@ export const QRCodeDisplay = ({ data, size = 128, label = 'QR Code', onClose }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (data) {
-      generateQRCode(data);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
-
-  const generateQRCode = async (produitId) => {
+  const generateQRCode = useCallback(async (produitId) => {
     setLoading(true);
     setError(null);
     try {
@@ -63,7 +56,13 @@ export const QRCodeDisplay = ({ data, size = 128, label = 'QR Code', onClose }) 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (data) {
+      generateQRCode(data);
+    }
+  }, [data, generateQRCode]);
 
   const downloadQRCode = () => {
     if (!qrBase64) return;
@@ -115,21 +114,20 @@ export const QRCodeDisplay = ({ data, size = 128, label = 'QR Code', onClose }) 
 export const QRCodeGenerator = ({ value, size = 128 }) => {
   const [qrBase64, setQrBase64] = useState(null);
 
-  useEffect(() => {
-    if (value) {
-      generateQRCode(value);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  const generateQRCode = async (data) => {
+  const generateQRCode = useCallback(async (data) => {
     try {
       const { data: result } = await api.post('/produits/qr-generate', { data });
       setQrBase64(result.qr_code);
     } catch (err) {
       console.error('QR Code generation failed:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (value) {
+      generateQRCode(value);
+    }
+  }, [value, generateQRCode]);
 
   return qrBase64 ? (
     <img src={qrBase64} alt="QR Code" width={size} height={size} />

@@ -28,18 +28,14 @@ const formatPlanLimits = (max_utilisateurs, max_employees) => {
 
 const PLAN_COLORS = {
   gratuit: '#6e9b79',
-  starter: '#3b82f6',
   pro: '#d4af37',
-  enterprise: '#111111',
+  enterprise: '#111111'
 };
 
 const PLAN_FEATURES = {
   gratuit: [
-    '1 utilisateur (admin seul)',
-    'Support email',
-  ],
-  starter: [
     '3 utilisateurs (admin + 2 employés)',
+    'Modules étendus',
     'Support prioritaire',
     'Statistiques basiques',
   ],
@@ -347,6 +343,8 @@ const Subscription = () => {
       </div>
     );
   }
+
+  // Le module Abonnement est toujours actif : rien à masquer en mode découverte.
 
   return (
     <div className="page-container subscription-page">
@@ -683,7 +681,7 @@ const Subscription = () => {
                     const features = PLAN_FEATURES[plan.code] || [];
                     const isCurrent = subscription.plan === plan.code;
                     const isSelected = renewPlan === plan.code;
-                    const order = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 };
+                    const order = { gratuit: 0, pro: 1, enterprise: 2 };
                     const currentOrder = order[subscription.plan] ?? 0;
                     const planOrder = order[plan.code] ?? 0;
                     const direction =
@@ -787,8 +785,8 @@ const Subscription = () => {
                 <div className="renew-modal__summary">
                   {(() => {
                     const chosen = plans.find((p) => p.code === renewPlan);
-                    const currentOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[subscription.plan] ?? 0;
-                    const chosenOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[renewPlan] ?? 0;
+                    const currentOrder = { gratuit: 0, pro: 1, enterprise: 2 }[subscription.plan] ?? 0;
+                    const chosenOrder = { gratuit: 0, pro: 1, enterprise: 2 }[renewPlan] ?? 0;
                     const isChange = chosenOrder !== currentOrder;
                     const currentMethodLabel =
                       PAYMENT_METHODS.find(

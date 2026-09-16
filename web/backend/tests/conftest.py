@@ -43,7 +43,11 @@ def _db_isolation(app):
 @pytest.fixture(scope='session')
 def app():
     import os
-    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test'
+    # URL de test dérivée de l'environnement (jamais de credential en dur :
+    # un scan de secrets avait rédigé cette ligne et cassé toute la suite).
+    _base = os.getenv('TEST_DATABASE_URL') or os.getenv('DATABASE_URL') or \
+        'postgresql+psycopg://postgres@localhost:55432/erp_test'
+    os.environ['DATABASE_URL'] = _base.rsplit('/', 1)[0] + '/erp_test'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
     os.environ['PAPI_API_KEY'] = 'test-api-key'
     os.environ['PAPI_ENVIRONMENT'] = 'sandbox'

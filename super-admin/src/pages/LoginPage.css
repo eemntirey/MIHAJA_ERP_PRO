@@ -71,6 +71,16 @@
   background: var(--color-primary-hover);
 }
 
+.sa-login-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
 .sa-login-footer {
   text-align: center;
   margin-top: 24px;

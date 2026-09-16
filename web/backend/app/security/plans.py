@@ -55,26 +55,12 @@ _ALL = _EXTENDED + ['comptabilite', 'livraison', 'ia', 'achats']
 # LOGIQUE DES PLANS :
 # - max_utilisateurs = nombre total d'employés que le tenant peut créer
 #   (le premier utilisateur est l'admin qui est aussi un employé)
-# - Gratuit : 1 employé (l'admin seul, ne peut pas créer d'autres employés)
-# - Starter : 3 employés (admin + 2 employés)
+# - Gratuit : 3 employés (admin + 2 employés), modules étendus
 # - Pro : 7 employés (admin + 6 employés), modules presque complets
 # - Enterprise : employés illimités, tous modules
 PLAN_CONFIG = {
     'gratuit': {
         'label': 'Gratuit',
-        'max_utilisateurs': 1,
-        'max_produits': 10,
-        'max_clients': 10,
-        'max_admins': 1,
-        'max_employees': 0,
-        'max_interns': 0,
-        'max_tenants': -1,
-        'modules': _BASIC,
-        'prix': 0,
-        'duree_jours': -1,  # Illimité
-    },
-    'starter': {
-        'label': 'Starter',
         'max_utilisateurs': 3,
         'max_produits': 50,
         'max_clients': 100,
@@ -83,7 +69,7 @@ PLAN_CONFIG = {
         'max_interns': 0,
         'max_tenants': -1,
         'modules': _EXTENDED,
-        'prix': 5000,
+        'prix': 0,
         'duree_jours': 30,
     },
     'pro': {
@@ -100,7 +86,7 @@ PLAN_CONFIG = {
         'duree_jours': 30,
     },
     'enterprise': {
-        'label': 'Enterprise',
+        'label': 'Entreprise',
         'max_utilisateurs': -1,
         'max_produits': -1,
         'max_clients': -1,
@@ -115,6 +101,28 @@ PLAN_CONFIG = {
 }
 
 DEFAULT_PLAN = 'gratuit'
+
+
+def get_public_plans():
+    """Retourne la liste des plans affichés publiquement (gratuit / pro / entreprise)."""
+    allowed_codes = ['gratuit', 'pro', 'enterprise']
+
+    plans = []
+    for code in allowed_codes:
+        config = PLAN_CONFIG.get(code)
+        if config:
+            plans.append({
+                'code': code,
+                'label': config.get('label', code.replace('_', ' ').title()),
+                'prix': config.get('prix', 0),
+                'duree_jours': config.get('duree_jours', 30),
+                'max_utilisateurs': config.get('max_utilisateurs', 1),
+                'max_employees': config.get('max_employees', 0),
+                'max_produits': config.get('max_produits', 10),
+                'max_clients': config.get('max_clients', 10),
+                'modules': config.get('modules', []),
+            })
+    return plans
 
 LIMIT_KEYS = (
     'max_utilisateurs',
@@ -145,10 +153,6 @@ LIMIT_KEYS = (
 # du paiement ; aucun champ n'est figé sur l'abonnement.
 EXPIRATION_PENALTY_CONFIG = {
     'gratuit': {
-        'expiration_penalty_percent': 0.0,
-        'expiration_grace_days': 0,
-    },
-    'starter': {
         'expiration_penalty_percent': 0.20,
         'expiration_grace_days': 3,
     },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { commandeAchatService, receptionService } from '../services/api';
 import './Pages.css';
@@ -14,6 +14,14 @@ export default function Purchases() {
     const [recForm, setRecForm] = useState({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
 
     const [editingId, setEditingId] = useState(null);
+    const lignesRef = useRef(null);
+    const remarqueRef = useRef(null);
+
+    const autoResize = (el) => {
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+    };
 
     const fetchAll = async () => {
         setLoading(true);
@@ -30,6 +38,8 @@ export default function Purchases() {
     };
 
     useEffect(() => { fetchAll(); }, []);
+    useEffect(() => { autoResize(lignesRef.current); }, [cmdForm.lignes]);
+    useEffect(() => { autoResize(remarqueRef.current); }, [recForm.remarque]);
 
     if (loading && commandes.length === 0 && receptions.length === 0) {
         return (
@@ -159,7 +169,7 @@ export default function Purchases() {
                         </div>
                         <div className="form-group full-width">
                             <label>Lignes JSON</label>
-                            <textarea value={cmdForm.lignes} onChange={e => setCmdForm({...cmdForm, lignes: e.target.value})} rows={2} />
+                            <textarea ref={lignesRef} value={cmdForm.lignes} onChange={e => { setCmdForm({...cmdForm, lignes: e.target.value}); autoResize(lignesRef.current); }} rows={2} style={{ resize: 'vertical', overflow: 'hidden' }} />
                         </div>
                         <div className="form-group">
                             <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : (editingId ? 'Modifier' : 'Créer')}</button>
@@ -203,7 +213,7 @@ export default function Purchases() {
                         </div>
                         <div className="form-group">
                             <label>Remarque</label>
-                            <textarea value={recForm.remarque} onChange={e => setRecForm({...recForm, remarque: e.target.value})} />
+                            <textarea ref={remarqueRef} value={recForm.remarque} onChange={e => { setRecForm({...recForm, remarque: e.target.value}); autoResize(remarqueRef.current); }} style={{ resize: 'vertical', overflow: 'hidden' }} />
                         </div>
                         <div className="form-group">
                             <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Créer'}</button>

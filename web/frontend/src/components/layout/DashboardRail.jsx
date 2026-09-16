@@ -38,7 +38,7 @@ const formatNotifTime = (value, t) => {
 };
 
 const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEditName, onSaveName, nameForm, onUpdateNameField, darkMode, onToggleDarkMode, counters, notifications, unreadCount, onMarkAsRead, onMarkAllAsRead, onOpenPalette }) => {
-  const { hasPermission, hasAnyPermission, hasRole, getAllowedModules } = useAuth();
+  const { hasPermission, hasAnyPermission, hasRole, getAllowedModules, subscriptionActive } = useAuth();
   const navigate = useNavigate();
   const { t, tNav, tGroup, language, toggleLanguage } = useTranslation();
   const { refresh: refreshNotifications } = useNotifications();
@@ -115,7 +115,7 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
 
   return (
     <>
-    <aside className="dashboard-rail" aria-label={t('rail.mainNav')}>
+    <aside className={`dashboard-rail`} aria-label={t('rail.mainNav')}>
       <Link to="/" className="dashboard-rail__brand" aria-label="ERP Pro accueil">
         <span className="dashboard-rail__brand-mark" aria-hidden="true">ERP</span>
         <span className="dashboard-rail__wordmark">PRO</span>
@@ -360,9 +360,11 @@ const DashboardRail = ({ user, onLogout, isSuperAdmin, isEditingName, onStartEdi
                   <i className="ti ti-user" aria-hidden="true" /> {t('common.profile')}
                 </Link>
               )}
-              <Link to="/subscription" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
-                <i className="ti ti-credit-card" aria-hidden="true" /> {t('common.subscription')}
-              </Link>
+              {subscriptionActive !== false && (
+                <Link to="/subscription" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
+                  <i className="ti ti-credit-card" aria-hidden="true" /> {t('common.subscription')}
+                </Link>
+              )}
               <Link to="/payment-settings" className="dashboard-rail__mobile-menu-item" role="menuitem" onClick={() => setMobileProfileOpen(false)}>
                 <i className="ti ti-settings-cog" aria-hidden="true" /> {t('common.paymentSettings')}
               </Link>

@@ -110,8 +110,13 @@ class ClientResource(Resource):
     def put(self, client_id):
         """Met à jour un client"""
         from flask import request
-        data = request.get_json()
-        client = ClientService.update(client_id, data)
+        data = request.get_json() or {}
+        try:
+            client = ClientService.update(client_id, data)
+        except ValueError as exc:
+            # Validation métier (ex: code trop long) : 400 et non 500.
+            db.session.rollback()
+            return {'message': str(exc)}, 400
         if not client:
             return {'message': 'Client non trouve'}, 404
         return client.to_dict(), 200

@@ -222,7 +222,7 @@
 
 .sa-content {
   flex: 1;
-  padding: 24px;
+  padding: 80px 24px 24px 24px;
 }
 
 @media (max-width: 768px) {

@@ -250,6 +250,49 @@
   color: var(--color-text-muted);
 }
 
+/* ==================== HR CONGES / PRESENCE CONTROLS ==================== */
+
+.hr-filter-input {
+  max-width: 180px;
+}
+
+.hr-registre {
+  margin-bottom: 18px;
+}
+
+.hr-registre-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.hr-registre-head h3 {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-onyx);
+  margin: 0;
+}
+
+.btn-small.btn-info {
+  color: var(--color-surface);
+  background: var(--color-primary);
+}
+
+.btn-small.btn-info:hover {
+  opacity: 0.85;
+}
+
+.btn-small.btn-warning {
+  color: var(--color-onyx);
+  background: var(--color-warning);
+}
+
+.btn-small.btn-warning:hover {
+  opacity: 0.85;
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 768px) {

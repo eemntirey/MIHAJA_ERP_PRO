@@ -100,6 +100,7 @@ class TestRolePresets:
             'stock.update', 'delivery.update',
             'employe.create', 'employe.update', 'employe.delete',
             'presence.create', 'presence.update', 'presence.delete',
+            'conge.create', 'conge.update', 'conge.delete',
             'salaire.create', 'salaire.update', 'salaire.delete',
             'prime.create', 'prime.update', 'prime.delete',
             'stagiaire.create', 'stagiaire.update', 'stagiaire.delete',
@@ -124,6 +125,7 @@ class TestRolePresets:
     def test_rh_permissions_exist(self, app):
         rh_perms = ['employe.view', 'employe.create', 'employe.update', 'employe.delete',
                     'presence.view', 'presence.create', 'presence.update', 'presence.delete',
+                    'conge.view', 'conge.create', 'conge.update', 'conge.delete',
                     'salaire.view', 'salaire.create', 'salaire.update', 'salaire.delete',
                     'prime.view', 'prime.create', 'prime.update', 'prime.delete',
                     'stagiaire.view', 'stagiaire.create', 'stagiaire.update', 'stagiaire.delete']
@@ -139,6 +141,7 @@ class TestRolePresets:
         expected = sorted([
             'employe.view', 'employe.create', 'employe.update', 'employe.delete',
             'presence.view', 'presence.create', 'presence.update', 'presence.delete',
+            'conge.view', 'conge.create', 'conge.update', 'conge.delete',
             'salaire.view', 'salaire.create', 'salaire.update', 'salaire.delete',
             'prime.view', 'prime.create', 'prime.update', 'prime.delete',
             'stagiaire.view', 'stagiaire.create', 'stagiaire.update', 'stagiaire.delete',

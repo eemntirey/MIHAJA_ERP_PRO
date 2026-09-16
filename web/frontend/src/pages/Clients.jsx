@@ -185,7 +185,7 @@ const Clients = () => {
           <div className="search-box">
             <input
               type="text"
-              placeholder="Rechercher un client..."
+              placeholder="Rechercher un client…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />

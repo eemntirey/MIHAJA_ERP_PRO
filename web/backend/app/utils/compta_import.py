@@ -55,14 +55,30 @@ def _read_file(file: FileStorage):
     if not filename:
         raise ValueError("Nom de fichier vide.")
     try:
+        # Audit P2-6 : vérifier les magic bytes réels (pas seulement
+        # l'extension) — un fichier .xlsx peut être un zip-bomb et un
+        # .csv un binaire. Nrows plafonné (zip-bomb : le décompresseur
+        # ne traite que les premières lignes).
+        header = file.read(8)
+        file.seek(0)
         if filename.endswith('.csv'):
-            file.seek(0)
+            if header.startswith(b'\x50\x4b') or header.startswith(b'\xd0\xcf\x11'):
+                raise ValueError("Le fichier porte l'extension .csv mais est un binaire (Excel ?).")
             return pd.read_csv(file, nrows=5000), 'csv'
-        elif filename.endswith(('.xlsx', '.xls')):
-            file.seek(0)
+        elif filename.endswith('.xlsx'):
+            # ZIP (PK..) = vrai XLSX
+            if not header.startswith(b'\x50\x4b\x03\x04') and not header.startswith(b'\x50\x4b\x05\x06'):
+                raise ValueError("Le fichier .xlsx n'est pas un vrai classeur Excel.")
+            return pd.read_excel(file, nrows=5000), 'excel'
+        elif filename.endswith('.xls'):
+            # OLE2 = D0 CF 11 E0 A1 B1 1A E1 ; sinon rejeté
+            if not header.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'):
+                raise ValueError("Le fichier .xls n'est pas un vrai classeur Excel.")
             return pd.read_excel(file, nrows=5000), 'excel'
         else:
             raise ValueError("Format non supporté. Utilisez CSV ou Excel (.csv, .xlsx, .xls)")
+    except ValueError:
+        raise
     except Exception as e:
         logger.error(f"Erreur lecture fichier comptabilité: {e}")
         raise ValueError(f"Impossible de lire le fichier: {str(e)}")

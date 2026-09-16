@@ -111,7 +111,10 @@ def train_models(tenant_id=None, data=None, force_retrain=False, model_type='all
     """
     tenant_id = get_current_tenant_id() or tenant_id
     os.makedirs(MODELS_DIR, exist_ok=True)
-    
+
+    if tenant_id is None:
+        return {'status': 'error', 'message': 'Tenant non défini.', 'models_trained': []}
+
     # Vérifier si le réentraînement est nécessaire
     if not force_retrain:
         # Ici on pourrait vérifier la date du dernier entraînement
@@ -123,10 +126,7 @@ def train_models(tenant_id=None, data=None, force_retrain=False, model_type='all
     
     # 1. Modèle de prévision de Vente
     if model_type in ['all', 'sales']:
-        query_ventes = Vente.query.filter_by(is_active=True)
-        if tenant_id:
-            query_ventes = query_ventes.filter_by(tenant_id=tenant_id)
-        ventes = query_ventes.all()
+        ventes = Vente.query.filter_by(is_active=True, tenant_id=tenant_id).all()
 
         vente_model_data = {
             'trained_at': datetime.utcnow().isoformat(),

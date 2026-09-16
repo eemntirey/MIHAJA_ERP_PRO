@@ -14,6 +14,14 @@ if __name__ == '__main__':
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', 5000))
 
+    # P2 audit : ne jamais laisser le debugger Werkzeug actif en production.
+    is_production = os.getenv('FLASK_ENV', '').strip().lower() == 'production'
+    if debug and is_production:
+        raise SystemExit(
+            'ERREUR: FLASK_DEBUG ne peut pas etre activé en production. '
+            'Retirez FLASK_DEBUG=1 de l environnement.'
+        )
+
     if debug:
         print('WARNING: Debug mode is enabled. Do not use in production.')
 

@@ -87,6 +87,33 @@
     cursor: pointer;
 }
 
+/* Visually hidden label for reference input (accessibility-safe) */
+label[for="reference"] {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.manual-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    border-bottom: 1.5px solid var(--color-primary);
+    transition: color 0.2s, border-color 0.2s;
+}
+.manual-link:hover {
+    color: var(--color-onyx);
+    border-color: var(--color-onyx);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .doc-actions {

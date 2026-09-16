@@ -71,9 +71,9 @@ class AbonnementService:
         if not tenant_id:
             raise ValueError("tenant_id requis")
 
-        plan = data.get('plan', 'starter')
+        plan = data.get('plan', 'gratuit')
 
-        if plan == 'gratuit':
+        if plan == 'gratuit' and get_plan_price(plan) == 0:
             return cls.activate_free_plan(tenant_id, plan), None
 
         duree_jours = get_plan_duration_days(plan)
@@ -232,7 +232,7 @@ class AbonnementService:
         return abonnement, paiement
 
     @classmethod
-    def downgrade_to_free_plan(cls, tenant_id, trigger='automatique', user_id=None):
+    def downgrade_to_gratuit_plan(cls, tenant_id, trigger='automatique', user_id=None, target_plan='gratuit'):
         from app.models.subscription_audit import SubscriptionAuditTrail
         tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
@@ -249,34 +249,38 @@ class AbonnementService:
             db.session.add(abn_pro)
         now = datetime.utcnow()
         from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
-        duree = get_plan_duration_days('gratuit')
+        duree = get_plan_duration_days(target_plan)
         date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
-        abn_gratuit = Abonnement(
+        abn_target = Abonnement(
             tenant_id=tenant_id,
             montant=0,
             devise='MGA',
             date_debut=now,
             date_fin=date_fin,
             statut=StatutAbonnement.ACTIF,
-            plan='gratuit',
+            plan=target_plan,
         )
-        apply_plan_to_abonnement(abn_gratuit, 'gratuit')
-        db.session.add(abn_gratuit)
-        tenant.plan = 'gratuit'
+        apply_plan_to_abonnement(abn_target, target_plan)
+        db.session.add(abn_target)
+        tenant.plan = target_plan
         db.session.add(tenant)
         audit = SubscriptionAuditTrail(
             tenant_id=tenant_id,
-            abonnement_id=abn_gratuit.id,
+            abonnement_id=abn_target.id,
             date_changement=now,
             ancien_plan=ancien_plan,
-            nouveau_plan='gratuit',
+            nouveau_plan=target_plan,
             declencheur=trigger,
-            description=f"Rétrogradation vers Gratuit (trigger={trigger})",
+            description=f"Rétrogradation vers {target_plan.title()} (trigger={trigger})",
             utilisateur_id=user_id,
         )
         db.session.add(audit)
         db.session.commit()
-        return abn_gratuit, audit
+        return abn_target, audit
+
+    @classmethod
+    def downgrade_to_free_plan(cls, tenant_id, trigger='automatique', user_id=None):
+        return cls.downgrade_to_gratuit_plan(tenant_id, trigger=trigger, user_id=user_id, target_plan='gratuit')
 
     @classmethod
     def upgrade_to_pro(cls, tenant_id, trigger='manuel', user_id=None):

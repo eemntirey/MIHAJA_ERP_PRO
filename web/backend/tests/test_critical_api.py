@@ -216,7 +216,12 @@ class TestPublicAPI:
 
     def test_public_checkout(self, app):
         tenant, user = _make_tenant()
-        client = app.test_client()
+        # Pré-requis vitrine : le vendeur doit avoir configuré son compte
+        # marchand Papi ET activé explicitement le toggle vitrine (voir
+        # Tenant.is_vitrine_active). Sans cela, la commande publique est
+        # refusée en 403 — comportement volontaire, testé séparément.
+        tenant.papi_api_key_encrypted = 'enc::test-key'
+        tenant.vitrine_enabled = True
         produit = Produit(
             nom='Public Product',
             reference='PUB-002',
@@ -227,6 +232,7 @@ class TestPublicAPI:
         )
         db.session.add(produit)
         db.session.commit()
+        client = app.test_client()
         r = client.post('/public/commandes', json={
             'nom_client': 'John Doe',
             'email_client': 'john@example.com',

@@ -208,6 +208,10 @@ class Produit(BaseTenantModel):
         return data
 
     def to_public_dict(self):
+        # Ne jamais exposer les données de stock/marge/fournisseur (V7).
+        # `quantite_stock`, `seuil_alerte`, `stock_min`, `stock_max` sont
+        # volontairement exclus : fuir les niveaux de stock policywise
+        # révèle à un concurrent les ruptures/avantages des concurrents.
         allowed_public_fields = {
             'id', 'tenant_id', 'nom', 'description_courte', 'description_longue',
             'categorie', 'sous_categorie', 'famille', 'marque', 'modele',
@@ -215,8 +219,7 @@ class Produit(BaseTenantModel):
             'image_url', 'qr_code_data', 'tags', 'statut', 'est_service',
             'est_dechirable', 'est_dangereux', 'poids', 'longueur',
             'largeur', 'hauteur', 'volume', 'reference', 'code_barre',
-            'code_interne', 'quantite_stock', 'seuil_alerte', 'stock_min',
-            'stock_max',
+            'code_interne',
         }
         data = {}
         for column in self.__table__.columns:

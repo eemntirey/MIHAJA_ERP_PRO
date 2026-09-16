@@ -12,6 +12,9 @@ const STATUS_STYLES = {
   en_attente: { label: 'En attente', bg: colors.warningBg, fg: colors.warning },
   payee: { label: 'Payée', bg: colors.successBg, fg: colors.success },
   annulee: { label: 'Annulée', bg: colors.dangerBg, fg: colors.danger },
+  // Type de vente (gros / détail)
+  gros: { label: 'Gros', bg: colors.primaryTint, fg: colors.primary },
+  detail: { label: 'Détail', bg: colors.surfaceActive, fg: colors.textMuted },
   // Livraisons
   chargee: { label: 'Chargée', bg: colors.infoBg, fg: colors.info },
   en_route: { label: 'En route', bg: colors.primaryTint, fg: colors.primary },
