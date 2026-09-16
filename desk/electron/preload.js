@@ -1,46 +1,33 @@
 // desk/electron/preload.js
-// Pont sécurisé entre le renderer et le processus principal (contexte isolé).
-const { contextBridge, ipcRenderer, safeStorage, app } = require('electron');
-const fs = require('fs');
-const path = require('path');
+// Pont sécurisé entre le renderer et le processus principal (contexte isolé
+// + sandbox). Audit P1-2 : ce preload n'utilise QUE contextBridge/ipcRenderer :
+// safeStorage, fs et le disque sont exclusivement manipulés dans main.js.
+const { contextBridge, ipcRenderer } = require('electron');
 
-// Store sécurisé (chiffré au repos via safeStorage) pour le desktop.
-// Le renderer y accède de façon synchrone via window.electron.secureStore.
-const STORE_PATH = path.join(app.getPath('userData'), 'secure-store.json');
-let _cache = {};
-try {
-  _cache = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
-} catch {
-  _cache = {};
-}
-const _persist = () => {
-  try {
-    fs.writeFileSync(STORE_PATH, JSON.stringify(_cache));
-  } catch {
-    /* disque indisponible : on garde en mémoire */
-  }
-};
+// Store sécurisé : délègue TOUTES les opérations au processus principal via
+// IPC (canal strict, clés préfixées erp.desk.*, chiffré au repos par
+// safeStorage). L'interface reste synchrone pour storageAdapter.
 const secureStore = {
   get: (key) => {
-    const v = _cache[key];
-    if (v == null) return null;
     try {
-      return safeStorage.decryptString(Buffer.from(v, 'base64'));
+      return ipcRenderer.sendSync('secure-store:get', key);
     } catch {
-      return v;
+      return null;
     }
   },
   set: (key, value) => {
     try {
-      _cache[key] = safeStorage.encryptString(String(value)).toString('base64');
+      return ipcRenderer.sendSync('secure-store:set', key, value);
     } catch {
-      _cache[key] = String(value);
+      return false;
     }
-    _persist();
   },
   remove: (key) => {
-    delete _cache[key];
-    _persist();
+    try {
+      return ipcRenderer.sendSync('secure-store:remove', key);
+    } catch {
+      return false;
+    }
   },
 };
 
@@ -75,4 +62,3 @@ contextBridge.exposeInMainWorld('electron', {
   // === Store sécurisé (tokens + préférences) ===
   secureStore,
 });
-

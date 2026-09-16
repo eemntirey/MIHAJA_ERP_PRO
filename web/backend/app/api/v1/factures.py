@@ -32,8 +32,28 @@ class FactureList(Resource):
     def post(self):
         """Creation de facture"""
         from flask import request
-        data = request.get_json()
-        facture = issue_invoice(data)
+        from app.services.facturation_service import (
+            FactureDejaExistante,
+            SuperAdminFactureInterdite,
+            ensure_not_super_admin,
+        )
+        data = request.get_json() or {}
+        try:
+            # Un super administrateur ne facture jamais les produits
+            # d'un tenant (supervision en lecture seule uniquement).
+            ensure_not_super_admin()
+            facture = issue_invoice(data)
+        except SuperAdminFactureInterdite as exc:
+            db.session.rollback()
+            return {'message': str(exc)}, 403
+        except FactureDejaExistante as exc:
+            # Idempotence : la facture existante est renvoyee pour que
+            # l'utilisateur recupere la bonne reference (jamais de doublon).
+            db.session.rollback()
+            return {'message': str(exc), 'facture': exc.facture.to_dict() if exc.facture else None}, 409
+        except ValueError as e:
+            db.session.rollback()
+            return {'message': str(e)}, 400
         return facture.to_dict(), 201
 
 @api.route('/<int:id>')
@@ -76,6 +96,12 @@ class FactureResource(Resource):
                     continue
                 if hasattr(facture, key):
                     setattr(facture, key, value)
+            if 'statut' in data:
+                # Mise a jour manuelle du statut : on re-synchronise la
+                # vente liee (P0 #2) pour ne pas retomber dans l'etat
+                # Facture=payee / Vente=en_attente.
+                from app.services.facturation_service import _sync_vente_status
+                _sync_vente_status(facture)
             db.session.commit()
             return facture.to_dict(), 200
         except Exception as e:
@@ -108,29 +134,35 @@ class FactureFromVente(Resource):
     def post(self, vente_id):
         """Genere une facture depuis une vente"""
         from app.models.vente import Vente
-        from app.models.facture import Facture
         from flask import request
         from app.security.tenant import tenant_filtered_get
+        from app.services.facturation_service import (
+            FactureDejaExistante,
+            SuperAdminFactureInterdite,
+            ensure_not_super_admin,
+            issue_invoice,
+        )
+        try:
+            # Un super administrateur ne facture jamais les ventes
+            # (produits) d'un tenant, meme en acces global de lecture.
+            ensure_not_super_admin()
+        except SuperAdminFactureInterdite as exc:
+            return {'message': str(exc)}, 403
         vente = tenant_filtered_get(Vente, vente_id)
         if not vente:
             return {'message': 'Vente non trouvee'}, 404
         data = request.get_json() or {}
+        data['vente_id'] = vente.id
         try:
-            existing = Facture.query.filter_by(vente_id=vente.id, is_active=True, tenant_id=vente.tenant_id).first()
-            if existing:
-                return {'message': 'Une facture existe deja pour cette vente', 'facture': existing.to_dict()}, 409
-            facture = Facture(
-                vente_id=vente.id,
-                client_id=vente.client_id,
-                tenant_id=vente.tenant_id,
-                reference=data.get('reference', f"FAC-{vente.reference}"),
-                total_ht=vente.total_ht,
-                total_ttc=vente.total_ttc,
-                statut=data.get('statut', 'non_payee')
-            )
-            facture.save()
-            return facture.to_dict(), 201
-        except Exception as e:
+            facture = issue_invoice(data)
+        except FactureDejaExistante as exc:
+            db.session.rollback()
+            return {
+                'message': str(exc),
+                'facture': exc.facture.to_dict() if exc.facture else None,
+            }, 409
+        except ValueError as e:
             db.session.rollback()
             return {'message': str(e)}, 400
+        return facture.to_dict(), 201
 

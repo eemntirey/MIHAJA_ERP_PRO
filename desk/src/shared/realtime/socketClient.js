@@ -11,9 +11,9 @@ import { API_BASE_URL } from '../services/apiClient';
 import { tokenStore } from '../storage/tokenStore';
 
 const SOCKET_URL =
-  process.env.REACT_APP_WS_URL ||
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+  import.meta.env.VITE_WS_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     : API_BASE_URL.replace(/\/api\/v1\/?$/, ''));
 
 let socket = null;
@@ -47,6 +47,16 @@ export const connect = () => {
       });
       socket.on('connect', () => { fallbackActive = false; stopPolling(); });
       socket.on('disconnect', () => startPolling());
+      socket.io.on('error', (err) => {
+        // "Session is disconnected" (HTTP 400 sur le polling suivant)
+        // signifie que le serveur a purgé le sid. On détruit l'instance
+        // pour forcer un nouveau handshake au prochain connect().
+        if (err && /Session is disconnected/i.test(err.message || '')) {
+          try { socket.disconnect(); } catch {}
+          socket = null;
+          connect();
+        }
+      });
       ['preferences:updated', 'favorite:updated', 'column:updated', 'filter:updated', 'notification:updated']
         .forEach((evt) => socket.on(evt, (p) => emitLocal(evt, p)));
       setTimeout(() => { if (!socket?.connected) { startPolling(); } }, 4000);

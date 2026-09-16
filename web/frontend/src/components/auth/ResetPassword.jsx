@@ -50,7 +50,7 @@ const ResetPassword = () => {
         if (result.success) {
           setTokenValid(true);
           const fallbackTtl = parseInt(
-            (typeof process !== 'undefined' && process.env && process.env.REACT_APP_PASSWORD_RESET_TTL_MINUTES) || '60',
+            (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PASSWORD_RESET_TTL_MINUTES) || '60',
             10
           );
           const ttlMinutes = result.data?.remaining_seconds

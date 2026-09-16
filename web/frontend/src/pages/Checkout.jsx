@@ -1,11 +1,18 @@
 // src/pages/Checkout.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { publicCatalogueService } from '../services/api';
+import { publicCatalogueService, setPublicTenantContext } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
+
+const PAYMENT_METHODS = [
+  { value: 'MVOLA', label: 'MVola' },
+  { value: 'ORANGE_MONEY', label: 'Orange Money' },
+  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
+  { value: 'BRED', label: 'Carte bancaire' },
+];
 
 const Checkout = () => {
   const location = useLocation();
@@ -16,8 +23,17 @@ const Checkout = () => {
 
   const [loading, setLoading] = useState(cart.length === 0);
   const [submitting, setSubmitting] = useState(false);
+  // Clé d'idempotence STABLE par intention de commande : générée une seule
+  // fois (au premier envoi), réutilisée en cas de rafraîchissement/retry tant
+  // que la commande n'a pas abouti. Générer la clé à chaque envoi (comme
+  // avant) aurait rendu l'idempotence inopérante contre le double-clic.
+  const idempotencyKeyRef = useRef(null);
   const [orderRef, setOrderRef] = useState(null);
   const [products, setProducts] = useState([]);
+  const [tenantInfo, setTenantInfo] = useState(null);
+
+  const [paymentMode, setPaymentMode] = useState('delivery');
+  const [paymentMethod, setPaymentMethod] = useState('MVOLA');
 
   const [formData, setFormData] = useState({
     nom: user?.nom || '',
@@ -37,9 +53,24 @@ const Checkout = () => {
         return;
       }
       try {
-        const promises = cart.map(item => publicCatalogueService.getProduit(item.id || item.produit_id));
+        const promises = cart.map(item =>
+          publicCatalogueService.getProduit(item.id || item.produit_id)
+        );
         const responses = await Promise.all(promises);
-        setProducts(responses.map(r => r.data?.produit || r.data));
+        const prods = responses.map(r => r.data?.produit || r.data);
+        setProducts(prods);
+        const first = prods[0];
+        if (first?.tenant_id) {
+          try {
+            const { data } = await publicCatalogueService.getTenant(first.tenant_id);
+            setTenantInfo(data);
+            if (data?.slug) {
+              setPublicTenantContext({ slug: data.slug, domaine: data.domaine });
+            }
+          } catch (_) {
+            // best-effort
+          }
+        }
       } catch (err) {
         toast.error('Erreur chargement produits');
       } finally {
@@ -56,6 +87,25 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Idempotence frontend : ignore les doubles soumissions (double-clic,
+    // touche Entrée répétée, refresh pendant l'envoi). Le bouton est déjà
+    // `disabled={submitting}` ; ce garde-fou couvre le cas où l'événement
+    // submit est réémis avant le re-render.
+    if (submitting) return;
+    const email = (formData.email || '').trim();
+    const tel = (formData.telephone || '').trim();
+    if (!formData.nom.trim() || !email || !tel || !formData.adresse.trim() || !formData.ville.trim()) {
+      toast.error('Veuillez renseigner nom, email, téléphone, adresse et ville.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      toast.error('Adresse email invalide.');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Votre panier est vide.');
+      return;
+    }
     try {
       setSubmitting(true);
       const items = cart.map(item => ({
@@ -75,12 +125,57 @@ const Checkout = () => {
         },
         items,
       };
-      const response = await publicCatalogueService.createCommande(payload);
+      // Clé d'idempotence : première soumission -> nouvelle clé ; toute
+      // resoumission (double-clic, refresh, retry après échec réseau) réutilise
+      // la même clé et le backend renvoie la commande déjà créée au lieu d'en
+      // créer une seconde (fix doublons audit 14/09/2026).
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `order:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+      }
+      const idempotencyKey = idempotencyKeyRef.current;
+      const response = await publicCatalogueService.createCommande(payload, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      idempotencyKeyRef.current = null; // commande aboutie -> prochaine commande = nouvelle clé
       const resData = response.data;
-      const ref = resData?.commande?.reference || resData?.reference || resData?.ref || resData?.numero_commande || resData?.commande;
+      const ref =
+        resData?.commande?.reference ||
+        resData?.reference ||
+        resData?.ref ||
+        resData?.numero_commande ||
+        resData?.commande;
       setOrderRef(ref);
       clearCart();
       toast.success('Commande créée avec succès');
+
+      if (paymentMode === 'online' && ref) {
+        try {
+          const { data: pay } = await publicCatalogueService.createCommandePapiPayment(
+            ref,
+            {
+              payment_method: paymentMethod,
+              client: {
+                nom: formData.nom,
+                prenom: formData.prenom,
+                email: formData.email,
+                telephone: formData.telephone,
+              },
+            }
+          );
+          if (pay?.payment_link) {
+            window.open(pay.payment_link, '_blank', 'noopener,noreferrer');
+          } else {
+            toast.info(
+              'Commande créée. Paiement à finaliser auprès du vendeur.'
+            );
+          }
+        } catch (payErr) {
+          const msg =
+            payErr?.response?.data?.message ||
+            'Le paiement en ligne a échoué, vous paierez à la livraison.';
+          toast.warning(msg);
+        }
+      }
     } catch (err) {
       console.error('Error creating order:', err);
       const msg = err.response?.data?.message || 'Échec de la création de la commande';
@@ -94,13 +189,18 @@ const Checkout = () => {
   const qrUrl = qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}` : '';
   const qrUrlFallback = qrData ? `/api/qr/generate?data=${encodeURIComponent(qrData)}` : '';
 
-const orderTotal = products.reduce((sum, product) => {
+  const orderTotal = products.reduce((sum, product) => {
     const productId = product.id || product.produit_id;
     const cartItem = cart.find(item => item.id === productId || item.produit_id === productId);
     const qty = cartItem?.quantite || 1;
     const price = Number(product.prix_vente_ht || product.prix || 0);
     return sum + price * qty;
-}, 0);
+  }, 0);
+
+  const onlineAvailable = useMemo(() => {
+    // On autorise l'option "paiement en ligne" : si elle échoue, fallback livraison.
+    return products.length > 0;
+  }, [products]);
 
   if (loading) {
     return (
@@ -130,7 +230,9 @@ const orderTotal = products.reduce((sum, product) => {
         <div className="public-card__header">
           <div>
             <div className="public-card__title">Commander</div>
-            <div className="public-card__subtitle">Finalisez votre commande</div>
+            <div className="public-card__subtitle">
+              {tenantInfo ? `chez ${tenantInfo.nom}` : 'Finalisez votre commande'}
+            </div>
           </div>
         </div>
       </div>
@@ -214,6 +316,92 @@ const orderTotal = products.reduce((sum, product) => {
                 </select>
               </div>
             </div>
+
+            <hr className="public-divider" style={{ marginTop: '18px' }} />
+            <div className="public-card__title" style={{ marginTop: '6px' }}>
+              Mode de paiement
+            </div>
+
+            <div className="payment-modes" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              <label
+                className={`payment-mode ${paymentMode === 'delivery' ? 'active' : ''}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  background: paymentMode === 'delivery' ? 'rgba(212,175,55,0.05)' : 'transparent',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="delivery"
+                  checked={paymentMode === 'delivery'}
+                  onChange={() => setPaymentMode('delivery')}
+                />
+                <span>
+                  Paiement à la livraison
+                  <small style={{ display: 'block', color: '#6b7280' }}>
+                    Vous payez le vendeur à la réception des produits.
+                  </small>
+                </span>
+              </label>
+
+              {onlineAvailable && (
+                <label
+                  className={`payment-mode ${paymentMode === 'online' ? 'active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    background: paymentMode === 'online' ? 'rgba(212,175,55,0.05)' : 'transparent',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="online"
+                    checked={paymentMode === 'online'}
+                    onChange={() => setPaymentMode('online')}
+                  />
+                  <span style={{ flex: 1 }}>
+                    Paiement en ligne (Papi)
+                    <small style={{ display: 'block', color: '#6b7280' }}>
+                      Payez maintenant par mobile money. Le vendeur reçoit
+                      directement le paiement sur son compte Papi.
+                    </small>
+                  </span>
+                </label>
+              )}
+            </div>
+
+            {paymentMode === 'online' && (
+              <div className="form-grid" style={{ marginTop: '12px' }}>
+                <div className="form-group full-width">
+                  <label htmlFor="payment_method">Opérateur</label>
+                  <select
+                    id="payment_method"
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             <button type="submit" className="btn-primary" style={{ marginTop: '18px', width: '100%' }} disabled={submitting}>
               {submitting ? 'Traitement...' : 'Confirmer la commande'}
             </button>
@@ -225,7 +413,9 @@ const orderTotal = products.reduce((sum, product) => {
           <p>Référence: <strong>{orderRef}</strong></p>
           {qrUrl && <img src={qrUrl} alt="QR Code" style={{ margin: '16px auto' }} />}
           <p style={{ marginTop: '12px' }}>Utilisez ce QR code pour suivre votre commande.</p>
-          <Link to={`/order-tracking/${orderRef}`} className="btn-primary" style={{ marginTop: '12px' }}>Suivre ma commande</Link>
+          <Link to={`/order-tracking/${orderRef}`} className="btn-primary" style={{ marginTop: '12px' }}>
+            Suivre ma commande
+          </Link>
         </div>
       )}
     </div>

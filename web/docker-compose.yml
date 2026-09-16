@@ -1,23 +1,21 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: erp_mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_postgres
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-erp_db}
-      MYSQL_USER: ${MYSQL_USER:-erp_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
-      - "${MYSQL_HOST_PORT:-127.0.0.1:3306}:3306"
+      - "${POSTGRES_HOST_PORT:-127.0.0.1:5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}"]
+      interval: 10s
+      timeout: 5s
       retries: 10
 
   redis:
@@ -27,12 +25,12 @@ services:
       - "${REDIS_HOST_PORT:-127.0.0.1:6379}:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
 
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: ./backend/Dockerfile
     container_name: erp_backend
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -42,14 +40,13 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_DEBUG=${FLASK_DEBUG:-False}
     ports:
-      - "5000:5000"
+      - "${BACKEND_HOST_PORT:-127.0.0.1:5000}:5000"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_started
     volumes:
-      - ./backend:/app
       - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
     command: python run.py
@@ -57,16 +54,18 @@ services:
   celery-worker:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: ./backend/Dockerfile
     container_name: erp_celery_worker
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
     depends_on:
-      - redis
-      - mysql
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
-      - ./backend:/app
+      - ./backend/uploads:/app/uploads
     command: celery -A app.tasks worker --loglevel=info
 
   frontend:
@@ -75,7 +74,7 @@ services:
       dockerfile: Dockerfile
     container_name: erp_frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-127.0.0.1:3000}:3000"
     environment:
       - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api/v1}
     depends_on:
@@ -85,5 +84,5 @@ services:
       - /app/node_modules
 
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:

@@ -1,0 +1,32 @@
+{
+  "name": "mihaja-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Application mobile ERP PRO (Consultation, Vente, Inventaire, Livraison) — React Native + Expo",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-navigation/bottom-tabs": "^7.18.18",
+    "@react-navigation/native": "^7.3.18",
+    "@react-navigation/native-stack": "^7.18.10",
+    "axios": "^1.7.9",
+    "expo": "latest",
+    "expo-secure-store": "^57.0.4",
+    "expo-status-bar": "^57.0.1",
+    "react": "^19.0.0",
+    "react-dom": "19.2.3",
+    "react-native": "^0.86.3",
+    "react-native-safe-area-context": "~5.4.0",
+    "react-native-web": "^0.21.0"
+  },
+  "expo": {
+    "autogenerateTypes": false
+  }
+}

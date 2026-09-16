@@ -9,9 +9,7 @@ import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
 const API_BASE_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-        ? process.env.REACT_APP_API_URL
-        : '/api/v1';
+    import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -27,7 +25,11 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = tokenStore.getAccessToken();
+        // Ne PAS écraser le header Authorization d'un appel /auth/refresh :
+        // l'intercepteur injecterait l'access token (expiré) à la place du
+        // refresh token passé explicitement par l'appelant -> boucle 401/404.
+        const isRefreshRequest = (config.url || '').includes('/auth/refresh');
+        const token = isRefreshRequest ? null : tokenStore.getAccessToken();
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -154,17 +156,46 @@ api.interceptors.request.use(
 );
 
 // ======================================================
-// API PUBLIQUE (sans token)
+// API PUBLIQUE (sans token) - avec headers tenant
 // ======================================================
 
 export const publicApi = axios.create({
-    baseURL: typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
-        ? process.env.REACT_APP_PUBLIC_API_URL
-        : '',
+    baseURL: import.meta.env.VITE_PUBLIC_API_URL || '',
     headers: {
         'Content-Type': 'application/json',
     },
 });
+
+const getPublicTenantHeaders = () => {
+    try {
+        if (typeof localStorage === 'undefined') return {};
+        const slug = localStorage.getItem('public_tenant_slug');
+        const domaine = localStorage.getItem('public_tenant_domaine');
+        const headers = {};
+        if (slug) headers['X-Tenant-Slug'] = slug;
+        if (domaine) headers['X-Tenant-Domaine'] = domaine;
+        return headers;
+    } catch {
+        return {};
+    }
+};
+
+publicApi.interceptors.request.use((config) => {
+    config.headers = { ...(config.headers || {}), ...getPublicTenantHeaders() };
+    return config;
+});
+
+export const setPublicTenantContext = (tenant) => {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        if (tenant?.slug) localStorage.setItem('public_tenant_slug', tenant.slug);
+        else localStorage.removeItem('public_tenant_slug');
+        if (tenant?.domaine) localStorage.setItem('public_tenant_domaine', tenant.domaine);
+        else localStorage.removeItem('public_tenant_domaine');
+    } catch {
+        /* ignore */
+    }
+};
 
 // ======================================================
 // SERVICE PUBLIC (catalogue, commandes, suivi)
@@ -261,8 +292,10 @@ export const authService = {
     register: (data) =>
         api.post('/auth/register', data),
 
+    // V4 : transmet le refresh stocké pour révocation serveur (best-effort :
+    // le backend ignore un refresh absent/invalide, le logout reste 200).
     logout: () =>
-        api.post('/auth/logout'),
+        api.post('/auth/logout', { refresh_token: tokenStore.getRefreshToken() || null }),
 
     getCurrentUser: () =>
         api.get('/auth/me'),
@@ -645,6 +678,15 @@ export const presenceService = {
     delete: (id) => api.delete(`/presences/${id}`),
     getRegistre: (params) => api.get('/presences/registre', { params }),
     export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
+};
+
+export const congeService = {
+    getAll: (params) => api.get('/conges', { params }),
+    getById: (id) => api.get(`/conges/${id}`),
+    create: (data) => api.post('/conges', data),
+    update: (id, data) => api.put(`/conges/${id}`, data),
+    delete: (id) => api.delete(`/conges/${id}`),
+    getSolde: (employeId, annee) => api.get(`/conges/solde/${employeId}`, { params: annee ? { annee } : {} }),
 };
 
 export const salaireService = {

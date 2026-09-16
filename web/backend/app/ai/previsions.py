@@ -13,11 +13,16 @@ def predict_sales(tenant_id=None, periods=30, product_id=None):
     Prédiction du chiffre d'affaires et des volumes de ventes
     basée sur l'analyse de régression linéaire et moyennes mobiles pondérées.
     """
-    tenant_id = get_current_tenant_id() or tenant_id
-    query = Vente.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    ventes = query.order_by(Vente.created_at.asc()).all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {
+            'tenant_id': None, 'periods': periods, 'forecast': [],
+            'forecast_details': [], 'total_predicted': 0.0,
+            'average_daily_predicted': 0.0, 'trend': 'stable',
+            'confidence_score': 0.0, 'status': 'no_tenant',
+            'message': 'Tenant non défini.'
+        }
+    ventes = Vente.query.filter_by(is_active=True, tenant_id=tid).order_by(Vente.created_at.asc()).all()
 
     today = datetime.utcnow().date()
 
@@ -41,7 +46,7 @@ def predict_sales(tenant_id=None, periods=30, product_id=None):
             total_predicted += predicted_val
 
         return {
-            'tenant_id': tenant_id,
+            'tenant_id': tid,
             'periods': periods,
             'forecast': forecast_simple,
             'forecast_details': forecast_list,
@@ -107,7 +112,7 @@ def predict_sales(tenant_id=None, periods=30, product_id=None):
         trend = 'stable'
 
     return {
-        'tenant_id': tenant_id,
+        'tenant_id': tid,
         'periods': periods,
         'forecast': forecast_simple,
         'forecast_details': forecast_list,
@@ -120,18 +125,16 @@ def predict_sales(tenant_id=None, periods=30, product_id=None):
 
 
 def predict_stock_rupture(tenant_id=None):
-    tenant_id = get_current_tenant_id() or tenant_id
-    query = Produit.query.filter_by(is_active=True)
-    if tenant_id:
-        query = query.filter_by(tenant_id=tenant_id)
-    produits = query.all()
+    tid = get_current_tenant_id() or tenant_id
+    if tid is None:
+        return {'predictions': [], 'count': 0, 'message': 'Tenant non défini.'}
+    produits = Produit.query.filter_by(is_active=True, tenant_id=tid).all()
 
     predictions = []
     for p in produits:
-        mouvements_query = MouvementStock.query.filter_by(produit_id=p.id, is_active=True)
-        if tenant_id:
-            mouvements_query = mouvements_query.filter_by(tenant_id=tenant_id)
-        mouvements = mouvements_query.all()
+        mouvements = MouvementStock.query.filter_by(
+            produit_id=p.id, is_active=True, tenant_id=tid
+        ).all()
         if not mouvements:
             continue
         qty_changes = [abs(float(m.quantite)) for m in mouvements if getattr(m.type_mouvement, 'value', str(m.type_mouvement)).lower() in ['sortie', 'vente']]

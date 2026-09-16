@@ -25,36 +25,26 @@ def _get_tenant_name(tenant_id):
 
 def _build_context_block(tenant_id):
     """Construit un contexte métier synthétique pour l'IA."""
+    if tenant_id is None:
+        return "Contexte métier indisponible (tenant non défini)."
     try:
-        produits = Produit.query.filter_by(is_active=True)
-        if tenant_id:
-            produits = produits.filter_by(tenant_id=tenant_id)
-        nb_produits = produits.count()
+        nb_produits = Produit.query.filter_by(is_active=True, tenant_id=tenant_id).count()
 
-        ventes = Vente.query.filter_by(is_active=True)
-        if tenant_id:
-            ventes = ventes.filter_by(tenant_id=tenant_id)
+        ventes = Vente.query.filter_by(is_active=True, tenant_id=tenant_id)
         nb_ventes = ventes.count()
         # Calcul du CA total sur l'ensemble des ventes du tenant (pas de
         # limite tronquee : on parcourt tout pour avoir un chiffre exact).
         ca_total = sum(float(v.total_ttc or 0) for v in ventes.all())
 
-        clients = Client.query.filter_by(is_active=True)
-        if tenant_id:
-            clients = clients.filter_by(tenant_id=tenant_id)
-        nb_clients = clients.count()
+        nb_clients = Client.query.filter_by(is_active=True, tenant_id=tenant_id).count()
 
-        factures = Facture.query.filter_by(is_active=True)
-        if tenant_id:
-            factures = factures.filter_by(tenant_id=tenant_id)
-        nb_factures = factures.count()
+        nb_factures = Facture.query.filter_by(is_active=True, tenant_id=tenant_id).count()
 
         alertes = Produit.query.filter(
             Produit.is_active == True,
+            Produit.tenant_id == tenant_id,
             Produit.quantite_stock <= Produit.seuil_alerte
         )
-        if tenant_id:
-            alertes = alertes.filter_by(tenant_id=tenant_id)
         nb_alertes = alertes.count()
 
         return (
@@ -68,18 +58,21 @@ def _build_context_block(tenant_id):
 
 
 def ask_assistant(tenant_id=None, prompt="", conversation=None):
-    tenant_id = get_current_tenant_id() or tenant_id
+    tid = get_current_tenant_id() or tenant_id
     prompt_lower = prompt.lower().strip() if prompt else ""
 
     if not prompt_lower:
         return "Bonjour ! Je suis l'assistant IA de votre ERP. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur les stocks, les ventes, les clients, les factures ou les prévisions."
 
-    tenant_name = _get_tenant_name(tenant_id)
+    if tid is None:
+        return "Impossible de traiter la demande : aucun tenant actif."
+
+    tenant_name = _get_tenant_name(tid)
     system_prompt = context_manager.build_system_prompt(tenant_name)
-    context_block = _build_context_block(tenant_id)
+    context_block = _build_context_block(tid)
 
     # Réponse interne forte pour les requêtes métier classiques
-    internal_answer = _answer_internal(tenant_id, prompt_lower)
+    internal_answer = _answer_internal(tid, prompt_lower)
     if internal_answer:
         if external_ai.is_configured():
             enriched = _enrich_with_external_ai(
@@ -136,10 +129,7 @@ def _answer_internal(tenant_id, prompt_lower):
         return "**Réapprovisionnement recommandé** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['stock', 'inventaire', 'rupture', 'seuil', 'alerte']):
-        produits = Produit.query.filter_by(is_active=True)
-        if tenant_id:
-            produits = produits.filter_by(tenant_id=tenant_id)
-        produits_list = produits.all()
+        produits_list = Produit.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         alertes = [p for p in produits_list if (p.quantite_stock or 0) <= (p.seuil_alerte or 0)]
         ruptures = [p for p in produits_list if (p.quantite_stock or 0) == 0]
         recommandations = suggest_reorders(tenant_id=tenant_id)
@@ -160,53 +150,86 @@ def _answer_internal(tenant_id, prompt_lower):
             db.func.sum(LigneVente.quantite).label('quantite_vendue'),
             db.func.sum(LigneVente.total_ttc).label('montant_total')
         ).join(Vente, LigneVente.vente_id == Vente.id)
-        results = results.filter(Vente.is_active == True)
-        if tenant_id:
-            results = results.filter(Vente.tenant_id == tenant_id)
+        results = results.filter(Vente.is_active == True, Vente.tenant_id == tenant_id)
         results = results.group_by(LigneVente.produit_id).order_by(db.desc('quantite_vendue')).limit(3).all()
         if not results:
             return "Je n'ai pas trouvé de données de vente suffisantes pour établir un top des produits."
         lines = []
         for row in results:
-            produit_query = Produit.query.filter_by(id=row.produit_id)
-            if tenant_id:
-                produit_query = produit_query.filter_by(tenant_id=tenant_id)
-            produit = produit_query.first()
+            produit = Produit.query.filter_by(id=row.produit_id, tenant_id=tenant_id).first()
             label = produit.nom if produit else f'Produit #{row.produit_id}'
             lines.append(f"- {label} : {float(row.quantite_vendue):.0f} unités vendues, {float(row.montant_total or 0):.2f} Ar")
         return "**Produits les plus vendus** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['vente', 'ca', 'chiffre', 'chiffre d\'affaires', 'revenu']):
-        ventes = Vente.query.filter_by(is_active=True)
-        if tenant_id:
-            ventes = ventes.filter_by(tenant_id=tenant_id)
-        ventes_list = ventes.all()
+        ventes_list = Vente.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         total_ca = sum(float(v.total_ttc or 0) for v in ventes_list)
         return f"**Chiffre d'Affaires Total** : **{total_ca:.2f} Ar** générés sur un total de **{len(ventes_list)} ventes** enregistrées."
 
     if any(w in prompt_lower for w in ['facture', 'impayé', 'impayee', 'retard', 'paiement']):
-        factures = Facture.query.filter_by(is_active=True)
-        if tenant_id:
-            factures = factures.filter_by(tenant_id=tenant_id)
-        factures_list = factures.all()
+        factures_list = Facture.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         impayees = [f for f in factures_list if getattr(f.statut, 'value', str(f.statut)).lower() in ['non_payee', 'payee_partiel', 'en_attente']]
         montant_impaye = sum(float(f.total_ttc or 0) for f in impayees)
         return f"**Factures** : **{len(impayees)} facture(s) en attente ou non payée(s)** pour un montant total restant dû de **{montant_impaye:.2f} Ar** sur {len(factures_list)} factures émises."
 
     if any(w in prompt_lower for w in ['client', 'acheteur']):
-        clients = Client.query.filter_by(is_active=True)
-        if tenant_id:
-            clients = clients.filter_by(tenant_id=tenant_id)
-        nb_clients = clients.count()
+        nb_clients = Client.query.filter_by(is_active=True, tenant_id=tenant_id).count()
         return f"**Portefeuille Clients** : Vous avez actuellement **{nb_clients} client(s) actif(s)** enregistrés dans le système."
 
     if any(w in prompt_lower for w in ['fournisseur', 'achat', 'commande']):
-        fournisseurs = Fournisseur.query.filter_by(is_active=True)
-        if tenant_id:
-            fournisseurs = fournisseurs.filter_by(tenant_id=tenant_id)
-        return f"**Fournisseurs** : **{fournisseurs.count()} fournisseur(s)** enregistrés."
+        nb_fournisseurs = Fournisseur.query.filter_by(is_active=True, tenant_id=tenant_id).count()
+        return f"**Fournisseurs** : **{nb_fournisseurs} fournisseur(s)** enregistrés."
 
     return None
+
+
+def _detect_proactive_insights(tenant_id):
+    """Genere un bloc d'insights proactifs pour le tenant."""
+    try:
+        from app.ai.ai_insights import generate_insights, CRITIQUE, ATTENTION
+        insights = generate_insights(tenant_id=tenant_id)
+        if not insights:
+            return None
+        urgent = [i for i in insights if i['severity'] in (CRITIQUE, ATTENTION)][:3]
+        if not urgent:
+            return None
+        lines = ["", "", "**Alertes IA :**"]
+        for ins in urgent:
+            lines.append("- {} **{}** : {}".format(ins['icon'], ins['title'], ins['detail']))
+            if ins.get('recommendation'):
+                lines.append("  -> {}".format(ins['recommendation']))
+        return "\\n".join(lines)
+    except Exception as e:
+        logger.debug("Impossible de generer les insights: %s", e)
+        return None
+
+
+_conversation_memories = {}
+
+
+def _get_conversation_memory(tenant_id, user_id='default'):
+    """Recupere la memoire de conversation pour un utilisateur donne."""
+    key = "{}:{}".format(tenant_id, user_id)
+    return _conversation_memories.get(key, {'history': [], 'context': {}})
+
+
+def _update_conversation_memory(tenant_id, prompt, response, user_id='default'):
+    """Met a jour la memoire de conversation apres chaque echange."""
+    try:
+        key = "{}:{}".format(tenant_id, user_id)
+        mem = _conversation_memories.get(key, {'history': [], 'context': {}})
+        mem['history'].append({'prompt': prompt[:200], 'response': response[:500]})
+        if len(mem['history']) > 10:
+            mem['history'] = mem['history'][-10:]
+        prompt_lower = prompt.lower()
+        for domain in ['ventes', 'stock', 'clients', 'factures', 'achats', 'fournisseurs']:
+            if domain in prompt_lower:
+                mem['context']['last_domain'] = domain
+                break
+        _conversation_memories[key] = mem
+    except Exception as e:
+        logger.debug("Erreur memoire conversation: %s", e)
+
 
 
 def _enrich_with_external_ai(prompt, prompt_lower, system_prompt, context_block, internal_answer, conversation):

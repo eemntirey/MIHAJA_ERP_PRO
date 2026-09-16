@@ -33,12 +33,20 @@ class StockList(Resource):
             qty = Decimal(str(quantite))
         except Exception:
             return {'message': 'Quantite invalide'}, 400
-        result = ProduitService.update_stock(
-            produit_id,
-            qty,
-            type_mouvement,
-            data.get('raison', '')
-        )
+        try:
+            result = ProduitService.update_stock(
+                produit_id,
+                qty,
+                type_mouvement,
+                data.get('raison', '')
+            )
+        except ValueError as exc:
+            # Stock insuffisant, quantité négative ou type inconnu : erreur de
+            # saisie exploitable (400), et non 500 « erreur interne ».
+            current_app.logger.warning(
+                'Mouvement de stock refuse (produit_id=%s): %s', produit_id, exc
+            )
+            return {'message': str(exc)}, 400
         if not result:
             return {'message': 'Produit non trouve'}, 404
         return result.to_dict(), 201
@@ -99,6 +107,12 @@ class StockMouvementList(Resource):
             if not result:
                 return {'message': 'Produit non trouve'}, 404
             return result.to_dict(), 201
+        except ValueError as exc:
+            db.session.rollback()
+            current_app.logger.warning(
+                'Mouvement de stock refuse (produit_id=%s): %s', produit_id, exc
+            )
+            return {'message': str(exc)}, 400
         except Exception:
             current_app.logger.exception('Erreur lors de la mise a jour du stock')
             return {'message': 'Erreur lors de la mise a jour du stock'}, 400

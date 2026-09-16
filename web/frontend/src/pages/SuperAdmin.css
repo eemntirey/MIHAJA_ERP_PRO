@@ -6,6 +6,36 @@
   animation: fadeIn 0.3s ease;
 }
 
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.kpi-card__label {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.kpi-card__value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.kpi-card--ok { border-left: 4px solid #10b981; }
+.kpi-card--info { border-left: 4px solid #3b82f6; }
+.kpi-card--success { border-left: 4px solid #059669; }
+
 .superadmin-tabs {
   display: flex;
   gap: 4px;
@@ -212,6 +242,16 @@
 /* 💰 Paiements & Revenus — cartes de statistiques */
 .superadmin-page .card-body {
   padding: 16px 20px;
+}
+
+/* Cartes d'avertissement (fond jaune clair #fff8e1) — couleur de texte forcée
+   pour garantir un contraste WCAG conforme quel que soit le thème. */
+.page-container.superadmin-page .card.card--warning {
+  color: #475569;
+}
+
+.page-container.superadmin-page .card.card--warning * {
+  color: inherit;
 }
 
 .card .stat-label {

@@ -5,9 +5,14 @@ from app.security.tenant import tenant_required_readonly, get_current_tenant
 from app.security.permissions import permission_required
 from app.services.document_service import ModeleDocumentService, DocumentGenereService
 from app.utils.pdf_generator import generate_document_pdf
+from app.config.settings import Config
 from datetime import datetime
 import os
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
+import html
+
+UPLOAD_FOLDER = os.path.abspath(Config.UPLOAD_FOLDER)
 
 ns_modeles = Namespace('modeles-documents', description='Gestion des modeles de documents')
 ns_documents = Namespace('documents', description='Gestion des documents generes')
@@ -138,13 +143,17 @@ class DocumentPdfResource(Resource):
         document = DocumentGenereService.get_by_id(id)
         if not document or not document.contenu_pdf_path:
             return {'message': 'PDF non trouve'}, 404
+        pdf_path_abs = os.path.realpath(document.contenu_pdf_path)
+        if not pdf_path_abs.startswith(os.path.realpath(UPLOAD_FOLDER) + os.sep):
+            return {'message': 'Accès au fichier PDF interdit'}, 403
         if not os.path.exists(document.contenu_pdf_path):
             return {'message': 'Fichier PDF introuvable sur le serveur'}, 404
+        safe_name = secure_filename(os.path.basename(document.contenu_pdf_path))
         return send_file(
-            document.contenu_pdf_path,
+            pdf_path_abs,
             mimetype='application/pdf',
             as_attachment=False,
-            download_name=os.path.basename(document.contenu_pdf_path)
+            download_name=safe_name
         )
 
 @ns_documents.route('/generer')
@@ -172,7 +181,7 @@ class GenererDocument(Resource):
 
             html_content = modele.contenu_modele
             for key, value in donnees.items():
-                html_content = html_content.replace('{{' + key + '}}', str(value) if value is not None else '')
+                html_content = html_content.replace('{{' + key + '}}', html.escape(str(value) if value is not None else ''))
 
             tenant = None
             current_tenant = get_current_tenant()
@@ -190,7 +199,9 @@ class GenererDocument(Resource):
             modele_dict = modele.to_dict()
             modele_dict.pop('tenant_id', None)
 
-            filename = f"{type_document}_{reference}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+            safe_type = secure_filename(str(type_document or ''))
+            safe_reference = secure_filename(str(reference or ''))
+            filename = f"{safe_type}_{safe_reference}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
             pdf_path = generate_document_pdf(
                 filename=filename,
                 type_document=type_document,

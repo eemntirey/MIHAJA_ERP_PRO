@@ -20,6 +20,13 @@ def app(monkeypatch):
     app.config['TESTING'] = True
     with app.app_context():
         db.create_all()
+        # Ces tests valident les limites du MODE COMMERCIAL (toggle ACTIF) :
+        # les quotas, modules et permissions restreints ne s'appliquent que
+        # lorsque l'abonnement est actif (en mode découverte ils sont levés).
+        from app.models.platform_config import PlatformConfig
+        cfg = PlatformConfig.get_config()
+        cfg.is_subscription_active = True
+        db.session.commit()
         yield app
         db.drop_all()
 
@@ -383,3 +390,41 @@ class TestEmployeeUserLimits:
                               'password': 'Pass123!', 'role': 'user',
                               'tenant_id': tenant.id})
         assert r.status_code == 201, r.get_json()
+
+
+class TestAlignmentDateFin:
+    """P0 guardes tenant : abonnement ACTIF mais EXPIRE != abonnement actif.
+
+    `tenant_required` (portail abonnement) exigeait deja date_fin > now ;
+    `plan_limits` l'ignorait (un abonnement expire continuait de figer les
+    limites du plan). Unifie : expiration => repli sur la configuration du
+    plan du tenant (plus de limites figees pour un abonnement expire).
+    """
+
+    def test_abonnement_expire_plus_de_limites_figees(self, app):
+        from app.security.plan_limits import (
+            _get_active_abonnement, _get_limits, _get_modules,
+        )
+        tenant, admin = _make_tenant_with_abonnement(
+            plan='pro', max_employees=3, modules='rh,stocks,produits'
+        )
+        abo = Abonnement.query.filter_by(tenant_id=tenant.id).first()
+        abo.date_fin = datetime.utcnow() - timedelta(days=1)
+        db.session.commit()
+
+        assert _get_active_abonnement(tenant) is None
+        limits = _get_limits(tenant)
+        assert limits['max_employees'] == 6  # repli plan 'pro' au lieu des 3 figes
+        modules = _get_modules(tenant)
+        assert 'achats' in modules  # module hors abonnement (repli plan pro)
+
+    def test_abonnement_actif_conserve_ses_limites(self, app):
+        from app.security.plan_limits import (
+            _get_active_abonnement, _get_limits,
+        )
+        tenant, admin = _make_tenant_with_abonnement(
+            plan='pro', max_employees=3
+        )
+        assert _get_active_abonnement(tenant) is not None
+        limits = _get_limits(tenant)
+        assert limits['max_employees'] == 3

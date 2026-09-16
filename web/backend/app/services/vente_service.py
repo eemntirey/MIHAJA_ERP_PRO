@@ -6,9 +6,49 @@ from app.models.vente import Vente
 from app.models.ligne_vente import LigneVente
 from app.models.produit import Produit
 from app.models.stock import MouvementStock
+from app.models.client import Client
 from app.security.tenant import get_current_tenant_id
 import random
 import string
+
+TYPES_GROS = ('grossiste', 'semi_grossiste', 'revendeur')
+
+TYPE_VENTE_VALIDES = ('gros', 'detail')
+
+_NIVEAUX_PRIX = {
+    'grossiste': 'prix_grossiste',
+    'semi_grossiste': 'prix_demi_gros',
+    'revendeur': 'prix_revendeur',
+}
+
+_REPLI_GROS = ('prix_revendeur', 'prix_demi_gros', 'prix_grossiste', 'prix_vente_ht')
+
+
+def derive_type_vente(client_type):
+    return 'gros' if client_type in TYPES_GROS else 'detail'
+
+
+def _prix_field_effectif(type_vente, client_type):
+    if type_vente == 'gros':
+        return _NIVEAUX_PRIX.get(client_type, 'prix_grossiste')
+    return 'prix_vente_ht'
+
+
+def _resolve_prix_unitaire(produit, prix_field, repli):
+    for field in (prix_field,) + tuple(repli):
+        value = getattr(produit, field, None)
+        if value is not None:
+            return Decimal(str(value))
+    return Decimal('0')
+
+
+def _ajout_prix_automatique(value):
+    if value is None or value == '':
+        return True
+    try:
+        return Decimal(str(value)) == 0
+    except Exception:
+        return False
 
 
 def get_sales_summary():
@@ -77,6 +117,24 @@ def create_with_lignes(data):
         raise ValueError("Le client est requis")
     data.pop('client_passager', None)
 
+    client = None
+    if data.get('client_id'):
+        client_query = Client.query.filter_by(id=data['client_id'])
+        if tenant_id:
+            client_query = client_query.filter_by(tenant_id=tenant_id)
+        client = client_query.first()
+    client_type = client.type.value if client and client.type else 'particulier'
+
+    type_vente = data.get('type_vente')
+    if not type_vente:
+        type_vente = derive_type_vente(client_type)
+    if type_vente not in TYPE_VENTE_VALIDES:
+        raise ValueError("type_vente invalide. Attendu: gros ou detail")
+    data['type_vente'] = type_vente
+
+    prix_field = _prix_field_effectif(type_vente, client_type)
+    repli = _REPLI_GROS if type_vente == 'gros' else ('prix_vente_ht',)
+
     if 'date' in data and isinstance(data['date'], str):
         try:
             data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
@@ -91,7 +149,20 @@ def create_with_lignes(data):
     stock_errors = []
     for ligne in lignes_data:
         quantite = Decimal(str(ligne.get('quantite', 0)))
-        prix_unitaire = Decimal(str(ligne.get('prix_unitaire', 0)))
+        prix_unitaire = ligne.get('prix_unitaire')
+        if _ajout_prix_automatique(prix_unitaire):
+            produit_reference = None
+            produit_id = ligne.get('produit_id')
+            if produit_id:
+                produit_query = Produit.query.filter_by(id=produit_id)
+                if tenant_id:
+                    produit_query = produit_query.filter_by(tenant_id=tenant_id)
+                produit_reference = produit_query.first()
+            ligne['prix_unitaire'] = prix_unitaire = (
+                float(_resolve_prix_unitaire(produit_reference, prix_field, repli))
+                if produit_reference else 0
+            )
+        prix_unitaire = Decimal(str(prix_unitaire))
         taux_tva = Decimal(str(ligne.get('taux_tva', 20)))
         remise = Decimal(str(ligne.get('remise', 0)))
         base_ht = quantite * prix_unitaire * (1 - remise / 100)
@@ -100,6 +171,7 @@ def create_with_lignes(data):
 
     data['total_ht'] = total_ht
     data['total_ttc'] = total_ttc
+    facture_auto = data.pop('facture_auto', None) or data.pop('confirmer_facture', None)
     sale = Vente(**data)
     db.session.add(sale)
     db.session.flush()
@@ -153,6 +225,13 @@ def create_with_lignes(data):
     if stock_errors:
         db.session.rollback()
         raise ValueError("; ".join(stock_errors))
+    # Confirmation de facture auto : chemin UNIQUE issue_invoice (P0 #2),
+    # dans la MEME transaction que la vente et le stock. Si la facturation
+    # echoue (conflit, reference), tout est annule : plus jamais de vente
+    # creee avec une facture silencieusement absente.
+    if facture_auto:
+        from app.services.facturation_service import issue_invoice
+        issue_invoice({'vente_id': sale.id}, _commit=False)
     db.session.commit()
     return sale
 

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { buildBreadcrumb, findNavItem } from './navConfig';
+import { buildBreadcrumb, findNavItem, NAV_ITEMS } from './navConfig';
+import { useTranslation } from '../../i18n';
+import LanguageSwitcher from './LanguageSwitcher';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import './TopBar.css';
@@ -19,15 +21,15 @@ const CONTEXT_ACTIONS = {
   '/delivery': { label: 'Nouvelle livraison', icon: 'ti-truck-delivery', to: '/delivery' },
 };
 
-const describeNotification = (n) => {
+const describeNotification = (n, t) => {
   if (!n) return { title: 'Notification', detail: '', time: '' };
   const date = n.created_at ? new Date(n.created_at) : null;
   let time = '';
   if (date && !Number.isNaN(date.getTime())) {
     const diff = (Date.now() - date.getTime()) / 1000;
-    if (diff < 60) time = "à l'instant";
-    else if (diff < 3600) time = `il y a ${Math.floor(diff / 60)} min`;
-    else if (diff < 86400) time = `il y a ${Math.floor(diff / 3600)} h`;
+    if (diff < 60) time = t('common.justNow');
+    else if (diff < 3600) time = t('common.minutesAgo', { n: Math.floor(diff / 60) });
+    else if (diff < 86400) time = t('common.hoursAgo', { n: Math.floor(diff / 3600) });
     else time = date.toLocaleDateString();
   }
   return {
@@ -41,7 +43,18 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
   const location = useLocation();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  const breadcrumb = buildBreadcrumb(location.pathname);
+  const { t, tNav } = useTranslation();
+
+  // Libellés traduits : chemins connus (navConfig) + entrée « Accueil ».
+  const breadcrumb = buildBreadcrumb(location.pathname).map((crumb) => {
+    if (crumb.to && NAV_ITEMS.some((item) => item.path === crumb.to)) {
+      return { ...crumb, label: tNav(crumb.to, crumb.label) };
+    }
+    if (crumb.label === 'Accueil') {
+      return { ...crumb, label: t('common.home', undefined, crumb.label) };
+    }
+    return crumb;
+  });
   const current = findNavItem(location.pathname);
   const action = current ? CONTEXT_ACTIONS[current.path] : null;
 
@@ -95,13 +108,13 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
           type="button"
           className="desktop-topbar__toggle"
           onClick={onToggleSidebar}
-          title={collapsed ? 'Déplier la barre' : 'Réduire la barre'}
-          aria-label="Basculer la barre latérale"
+          title={collapsed ? t('topbar.expand') : t('topbar.collapse')}
+          aria-label={t('topbar.toggleSidebar')}
         >
           <i className="ti ti-menu-2" aria-hidden="true" />
         </button>
 
-        <nav className="desktop-breadcrumb" aria-label="Fil d'Ariane">
+        <nav className="desktop-breadcrumb" aria-label={t('topbar.breadcrumb')}>
           {breadcrumb.map((crumb, idx) => (
             <span className="desktop-breadcrumb__item" key={idx}>
               {crumb.to && idx < breadcrumb.length - 1 ? (
@@ -116,7 +129,7 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
       </div>
 
       <div className="desktop-topbar__scroll" ref={scrollRef} onMouseDown={handleScrollDrag} onScroll={handleScroll}>
-        <button type="button" className="topbar-icon" onClick={onOpenPalette} title="Recherche globale (⌘K)" aria-label="Recherche">
+        <button type="button" className="topbar-icon" onClick={onOpenPalette} title={`${t('common.globalSearch')} (⌘K)`} aria-label={t('common.search')}>
           <i className="ti ti-search" aria-hidden="true" />
         </button>
 
@@ -126,8 +139,8 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
             type="button"
             className={`topbar-icon topbar-icon--${ind.tone}`}
             onClick={() => navigate(ind.to)}
-            title={ind.label}
-            aria-label={ind.label}
+            title={t(`indicator.${ind.key}`, undefined, ind.label)}
+            aria-label={t(`indicator.${ind.key}`, undefined, ind.label)}
           >
             <i className={`ti ${ind.icon}`} aria-hidden="true" />
             <span className="topbar-icon__badge">{ind.value}</span>
@@ -148,8 +161,8 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
               }
               setNotifOpen((o) => !o);
             }}
-            title="Notifications"
-            aria-label="Notifications"
+            title={t('common.notifications')}
+            aria-label={t('common.notifications')}
           >
             <i className="ti ti-bell" aria-hidden="true" />
             {unreadCount > 0 && <span className="topbar-icon__badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
@@ -158,7 +171,7 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
           {notifOpen && (
             <div className="desktop-topbar__dropdown" role="menu" style={{ top: notifPosition.current.top }}>
               <div className="desktop-topbar__dropdown-head">
-                <strong>Notifications</strong>
+                <strong>{t('common.notifications')}</strong>
                 <div className="desktop-topbar__dropdown-actions">
                   {unreadCount > 0 && (
                     <button
@@ -166,17 +179,17 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
                       className="desktop-topbar__dropdown-action"
                       onClick={(e) => { e.stopPropagation(); onMarkAllAsRead(); }}
                     >
-                      Tout marquer comme lu
+                      {t('common.markAllRead')}
                     </button>
                   )}
                 </div>
               </div>
               {notifications.length === 0 ? (
-                <div className="desktop-topbar__dropdown-empty">Aucune notification</div>
+                <div className="desktop-topbar__dropdown-empty">{t('common.noNotifications')}</div>
               ) : (
                 <ul className="desktop-topbar__notif-list">
                   {notifications.map((n, i) => {
-                    const { title, detail } = describeNotification(n);
+                    const { title, detail } = describeNotification(n, t);
                     return (
                       <li
                         key={n.id || i}
@@ -198,29 +211,41 @@ const TopBar = ({ counters, notifications, unreadCount, onMarkAsRead, onMarkAllA
           )}
         </div>
 
-        {hasRole('super_admin') && (
-          <button type="button" className="topbar-icon" onClick={() => navigate('/super-admin/profile')} title="Profil utilisateur" aria-label="Profil utilisateur">
+        {hasRole('super_admin') ? (
+          <button type="button" className="topbar-icon" onClick={() => navigate('/super-admin/profile')} title={t('common.userProfile')} aria-label={t('common.userProfile')}>
+            <i className="ti ti-user" aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className="topbar-icon" onClick={() => navigate('/profile')} title={t('common.profile')} aria-label={t('common.profile')}>
             <i className="ti ti-user" aria-hidden="true" />
           </button>
         )}
+
+        <LanguageSwitcher />
 
         <button
           type="button"
           className="topbar-icon"
           onClick={() => onToggleDarkMode(!darkMode)}
-          title={darkMode ? 'Mode clair' : 'Mode sombre'}
-          aria-label={darkMode ? 'Mode clair' : 'Mode sombre'}
+          title={darkMode ? t('common.lightMode') : t('common.darkMode')}
+          aria-label={darkMode ? t('common.lightMode') : t('common.darkMode')}
         >
           <i className={`ti ${darkMode ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" />
         </button>
 
         {action && (
-          <button type="button" className="topbar-icon" onClick={() => navigate(action.to)} title={action.label} aria-label={action.label}>
+          <button
+            type="button"
+            className="topbar-icon"
+            onClick={() => navigate(action.to)}
+            title={t(`action.${action.to}`, undefined, action.label)}
+            aria-label={t(`action.${action.to}`, undefined, action.label)}
+          >
             <i className={`ti ${action.icon}`} aria-hidden="true" />
           </button>
         )}
 
-        <button type="button" className="topbar-icon" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">
+        <button type="button" className="topbar-icon" onClick={onLogout} title={t('topbar.logout')} aria-label={t('topbar.logout')}>
           <i className="ti ti-logout" aria-hidden="true" />
         </button>
       </div>

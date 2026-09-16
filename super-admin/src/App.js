@@ -12,6 +12,8 @@ import Subscriptions from './pages/Subscriptions';
 import Plans from './pages/Plans';
 import Audit from './pages/Audit';
 import Profile from './pages/Profile';
+import PaymentSettings from './pages/PaymentSettings';
+import EmailConfig from './pages/EmailConfig';
 import { useAdminRealtime } from './hooks/useAdminRealtime';
 
 const ProtectedRoute = ({ children }) => {
@@ -66,6 +68,8 @@ function App() {
         <Route path="plans" element={<Plans />} />
         <Route path="audit" element={<Audit />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="payment-settings" element={<PaymentSettings />} />
+        <Route path="email-config" element={<EmailConfig />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

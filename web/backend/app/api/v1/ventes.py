@@ -10,12 +10,13 @@ ns = Namespace('ventes', description='Gestion des ventes')
 ligne_vente_model = ns.model('LigneVente', {
     'produit_id': fields.Integer(required=True, description='ID produit'),
     'quantite': fields.Float(required=True, description='Quantité vendue'),
-    'prix_unitaire': fields.Float(required=True, description='Prix unitaire HT'),
+    'prix_unitaire': fields.Float(required=False, description='Prix unitaire HT (auto-sélectionné selon type de client si non fourni)'),
     'taux_tva': fields.Float(description='Taux TVA', default=20),
 })
 
 vente_model = ns.model('Vente', {
     'client_id': fields.Integer(required=True, description='ID client'),
+    'type_vente': fields.String(description='Type de vente', default='detail', enum=['gros', 'detail']),
     'date': fields.String(description='Date de la vente'),
     'statut': fields.String(description='Statut de la vente', default='en_attente'),
     'mode_paiement': fields.String(description='Mode de paiement', default='especes'),
@@ -55,6 +56,7 @@ class VenteList(Resource):
     def post(self):
         """Creation de vente"""
         from flask import request
+        from app.services.facturation_service import FactureDejaExistante
         data = request.get_json()
         try:
             vente = create_with_lignes(data)
@@ -65,6 +67,14 @@ class VenteList(Resource):
             except Exception:
                 current_app.logger.exception('Erreur notification nouvelle vente')
             return vente.to_dict(), 201
+        except FactureDejaExistante as e:
+            # Conflit idempotent (facture_auto) : 409 avec la facture
+            # existante, la vente n'a pas ete creee (transaction annulee).
+            db.session.rollback()
+            return {
+                'message': str(e),
+                'facture': e.facture.to_dict() if e.facture else None,
+            }, 409
         except ValueError as e:
             db.session.rollback()
             return {'message': str(e)}, 400

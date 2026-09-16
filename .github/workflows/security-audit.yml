@@ -1,0 +1,93 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Audit hebdomadaire — lundi 06:00 UTC
+    - cron: '0 6 * * 1'
+
+jobs:
+  pip-audit:
+    name: Python Dependencies (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Audit backend dependencies
+        run: pip-audit -r web/backend/requirements.txt --desc on
+        continue-on-error: false
+
+  npm-audit-web:
+    name: JS Dependencies — web/frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web/frontend
+      - name: Audit
+        run: npm audit --audit-level=moderate
+        working-directory: web/frontend
+        continue-on-error: false
+
+  npm-audit-desk:
+    name: JS Dependencies — desk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: desk/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: desk
+      - name: Audit
+        run: npm audit --audit-level=moderate
+        working-directory: desk
+        continue-on-error: false
+
+  npm-audit-super-admin:
+    name: JS Dependencies — super-admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: super-admin/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: super-admin
+      - name: Audit
+        run: npm audit --audit-level=moderate
+        working-directory: super-admin
+        continue-on-error: false
+
+  sast:
+    name: SAST — Bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bandit
+        run: pip install bandit[toml]
+      - name: Run Bandit
+        run: bandit -r web/backend/app -c web/backend/pyproject.toml || bandit -r web/backend/app -ll
+        continue-on-error: true

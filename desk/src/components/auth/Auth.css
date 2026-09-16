@@ -453,8 +453,8 @@
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   min-height: 100vh;
 }
 

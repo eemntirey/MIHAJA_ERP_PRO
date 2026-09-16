@@ -6,6 +6,7 @@ from app.models.utilisateur import Utilisateur, Role, StatutAdmin
 from app.models.admin_device import AdminDevice, StatutDevice
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.security.tenant import get_current_tenant_id
+from app.security.rate_limit import rate_limit
 from datetime import datetime
 import json
 
@@ -39,6 +40,9 @@ def _log_audit(action_type, description, tenant_id=None, metadata=None):
 
 @ns.route('/register')
 class RegisterDevice(Resource):
+    # Audit P2-3 : bornure stricte — un attaquant qui possède un JWT admin
+    # ne peut pas flood l'enrôlement d'appareils.
+    @rate_limit(5, 300)
     @jwt_required()
     def post(self):
         user = _get_current_user()
@@ -205,6 +209,7 @@ class DeviceResource(Resource):
 
 @ns.route('/change')
 class ChangeDevice(Resource):
+    @rate_limit(5, 300)
     @jwt_required()
     def post(self):
         user = _get_current_user()

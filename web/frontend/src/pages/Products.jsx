@@ -1,14 +1,18 @@
 // src/pages/Products.jsx
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import SelectField from '../components/ui/SelectField';
 import { productService } from '../services/api';
 import { toast } from 'react-toastify';
 import { UNITS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
+import AccessButton from '../components/common/AccessButton';
+import { useAuth } from '../contexts/AuthContext';
 import FilterPanel from '../components/desktop/FilterPanel';
 import FormGrid, { FormField, FormDraftBanner, FormDraftStatus } from '../components/desktop/FormGrid';
 import useFormDraft from '../hooks/useFormDraft';
 import { applyFilters, applySearch } from '../utils/filterUtils';
 import { exportRowsToCsv, timestampedFilename } from '../utils/exportUtils';
+import { QRCodeDisplay } from '../components/ui/QRCode';
 import './Pages.css';
 
 const EMPTY_FORM = {
@@ -20,8 +24,11 @@ const EMPTY_FORM = {
   quantite_stock: 0,
   categorie: '',
   code_barre: '',
+  code_barre_mode: 'manuel',
   seuil_alerte: 0,
   unite: 'piece',
+  image_url: '',
+  published: true,
 };
 
 const NUMERIC_FIELDS = ['prix_achat_ht', 'prix_vente_ht', 'quantite_stock', 'seuil_alerte'];
@@ -51,12 +58,14 @@ const Products = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [barcodeMode, setBarcodeMode] = useState('manuel');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [filters, setFilters] = useState([]);
   const [appliedFilters, setAppliedFilters] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [qrCodeProduct, setQrCodeProduct] = useState(null);
 
   const draftKey = showModal ? `produits:${currentProduct?.id || 'new'}` : null;
   const draft = useFormDraft(draftKey, formData, { enabled: showModal });
@@ -71,7 +80,9 @@ const Products = () => {
       console.error('Error fetching products:', err);
       const msg = err.response?.data?.message || 'Échec du chargement des produits';
       setError(msg);
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +91,14 @@ const Products = () => {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (barcodeMode === 'auto' && showModal) {
+      const base = formData.reference || formData.nom || Date.now().toString();
+      const autoCode = `CB-${base.replace(/\s+/g, '-').substring(0, 15)}-${Date.now().toString().slice(-4)}`;
+      setFormData((prev) => ({ ...prev, code_barre: autoCode }));
+    }
+  }, [barcodeMode, formData.reference, formData.nom, showModal]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -91,6 +110,8 @@ const Products = () => {
 
   const openModal = (product = null) => {
     setCurrentProduct(product);
+    const mode = product ? 'manuel' : 'manuel';
+    setBarcodeMode(mode);
     setFormData(
       product
         ? {
@@ -102,10 +123,13 @@ const Products = () => {
             quantite_stock: product.quantite_stock || 0,
             categorie: product.categorie || '',
             code_barre: product.code_barre || '',
+            code_barre_mode: mode,
             seuil_alerte: product.seuil_alerte || 0,
             unite: product.unite || 'piece',
+            image_url: product.image_url || '',
+            published: product.published !== false,
           }
-        : { ...EMPTY_FORM }
+        : { ...EMPTY_FORM, code_barre_mode: mode, published: true }
     );
     setShowModal(true);
   };
@@ -117,12 +141,13 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { code_barre_mode, ...submitData } = formData;
     try {
       if (currentProduct) {
-        await productService.update(currentProduct.id, formData);
+        await productService.update(currentProduct.id, submitData);
         toast.success('Produit mis à jour avec succès');
       } else {
-        await productService.create(formData);
+        await productService.create(submitData);
         toast.success('Produit créé avec succès');
       }
       draft.clear(); // brouillon inutile après un enregistrement réussi
@@ -130,8 +155,10 @@ const Products = () => {
       closeModal();
     } catch (err) {
       console.error('Error saving product:', err);
-      const msg = err.response?.data?.message || 'Échec de la sauvegarde du produit';
-      toast.error(msg);
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Échec de la sauvegarde du produit';
+        toast.error(msg);
+      }
     }
   };
 
@@ -142,9 +169,11 @@ const Products = () => {
         toast.success('Produit supprimé avec succès');
         fetchProducts();
       } catch (err) {
-        console.error('Error deleting product:', err);
+console.error('Error deleting product:', err);
+      if (err.response?.status !== 403) {
         const msg = err.response?.data?.message || 'Échec de la suppression du produit';
         toast.error(msg);
+      }
       }
     }
   };
@@ -218,18 +247,35 @@ const Products = () => {
       {
         key: 'actions',
         label: 'Actions',
-        width: 110,
+        width: 140,
         sortable: false,
         resizable: false,
         exportable: false,
         align: 'center',
         render: (_value, row) => (
           <span className="dt-actions">
-            <button onClick={() => openModal(row)} className="btn-small btn-edit" title="Modifier">
+            <AccessButton
+              permission="product.update"
+              onClick={() => openModal(row)}
+              className="btn-small btn-edit"
+              title="Modifier"
+            >
               <i className="ti ti-edit" aria-hidden="true" />
-            </button>
-            <button onClick={() => handleDelete(row.id)} className="btn-small btn-delete" title="Supprimer">
+            </AccessButton>
+            <AccessButton
+              permission="product.delete"
+              onClick={() => handleDelete(row.id)}
+              className="btn-small btn-delete"
+              title="Supprimer"
+            >
               <i className="ti ti-trash" aria-hidden="true" />
+            </AccessButton>
+            <button
+              onClick={() => setQrCodeProduct(row)}
+              className="btn-small btn-qr"
+              title="QR Code"
+            >
+              <i className="ti ti-qrcode" aria-hidden="true" />
             </button>
           </span>
         ),
@@ -328,9 +374,13 @@ const Products = () => {
           <p>Catalogue produits et suivi des stocks</p>
         </div>
         <div className="header-actions">
-          <button onClick={() => openModal()} className="btn-primary">
+          <AccessButton
+            permission="product.create"
+            onClick={() => openModal()}
+            className="btn-primary"
+          >
             + Ajouter un produit
-          </button>
+          </AccessButton>
           <button onClick={fetchProducts} className="btn-secondary" disabled={loading}>
             Rafraîchir
           </button>
@@ -365,7 +415,7 @@ const Products = () => {
           <div className="search-box">
             <input
               type="text"
-              placeholder="Rechercher un produit..."
+              placeholder="Rechercher un produit…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -441,6 +491,22 @@ const Products = () => {
                     placeholder="Référence produit"
                   />
                 </FormField>
+                <FormField label="Mode code barre" htmlFor="produit-mode-code-barre">
+                  <SelectField
+                    id="produit-mode-code-barre"
+                    name="code_barre_mode"
+                    value={barcodeMode}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBarcodeMode(val);
+                      setFormData((prev) => ({ ...prev, code_barre_mode: val }));
+                    }}
+                    options={[
+                      { value: 'auto', label: 'Automatique' },
+                      { value: 'manuel', label: 'Manuel' },
+                    ]}
+                  />
+                </FormField>
                 <FormField label="Code barre" htmlFor="produit-code-barre">
                   <input
                     id="produit-code-barre"
@@ -449,7 +515,14 @@ const Products = () => {
                     value={formData.code_barre}
                     onChange={handleChange}
                     placeholder="Code barre"
+                    readOnly={barcodeMode === 'auto'}
+                    list="code-barre-suggestions"
                   />
+                  <datalist id="code-barre-suggestions">
+                    {products.map((p) => (
+                      p.code_barre ? <option key={p.id} value={p.code_barre} /> : null
+                    ))}
+                  </datalist>
                 </FormField>
                 <FormField label="Catégorie" htmlFor="produit-categorie">
                   <input
@@ -520,6 +593,39 @@ const Products = () => {
                     ))}
                   </select>
                 </FormField>
+                <FormField label="Image (URL ou fichier local)" htmlFor="produit-image-url">
+                  <input
+                    id="produit-image-url"
+                    type="text"
+                    name="image_url"
+                    value={formData.image_url || ''}
+                    onChange={handleChange}
+                    placeholder="https://... ou chemin local"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData((prev) => ({ ...prev, image_url: URL.createObjectURL(file) }));
+                      }
+                    }}
+                    style={{ marginTop: '4px' }}
+                  />
+                </FormField>
+                <FormField label="Actif" htmlFor="produit-published">
+                  <label className="checkbox-label">
+                    <input
+                      id="produit-published"
+                      type="checkbox"
+                      name="published"
+                      checked={formData.published !== false}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, published: e.target.checked }))}
+                    />
+                    <span>Activer le produit</span>
+                  </label>
+                </FormField>
                 <FormField label="Description courte" span="full" htmlFor="produit-description">
                   <textarea
                     id="produit-description"
@@ -543,6 +649,28 @@ const Products = () => {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {qrCodeProduct && (
+        <div className="modal-overlay" onClick={() => setQrCodeProduct(null)}>
+          <div className="modal modal-qr" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>QR Code - {qrCodeProduct.nom || qrCodeProduct.reference}</h2>
+              <button onClick={() => setQrCodeProduct(null)} className="btn-close">×</button>
+            </div>
+            <div className="modal-body">
+              <QRCodeDisplay
+                data={qrCodeProduct.id}
+                label={`${qrCodeProduct.reference || qrCodeProduct.code_barre || 'Produit'}`}
+                onClose={() => setQrCodeProduct(null)}
+              />
+              <p className="qr-code-info">
+                Référence: {qrCodeProduct.reference || 'N/A'}<br />
+                Code barre: {qrCodeProduct.code_barre || 'N/A'}
+              </p>
+            </div>
           </div>
         </div>
       )}

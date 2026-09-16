@@ -4,6 +4,25 @@
 import api from '../../shared/services/api';
 import { buildKey, readJSON, writeJSON, removeKey } from '../utils/localStore';
 import { syncEngine } from '../../shared/utils/syncEngine';
+import {
+  saleService as sharedSaleService,
+  stockService as sharedStockService,
+  clientService as sharedClientService,
+  factureService as sharedFactureService,
+  dashboardService as sharedDashboardService,
+  productService as sharedProductService,
+  employeService as sharedEmployeService,
+  presenceService as sharedPresenceService,
+  salaireService as sharedSalaireService,
+  primeService as sharedPrimeService,
+  stagiaireService as sharedStagiaireService,
+  compteService as sharedCompteService,
+  ecritureService as sharedEcritureService,
+  tresorerieService as sharedTresorerieService,
+  documentService as sharedDocumentService,
+  devisService as sharedDevisService,
+  tenantService as sharedTenantService,
+} from '../../shared/services/api';
 
 const NOTIF_STORAGE_KEY = buildKey('notifications', 'list', false);
 
@@ -267,6 +286,96 @@ export const filterPresetService = {
     return Promise.resolve({ data: { module: normalizeModule(module), presets: [] } });
   },
 };
+
+// Helper : service avec cache local et fallback hors-ligne
+const offlineAware = (key, apiService, transform = null) => {
+  const readCache = () => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeCache = (data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch {
+      // ignore
+    }
+  };
+
+  const wrap = (methodName, ...args) => {
+    const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const exec = () => apiService[methodName](...args).then((res) => {
+      writeCache(res.data);
+      return res;
+    }).catch((err) => {
+      const cached = readCache();
+      if (cached !== null) {
+        return Promise.resolve({ data: cached });
+      }
+      return Promise.reject(err);
+    });
+
+    if (!online) {
+      const cached = readCache();
+      if (cached !== null) {
+        return Promise.resolve({ data: cached });
+      }
+      return apiService[methodName](...args).catch((err) => {
+        if (readCache() !== null) return Promise.resolve({ data: readCache() });
+        return Promise.reject(err);
+      });
+    }
+
+    return exec();
+  };
+
+  return new Proxy(apiService, {
+    get(target, prop) {
+      if (typeof target[prop] === 'function') {
+        return (...args) => wrap(prop, ...args);
+      }
+      return target[prop];
+    },
+  });
+};
+
+const CACHE_PREFIX = 'erp.desk.cache.';
+
+export const saleService = offlineAware(CACHE_PREFIX + 'ventes', sharedSaleService);
+export const stockService = offlineAware(CACHE_PREFIX + 'stocks', sharedStockService);
+export const clientService = offlineAware(CACHE_PREFIX + 'clients', sharedClientService);
+export const factureService = offlineAware(CACHE_PREFIX + 'factures', sharedFactureService);
+export const dashboardService = offlineAware(CACHE_PREFIX + 'dashboard', sharedDashboardService);
+export const productService = offlineAware(CACHE_PREFIX + 'produits', sharedProductService);
+export const employeService = offlineAware(CACHE_PREFIX + 'employes', sharedEmployeService);
+export const presenceService = offlineAware(CACHE_PREFIX + 'presences', sharedPresenceService);
+export const salaireService = offlineAware(CACHE_PREFIX + 'salaires', sharedSalaireService);
+export const primeService = offlineAware(CACHE_PREFIX + 'primes', sharedPrimeService);
+export const stagiaireService = offlineAware(CACHE_PREFIX + 'stagiaires', sharedStagiaireService);
+export const compteService = offlineAware(CACHE_PREFIX + 'comptes', sharedCompteService);
+export const ecritureService = offlineAware(CACHE_PREFIX + 'ecritures', sharedEcritureService);
+export const tresorerieService = offlineAware(CACHE_PREFIX + 'tresorerie', sharedTresorerieService);
+export const documentService = offlineAware(CACHE_PREFIX + 'documents', sharedDocumentService);
+export const devisService = offlineAware(CACHE_PREFIX + 'devis', sharedDevisService);
+
+// Tenant : création bloquée hors ligne (rejet immédiat)
+export const tenantService = new Proxy(sharedTenantService, {
+  get(target, prop) {
+    if (typeof target[prop] === 'function') {
+      return (...args) => {
+        const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+        if (!online) {
+          return Promise.reject(new Error('Creation de tenant impossible hors ligne'));
+        }
+        return target[prop](...args);
+      };
+    }
+    return target[prop];
+  },
+});
 
 export const syncService = {
   flushQueue: async () => {

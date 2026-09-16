@@ -370,6 +370,9 @@ const RegisterCompany = () => {
                 {!plansLoading && plans.length === 0 && (
                   <option value="">Aucun plan disponible</option>
                 )}
+                {!plansLoading && plans.length > 0 && (
+                  <option value="">-- Sélectionner un plan --</option>
+                )}
                 {!plansLoading && plans.map((plan) => (
                   <option key={plan.code} value={plan.code}>
                     {plan.label} — {formatPlanPrice(plan)} ({formatPlanDuration(plan)})

@@ -9,9 +9,7 @@ import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
 const RAW_API_BASE_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-        ? process.env.REACT_APP_API_URL
-        : '/api/v1';
+    import.meta.env.VITE_API_URL || '/api/v1';
 
 const resolveAbsoluteApiUrl = (raw) => {
     if (!raw) return raw;
@@ -34,15 +32,22 @@ const api = axios.create({
 // INTERCEPTEUR REQUEST
 // ======================================================
 
+// A1 : sur web, les tokens sont en cookies HttpOnly (envoyés automatiquement).
+// Sur Electron, le header Authorization est toujours nécessaire (secureStore).
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = tokenStore.getAccessToken();
-
-        if (token && !config.headers.Authorization) {
-            config.headers.Authorization = `Bearer ${token}`;
+        // A1 : web n'a pas besoin du header — le navigateur envoie les cookies
+        if (isElectron) {
+            const token = tokenStore.getAccessToken();
+            if (token && !config.headers.Authorization) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
         }
-
+        // Toujours envoyer les credentials (cookies) pour web
+        config.withCredentials = true;
         return config;
     },
     (error) => Promise.reject(error)
@@ -94,11 +99,15 @@ api.interceptors.response.use(
         ) {
             originalRequest._retry = true;
 
-            const refreshToken = tokenStore.getRefreshToken();
+            // A1 : web — le refresh token est en cookie HttpOnly, envoyé
+            // automatiquement avec withCredentials. Electron — le token est
+            // dans secureStore et envoyé via le header Authorization.
+            const refreshToken = isElectron ? tokenStore.getRefreshToken() : null;
 
-            // Aucun refresh token : on ne tente pas le renouvellement,
-            // on nettoie et on notifie la déconnexion.
-            if (!refreshToken) {
+            // Aucun refresh token (et web sans cookie) : déconnexion
+            if (!isElectron && error.response.status === 401) {
+                // Sur web, tenter le refresh (le cookie sera envoyé automatiquement)
+            } else if (!refreshToken) {
                 tokenStore.clear();
                 delete api.defaults.headers.common.Authorization;
                 window.dispatchEvent(new Event('auth:logout'));
@@ -111,7 +120,10 @@ api.interceptors.response.use(
                 return new Promise((resolve, reject) => {
                     failedQueue.push({
                         resolve: (token) => {
-                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            // A1 : Electron met à jour le header ; web n'en a pas besoin
+                            if (isElectron && token && token !== 'cookie-auth') {
+                                originalRequest.headers.Authorization = `Bearer ${token}`;
+                            }
                             resolve(api(originalRequest));
                         },
                         reject,
@@ -122,20 +134,27 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                // A1 : web envoie le refresh token via cookie (withCredentials).
+                // Electron l'envoie via le header Authorization.
+                const refreshHeaders = { 'Content-Type': 'application/json' };
+                if (isElectron && refreshToken) {
+                    refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+                }
                 const refreshResponse = await axios.post(
                     `${API_BASE_URL.replace(/\/+$/, '')}/auth/refresh`,
                     null,
                     {
-                        headers: {
-                            Authorization: `Bearer ${refreshToken}`,
-                            'Content-Type': 'application/json',
-                        },
+                        headers: refreshHeaders,
+                        withCredentials: true,
                     }
                 );
 
                 const newAccessToken = refreshResponse.data?.access_token;
 
-                if (!newAccessToken) {
+                if (!newAccessToken && !isElectron) {
+                    // A1 : web — le nouveau access token est en cookie, pas besoin
+                    // de le lire depuis la réponse. La seule erreur est un 401/403.
+                } else if (!newAccessToken) {
                     throw new Error('Nouveau access_token absent');
                 }
 
@@ -146,9 +165,13 @@ api.interceptors.response.use(
                     tenant: refreshResponse.data.tenant,
                 });
 
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                // A1 : Electron met à jour le header ; web n'en a pas besoin
+                if (isElectron && newAccessToken) {
+                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                }
 
-                processQueue(null, newAccessToken);
+                // A1 : web — le queued request n'a pas besoin de token header
+                processQueue(null, newAccessToken || 'cookie-auth');
 
                 return api(originalRequest);
 
@@ -172,7 +195,7 @@ api.interceptors.response.use(
             }
         }
 
-        if (error.response && error.response.status !== 401) {
+        if (error.response && error.response.status !== 401 && error.response.status !== 403) {
             const msg = error.response.data?.message || error.response.data?.error || 'Une erreur est survenue';
             toast.error(msg);
         }
@@ -210,9 +233,7 @@ api.interceptors.request.use(
 // ======================================================
 
 const RAW_PUBLIC_API_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
-        ? process.env.REACT_APP_PUBLIC_API_URL
-        : '';
+    import.meta.env.VITE_PUBLIC_API_URL || '';
 
 export const publicApi = axios.create({
     baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
@@ -270,14 +291,76 @@ export const publicCatalogueService = {
     getTenant: (id) =>
         publicApi.get(`/public/tenants/${id}`),
 
-    createCommande: (data) =>
-        publicApi.post('/public/commandes', data),
+    // Clé d'idempotence partagée (P1 audit 14/09/2026) : même clé entre le
+    // panier et le checkout pour éviter les doublons au re-clic/refresh.
+    getOrderIdempotencyKey: () => {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                let key = sessionStorage.getItem('public_order_idempotency_key');
+                if (!key) {
+                    key = (
+                        (typeof crypto !== 'undefined' && crypto.randomUUID)
+                            ? crypto.randomUUID()
+                            : `order-${Date.now()}-${Math.random().toString(16).slice(2)}`
+                    );
+                    sessionStorage.setItem('public_order_idempotency_key', key);
+                }
+                return key;
+            }
+        } catch {
+            /* ignore */
+        }
+        return `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    },
+
+    resetOrderIdempotencyKey: () => {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.removeItem('public_order_idempotency_key');
+            }
+        } catch {
+            /* ignore */
+        }
+    },
+
+    createCommande: (data, { idempotencyKey } = {}) => {
+        // Si l'utilisateur est connecté, on envoie le JWT pour que le backend
+        // lie la commande à son compte (Mes Commandes après reconnexion).
+        // A1 : web — le cookie HttpOnly est envoyé automatiquement.
+        // Electron — le token est dans secureStore et passé via header.
+        const token = tokenStore.getAccessToken();
+        const key = idempotencyKey || publicCatalogueService.getOrderIdempotencyKey();
+        const headers = {
+            'Idempotency-Key': key,
+        };
+        if (isElectron && token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+        return publicApi.post('/public/commandes', data, { headers, withCredentials: true });
+    },
+
+    getMesCommandes: () => {
+        // A1 : web — le cookie HttpOnly est envoyé automatiquement.
+        // Electron — le token est dans secureStore et passé via header.
+        const token = tokenStore.getAccessToken();
+        const config = { withCredentials: true };
+        if (isElectron && token) {
+            config.headers = { Authorization: `Bearer ${token}` };
+        }
+        return publicApi.get('/public/mes-commandes', config);
+    },
 
     getCommandeTracking: (ref) =>
         publicApi.get(`/public/commandes/tracking/${ref}`),
 
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
+
+    createCommandePapiPayment: (ref, data) =>
+        publicApi.post(`/public/commandes/${ref}/papi-payment`, data),
+
+    getCommandePapiStatus: (ref) =>
+        publicApi.get(`/public/commandes/${ref}/papi-status`),
 };
 
 // ======================================================
@@ -462,8 +545,13 @@ export const authService = {
     register: (data) =>
         api.post('/auth/register', data),
 
+    // V4 : transmet le refresh stocké pour révocation serveur (best-effort :
+    // le backend ignore un refresh absent/invalide, le logout reste 200).
+    // A1 : withCredentials=true pour que le backend puisse clear les cookies JWT.
     logout: () =>
-        api.post('/auth/logout'),
+        api.post('/auth/logout', {
+            refresh_token: isElectron ? (tokenStore.getRefreshToken() || null) : null,
+        }, { withCredentials: true }),
 
     getCurrentUser: () =>
         api.get('/auth/me'),
@@ -657,6 +745,9 @@ export const factureService = {
 
     delete: (id) =>
         api.delete(`/factures/${id}`),
+
+    fromVente: (venteId) =>
+        api.post(`/factures/from-vente/${venteId}`),
 };
 
 // ======================================================
@@ -728,6 +819,42 @@ export const stockService = {
 };
 
 // ======================================================
+// ENTREPOTS (Multi-Warehouse)
+// ======================================================
+
+export const entrepotService = {
+    getAll: (params) =>
+        api.get('/entrepots', { params }),
+
+    getById: (id) =>
+        api.get(`/entrepots/${id}`),
+
+    create: (data) =>
+        api.post('/entrepots', data),
+
+    update: (id, data) =>
+        api.put(`/entrepots/${id}`, data),
+
+    delete: (id) =>
+        api.delete(`/entrepots/${id}`),
+
+    getStocks: (entrepotId) =>
+        api.get(`/entrepots/${entrepotId}/stocks`),
+
+    getAllStocks: () =>
+        api.get('/entrepots/stocks'),
+
+    createStock: (data) =>
+        api.post('/entrepots/stocks', data),
+
+    updateStock: (id, data) =>
+        api.put(`/entrepots/stocks/${id}`, data),
+
+    deleteStock: (id) =>
+        api.delete(`/entrepots/stocks/${id}`),
+};
+
+// ======================================================
 // DASHBOARD
 // ======================================================
 
@@ -762,8 +889,8 @@ export const subscriptionService = {
     payer: (id, data) =>
         api.post(`/abonnements/${id}/payer`, data),
 
-    renouveler: (id) =>
-        api.post(`/abonnements/${id}/renouveler`),
+    renouveler: (id, data) =>
+        api.post(`/abonnements/${id}/renouveler`, data || {}),
 
     getHistoriqueByTenant: (tenantId) =>
         api.get(`/abonnements/historique/${tenantId}`),
@@ -791,6 +918,31 @@ export const papiService = {
 };
 
 // ======================================================
+// TENANT PAPI / VITRINE SETTINGS (admin principal uniquement)
+// ======================================================
+
+export const tenantPapiService = {
+    getStatus: () => api.get('/me/papi-settings'),
+
+    updateSettings: (data) => api.put('/me/papi-settings', data),
+
+    testConnection: () => api.post('/me/papi-settings/test'),
+
+    getVitrine: () => api.get('/me/vitrine'),
+
+    setVitrine: (enabled) => api.put('/me/vitrine', { enabled }),
+};
+
+// ======================================================
+// SUPER ADMIN — PAPI MARCHANDS OVERVIEW
+// ======================================================
+
+export const superAdminPapiService = {
+    getOverview: (params) =>
+        api.get('/super-admin/tenants/papi-overview', { params }),
+};
+
+// ======================================================
 // INTELLIGENCE ARTIFICIELLE
 // ======================================================
 
@@ -800,6 +952,30 @@ export const aiService = {
   getAnomalies: (params) => api.get('/ai/anomalies', { params }),
   getRecommendations: (params) => api.get('/ai/recommendations', { params }),
   getStockRuptures: () => api.get('/ai/stock-ruptures'),
+
+  // Insights proactifs
+  getInsights: () => api.get('/ai/insights'),
+  getAnalyticsStock: () => api.get('/ai/analytics/stock'),
+  getAnalyticsSales: (params) => api.get('/ai/analytics/sales', { params }),
+  getAnalyticsFinances: () => api.get('/ai/analytics/finances'),
+  getAnalyticsPurchases: (params) => api.get('/ai/analytics/purchases', { params }),
+  getAnalyticsClients: (params) => api.get('/ai/analytics/clients', { params }),
+
+  // Predictions
+  getDemandPrediction: (params) => api.get('/ai/predictions/demand', { params }),
+
+  // Assistant amélioré
+  askAssistantEnhanced: (data) => api.post('/ai/assistant/enhanced', data),
+
+  // Quick endpoints (pour dashboard / sidebar)
+  getQuickStockHealth: () => api.get('/ai/quick/stock-health'),
+  getQuickLowStock: (params) => api.get('/ai/quick/low-stock', { params }),
+  getQuickCustomerDebts: () => api.get('/ai/quick/customer-debts'),
+  getQuickTopProducts: (params) => api.get('/ai/quick/top-products', { params }),
+  getQuickSupplierPriceChanges: (params) => api.get('/ai/quick/supplier-price-changes', { params }),
+  getQuickPendingInvoices: () => api.get('/ai/quick/pending-invoices'),
+
+  // Méthodes existantes
   askAssistant: (data) => api.post('/ai/assistant', data),
   trainModels: (data) => api.post('/ai/train', data),
 };
@@ -872,6 +1048,15 @@ export const presenceService = {
     delete: (id) => api.delete(`/presences/${id}`),
     getRegistre: (params) => api.get('/presences/registre', { params }),
     export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
+};
+
+export const congeService = {
+    getAll: (params) => api.get('/conges', { params }),
+    getById: (id) => api.get(`/conges/${id}`),
+    create: (data) => api.post('/conges', data),
+    update: (id, data) => api.put(`/conges/${id}`, data),
+    delete: (id) => api.delete(`/conges/${id}`),
+    getSolde: (employeId, annee) => api.get(`/conges/solde/${employeId}`, { params: annee ? { annee } : {} }),
 };
 
 export const salaireService = {
@@ -956,6 +1141,10 @@ export const tresorerieService = {
     },
     getMouvements: (params) => api.get('/tresorerie/mouvements', { params }),
     export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
+};
+
+export const resultatService = {
+    getResultats: (params) => api.get('/resultats', { params }),
 };
 
 // ======================================================

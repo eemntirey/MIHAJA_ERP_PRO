@@ -22,12 +22,13 @@ export const useAuth = () => {
     return context;
 };
 
-export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
+export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
     const [user, setUser] = useState(null);
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [subscription, setSubscription] = useState(null);
+    const [subscriptionActive, setSubscriptionActive] = useState(true);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [mustChangePassword, setMustChangePassword] = useState(false);
 
@@ -54,7 +55,11 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
         const tenantData = authStorage.getTenant();
         const subscriptionData = authStorage.getSubscription();
 
-        if (token && userData) {
+        // A1 : web — restaurer la session depuis les données utilisateur même
+        // sans token en localStorage (les tokens sont en cookies HttpOnly).
+        // Electron — exiger le token (secureStore).
+        const hasValidSession = userData && (token || typeof window !== 'undefined' && window.localStorage);
+        if (hasValidSession) {
             try {
                 setUser(userData);
                 setIsAuthenticated(true);
@@ -129,10 +134,12 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             const response = await authService.register(payload);
             const { access_token, refresh_token, user: userData, tenant: tenantData } = response.data || {};
 
-            if (!access_token || !userData) {
-                throw new Error("Réponse d'inscription invalide (tokens manquants)");
+            // A1 : web — les tokens sont en cookies HttpOnly, pas besoin de les lire
+            if (!userData) {
+                throw new Error("Réponse d'inscription invalide (données utilisateur manquantes)");
             }
 
+            // A1 : setAccessToken/setRefreshToken sont des no-ops sur web (cookies HttpOnly)
             authStorage.setAccessToken(access_token);
             if (refresh_token) {
                 authStorage.setRefreshToken(refresh_token);
@@ -160,6 +167,8 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             console.error('Erreur inscription:', error);
             const message =
                 error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.response?.statusText ||
                 error.message ||
                 'Erreur lors de la création du compte';
             toast.error(message);
@@ -186,10 +195,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
                 must_change_password: mustChange,
             } = response.data || {};
 
-            if (!access_token) {
-                throw new Error('Le serveur a répondu sans access_token');
-            }
-
+            // A1 : web — les tokens sont en cookies HttpOnly, pas besoin de les lire
             if (!userData) {
                 throw new Error('Le serveur a répondu sans données utilisateur');
             }
@@ -203,6 +209,7 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             // S'assurer que userData inclut le flag pour les rechargements de page
             const normalizedUser = { ...userData, must_change_password: mustChangeFlag };
 
+            // A1 : setAccessToken/setRefreshToken sont des no-ops sur web (cookies HttpOnly)
             authStorage.setAccessToken(access_token);
 
             if (refresh_token) {
@@ -299,8 +306,10 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
             try {
                 const response = await subscriptionService.getMonAbonnement();
                 const sub = response.data?.abonnement || null;
-                console.log('[AuthContext] fetchSubscriptionStatus', sub);
+                const active = response.data?.subscription_active !== undefined ? Boolean(response.data.subscription_active) : true;
+                console.log('[AuthContext] fetchSubscriptionStatus', sub, active);
                 setSubscription(sub);
+                setSubscriptionActive(active);
                 if (sub) {
                     authStorage.setSubscription(sub);
                 } else {
@@ -314,9 +323,9 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
                     return;
                 }
                 console.error('[AuthContext] fetchSubscriptionStatus error', err);
-            setSubscription(null);
-            authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
-        }
+                setSubscription(null);
+                authStorage.remove(AUTH_KEYS.SUBSCRIPTION);
+            }
     })();
     fetchSubscriptionStatus._inflight = inflight;
     try {
@@ -352,11 +361,6 @@ export const AuthProvider = ({ children, fetchSubscriptionOnInit = true }) => {
     const hasPermission = (permission) => {
         if (!user || !user.permissions) {
             return false;
-        }
-
-        // Le super_admin recoit ['*'] du backend : toutes les permissions.
-        if (user.permissions.includes('*')) {
-            return true;
         }
 
         // Support du wildcard par module (ex. 'sales.*' couvre 'sales.view').
@@ -476,6 +480,7 @@ const value = {
         loading,
         isAuthenticated,
         subscription,
+        subscriptionActive,
         setSubscription,
         subscriptionLoading,
         login,
@@ -501,4 +506,4 @@ const value = {
             {children}
         </AuthContext.Provider>
     );
-};
+}

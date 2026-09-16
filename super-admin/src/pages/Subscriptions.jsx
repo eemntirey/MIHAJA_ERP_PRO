@@ -97,9 +97,8 @@ const Subscriptions = () => {
           <select value={planFilter} onChange={handlePlanChange}>
             <option value="">Tous plans</option>
             <option value="gratuit">Gratuit</option>
-            <option value="starter">Starter</option>
             <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
+            <option value="enterprise">Entreprise</option>
           </select>
         </div>
       </div>

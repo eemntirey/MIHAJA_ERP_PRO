@@ -9,9 +9,7 @@ import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
 const API_BASE_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-        ? process.env.REACT_APP_API_URL
-        : '/api/v1';
+    import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -27,7 +25,11 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = tokenStore.getAccessToken();
+        // Ne PAS écraser le header Authorization d'un appel /auth/refresh :
+        // l'intercepteur injecterait l'access token (expiré) à la place du
+        // refresh token passé explicitement par l'appelant -> boucle 401/404.
+        const isRefreshRequest = (config.url || '').includes('/auth/refresh');
+        const token = isRefreshRequest ? null : tokenStore.getAccessToken();
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -196,9 +198,7 @@ api.interceptors.request.use(
 // ======================================================
 
 export const publicApi = axios.create({
-    baseURL: typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
-        ? process.env.REACT_APP_PUBLIC_API_URL
-        : '',
+    baseURL: import.meta.env.VITE_PUBLIC_API_URL || '',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -871,6 +871,10 @@ export const tresorerieService = {
     },
     getMouvements: (params) => api.get('/tresorerie/mouvements', { params }),
     export: () => api.get('/tresorerie/export', { responseType: 'blob' }),
+};
+
+export const resultatService = {
+    getResultats: (params) => api.get('/resultats', { params }),
 };
 
 // ======================================================

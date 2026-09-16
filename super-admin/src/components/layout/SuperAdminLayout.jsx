@@ -42,6 +42,12 @@ const SuperAdminLayout = () => {
           <NavLink to="/profile" className={({ isActive }) => isActive ? 'sa-nav-link sa-nav-link--active' : 'sa-nav-link'}>
             Profil
           </NavLink>
+          <NavLink to="/payment-settings" className={({ isActive }) => isActive ? 'sa-nav-link sa-nav-link--active' : 'sa-nav-link'}>
+            Paramètres paiement
+          </NavLink>
+          <NavLink to="/email-config" className={({ isActive }) => isActive ? 'sa-nav-link sa-nav-link--active' : 'sa-nav-link'}>
+            Fournisseur Email
+          </NavLink>
         </nav>
 
         <div className="sa-sidebar-footer">

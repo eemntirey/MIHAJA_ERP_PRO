@@ -1,0 +1,2325 @@
+TOTAL PAGES: 82
+
+===== PAGE 1 =====
+ 
+ 
+                                            
+ 
+UNIVERSITE DE FIANARANTSOA 
+ECOLE DE MANAGEMENT ET D’INNOVATION TECHNOLOGIQUE 
+Mention :INFORMATIQUE 
+Parcours :Developpement d’Application Intranet-Internet (D.A.2.I) 
+Rapport de stage en vue de passage en troisième année de formation licence professionnelle 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Présenté par : SOLOFONIAINA Samuel Andrea 
+Enseignants Responsables de mention: RABEZANAHARY Hobiniaina 
+Evaluateur :HERY ANTENAINA Paul Germain                               
+ 
+Année Universitaire :2023-2024 
+ 
+ 
+MISE EN PLACE D’UN SYSTEME MINIMAL DE TRESORIE EN LIGNE DU 
+DIRECTION GENERALE DES IMPOTS   FIANARANTSOA CENTRE 
+FISCALE A 
+
+===== PAGE 2 =====
+ 
+ 
+ 
+
+===== PAGE 3 =====
+i 
+ 
+ 
+ 
+CURRICILUM VITAE  
+ETAT CIVIL 
+Nom : SOLOFONIAINA 
+Prénom : Samuel Andrea 
+Date et lieu de naissance : 16 janvier 2002 à Anosy-Avaratra 
+Situation familiale : Célibataire 
+Adresse : Ivory atsimo Fianarantsoa 
+Email : andyandybe243@gmailcom 
+Numéro téléphone : 0341332134 / 0332479296 
+DIPLOMES OBTENUES : 
+ CEPE  
+ BEPC  
+ Baccalauréat série D 
+ 
+FORMATIONS ET EXPERIENCES PROFESSIONNELLES : 
+ 2023-2024 : Deuxième année  de licence dans l’ Écolé de Management et d’Innovation 
+Technologique (EMIT), Mention Informatique ou Développement d’Application, Internet et 
+Intranet (DA2I). 
+ 2022-2023 : Première année de licence dans l’ Écolé de Management et d’Innovation 
+Technologique (EMIT), Mention Informati que ou Développement d’Application, Internet et 
+Intranet (DA2I) 
+  
+ 
+
+
+===== PAGE 4 =====
+ii 
+ 
+CONNAISSANCES INFORMATIQUE :  
+Dactylo : Rapide  
+Bureautique : Word, Excel, Power Pointe, Accès, Internet  
+Développement de site Web : HTML & CSS & JavaScript, PHP ,ReactJs,Laravel 
+Langage de programmation : langage C, langage python 
+Environnement de développement : Netbeans, Visual Studio 
+Système de Base de données : MySQL Access  
+Réseaux et Système : Sisco packet Tracer 
+Système d’exploitation :  
+                                       Microsoft Windows : windows 7,8,10,11  
+                                       Linux : Ubuntu, Kali-Linux, Mangaroo 
+CONNAISSANCES LINGUSTIQUE : 
+MALAGASY                                                Langue Maternel 
+FRANCAIS           Lu            Ecrit           Parlé 
+ANGLAIS           Lu            Ecrit           Parlé 
+ 
+PERSONNALITES : 
+ -Ayant l’esprit d’Analyse, Créatif, Dévoué, Dynamique 
+ - Homme Responsable 
+ - Homme à forte motivation 
+  
+
+===== PAGE 5 =====
+iii 
+ 
+AVANT PROPOS 
+En vue du passage en 3ème année, tous les étudiants à l' Écolé de Management et d'Innovation 
+Technologique (EMIT) en 2éme doivent effectuer un stage pendant 2 mois dans l'entreprise et 
+réaliser un projet au sein de cette entreprise. Après stage, chaque étudiant doit préparer une 
+soutenance en vue de présenter son thème. C'est durant ce stage que ce mémoire de passage en 
+classe supérieure est rédigé. Cet ouvrage est réalisé pour l'enseignement ou apprentissage du 
+logiciel de la Mise en Place du Système Minimal de Trésorerie (SMT) en ligne et pour présenter 
+le Direction General Des Impôts Fianarantsoa et EMIT Fianarantsoa. L’objectif de ce stage est 
+de renforcer et de consolider les connaissances acquises durant la formation dispensée de 
+l’école. Dans ce travail nous allons utiliser le  langage Javascript en utilisant un Framework 
+ReactJs pour la partie frontend et php laravel pour la partie backend  et la base de données 
+MySQL pour la réalisation de l’application. Cette application permet de faciliter Pour suivre et 
+contrôler de manière indirecte les petites entreprises. 
+  
+
+===== PAGE 6 =====
+iv 
+ 
+REMERCIEMENTS 
+Je tiens à exprimer toute ma gratitude et mes vifs remerciements à toutes celles et ceux qui, 
+par leurs conseils ou leurs efforts, ont contribué de près ou de loin à la réalisation de ce stage. 
+Tout d’abord, je remercie Dieu Tout-Puissant pour m’avoir guidé, donné la force, le courage 
+et la santé grâce à sa bénédiction. 
+Je souhaite également adresser des remerciements particuliers à : 
+Professeur HAJALALAINA Aime Richard, Président de l’Université de Fianarantsoa, 
+Professeur RAKOTONIRAINY Hasina, Directeur de l’École de Management et d’Innovation 
+Technologique (EMIT), pour m'avoir donné l'accord de réaliser ce stage pratique, 
+Madame RABEZANAHARY Hoby, Responsable de la mention en Développement 
+d’Application Intranet/Internet (DAII), 
+À tous les enseignants ainsi qu’au personnel de l’École de Management et d’Innovation 
+Technologique (EMIT) pour m’avoir pleinement fourni des connaissances théoriques, leur 
+savoir et leur expérience tout au long de ma formation au sein de l’école, 
+À tous les employés de la Direction Générale des Impôts de Fianarantsoa Centre Fiscal A, 
+-Monsieur l’Ingénieur RANDRIANANTENAINA Henri Arthur, 
+-Monsieur RAKOTOVAHOAKA V. Didace, 
+À tous les membres du jury pour avoir accepté d’évaluer ce rapport de stage, 
+Enfin, à mes parents et aux membres de ma famille pour leurs sacrifices et leur soutien moral 
+et financier tout au long de mes études, ainsi qu’à mes amis et à toutes les personnes qui 
+m’ont aidé dans l’accomplissement de ce travail. 
+  
+
+===== PAGE 7 =====
+v 
+ 
+LISTE DES FIGURES 
+figure 1- 1:organigramme de l’EMIT Fianarantsoa ................................................................... 5 
+figure 1- 2:Membre de bureau Emit Fianarantsoa ................................................................... 13 
+figure 2- 1:Organigramme Direction Generale des Impots ...................................................... 18 
+figure 2- 2:Dirigents Direction Generale des Impots ............................................................... 19 
+figure 6- 1:Formalisme MCD ................................................................................................... 33 
+figure 6- 2: modèle conceptuel de notre application ................................................................ 33 
+figure 6- 3:Formalisme MCT ................................................................................................... 36 
+figure 6- 4:Modele des Conceptuels des traitements de l’application...................................... 37 
+figure 6- 5:Modele Conceptuels des Traitements Analytique de l’application ........................ 38 
+figure 7- 1:caracteristique de Laravel ....................................................................................... 44 
+figure 7- 2:Caacteristique du React js ...................................................................................... 45 
+figure 7- 3:Caracteristique de l’ordinateur utiliser ................................................................... 49 
+figure 7- 4:modem utiliser ........................................................................................................ 49 
+figure 7- 5:telephone utiliser .................................................................................................... 50 
+figure 7- 6:image Visual Studio Code ...................................................................................... 51 
+figure 8- 1:Architecture logicielle de l’application .................................................................. 53 
+figure 8- 2:Architecture materielle de l’application ................................................................. 54  
+figure 9- 1:page de connexion .................................................................................................. 58 
+figure 9- 2:menu principal ........................................................................................................ 59 
+figure 9- 3:page comptte .......................................................................................................... 59 
+figure 9- 4:page pour transaction.............................................................................................. 60 
+figure 9- 5:page pour enregistrement contribuable .................................................................. 61 
+figure 9- 6:page pour gere une rapport Financiere ................................................................... 61 
+figure 9- 7:page pour afficher les statistiques .......................................................................... 62 
+figure 9- 8:page pour afficher liste des comptes ...................................................................... 62 
+ 
+ LISTES DES TABLEAUX 
+table 1- 1:tableau récapitulatif .................................................................................................... 3 
+table 3- 1::Répartitions du temps ............................................................................................. 22 
+table 6- 1:règle de gestion de l'application ............................................................................... 29 
+table 6- 2:regle de passage de MCD en MLD .......................................................................... 34 
+
+===== PAGE 8 =====
+vi 
+ 
+table 6- 3:tableau du procedure fonctionnelles ........................................................................ 40 
+table 7- 1:comparaison de SGBD ............................................................................................. 47 
+ 
+LISTE DES ABREVIATIONS 
+AES : Administration Economique et Social  
+AN : Alpha Numérique  
+BD : Base de Données  
+DAII : Développement d’Application Intranet Internet 
+EMIT : Ecole de Management et d’Innovation Technologique  
+MCD : Modèle Conceptuel de Données  
+MCT : Modèle Conceptuel de Traitements  
+MCTA : Modèle Conceptuel de Traitements Analytique  
+MLD : Modèle Logique de Données 
+ MOT : Modèle Organisationnel de Traitements 
+ MPD : Modèle Physique de Données 
+ MySQL: My Structured Query Language. 
+ N : numérique  
+PF : Procédure Fonctionnelle 
+ RG : Règle de Gestion  
+RPM : Relation Public et Multimédia  
+RO : Règle d’organisation 
+ SGBD : Système de Gestion de Base de Données  
+SI : Système d’Information  
+SQL : Structured Query Language 
+
+===== PAGE 9 =====
+vii 
+ 
+GLOSSAIRE 
+Application : c’est un ensemble de programmes permettant de fournir des fonctions spécifiques 
+(Par exemple : traitement de texte, traitement de vidéo…) 
+Base de données : c’est un ensemble de données organisées de telle manière qu’on puisse les 
+exporter. 
+Langage de programmation : le langage de programmation est une conventionnelle destinée 
+à formuler des algorithmes et produire des programmes. 
+Logiciel : c’est un ensemble d’éléments informatiques qui permettent d’assurer une tache ou 
+une fonction. 
+MERISE : (Méthode d’Etude et de Réalisation Informatique pour le Système d’Entreprise), 
+désigne une méthode d’analyse, de conception et de développement pour la réalisation et la 
+conduite de projet informatique. 
+MySQL: My Structured Query Language. C’est un serveur de bases de données relationnelles 
+SQL développé dans un souci de performances élevées en lecture. Il est multi - thread et 
+multiutilisateurs. 
+SGBD : Un Système de Gestion de Base de Données est un ensemble de logiciels qui sert à la 
+manipulation des bases de données. Il sert à effectuer des opérations ordinatrices telles que 
+consulter, modifier, construire, organiser, transformer, c opier, sauvegarder ou restaurer des 
+bases de données. 
+Système d’Information : c’est l’ensemble organisé de ressources matériels personnels, 
+données et une procédure permettant d’acquérir, traiter, stocker, communiquer les informations 
+(Sous forme de données, texte, image, son) 
+SQL : Langage de programmation dédié à la manipulation de base de données à base de requête 
+ 
+
+===== PAGE 10 =====
+ 
+ 
+ 
+ 
+TA BLE DE MATIERE 
+Partie I :PRESENTATION GENERALE .................................................................................. 2 
+Chapitre 1  :PRESENTATION DE L’EMIT (Ecole de Management  et d’Innovation 
+Technologie) ........................................................................................................................... 3 
+1.1 Historique ................................................................................................................. 3 
+1.2 Mission de l’Ecole ........................................................................................................ 4 
+1.3 Organigramme de l’EMIT ............................................................................................ 5 
+1.4 Partenaires ..................................................................................................................... 6 
+1.5 Cycle de licence ............................................................................................................ 6 
+1.6 Cycle Master ............................................................................................................ 8 
+1.7 Vie étudiantes .............................................................................................................. 12 
+1.8 Membres du bureau ..................................................................................................... 13 
+1.9 Association sportive .................................................................................................... 14 
+1.10 Club de danse ............................................................................................................ 14 
+1.11 Club de musique ....................................................................................................... 14 
+1.12 Club des jeunes entrepreneurs .................................................................................. 14 
+1.13 English Club .............................................................................................................. 15 
+1.14 Bibliothèque numérique ............................................................................................ 15 
+1.15 Formation en ligne .................................................................................................... 15 
+Chapitre 2 :PRESENTATION DE LA DIRECTION GENERAL DES IMPOTS CENTRE 
+FISCAL A FIANARANTSOA ............................................................................................ 15 
+2.1 Historique de la Direction des Impôts et des Douanes ............................................... 15 
+2.2Mission de la Direction Generale des Impots .............................................................. 16 
+2.3 Organigramme de la Direction Générale des Impôts .................................................. 18 
+2.4 Partenaires ................................................................................................................... 18 
+2.5 Dirigents ...................................................................................................................... 19 
+
+===== PAGE 11 =====
+ 
+ 
+ 
+Chapitre 3 :PRESENTATION DU PROJET ........................................................................ 21 
+3.1 Origine du projet ......................................................................................................... 21 
+3.2 Problématique ............................................................................................................. 21 
+3.3 L’objectif du projet ..................................................................................................... 21 
+3.4 Plan de réalisation du projet ........................................................................................ 21 
+Partie2 :ANALYSE ET CONCEPTION DU PROJET ............................................................ 23 
+Chapitre 4 :METHODE ET NOTATION UTILISEE .......................................................... 24 
+4.1 Methode merise en general : ....................................................................................... 24 
+4.2 Definition   Merise[1] ................................................................................................. 26 
+4.3 Objectif  du Merise [2] ................................................................................................ 26 
+4.4 Niveaux d’Analyse[1] ................................................................................................. 26 
+4.5 Justification du choix de Merise ................................................................................. 27 
+4.6 Outil de Conception .................................................................................................... 27 
+Chapitre 5 :ANALYSE DE CONCEPTION ........................................................................ 27 
+5.1 Analyse de besoin ....................................................................................................... 28 
+5.2 Analyse d’existent ....................................................................................................... 28 
+Chapitre 6 :CONCEPTION DU PROJET ............................................................................ 29 
+6.1 Definition .................................................................................................................... 29 
+6.2 Dictionnaire des donné................................................................................................ 29 
+6.3 Règle de gestion .......................................................................................................... 31 
+6.4 Modèle Conceptuel des Données ................................................................................ 31 
+6.5 Relation ....................................................................................................................... 32 
+6.6 Attribut et identifiants ................................................................................................. 32 
+6.7 Cardinalité ................................................................................................................... 32 
+6.8 Le modèle Logique des données ................................................................................. 34 
+6.9 Modèle Conceptuel de Traitement .............................................................................. 35 
+6.10 Modèle Conceptuels des Traitements de l’application ............................................. 36 
+
+===== PAGE 12 =====
+ 
+ 
+ 
+6.11 Modèle Conceptuels des Traitements Analytique .................................................... 38 
+6.12 Modèle Organisationnel des Traitements ................................................................. 39 
+6.13 Procédures fonctionnelles ......................................................................................... 40 
+Partie 3 :REALISATION DU PROJET ................................................................................... 41 
+Chapitre 7 : SPECIFICATION DES OUTILS DE REALISATION ................................... 42 
+7.1 Le langage de programmation .................................................................................... 42 
+7.2 Le Framework Laravel et React JS ............................................................................. 45 
+7.3 SGBD .......................................................................................................................... 47 
+Chapitre 8 : MISE EN ŒUVRE ET IMPLEMENTATION ................................................ 52 
+8.1 Architecture Logiciel .................................................................................................. 52 
+8.2. Architecture matérielle ............................................................................................... 53 
+8.3 Extrait de code commenté ........................................................................................... 54 
+Chapitre 9 : Présentation de l’application développée ......................................................... 58 
+9.1 Formulaire d’authentification ..................................................................................... 58 
+9.2 Menu principale de projet ........................................................................................... 58 
+9.3 Formulaire Transaction ............................................................................................... 60 
+9.4 Formulaire Contribuable ............................................................................................. 60 
+9.5 Formulaire du Rapport Financiere .............................................................................. 61 
+ 
+ 
+
+===== PAGE 13 =====
+ 
+1 
+ 
+ 
+INTRODUCTION GENERALE 
+De nos jours, l’informatique est l'un des secteurs les plus évolués. La plupart des services 
+s'orientent vers l'informatisation de leurs travaux pour faciliter leurs tâches. L’informatique 
+occupe une place considérable, presque dans tous les secteurs. Grâce à l’efficacité et à la rapidité 
+des tâches accomplies par les ordinateurs, ces derniers deviennent des compagnons 
+indispensables, que ce soit à la maison ou au bureau. En ce sens, l’informatique est considérée 
+comme un facteur de développement. 
+Nous avons choisi de travailler sur la mise en place du Système Minimal de Trésorerie (SMT) 
+en ligne au sein de la Direction Générale des Impôts (DGI) – Centre Fiscal A de Fianarantsoa. 
+L'objectif est d'aider les cont ribuables à suivre leur mouvement de trésorerie de manière 
+indirecte. Actuellement, la Direction Générale des Impôts de Fianarantsoa n'a pas encore mis 
+en place ce système. 
+C'est pourquoi, pour résoudre ce problème, nous proposons, en tant que stagiaire au  sein de la 
+Direction Générale des Impôts – Centre Fiscal A de Fianarantsoa, de réaliser une application 
+dont l'objectif principal est d'aider les contribuables à suivre leur mouvement de trésorerie. 
+Ainsi, le thème de ce rapport de stage est le suivant : « Mise en place du Système Minimal de 
+Trésorerie (SMT) en ligne au niveau de la Direction Générale des Impôts – Centre Fiscal A de 
+Fianarantsoa ». 
+Ce rapport de stage est structuré en trois parties, correspondant à notre démarche : 
+Présentation Générale : Cette partie présente l’École de Management et d’Innovation 
+Technologique (EMIT), la Direction Générale des Impôts de Fianarantsoa, ainsi que le 
+projet lui-même. 
+Analyse et Conception du Projet  : Cette section décrit les besoins identifiés dans le 
+domaine étudié et explique comment les données ont été traitées. 
+Réalisation de l’Application  : Cette partie détaille les choix des technologies  et des 
+outils utilisés pour la création de l'application. 
+
+===== PAGE 14 =====
+ 
+2 
+ 
+                                       
+ 
+ 
+ 
+ 
+    
+ 
+ 
+ 
+ 
+ 
+Partie I :PRESENTATION GENERALE 
+ 
+  
+
+===== PAGE 15 =====
+ 
+3 
+ 
+Chapitre 1 :PRESENTATION DE L’EMIT (Ecole de Management  
+et d’Innovation Technologie) 
+ 
+ 
+1.1 Historique 
+L’École de Management et d’Innovation Technologique (EMIT) est une école universitaire 
+publique pluridisciplinaire, rattachée à l’Université de Fianarantsoa. Grâce à sa grande 
+maturité dans l’enseignement et à la compétence de ses diplômés, les dirigeants, avec 
+l’approbation du Ministère, ont décidé de convertir le Centre en École au sein de l’Université 
+de Fianarantsoa par le Décret N°2016-1394 du 15 novembre 2016. 
+L’EMIT propose, d’une part, un diplôme de Master avec deux mentions et trois parcours, et 
+d’autre part, un diplôme de Licence avec trois mentions et cinq parcours. Auparavant, elle 
+était connue sous le nom de Centre Universitaire de Formation Professionnalisante (CUFP), 
+créé par le Décret N°2005-205 du 26 avril 2005, et dispensait des diplômes de Licence 
+professionnelle en Administration ainsi qu’en Informatique. Avant cela, elle était également 
+connue sous le nom de Centre de Formation Continue (CFC), créé par l’Arrêté Rectoral 
+N°99-23/UF/R du 10 mars 1999, qui formait des Techniciens Supérieurs. 
+L’EMIT a été distinguée comme le « Meilleur Établissement » lors du Salon de la Recherche 
+organisé par l’Organisation Internationale du Travail les 5 et 6 juillet 2017. Depuis l’année 
+universitaire 2013-2014, l’école a entièrement adopté le système Licence, Master et Doctorat 
+(LMD). Toutes les formations dispensées à l’EMIT sont habilitées par le Ministère de 
+l’Enseignement Supérieur et de la Recherche Scientifique. L’école propose 14 parcours 
+répartis en trois mentions : 
+table 1- 1:tableau récapitulatif 
+             Mention       
+Cycle 
+Management Informatique 
+Relation Publique et 
+Multimédia 
+
+===== PAGE 16 =====
+ 
+4 
+ 
+Licence 
+Administration 
+Economique et 
+Sociale 
+Développement 
+d’Application Internet et 
+Intranet 
+Communication 
+Multimédia 
+Conception, Intégration, et 
+Gestion des Système 
+d’Information 
+Relations publique et 
+Communication 
+Organisationnelle 
+   Master 
+Management 
+Décisionnel  
+Système d’Information, 
+Géomatique et Décision 
+SIGD 
+Relations Publique et 
+Multimédia 
+Modélisation et ingénierie 
+Informatique 
+M2I 
+ Sciences des  Donnees et 
+Intelligence Artificielle 
+SDIA 
+ 
+ 
+Managementd’Entreprises et 
+Developpement des affaires  
+MEDA 
+ 
+Ingenierie Geospaciale et    
+Technologies  de l’Information  
+   IGTI 
+  
+Communication Numerique 
+et Management de Projet  
+  CNMP 
+ 
+ 
+ 
+ 
+1.2 Mission de l’Ecole 
+L’Ecole a pour mission, d’abord de dispenser des formations initiales et continues en  
+informatique, en administration et en relation publiques. Ensuite, il offre des services  
+Communication Multimedia CM en double 
+diplôme avec le parcours  Cultures  et 
+Metiers  du web (CMW) de l’ Universite 
+Gustave Eiffel 
+ 
+
+===== PAGE 17 =====
+ 
+5 
+ 
+connexes à l’informatique. Former des techniciens supérieurs spécialisés, opérationnels  
+immédiatement dans les entreprises. Elle assure le perfectionnement professionnel des  
+étudiants, des demandeurs d’emplois, des employés et des cadres d’entreprises.  
+1.3 Organigramme de l’EMIT 
+L’organigramme de l’École de Management et d’Innovation Technologique présente la 
+structure organisationnelle de l’établissement. Il comprend différent s conseils (conseil 
+d’établissement, conseil scientifique), une direction, un collège des enseignants, des chefs de 
+mention, ainsi que les services existants au sein de l'école. 
+ 
+figure 1- 1:organigramme de l’EMIT Fianarantsoa 
+
+===== PAGE 18 =====
+ 
+6 
+ 
+1.4 Partenaires 
+ L’EMIT travaille en collaboration avec plusieurs laboratoires de recherche, d’entreprises et 
+d’autres écoles et universités. Parmi les organisations partenaires, citons a titre d’exemple les 
+laboratoires de recherche tels que le LIMA D, LIMOS, IRD, CNRE. SPAD, Espace Dev, LRI 
+et l’UPR-Green à travers le CIRAD. Pour ce qui est des écoles et des universitaires partenaires, 
+il y a entre autres : l’EDMI, l’Université de Toulouse Paul Sabatier, Université de Montpellier 
+2, l’ENI, GOUVSOMU, IOGA, l’Université de Clermont Auvergne, ESMIA, Université de 
+Mahajanga, ISSTM et l’Université de Fianarantsoa. L’Ecole est également en partenariat avec 
+plusieurs entreprises, notamment dans le cadre des stages a effecteur à travers chaque parcours, 
+telles que les entreprises Etech consulting, Orange, Lazan’i Betsileo, STAR, Alliance Française 
+de Fianarantsoa,AIRTEL Madagascar, ACCESS BANK Madagascar , Bank of africa (BOA), 
+BNI Madagascar, Manao, YAMAGOO, PREMIYA, JIRAMA, les assurances NY HAVANA, 
+MAMA et ARO Des organismes gouvernementaux sont également partenaires de l’EMIT : la 
+Région Haute Matsiatra, le Ministère de l’Enseignement Supérieur et de la Recherche 
+Scientifique, le Ministère de l’Education Nationale, le Ministère des Travaux Publics, le 
+Ministère des Finances et du Budget, le Ministère du Tourisme, le Ministère des Transports et 
+de la Météorologie, le Ministère de la poste, de la Télécommunication et des Technologie 
+Numériques, la Banque Centre de Madagascar, le Foibe Taosaritanin’i Madagasikar a (FTM), 
+l’INSTAT. 
+1.5 Cycle de licence 
+Pour le cycle Licence, l’École de Management et d’Innovation Technologique (EMIT) propose 
+trois mentions, chacune subdivisée en cinq parcours. Tous les étudiants de première année de 
+Licence ont la possibilité d’effectuer un voyage d’études d’insertion en entreprise. À la fin de 
+la deuxième année, chaque étudiant doit réaliser un stage et soutenir un rapport de stage. De 
+plus, un stage suivi d'une soutenance de mémoire est exigé à la fin de la troisième année. 
+1.5.1 Mention Management, Parcours Administration Economique et Sociale 
+L'accès à la première année de Licence se fait par voie de concours, ouvert aux titulaires d’un 
+Baccalauréat général de toutes séries (A, D, C) ou d’un Baccalauréat technique G1 et G2. 
+À l'issue de la formation, les étudiants acquièrent les compétences suivantes : 
+
+===== PAGE 19 =====
+ 
+7 
+ 
+• Assister le Directeur Général, le Directeur des Ressources Humaines et le Directeur 
+Administratif et Financier, 
+• Gérer les ressources humaines, 
+• Gérer une entreprise ou un projet. 
+L'intérêt de cette formation réside dans sa capacité à préparer les étudiants à : 
+• Créer et diriger une entreprise ou un projet, 
+• Gérer efficacement les ressources humaines, 
+• Assister les cadres dirigeants tels que le Directeur Général, le Directeur des Ressources 
+Humaines et le Directeur Administratif et Financier. 
+1.5.2 Mention Relation Publiques et Multimédia, parcours Communication 
+Multimédia et Relation Publiques et Parcours Communication 
+Organisationnelle 
+L'accès en première année de Licence se fait par voie de concours, ouvert aux titulaires d’un 
+Baccalauréat général de toutes séries (A, C, D) ou d’un Baccalauréat technique G1 et G2.À 
+l'issue de la formation, les étudiants développent les compétences suivantes  
+:Rédiger des articles pour des journaux,Occuper un poste de technicien de presse,Travailler 
+dans la revue de presse. 
+Le secteur de la communication multimédia est extrêmement varié et concurrentiel. Cette 
+formation se concentre sur la recherche et le  traitement de l'information avant sa publication, 
+que ce soit sur un site web, à la radio ou à la télévision. 
+Relations Publiques et Communication Organisationnelle (RPCO) 
+Cette formation met l'accent sur la rédaction d'articles pour des journaux, le poste de technicien 
+de presse, ainsi que le travail dans la revue de presse. 
+
+===== PAGE 20 =====
+ 
+8 
+ 
+1.5.3 Mention Informatique, Parcours Développement d’Application Internet 
+Intranet et Parcours Conception, Intégration et Gestion des Systèmes 
+d’Information 
+L'accès à la première année de Licence se fait par voie de concours, ouvert aux titulaires d’un 
+Baccalauréat Général Scientifique (séries C et D), d’un Baccalauréat Technique Professionnel, 
+ou d’un Baccalauréat Technique Technologie (filières telles que l'Industrie, la Maintenance 
+Automobile, l'Ouvrage Bois, l'Ouvrage Métallique, et le Génie Civil). À l'issue de la formation, 
+les étudiants sont compétents en : 
+-Administration des bases de données  
+ -Administration des réseaux et systèmes informatiques  
+ -Développement d’application client/serveur. 
+1.6  Cycle Master 
+L’École de Management et d’Innovation Technologique (EMIT) propose deux mentions pour 
+le Master Professionnel et le Master Recherche, avec trois parcours disponibles dans chaque 
+mention. La durée de la formation est de quatre semestres, soit deux années universitaires. 
+1.6.1 Mention Management, Parcours Management Décisionnel 
+La condition d’accès en première année de Master (M1) en S7 se fait par sélection de dossier 
+après l’obtention du diplôme de Licence en Administration Economique et Sociale, en Gestion 
+ou en Economie. 
+La Mention Management propose un parcours Management Décisionnel ayant pour objectif de 
+former et d’équiper les apprenants à la maitrise des outils d’aide à la décision en matière de 
+management et de le ur donner les compétences requises dans ce domaine. Comme le 
+management a besoin de se conformer en permanence aux diverses nouvelles exigences du 
+marché, l’enseignement doit alors toujours viser pour mettre à jour les connaissances de 
+l’apprenant par la f ormation de programmes de cours qui tiennent compte de ces nouveautés. 
+Ainsi, les objectifs principaux peuvent se résumer à former des acteurs de haut niveau en 
+management décisionnel, de préparer des cadres capables de gérer et de créer un projet de 
+développement économique régional et national. 
+Les sortants peuvent travailler dans les secteurs privés et publics des différentes régions de 
+Madagascar en tant que chefs de conduite de travaux d’enquêtes communautaires, concepteurs 
+
+===== PAGE 21 =====
+ 
+9 
+ 
+de projets, chefs de services ou directeurs d’entreprises. Dans ce cas, les étudiants sortants sont 
+capables de créer une petite entreprise, de monter un projet de développement rural et de gérer 
+un grand projet. 
+1.6.2 Mention Management, Managementd’Entreprises et Developpement des 
+affaires MEDA  
+La condition d’accès en première année de Master (M1) en S7 se fait par sélection de dossier 
+après l’obtention du diplôme de Licence en Administration Economique et Sociale, en Gestion 
+ou en Economie. 
+La Mention Management, Management d’Entreprises et Développement des Affaires (MEDA) 
+est un parcours académique orienté vers la formation de futurs managers et entrepreneurs 
+capables de diriger des entreprises et de développer des stratégies d'affaires innovantes. Ce 
+programme combine des enseig nements en management, en économie, en stratégie 
+d’entreprise, et en entrepreneuriat pour offrir une formation complète et polyvalente.Les 
+étudiants y acquièrent des compétences en gestion de projets, analyse financière, marketing, et 
+leadership, leur permettant de comprendre et d’intervenir efficacement dans différents aspects 
+de la gestion d'entreprise. Le programme met également l'accent sur le développement des 
+affaires, en enseignant des techniques de négociation, de gestion de la croissance, et 
+d’expansion internationale.Une partie importante du cursus est dédiée à la pratique, incluant 
+des stages en entreprise et des projets réels qui préparent les étudiants à relever les défis du 
+monde des affaires. Les diplômés de la Mention MEDA sont prêts à assume r des rôles de 
+direction dans divers secteurs ou à lancer et gérer leur propre entreprise, avec une forte 
+orientation vers l'innovation et le développement durable. Ils sont également équipés pour 
+travailler dans des contextes internationaux grâce à leur c ompréhension des dynamiques 
+globales du commerce et de l’industrie. 
+1.6.3 Mention Informatique, Parcours Système d’Information, Géomatique et 
+Décision et Parcours Modélisation et Ingénierie Informatique 
+La condition d’accès en première année de Master (M1) en S7 se fait par sélection de dossier 
+après l’obtention du diplôme de Licence en Informatique et en Mathématique et Informatique 
+pour les Science Sociales (MISS). Le Recrutement en S9 se fait par validation des crédits 
+acquis. 
+
+===== PAGE 22 =====
+ 
+10 
+ 
+Le parcours Système d’Information, Géomatique et Décision a pour objectif de donner un 
+panorama des recherches actuelles et émergeantes en termes de système d’aide à la décision. 
+En effet, les systèmes informatiques et la géomatique sont en plein essor, par les grilles de calcul 
+et les multiples appareils mobiles intégrant des systèmes informatiques de plus en plus 
+performants et complexes. Ces systèmes informatiques intégrant un parallélisme massif ou /et 
+une mobilité des composants représentent un défi pour le génie logi ciel qui doit fournir de 
+nouvelles méthodes et des outils de production de logiciel pour la description de l’architecture 
+de ces systèmes complexes et pour leur validation et/ou certification. De plus, l’effervescence 
+des techniques en géomatique qui fourn issent des données spatiales et temporelles dans 
+différents domaines représentent des moyens efficaces pour prendre les bonnes décisions. 
+1.6.4 Mention Informatique, Sciences des  Donnees et Intelligence Artificielle SDIA 
+La condition d’accès en première a nnée de Master (M1) en S7 se fait par sélection de dossier 
+après l’obtention du diplôme de Licence en Informatique et en Mathématique et Informatique 
+pour les Science Sociales (MISS). Le Recrutement en S9 se fait par validation des crédits 
+acquis. 
+La Menti on Informatique, Sciences des Données et Intelligence Artificielle (SDIA) est un 
+parcours académique qui forme des experts capables de concevoir, développer, et optimiser des 
+systèmes informatiques avancés et des solutions basées sur l'intelligence artific ielle. Ce 
+programme est structuré autour de trois axes principaux : l'informatique, la science des données, 
+et l'intelligence artificielle.Les étudiants acquièrent des compétences solides en programmation, 
+algorithmes, et structures de données, fondamental es pour développer des logiciels et des 
+applications performantes. La science des données les initie à la collecte, l'analyse, et 
+l'interprétation des données massives (big data), tout en utilisant des outils statistiques et des 
+techniques d'apprentissage automatique (machine learning). L'intelligence artificielle, quant à 
+elle, couvre des domaines comme le deep learning, la vision par ordinateur, le traitement du 
+langage naturel, et les systèmes intelligents.Le parcours SDIA est fortement orienté vers la 
+pratique et l’innovation, avec des projets de recherche appliquée, des stages en entreprise, et 
+des collaborations avec l'industrie. Les diplômés sont prêts à relever les défis technologiques 
+contemporains et à innover dans des domaines variés tels que la santé, la finance, le marketing, 
+la robotique, et les technologies de l’information. Ils peuvent poursuivre des carrières de data 
+scientist, ingénieur en intelligence artificielle, analyste de données, ou encore chercheur en 
+informatique. 
+
+===== PAGE 23 =====
+ 
+11 
+ 
+1.6.5  Mention Inf ormatique, Ingenierie Geospaciale et    Technologies  de 
+l’Information IGTI 
+La condition d’accès en première année de Master (M1) en S7 se fait par sélection de dossier 
+après l’obtention du diplôme de Licence en Informatique et en Mathématique et Informati que 
+pour les Science Sociales (MISS). Le Recrutement en S9 se fait par validation des crédits 
+acquis. 
+La Mention Informatique, Ingénierie Géospatiale et Technologies de l’Information (IGTI) est 
+un parcours académique qui forme des spécialistes en informati que appliquée aux sciences 
+géospatiales et aux technologies de l’information. Ce programme combine des compétences en 
+programmation, en analyse de données spatiales, et en développement de systèmes 
+d'information géographique (SIG).Les étudiants apprennent à utiliser des outils géospatiaux 
+pour la cartographie, l’analyse spatiale, et la modélisation, tout en maîtrisant des technologies 
+avancées comme le cloud computing, les bases de données géospatiales, et les applications 
+mobiles. Le parcours met également l’accent sur l’utilisation de l’intelligence artificielle et du 
+machine learning pour le traitement et l’analyse des données géospatiales.Les diplômés sont 
+préparés pour des carrières dans divers secteurs, y compris l’urbanisme, l’environnement, la 
+gestion des ressources naturelles, et la sécurité publique, où ils peuvent développer des solutions 
+technologiques innovantes pour répondre aux défis spatiaux et informationnels. 
+1.6.5  Mention Multimedia, Communication Numerique et Management de Projet  
+La Mention Multimédia, Communication Numérique et Management de Projet est un parcours 
+académique qui forme des professionnels capables de créer, gérer, et diffuser des contenus 
+numériques innovants. Le programme couvre des domaines tels que la production multimédia, 
+le design graphique, la communication digitale, et le marketing en ligne.Les étudiants y 
+acquièrent des compétences en création de contenu multimédia (vidéo, audio, web), gestion de 
+campagnes numériques, et utilisation d'outils de communication interactifs. Le management de 
+projet est également central, avec un focus sur la planification, l'exécution, et le suivi de projets 
+numériques.Les diplômés sont prêts à travailler dans des secteurs variés, tels que la publicité, 
+les médias, les agences de communication, ou encore à lancer leur propre entreprise digitale, 
+en tirant parti des nouvelles technologies pour des stratégies de communication efficaces. 
+
+===== PAGE 24 =====
+ 
+12 
+ 
+1.6.5  Mention Multimedia, Communication Multimedia CM en double diplôm e 
+avec le parcours  Cultures  et Metiers  du web (CMW) de l’Universite 
+Gustave Eiffel 
+La Mention Multimédia, Communication Multimédia (CM) en double diplôme avec le parcours 
+Cultures et Métiers du Web (CMW) de l’Université Gustave Eiffel est un programme innovant 
+qui combine compétences en création de contenus numériques et compréhension des cultures 
+digitales. Les étudiants sont formés à la production multimédia, au design interactif, et à la 
+gestion de projets numériques, tout en explorant les aspects socioculturels du web.Ce parcours 
+met l’accent sur le développement de compétences en communication digitale, stratégie de 
+contenu, et utilisation des nouvelles technologies pour le marketing en ligne. Grâce au double 
+diplôme, les étudiants bénéficient d’une formation enrichie qui combine savoir-faire technique 
+et connaissances théoriques sur les usages du web.Les diplômés sont préparés pour des carrières 
+dans les secteurs des médias, de la communication numérique, du design interactif, et du 
+marketing digital, avec une expertise en analyse des tendances web et en innovation numérique. 
+1.7 Vie étudiantes 
+Elle permet aux étudiants de développer de véritables qualités humaines, organisationnelles et 
+solidaires en leur offrant plusieurs opportunités. 
+Les activités associatives permettent aux étudiants de gagner une expérience pratique précieuse 
+en dehors du cadre académique. Elles offrent également l’occasion de mettre en application les 
+théories enseignées en cours dans des contextes réels. En participant à ces activités, les étudiants 
+améliorent leurs habilités et développent des compétences pratiques ainsi que des savoir -faire 
+professionnels. De plus, la vie associative leur permet d’élargir leur réseau de contacts 
+personnels et professionnels en interagissant av ec divers acteurs du milieu associatif et 
+professionnel. Enfin, la participation à des projets associatifs facilite l’intégration des étudiants 
+dans la vie professionnelle en les exposant à des situations concrètes et à des responsabilités 
+réelles. 
+
+===== PAGE 25 =====
+ 
+13 
+ 
+1.8 Membres du bureau 
+Ce bureau est responsable de la gestion des relations entre l'association et l'administration de 
+l’école. Il a également pour mission d’améliorer la vie étudiante en organisant des activités qui 
+renforcent l’esprit d’appartenance des étudiants et reflètent les valeurs de l’école. 
+Composé de représentants des étudiants, ce bureau est structuré comme suit : 
+ 
+figure 1- 2:Membre de bureau Emit Fianarantsoa 
+
+
+===== PAGE 26 =====
+ 
+14 
+ 
+1.9 Association sportive 
+« Un esprit sain dans un corps sain », dit-on. Cette association sportive regroupe les passionnés 
+de sport, qu'ils soient aspirants ou pratiquants. Ensemble, ils cultivent l’esprit sportif et combatif 
+tout en valorisant le travail d’équipe. 
+En cherchant à équilibrer intellectualité et c ondition physique, ces étudiants défendent et 
+représentent fièrement l’école lors de divers tournois, qu'ils soient internes (inter -niveaux) ou 
+externes (inter-établissements). 
+1.10 Club de danse 
+Le club de danse de l’EMIT (EMIT -Danse) réunit les passionnés de danse de tous genres. Au 
+sein de ce club, les étudiants développent le respect mutuel et l’esprit de partage à travers des 
+apprentissages et des démonstrations. Le club offre ainsi un espace où le « temps danse » 
+devient une combinaison d’amusement et de développement personnel. 
+Les étudiants se laissent porter par cette passion, en harmonie avec les valeurs transmises par 
+l’école. 
+1.11 Club de musique 
+Ce club de musique EMIFI et EMIKA regroupe les jeunes talents musicaux de l’EMIT. Il 
+prône l e sens de respect et de l’écoute mutuel en se communiquant autrement avec les 
+instruments musicaux,  
+harmonisant l’équilibre intellectuelle et culturelle des étudiants. Tout ceci en intégrant les 
+grandes valeurs et idéologies de l’Ecole.  
+1.12 Club des jeunes entrepreneurs 
+« Visons haut, entreprenons ensemble, car nous sommes l’avenir ! » Le Club Jeune 
+Entrepreneur (CJE) a pour objectif de développer l’esprit entrepreneurial des étudiants, en 
+mettant l'accent sur le travail d’équipe. 
+La vie du club est cent rée sur la formation, le partage d’expériences et la pratique 
+entrepreneuriale. Il favorise le développement du leadership, de la responsabilité et de la 
+créativité de chaque membre, tout en promouvant les valeurs fondamentales de l’école. 
+
+===== PAGE 27 =====
+ 
+15 
+ 
+1.13 English Club 
+« Let’s learn and perform together ! »  
+L’English Club EMIT regroupe les passionnés de l’anglais. Avec diverses activités 
+d’apprentissage et de pratique, il a pour but de promouvoir le développement de cette langue 
+et la performance de la vie associative des étudiants.  
+1.14 Bibliothèque numérique 
+L’école est également affiliée à une bibliothèque numérique communautaire multilingue 
+scholarvox. Ceci étant, les étudiants et les enseignants ont accès en illimité à des trentaines 
+de milliers d’ouvrages et d’articles spécialisés dans plusieurs disciplines.  
+Par ailleurs, l’université dispose de plusieurs places de lecture, dont des espaces informatiques, 
+salles de travail ainsi qu’un espace de consultation spécifique aux fonds patrimoniaux.  
+1.15 Formation en ligne 
+ EMIT, cumul des avantages de la formation et de la recherche :  
+Reconnaissance nationale du diplôme  
+Adaptation à l’international de la formation  
+Vaste réseau d’université partenaires  
+Vaste réseau d’entreprises partenaires  
+Des équipes enseignantes réputées pour leurs travaux de recherche et leur expertise dans leur 
+discipline  
+Des équipements pédagogiques modernes : espace numérique de travail, visioconférence,  
+ 
+Chapitre 2  :PRESENTATION DE LA DIRECTION GENERAL 
+DES IMPOTS CENTRE FISCAL A FIANARANTSOA 
+2.1 Historique de la Direction des Impôts et des Douanes 
+ De 1975 jusqu’à 1997, la Direction des Impôts et la Direction des Douanes étaient dirigées par 
+une seule Direction Générale dénommée « Direction Générale des Régies Financières (DGRF) 
+». La Direction chargée des Impôts était divisée en 3 services pratiquement indépendants : 
+service des contributions directes, service des contributions indirectes et services de 
+l’enregistrement et du timbre. En 1998, la Direction générale des impôts (DGI) a été créée et 
+les 3 ex-services fusionnés . 
+
+===== PAGE 28 =====
+ 
+16 
+ 
+  XVème – XVIIème siècle : Introduction des impôts indirects sur les biens de consommation, 
+comme la « gabelle » sur le sel. L'impôt sur les personnes (capitation) est également apparu, 
+avec des moyens coercitifs pour sa perception. 
+  XVIIIème siècle :  L'époque des Lumières voit le s philosophes comme Montesquieu et 
+Rousseau critiquer les pratiques fiscales de l'Ancien Régime. Ils réclament justice fiscale, 
+liberté et neutralité, condamnant l'inquisition fiscale et les impôts injustes. 
+  XIXème – XXème siècle : Les guerres mondiales marquent une période d'immobilisme fiscal, 
+avec une législation peu évolutive. L'impôt devient un outil pour la croissance économique et 
+le développement social. À Madagascar, le système fiscal hérité de la période coloniale français 
+prédomine, avec un accent sur l'impôt foncier. L'impôt moderne remplace les prélèvements en 
+nature par des impôts sur le revenu, les dépenses et le capital. 
+Aujourd'hui, l'impôt est régi par la Constitution malgache (article 36) et est un fondement de la 
+souveraineté nationale.  La Direction Générale des Impôts met en œuvre une réforme de 
+l'administration fiscale depuis 2007, visant à rendre l'administration plus efficace, simplifiée et 
+orientée vers le service public. Les objectifs incluent la mobilisation des recettes budgétair es, 
+le soutien à l'investissement et l'intégration régionale, ainsi que la modernisation des structures 
+et procédures. La réforme prévoit également l'extension du logiciel SIGTAS et la mise en place 
+de centres de gestion agréés pour assister les contribuables. 
+Nous encourageons les contributions pour enrichir cette rubrique historique. Toute personne 
+disposant d'informations utiles est invitée à nous contacter à l'adresse email 
+dgimpots@moov.mg ou à se rendre directement à l’Immeuble des Finances et du Budg et à 
+Antaninarenina – Porte 420 – 4ème étage. 
+2.2Mission de la Direction Generale des Impots 
+Les missions de la Direction Générale des Impôts, établies par le Décret n° 2005/119 du 15 
+avril 2013 relatif à l'organisation du Ministère de l'Économie et des Finances, se répartissent en 
+plusieurs grandes fonctions : 
+Gestion et Recouvrement des Impôts  : Assurer la collecte efficace des impôts et autres 
+recettes publiques conformément à la législation fiscale en vigueur. 
+
+===== PAGE 29 =====
+ 
+17 
+ 
+Contrôle Fiscal  : Effectuer des vérificatio ns et contrôles pour garantir la conformité des 
+déclarations fiscales des contribuables et prévenir la fraude. 
+Élaboration des Normes Fiscales  : Contribuer à la définition et à la mise en œuvre des 
+politiques fiscales et à l’élaboration des textes réglementaires. 
+Conseil et Assistance aux Contribuables  : Fournir des conseils et une assistance technique 
+aux contribuables pour faciliter le respect de leurs obligations fiscales. 
+Gestion des Litiges Fiscaux : Gérer et résoudre les litiges fiscaux entre l’administration fiscale 
+et les contribuables. 
+Formation et Sensibilisation : Former le personnel fiscal et sensibiliser les contribuables aux 
+enjeux fiscaux et aux procédures. 
+Analyse et Statistiques Fiscales  : Analyser les données fiscales, produire des statistiques et 
+des rapports pour soutenir la politique fiscale et économique du pays. 
+Modernisation des Procédures Fiscales  : Développer et mettre en œuvre des outils et des 
+procédures modernes pour améliorer l’efficacité et la transparence de l’administration fiscale. 
+Coordination avec les Autres Administrations  : Collaborer avec d'autres administrations et 
+institutions pour assurer une gestion cohérente et harmonisée des questions fiscales. 
+ 
+
+===== PAGE 30 =====
+ 
+18 
+ 
+2.3 Organigramme de la Direction Générale des Impôts 
+ 
+figure 2- 1:Organigramme Direction Generale des Impots 
+2.4 Partenaires 
+La Direction Générale des Impôts collabore avec divers partenaires de confiance pour optimiser 
+ses opérations et améliorer l’efficacité de l’administration fiscale. Ces partenaires incluent : 
+
+
+===== PAGE 31 =====
+ 
+19 
+ 
+GASYNET : Fournisseur de solutions technologiques pour la gestion des systèmes 
+d'information.BIANCO : Bureau Indépendant Anti -Corruption, chargé de la lutte contre la 
+corruption.EDBM : Entreprendre pour Madagascar, dédié à la promotion de l'investissement et 
+à l’amélioration du climat des affaires.ATAFTAX : Association des Techniciens et Agents de 
+la Fiscalité, engagée dans le développement des compétences fiscales. SAMIFIN : Société 
+d'Administration de Marché Financier, impliquée dans les opérations financières et 
+boursières.Trésor Public  : Responsable de la gestion des finances publiques et de la 
+comptabilité de l'État. DGBF : Direction Générale du Budget et des Finances, chargée de la 
+gestion budgétaire et financière de l'État. La Banque Mondiale  : Institution internationale 
+fournissant des financements et des conseils techniques pour le développement économique et 
+la réforme des politiques publiques. 
+2.5 Dirigents 
+ 
+figure 2- 2:Dirigents Direction Generale des Impots 
+
+
+===== PAGE 32 =====
+ 
+20 
+ 
+ 
+ 
+
+
+===== PAGE 33 =====
+ 
+21 
+ 
+Chapitre 3 :PRESENTATION DU PROJET 
+D'après l'interview réalisée avec la Direction Générale des Impôts de Fianarantsoa Amoron’i 
+Mania, plusieurs problèmes ont été identifiés au sein de cette Direction. Ces défis ont motivé le 
+développement de l'application proposée. 
+3.1 Origine du projet 
+L'ingénieur responsable de l'informatique à la Direction Générale des Impôts de Fianarantsoa a 
+proposé de réaliser le projet pendant la durée du stage. Ce projet est axé sur la mise en place 
+d'un système minimal de la trésorerie . 
+3.2 Problématique 
+Au niveau de la Direction Générale des Impôts de Fianarantsoa, il n'existe pas actuellement 
+d'application pour la mise en place d'un système minimal de gestion de la trésorerie  en ligne. 
+En conséquence, il n'y a pas de moyen efficace pour suivre indirectement  le Mouvement de la 
+tresorerie . 
+3.3 L’objectif du projet 
+L’objectif du projet est de développer une application de Système Minimal de la Trésorerie 
+(SMT) destinée à suivre indirectement les petites entreprises dont le chiffre d'affaires annuel 
+est inférie ur à 200 millions MGA. Cette application se concentrera sur la gestion des 
+mouvements de trésorerie, en enregistrant à la fois les encaissements (entrées de trésorerie) et 
+les décaissements (sorties de trésorerie). Les mouvements de trésorerie ainsi enregi strés 
+permettront de calculer le résultat de l'exercice pour chaque entreprise. 
+3.4 Plan de réalisation du projet 
+Etape 1 :Reconnaissance de lieu d’acceil ; 
+-Presentation de la Direction Generale des Impots ; 
+-Historique de la Direction Generale des Impots ; 
+-Organigramme de la Direction Generale des Impots . 
+Etape 2 :Analyse de l’existance 
+-Enquete aupres du responsable du service concerne ; 
+-Documentation sur l’internet.  
+
+===== PAGE 34 =====
+ 
+22 
+ 
+-Recherche sur l’internet  
+ 
+ Etape 3 :Etude des besoins : 
+-Documents ; 
+-Interviews ; 
+Etapes 4 :Conception du projet 
+Etape 5 :Realisation  
+Etape 6 :Mise en place de l’ application  
+Etape 7 : Dépôt du rapport de stage final après validation 
+Le tableau montre la réparation du temps pour chaque étape : 
+table 3- 1::Répartitions du temps 
+Etape  Date debut Date fin 
+Etape 1  1 juillet 2024 10 juillet 2024 
+Etape 2 13 juillet 2024 20 juillet 2024 
+Etape 3 13 juillet 2024  
+Etape 4 21 juillet 2024 26 juillet 2024 
+Etape 5 27 juillet 2024 22 Aout 2024 
+Etape 6 25  Aout 2024 25 Aout 2024 
+Etape 7   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+
+===== PAGE 35 =====
+ 
+23 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Partie2 :ANALYSE ET CONCEPTION DU PROJET 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 36 =====
+ 
+24 
+ 
+Chapitre 4 :METHODE ET NOTATION UTILISEE 
+Ce système sera ensuite transformé en base de données pour l’application via un SGBD. Nous 
+utilisons dans notre conception une méthode d’étude de la Système d’Information(SI), c’est la 
+méthode MERISE (Méthode d'Étude et de Réalisation Informatique pour les Systèmes 
+d'Entreprise) .  Elle vise à modéliser et concevoir des systèmes d'information de manière 
+structurée et méthodique . 
+4.1 Methode merise en general : 
+La méthode MERISE date de 1978-1979, et fait suite à une consultation nationale lancée 
+en 1977 par le ministère de l'Industrie dans le but de choisir des sociétés de conseil en 
+informatique afin de définir une méthode de conception de systèmes d'information. Les deux 
+principales sociétés ayant mis au point cette méthode sont le CTI (Centre Technique  
+d'Informatique) chargé de gérer le projet, et le CETE (Centre d'Etudes Techniques de 
+l'Equipement) implanté à Aix -en-Provence. Elle propose une approche de la conception 
+séparant l’étude des données de celle des traitements, en avançant progressivement par niveaux. 
+Chacun de ces niveaux a pour objectif principal de fournir un certain nombre de document 
+(MCD, MPD, MCT, MCTA, MOT, MOTA) permettant ainsi la synthèse textuelle d’un 
+processus de réflexion. Ces documents sont indispensables à l’élaboration et à la concertation 
+autour de tout projet informatique. La mise en place des modèles de traitements a non seulement 
+pour but de définir les traitements à effectuer, mais également de valider les options prises lors 
+de l’élaboration des modèles de données. Ains i la méthode Merise préconise, non pas 
+d’effectuer l’analyse des données, puis ensuite celle des traitements, mais plutôt de mener en 
+parallèle, à chaque niveaux, l’analyse des données et celle des traitements.  
+La méthode MERISE est une méthode qui propos e un cadre méthodologique bien défini pour 
+la conception de systèmes d'information. Elle guide les concepteurs à travers différentes étapes, 
+de la modélisation conceptuelle à la mise en œuvre physique, ce qui favorise une approche 
+méthodique et organisée d u développement. Afin d'obtenir une modélisation fonctionnelle et 
+optimale reflétant la réalité physique du système d'information, plusieurs phases sont à respecter 
+: 
+ 
+ 
+
+===== PAGE 37 =====
+ 
+25 
+ 
+ 
+Source : http://www.developpez.com/merise 
+              
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Système d’information manuel 
+Expression des besoins 
+Modele Conceptuel 
+               Modele Logique 
+Modele Physique 
+Système d’Information automatise 
+
+===== PAGE 38 =====
+ 
+26 
+ 
+ 
+4.2 Definition   Merise[1] 
+« MERISE » est une méthode de conception, de développement et de réalisation de projets 
+informatiques. Elle est plus utilisée pour l’analyse informatique de gestion où elle se fonde sur 
+le principe de l’analyse systématique. Elle propose de raisonner sur a ccès globaux tels que 
+l’organisation, domaine, projet, application ; etc… et sur une abstraction progressive décrite à 
+travers des concepts des cycles. « MERISE » est une méthode qui se part 2 partie : les données 
+et les traitements. Elle émiette les SGBD qui utilise le langage de description de donnée(LDD) 
+et le langage Manipulation de donne(LMD). MERISE : Méthode d’Etude et de Réalisation 
+Informatique de Système d’Entreprise     
+4.3 Objectif  du Merise [2] 
+Le but de cette méthode est d'arriver à concevoir un système d'information. La méthode 
+MERISE est basée sur la séparation des données et des traitements à effectuer en plusieurs 
+modèles conceptuels et physiques. La séparation des données et des traitements assure une 
+longévité au modèle. En effet, l'agencement des données n'a pas à être souvent remanié, tandis 
+que les traitements le sont plus fréquemment. 
+4.4 Niveaux d’Analyse[1] 
+4.4.1 Niveaux Conceptuels 
+C’est le niveau qui exprime le choix de gestion indépendant des moyens à mettre en œuvre et 
+leur organisation. Il décrit les règles les contraintes à prendre en compte, dont : le Modelé 
+conceptuel de donnée(MCD), qui traduit le choix de gestion des informations et décrit la 
+signification. 
+4.4.2 Niveaux organisationnel ou logique 
+Ce niveau reflète le choix, les moyens et les ressources humaines a matérielles et l’organisation 
+de ces ressources en faisant abstraction de leurs caractéristiques précises : 
+ - Le modèle logique de donnée (MLD), qui présente un choix logiciel pour le système de 
+l’information et fournit une description de donnée tenant de compte des moyens informatique 
+mis en œuvre.  
+- Le modèle organisationnel de traitement les contraintes due à l’environnement et le 
+fonctionnement du domaine étudie en précisant les ressources mise en œuvre et organisation. 
+
+===== PAGE 39 =====
+ 
+27 
+ 
+4.4.3 niveaux physique ou opérationnels 
+Ce niveau est modèle physique de donnée (MPD), traduisent les choix techniques et reflète un 
+choix matériel pour le système d’informations et décrit la base de donnée ou l’ensemble de 
+fichier corr espondant aux donnée gérées par le système. Le model opérationnel des 
+traitement(MOT), résume le MLD et MPD à travers les deux fonction essentiel et mis à jour et 
+de la consultation sans interroger plus sur la façon dont il pourrait être exécute. 
+4.5 Justification du choix de Merise 
+Nous avons opté pour la méthode Merise car elle offre la possibilité de modéliser les éléments 
+constitutifs d'un Système d'Information de Gestion (SIG) : les données, les utilisateurs, les 
+traitements, les procédures et les postes de travail. 
+4.6 Outil de Conception 
+Nous employons l'outil Win'Design pour effectuer la conception du projet. 
+4.6.1 Win ‘design 
+Win'Design est un logiciel de modélisation utilisé principalement pour la conception de 
+systèmes d'information. Il permet de créer des modèles de données, des diagrammes de flux et 
+d'autres représentations nécessaires pour la conception et l'analyse des systèmes. Il est souvent 
+utilisé dans le cadre de la méthode Merise pour la modélisation et la gestion des bases de 
+données. 
+4.6.2 Justification de choix 
+On choisit Win ‘design pour réalise la conception :  
+ Pour facilite la construction de tous les modèles dans la conception.  
+ Traduises automatiquement le modèle conceptuel de donnée en modèle logique de donnée 
+Chapitre 5 :ANALYSE DE CONCEPTION 
+Afin de pouvoir maitriser la mise en place du projet, une phase d’analyse est indispensable afin 
+de déterminer les moyens à entreprendre. Il est d’ailleurs nécessaire d’expliquer les réels 
+objectifs de la Direction Generale des Impots Fianarantsoa , de l’ap plication à concevoir afin 
+d’en déduire la convergence entre ces deux. 
+
+===== PAGE 40 =====
+ 
+28 
+ 
+5.1 Analyse de besoin 
+D’après l’interview auprès de la Direction Générale des Impôts (DGI) de Fianarantsoa, le 
+logiciel à concevoir devra inclure les fonctionnalités suivantes pour répo ndre aux besoins du 
+service : 
+Connexion avec Authentification Sécurisée  :Accès sécurisé au système avec authentification 
+via des identifiants personnels. 
+Recherche Dynamique  :Fonctionnalité de recherche rapide et efficace des informations 
+pertinentes. 
+Affichage de la Liste des Contribuables :Visualisation de toutes les informations concernant les 
+contribuables. 
+Statistiques du Mouvement de Trésorerie  :Génération de rapports statistiques sur les 
+mouvements de trésorerie pour une analyse détaillée. 
+Affichage de la Liste des Comptes de Trésorerie  :Visualisation des différents comptes de 
+trésorerie enregistrés dans le système. 
+Ajout de Compte de Trésorerie :Fonctionnalité pour ajouter de nouveaux comptes de trésorerie. 
+Suppression de Compte de Trésorerie  :Option pour supprimer les comptes de trésorerie 
+existants. 
+Déconnexion :Option pour se déconnecter du système en toute sécurité. 
+Ces fonctionnalités permettront de garantir une gestion efficace et sécurisée des mouvements 
+de trésorerie pour les petites entrepris es, conformément aux exigences de la DGI de 
+Fianarantsoa. 
+5.2 Analyse d’existent 
+Pour progresser de manière stratégique et organisée, il est crucial de réaliser une phase d'analyse 
+approfondie. Cette étape permet d'examiner et de critiquer les systèmes existants au sein de la 
+DGI Fianarantsoa en rapport avec le thème choisi, tout en id entifiant des solutions aux 
+
+===== PAGE 41 =====
+ 
+29 
+ 
+problèmes persistants. L'étude de l'existant constitue ainsi un point de départ essentiel, 
+marquant le premier contact entre le concepteur et les utilisateurs. 
+Chapitre 6 :CONCEPTION DU PROJET 
+6.1 Definition 
+La conception est une étude approfondie visant à créer une représentation virtuelle de la logique 
+d'un système afin de mettre en évidence les aspects essentiels. C'est une approche utilisée dans 
+l'analyse des systèmes d'information, qui décrit un système à travers des modèles. La méthode 
+MERISE est l'une des méthodes les plus couramment utilisées dans ce domaine aujourd'hui. 
+6.2 Dictionnaire des donné 
+Un dictionnaire des données est un registre centralisé qui définit et documente les éléments de 
+données d'un s ystème d'information. Il décrit les caractéristiques des données telles que les 
+types, les formats, les règles de validation, les relations entre les données, et les contraintes 
+associées. 
+table 6- 1:règle de gestion de l'application 
+ 
+Nom donnée   
+   
+Description   
+   
+Type de donnée   
+   
+Longueur   
+  
+Id_util Identiant utilisateur N    
+CIN Carte d’Identite National CHAR   12 
+Nom_util Nom complet de l’utilisateur VARCHAR  50 
+email  Email de l’utilisateur  VARCHAR   50   
+adresse  Adresse de l’utilisateur  VARCHAR  50  
+
+===== PAGE 42 =====
+ 
+30 
+ 
+image  image  --- 
+ 
+role Role VARCHAR 20 
+password Mot de passe  VARCHAR  8   
+Id_compte  Identifiant du compte tresorerie N    
+solde Solde du compte de tresorerie   DECIMAL   
+date_compte Date creation compte  DATE    
+Id_trans Identifiant transaction N    
+montan Mantant DECIMAL   
+type Type de transaction  VARCHAR  15 
+date_trans Date de trnasaction  Date    
+Id_rapports Identifiant rapport  N   
+titre Titre du rapport  VARCHAR  100  
+contenue Contenue dans le rapport VARCHAR 100 
+date_generation Date generation rapport  DATE   
+ 
+
+===== PAGE 43 =====
+ 
+31 
+ 
+6.3 Règle de gestion 
+Avant de créer un Modèle Conceptuel de Données (MCD), il est crucial de définir les règles de 
+gestion. Une règle de gestion est une directive qui s'applique de manière systématique à divers 
+cas au sein de l'entreprise. Elle établit les normes à suivre pour les actions à entreprendre. Une 
+règle de gestion peut être applicable à plusieurs actions et représente les contraintes relatives 
+aux activités de l'organisation. 
+RG1 : Un utilisateur peut être un administrateur ou un contribuable 
+RG2 : Un compte appartient à un seul utilisateur. 
+RG3 : Un compte peut avoir plusieurs transactions. 
+RG4 : Le solde d’un compte est mis à jour après chaque transaction. 
+RG5 : Une transaction appartient à un seul compte. 
+RG6 : Une transaction peut être soit une recette, soit une dépense. 
+RG7 : Un utilisateur est référencé par son Id_util, CIN, Nom_util, email, adresse, et rôle. 
+RG8 : Un utilisateur qui est contribuable peut générer plusieurs rapports. 
+RG9 : Un rapport est généré par un seul utilisateur. 
+RG10 : Un rapport est caractérisé par un Id_rapport, un titre, un contenu, et une date de 
+génération. 
+RG11 : Une transaction est caractérisée par son Id_trans, montant, type (dépense, recette), et 
+sa date. 
+6.4 Modèle Conceptuel des Données 
+6.4.1 Definition 
+Le modèle conceptuel des données vise à formaliser les données utilisées par le système 
+d'information. Il s'agit d'une représentation claire et compréhensible des données, décrivant le 
+système d'information à l'aide d'entités. Le modèle conceptuel de données d'un système 
+d'information est élaboré à l'aide de concepts, et sa réalisation aboutit à un "schéma conceptuel 
+des données". Une représentation efficace des données dans un système d'information doit être 
+à la fois simple et complète. Un MCD, ou Modèle Conceptuel de Données, est un modèle entité-
+association qui organise et structure les informations du système de manière systématique. 
+
+===== PAGE 44 =====
+ 
+32 
+ 
+6.4.2 Les concepts de base du MCD Les entités 
+L'entité est la représentation d'un élément, qu'il soit matériel ou immatériel, qui joue un rôle 
+dans le système que l'on souhaite modéliser. 
+6.5 Relation 
+Une relation représente le l ien entre deux ou plusieurs entités. Elle est généralement désignée 
+par un verbe, qui illustre la nature du lien entre ces entités. 
+6.6 Attribut et identifiants 
+Un attribut est une donnée élémentaire associée à une entité ou à une relation. Chaque entité 
+possède au moins un attribut, notamment son identifiant. En revanche, un attribut lui-même n'a 
+pas d'attributs. 
+6.7 Cardinalité 
+Une cardinalité exprime le nombre de participations possibles des entités dans une association, 
+au niveau des occurrences. Les cardinalités sont représentées par deux chiffres : la cardinalité 
+minimale et la cardinalité maximale. Voici leur signification : 
+• Cardinalité minimale :  Indique le nombre minimum de fois qu'une entité peut être 
+impliquée dans l'association. 
+o 0 signifie que l'entité peut ne pas participer du tout à l'association. 
+o 1 signifie que l'entité doit participer au moins une fois à l'association. 
+• Cardinalité maximale :  Indique le nombre maximum de fois qu'une entité peut être 
+impliquée dans l'association. 
+o 1 signifie que l'entité peut participer au plus une fois à l'association. 
+o N signifie que l'entité peut participer plusieurs fois à l'association. 
+Ces cardinalités permettent de définir précisément les contraintes et les relations entre les entités 
+au sein du modèle. 
+6.7.1 Formalisme d’un MCD 
+Les sous ensemble crée deviennent des entités en respect toutes les formes normales. 
+
+===== PAGE 45 =====
+ 
+33 
+ 
+ 
+6.7.2  Modèle Conceptuel de Données de l’application   
+ 
+figure 6- 2: modèle conceptuel de notre application 
+ 
+figure 6- 1:Formalisme MCD 
+
+===== PAGE 46 =====
+ 
+34 
+ 
+6.8 Le modèle Logique des données 
+6.8.1 Définition 
+   C’est une traduction en différents systèmes logiques et notamment les bases de données 
+relationnelles qui proposent une vision plus concrète pour modéliser la situation. Le MCD est 
+indépendant du choix du logiciel de gestion de fichier utilise. Au niveau organisationnel, il faut 
+intégrer les choix d’organisation en matière de gestion des données et transcrire le MCD valide 
+dans un formalisme.    
+6.8.2 Objectif    
+      Il s'agit de représenter, selon un formalisme précis et standardisé, l'ensemble des tables 
+nécessaires à la réalisation du projet décrit dans le MCD, en supposant que l'on dispose de 
+ressources illimitées en termes de matériel, d'équipes de développement, et d'outils de 
+programmation.        
+6.8.3 Les règles de passage de MCD en MLD  
+Toute entité se transforme en une table. L’ identifiant de l’entité devient la clé primaire de la 
+table. Les propriétés de l’entité deviennent des attributs de la table. Mais en tout cas il y a des 
+lois à suivre comme celle-là :        
+table 6- 2:regle de passage de MCD en MLD 
+Cardinalité   Implication    
+ Relation  de  type  père-fils  :  
+   
+l’identifiant de l’entité 1 
+implémenté dans l’entité 2   
+est  
+   
+Relation de type   
+plusieurs/plusieurs : la relation 
+devient une table et implémente les 
+identifiants des deux entités   
+ 
+6.8.4 Construction du MLD 
+La Modèle Logique des Données se présente comme suit : 
+
+
+===== PAGE 47 =====
+ 
+35 
+ 
+ En appliquant les règles de passage, nous avons le MLD suivante : 
+Utilisateurs(Id_util,CIN,Nom_util,email,adresse,role,password) 
+Comptes(Id_compte,solde,#Id_util,date_compte) 
+Transactions(Id_trans,montan,type,date_trans,#Id_compte) 
+Rapports(Id_rapport,titre,contenu,date_generation,#Id_util) 
+6.9 Modèle Conceptuel de Traitement 
+6.9.1 Définition 
+Le modèle conceptuel des traitements constitue la partie dynamique du système d’information. 
+Ils décrivent les actions à exécuter sur les données afin d’obtenir les r ésultats attendus par 
+l’entreprise. Les traitements ne sont faits que la traduction en action des règles de gestion qui 
+compose l’activité de l’entreprise. 
+6.9.2 Conception de base de MCT 
+6.9.2.1 Evènement 
+ Un événement est un fait actif qui peut être inte rne ou externe au Système d'Information. II 
+s’agit d'un déclencheur pour le lancement d'une opération ou le résultat d'une opération. 
+6.9.2.2 Synchronisation  
+La synchronisation est une indiquant les évènement et l’enchainement de ces derniers qui sont 
+nécessaires au lancement d’une opération. Il s’agit donc d’une expression logique réalisée grâce 
+aux opérateurs : OU, ET.  
+6.9.2.3 Opération 
+ Une opération est constituée d'un ensemble d'actions qui sont exécutables sans interruption. 
+Une opération est déclenchée pour répondre à la sollicitation d'un événement et produire un 
+résultat. 
+6.9.2.4 La règle d’émission 
+ Une règle d’émission est une condition qui permet décider du résultat à déclencher en fonction 
+des évènements de l’opération. 
+ 6.9.2.5 Résultat 
+ Un résultat est l’un des produits d’exécution d’une opération possédant la même nature qu’un 
+évènement. Un résultat pourra être le déclencheur d’une autre opération. 
+
+===== PAGE 48 =====
+ 
+36 
+ 
+6.9.3 Construction du MCT 
+ Le Modèle Conceptuel des Traitements permet de représenter schématiquement la gestion. Le 
+MCT Est constitué d’un enchaînement d’opération. Chaque opération est déclenchée par un 
+évènement unique, ou par pl usieurs évènements liés par une condition de synchronisation. 
+L’opération exécute alors des traitements et produit un ou plusieurs résultats, qui peuvent être 
+éventuellement conditionnés par des règles d’émission. Le MCT est mis en œuvre à partir de 
+l’identification des flux d’information échangés par le domaine étudié avec l’environnement 
+extérieur (acteurs), de l’ordre dans lesquels ces flux apparaissent, ainsi que des règles de gestion 
+qui régissent le domaine. L’application à cette analyse des concepts du modèle permet 
+d’élaborer un découpage du traitement en opérations. 
+Formalisme de MCT  
+Le MCT est présente par cette figure suivant : 
+ 
+figure 6- 3:Formalisme MCT 
+6.10 Modèle Conceptuels des Traitements de l’application 
+Le Modèle Conceptuel des Traitements permet de représenter schématiquement la gestion. Une 
+règle d’émission définit la condition sous laquelle des événements résultats seront produit par 
+une opération. Une opération peut avoir une ou plusieur s règles d’émission, une règle gérant 
+l’émission d’un ou plusieurs événements résultats 
+
+
+===== PAGE 49 =====
+ 
+37 
+ 
+ 
+figure 6- 4:Modele des Conceptuels des traitements de l’application 
+
+
+===== PAGE 50 =====
+ 
+38 
+ 
+6.11 Modèle Conceptuels des Traitements Analytique 
+6.11.1 Définition du MCTA 
+Le Modèle Conceptuel des Traitement Analytique permet de lien entre Modèle Conceptuel de 
+Donnée et Modèle Conceptuel des Traitements tout en passant par les règles gestion. Cette 
+figure suivante représente la Modèle Conceptuel des Traitements Analytique 
+ 
+figure 6- 5:Modele Conceptuels des Traitements Analytique de l’application 
+C :Creation                                                        I :Interogation                       M :Mise a jour  
+
+
+===== PAGE 51 =====
+ 
+39 
+ 
+6.12 Modèle Organisationnel des Traitements  
+6.12.1 Définition et objectif de MOT 
+Le Modèle Conceptuel de Traitements a permis de décomposer un processus en opération 
+décrivant ainsi une ensemble de l’activité de l’entreprise. Cette description doit être maintenant 
+complétée par la prise en considération de l’organisation choisie par l’entreprise. Deux 
+préoccupations sont prises en considération : -L’affectation des traitements aux poste de travail 
+-Le niveau et type d’automatisation des traitements qui peuvent être : des traitements manuels, 
+des traitements automatises que ce soit en temps réel ou en temps différé. Le Modèle 
+Organisationnel des Traitement permet de présenter l’ensemble de traitements en prenant 
+l’organisation de l’entreprise. Celle-ci sera matérialisée par les postes de travail. Chaque poste 
+de travail correspond à une unité d’action élémentaire dotée de moyen d’exécution : moyen en 
+personnel, moyens de traitement automatique selon le cas. A chaque opération du niveau 
+conceptuel correspondra un ou plusi eurs phases dans le MOT. Une succession de phases 
+appartenant à un même processus s’appellera procédure. 
+6.12.2 Objectif du MOT 
+Le MOT traduit l’enchainement des traitements comme si aucune contrainte financière ou 
+humaine, Il symbolise l’entreprise qui disposait d’une idéale et des moyens illimités. L’objectif 
+est de fournir une représentation sémantique de l’entreprise en répondant la question : 
+ « Où ?» : pour le poste concerné.  
+« Comment ?» : pour les façons de traitement. 
+ « Qui ?» : pour la personne charger d’exécuter le traitement.  
+« Quand ?» : pour le déroulement dans le temps des différentes actions. 
+39 
+6.12.3 Les règles d’organisation 
+Les règles d’organisation traduit l’organisation mise en place par une entreprise pour 
+assurer son bon déroulement mais aussi aboutir à des objectifs fixés. 
+Voici les règles d’organisation de l’application: 
+RO1 :  Enregistrement des contribuables dans le formulaire d’enregistrement  
+RO2 : Creation compte de tresorerie pour chaque contribuable enregistrer. 
+
+===== PAGE 52 =====
+ 
+40 
+ 
+RO3 :Manipulation du compte en faison du transaction recette ou depense et generation du 
+rapport financier  
+RO3 : Après la génération du rapport, une pièce justificative est envoyée par email au 
+contribuable concerné. 
+6.12.4 Tableau procédure fonctionnelles 
+table 6- 3:tableau du procedure fonctionnelles 
+Numero PF Nom PF Nature Lieu Ressource 
+PF1 Enregistrement 
+des 
+contribuables 
+M Bureau Responsable 
+PF2 Creation compte 
+tresorie 
+M Bureau Responsable 
+PF3 Afficher les 
+comptes creer 
+A         -- Machine 
+PF4 Enregistrement 
+d’une 
+transaction 
+M   Bureau Responsable 
+PF5 Mise en jour du 
+solde du compte  
+A   ---- Machine 
+PF5 Gere rapport 
+avec evoye d’ 
+une piece 
+justificatif 
+M Bureau Responsable 
+ 
+6.13 Procédures fonctionnelles 
+6.13.1 Définition 
+Ensemble des tâches ininterrompues d’une même opération conceptuelle 
+respectant les règles de trois unités : unité de lieu, unité d’action, unité de temps. 
+6.13.2 Enchainement de Procédure Fonctionnel 
+  
+ 
+ 
+ 
+
+===== PAGE 53 =====
+ 
+41 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Partie 3 :REALISATION DU PROJET 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 54 =====
+ 
+42 
+ 
+Chapitre 7 : SPECIFICATION DES OUTILS DE REALISATION 
+La réalisation est la dernière étape de la conception d'un système d'information. Elle implique 
+le développement des programmes en utilisant un langage de programmation approprié pour 
+répondre aux besoins des utilisateurs. Cette phase comprend également la représentation 
+physique des données à l'aide d'un SGBD (Système de Gestion de Base de Données) et d'un 
+logiciel d'application pour la gestion de la base de données. 
+7.1 Le langage de programmation 
+Dans le monde du développement d'applications, il existe aujourd'hui une multitude de langages 
+de programmation, chacun offrant ses propres avantages et inconvénients. Nous avons mis en 
+avant les langag es les plus populaires et les plus largement utilisés dans le domaine du 
+développement informatique. 
+7.1.1 Présentation du langage 
+7.1.1.1 Présentation du langage PHP 
+PHP (Hypertext Preprocessor) est un langage de programmation côté serveur largement utilisé 
+pour le développement web. Créé en 1994 par Rasmus Lerdorf, il a évolué pour devenir l'un 
+des piliers du développement web dynamique. PHP est particulièrement apprécié pour sa 
+facilité d'apprentissage, sa flexibilité, et sa large compatibilité avec les serveurs web et les bases 
+de données. Il est souvent utilisé pour générer des pages web dynamiques en combinant du code 
+PHP avec du HTML. 
+Le langage offre une vaste bibliothèque de fonctions intégrées qui simplifient les tâches 
+courantes comme la gestion d es fichiers, la manipulation des chaînes de caractères, et l'accès 
+aux bases de données. PHP est également open source, ce qui signifie qu'il est gratuit et dispose 
+d'une grande communauté de développeurs qui contribuent à son amélioration continue. 
+Parmi les frameworks les plus populaires basés sur PHP, on trouve Laravel, Symfony, 
+CodeIgniter, et Zend Framework. Laravel, en particulier, est apprécié pour sa syntaxe élégante 
+et sa riche collection d'outils intégrés qui facilitent le développement rapide d'a pplications 
+robustes. Symfony est reconnu pour sa flexibilité et sa modularité, ce qui en fait un choix 
+privilégié pour les projets complexes. CodeIgniter est léger et rapide, idéal pour les applications 
+nécessitant une faible empreinte mémoire. Zend Frame work, quant à lui, est orienté vers les 
+entreprises et propose une architecture solide pour les applications de grande envergure. 
+
+===== PAGE 55 =====
+ 
+43 
+ 
+PHP continue d'évoluer avec des versions récentes qui améliorent la performance, la sécurité, 
+et la gestion des dépendances. Grâce à ses frameworks puissants et sa communauté active, PHP 
+reste une technologie de choix pour les développeurs web à travers le monde. 
+7.1.1.2 Présentation de langage JavaScript 
+JavaScript est un langage de programmation essentiel pour le développement web, connu pour 
+sa flexibilité et sa capacité à ajouter de l'interactivité aux pages web. Créé en 1995 par Brendan 
+Eich, il a rapidement évolué pour devenir un langage incontournable, utilisé aussi bien côté 
+client (front-end) que côté serveur (back-end) avec Node.js. JavaScript permet de manipuler le 
+DOM, de gérer les événements utilisateurs, et de rendre les pages web dynamiques et réactives. 
+L'un des aspects les plus puissants de JavaScript est son écosystème de frameworks et 
+bibliothèques qui facilitent le développement d'applications web complexes. Parmi les plus 
+populaires, on trouve React, Angular, Vue.js, et Svelte. React, développé par Facebook, est une 
+bibliothèque qui permet de créer des interfaces utilisateur en utilisant des composants 
+réutilisables, ce qui simplifie le développement de grandes applications web. Angular, 
+développé par Google, est un framework complet qui offre une structure robuste pour construire 
+des applications web à grande échelle avec une approche modulaire. Vue.js, connu pour sa 
+simplicité et sa courbe d'apprentissage douce, permet aux développeurs de créer des interfaces 
+réactives avec un minimum d'effort. Svelte, quant à lui, est un framework moderne qui compile 
+le code en JavaScript pur, éliminant la nécessité d'une bibliothèque lourde à l'exécution. 
+JavaScript, avec ses nombreux frameworks, continue de dominer le développement web en 
+permettant aux développeurs de créer des applications rapides, interactives et faciles à 
+maintenir. Que ce soit pour des projets simples ou des applications à grande échelle, JavaScript 
+reste un choix de prédilection grâce à son adaptabilité et à son vaste écosystème. 
+Choix de langage 
+Les images suivantes représentent le framework Laravel pour PHP et le framework React pour 
+JavaScript. 
+Laravel offre de nombreux avantages qui en font l'un des frameworks PHP les plus prisés pour 
+le développement d'applications web. Voici quelques-uns de ses principaux atouts : 
+
+===== PAGE 56 =====
+ 
+44 
+ 
+ 
+figure 7- 1:caracteristique de Laravel 
+React.js présente plusieurs avantages qui en font l'une des bibliothèques JavaScript les plus 
+populaires pour le développement d'interfaces utilisateur modernes. Voici quelques-uns de ses 
+principaux atouts : 
+
+
+===== PAGE 57 =====
+ 
+45 
+ 
+ 
+figure 7- 2:Caacteristique du React js 
+ 
+D'après ce que nous avons appris sur le framework Laravel pour PHP et le framework React 
+pour JavaScript, nous avons choisi PHP et JavaScript comme langages pour la réalisation de 
+l'application. 
+7.2 Le Framework Laravel et React JS  
+Laravel est un framework PHP open -source conçu pour simplifier et structurer le 
+développement d'applications web robustes et élé gantes. Créé par Taylor Otwell en 2011, 
+
+
+===== PAGE 58 =====
+ 
+46 
+ 
+Laravel s'est rapidement imposé comme l'un des frameworks PHP les plus populaires grâce à 
+sa syntaxe expressive, sa flexibilité et son vaste écosystème de fonctionnalités. 
+L'un des principaux atouts de Laravel est sa  philosophie «batteries included», ce qui signifie 
+qu'il offre une panoplie d'outils intégrés pour gérer des tâches courantes comme 
+l'authentification, la gestion des sessions, la validation des formulaires, et l'envoi d'e -mails. 
+Laravel utilise un système  de routage simple mais puissant qui permet de gérer les URL de 
+manière efficace, et son moteur de template, Blade, facilite la création de vues dynamiques tout 
+en restant lisible et performant. 
+Laravel encourage une architecture propre et maintenable grâce à l'utilisation de modèles, vues, 
+contrôleurs (MVC), ainsi que des composants tels que Eloquent ORM, qui permet de travailler 
+avec des bases de données en utilisant une syntaxe simple et expressive. L a gestion des 
+migrations de base de données et des files d'attente est également simplifiée, permettant aux 
+développeurs de se concentrer davantage sur la logique métier. 
+Le framework  est soutenu par une communauté active et une riche documentation, ce qui 
+facilite l'apprentissage et la résolution des problèmes. Des outils comme Laravel Forge et 
+Laravel Envoyer simplifient le déploiement d'applications, tandis que Laravel Mix permet de  
+gérer les assets frontend sans effort. En résumé, Laravel est un choix idéal pour les développeurs 
+cherchant à créer des applications web modernes, sécurisées et évolutives en PHP. 
+React est une bibliothèque JavaScript open -source créée par Facebook en 20 13 pour le 
+développement d'interfaces utilisateur dynamiques et réactives. Conçue pour simplifier la 
+création d'applications web complexes, React se distingue par son approche axée sur les 
+composants, qui permet de construire des interfaces utilisateur modulaires et réutilisables. 
+L'un des principes fondamentaux de React est le DOM virtuel (Virtual DOM), une 
+représentation légère de l'arbre DOM qui optimise les mises à jour de l'interface utilisateur en 
+ne rendant que les parties de la page qui ont changé. Cette approche améliore significativement 
+les performances, surtout dans les applications à grande échelle où de nombreuses interactions 
+avec l'utilisateur doivent être gérées en temps réel. 
+React introduit également le concept de composants. Chaque compos ant est une petite unité 
+autonome de l'interface utilisateur, contenant à la fois la logique et la présentation. Les 
+
+===== PAGE 59 =====
+ 
+47 
+ 
+composants peuvent être imbriqués les uns dans les autres, ce qui permet de construire des 
+interfaces complexes à partir de blocs de construction simples et réutilisables. 
+L'écosystème React est riche en outils et bibliothèques qui complètent ses fonctionnalités de 
+base. Par exemple, React Router est utilisé pour la gestion des routes dans les applications 
+monopage (Single Page Applications), tandis que Redux ou Context API permettent la gestion 
+de l'état global de l'application de manière prévisible et efficace. Pour les développeurs 
+souhaitant créer des applications isomorphiques ou côté serveur, Next.js offre une solution 
+puissante basée sur React. 
+React encourage l'utilisation de JSX, une syntaxe qui permet de combiner JavaScript et HTML 
+dans le même fichier, rendant le code plus intuitif et plus proche de ce que voit l'utilisateur final. 
+Cette approche permet également une meilleure intégr ation entre la logique et l'interface, 
+simplifiant ainsi le développement. 
+Grâce à sa popularité et à son adoption massive, React bénéficie d'une vaste communauté et 
+d'une documentation abondante, ce qui en fait un excellent choix pour les développeurs 
+souhaitant créer des applications web modernes, réactives, et évolutives. Que ce soit pour des 
+projets simples ou des applications complexes, React offre les outils et la flexibilité nécessaires 
+pour répondre aux besoins des développeurs d'aujourd'hui. 
+7.3 SGBD 
+7.3.1 Définition de SGBD 
+Un Système de Gestion de Base de Données (SGBD) est un logiciel qui permet de créer, gérer 
+et manipuler des bases de données. Il offre des outils pour stocker, récupérer, modifier et 
+supprimer des données de manière efficace et sécurisée. Les SGBD assurent l'intégrité des 
+données, gèrent les accès concurrents, et offrent des mécanismes de sauvegarde et de 
+restauration. Ils permettent également aux utilisateurs de requêter les données via des langages 
+spécifiques comme SQL. Les SG BD sont essentiels pour les applications qui nécessitent une 
+gestion structurée et fiable des informations. 
+7.3.2 Comparaison des SGBD 
+table 7- 1:comparaison de SGBD 
+SGBD MYSQL MS ACCESS 
+
+===== PAGE 60 =====
+ 
+48 
+ 
+Multiplateforme OUI NON 
+Gratuit OUI NON 
+Libre OUI NON 
+Maitrise OUI OUI 
+ 
+7.3.3 La Base des données 
+Nous avons exploré trois méthodes pour concevoir notre base de données. En première année, 
+nous avons déjà conçu une base de données avec Microsoft Access et Excel. Plus récemment, 
+nous avons créé une base de données avec MySQL. Pour la réalisation de ce projet, nous avons 
+opté pour MySQL pour notre base de données. MySQL utilise le langage SQL (Structured 
+Query Language), un langage de requête utilisé pour interagir avec les bases de don nées 
+relationnelles. 
+7.3.3.1 L’environnement matériel 
+Pour le développement de cette application, nous avons utilisé un ordinateur avec les 
+caractéristiques suivantes : 
+ 
+
+
+===== PAGE 61 =====
+ 
+49 
+ 
+ 
+ 
+figure 7- 3:Caracteristique de l’ordinateur utiliser 
+Nous avons également utilisé un modem 3G de Telma pour accéder à Internet et un Wikif 4g 
+max pour  la partage de connexion Wi-Fi. 
+ 
+figure 7- 4:modem utiliser 
+
+
+===== PAGE 62 =====
+ 
+50 
+ 
+                                 
+figure 7- 5:telephone utiliser 
+ 
+7.3.4 MySQL 
+7.3.4.1 Historique 
+MySQL est un système de gestion de base de données (SGBD) compatible avec les systèmes 
+Linux et Windows. Il utilise le langage SQL (Structured Query Language) pour la définition 
+des données et des droits, ainsi que pour l'interprétation des informations. MySQL permet de 
+stocker et de récupérer des données de manière sécurisée, fournies par les utilisateurs de 
+l'application, et traite ces informations à travers des fichiers développés en Java. Basé sur une 
+architecture client-serveur, MySQL nécessite que les clients communiquent avec le serveur, qui 
+gère et contrôle l'accès aux données. 
+7.3.4.2 Points forts de MySQL 
+Plusieurs raisons nous poussent à choisir MySQL, qui présente de nombreux avantages : 
+-Il est disponible gratuitement. 
+-Il permet la gestion d'un grand nombre de bases de données. 
+-Il offre une implémentation flexible et est largement utilisé. 
+-Sa courbe d'apprentissage est relativement douce. 
+-Il est compatible avec plusieurs plateformes, ce qui permet une intégration dans divers 
+environnements. 
+-Il est reconnu pour sa fiabilité et sa rapidité. 
+
+
+===== PAGE 63 =====
+ 
+51 
+ 
+-Il permet une récupération complète des données, assurant ainsi une sauvegarde 
+efficace. 
+7.3.5 L’outil de développement 
+Au cours du développement de l'application, le choix des outils a principalement été guidé par 
+leur fiabilité et leur praticité. Nous avons ainsi opté pour les logiciels suivants : 
+-Visual Studio Code  
+-XAMPP Server 64 
+-Server MAILOG 
+-PostMan  
+- GitHub 
+ 
+L'outil de développement Visual Studio : 
+Visual Studio est un environnement de développement intégré (IDE) qui se distingue par sa 
+flexibilité, ses performances élevées, et sa capacité à simplifier des tâches telles que la gestion 
+automatique des packages. Il est particulièrement apprécié pour sa richesse fonctionnelle et sa 
+facilité d'utilisation, ce qui en fait un choix privilégié parmi les divers outils de développement 
+disponibles. 
+ 
+figure 7- 6:image Visual Studio Code 
+ 
+Xampp Server 64 : 
+XAMPP Server 64 est une version du serveur XAMPP conçue pour les systèmes d'exploitation 
+64 bits. XAMPP est un ensemble de logiciels open -source qui inclut Apache (serveur web), 
+MySQL (système de gestion de base de données), PHP (langage de script) et Perl (langage de 
+programmation), permettant ainsi de configurer un environnement de développement web 
+complet sur un ordinateur. La version 64 bits est adaptée aux systèmes d'exploitation modernes 
+qui supportent cette architecture, offrant ainsi une meilleure performance et une compatibilité 
+accrue. 
+
+
+===== PAGE 64 =====
+ 
+52 
+ 
+  
+Server Mailog : 
+Mailog est un logiciel serveur de messagerie qui est conçu pour gérer les courriels et les 
+communications électroniques au sein d'une organisation. Il offre des fonctionnalités telles que 
+la gestion des comptes de messagerie, la configuration des serveurs de messagerie, et la gestion 
+des flux de courriels entrants et sortants. Mailog peut inclure des outils pour la surveillance des 
+performances du serveur de messagerie, la gestion des règles de filtrage des courriels, et la 
+sécurité des communications électroniques. 
+Postman : 
+Postman est un outil populaire utilisé pour tester et développer des API (interfaces de 
+programmation d'applications). Il permet aux développeurs de créer, envoyer et analyser des 
+requêtes HTTP (comme GET, POST, PUT, DELETE) vers des serveurs  pour vérifier les 
+réponses des API. Postman offre également des fonctionnalités pour automatiser les tests, gérer 
+des collections de requêtes, et documenter des API. 
+GitHub : 
+GitHub est une plateforme en ligne de gestion de code source et de collaboration  qui utilise le 
+système de contrôle de version Git. Il permet aux développeurs de stocker, gérer, et suivre les 
+versions de leurs projets de code source. GitHub offre également des fonctionnalités pour 
+faciliter le travail en équipe, la collaboration et la gestion de projets. 
+ 
+Chapitre 8 : MISE EN ŒUVRE ET IMPLEMENTATION 
+ Dans ce chapitre, nous aborderons l'architecture logicielle ainsi que le code commenté. 
+8.1 Architecture Logiciel 
+La figure 8.1 illustre l'architecture logicielle de l'application, mettant en évidence les différents 
+composants qui collaborent pour assurer le bon fonctionnement de l'application. 
+
+===== PAGE 65 =====
+ 
+53 
+ 
+ 
+figure 8- 1:Architecture logicielle de l’application 
+Ce schéma peut se résumer comme suit : 
+- L’utilisateur demande une information au serveur (en validant un formulaire après l’avoir 
+rempli). 
+- Le serveur contient la base de données MYSQL. 
+- Ce programme est connecté à ce serveur par l’installation du pilote JDBC permettant de 
+communiquer instantanément avec le serveur. Ce pilote traduit l’opération des utilisateurs en 
+requête SQL. 
+- Le poste utilisateur contient le programme JAVA installé. 
+- Le serveur contient la base de données MYSQL. 
+8.2. Architecture matérielle 
+Nous décrivons par la figure 8.2 l’architecture matérielle de notre application. 
+
+
+===== PAGE 66 =====
+ 
+54 
+ 
+ 
+figure 8- 2:Architecture materielle de l’application 
+ 
+La Figure 8.2 se résume comme suit : 
+- L’utilisateur effectue une requête. Cette requête est transmise au serveur de base de données 
+en utilisant le port 3306 (MYSQL). 
+- Le serveur traite la requête SQL et l’envoie vers la base de données. 
+- La base de données exécute la commande SQL et l’envoie le résultat au serveur. 
+- Le serveur renvoie le résultat de la commande à l’utilisateur. 
+8.3 Extrait de code commenté 
+qui gère l'authentification des utilisateurs en stockant et en récupérant les informations de 
+session, effectue des opérations liées à l'authentification comme la sauvegarde du token et la 
+déconnexion, et configure une instance d'axios pour les requêtes API. 
+import axios from "axios"; // Importe la bibliothèque axios pour effectuer des requêtes HTTP. 
+import { useState } from "react"; // Importe le hook useState de React pour gérer l'état local 
+dans les composants fonctionnels. 
+
+
+===== PAGE 67 =====
+ 
+55 
+ 
+import { useNavigate } from "react-router-dom"; // Importe le hook useNavigate pour naviguer 
+entre les routes de l'application. 
+ 
+export default function AuthUser() { // Déclare un composant fonctionnel AuthUser. 
+ 
+    const navigate = useNavigate(); // Initialise le hook useNavigate pour permettre la navigation 
+programmatique. 
+ 
+    const getToken = () => { // Fonction pour récupérer le token d'authentification stocké en 
+session. 
+        const tokenString = sessionStorage.getItem('token'); // Récupère le token depuis 
+sessionStorage. 
+        const userToken = JSON.parse(tokenString); // Parse le token en objet JSON. 
+        return userToken; // Retourne le token. 
+    } 
+ 
+    const getUser = () => { // Fonction pour récupérer les détails de l'utilisateur stockés en 
+session. 
+        const userString = sessionStorage.getItem('user'); // Récupère les détails de l'utilisateur 
+depuis sessionStorage. 
+        const user_detail = JSON.parse(userString); // Parse les détails en objet JSON. 
+        return user_detail; // Retourne les détails de l'utilisateur. 
+    } 
+ 
+    const [token, setToken] = useState(getToken()); // Initialise l'état du token avec la valeur 
+récupérée par getToken(). 
+
+===== PAGE 68 =====
+ 
+56 
+ 
+    const [user, setUser] = useState( getUser()); // Initialise l'état de l'utilisateur avec la valeur 
+récupérée par getUser(). 
+ 
+    const saveToken = (user, token) => { // Fonction pour sauvegarder le token et les détails de 
+l'utilisateur en sessionStorage. 
+        sessionStorage.setItem('token', JSON.stringify(token)); // Stocke le token en 
+sessionStorage. 
+        sessionStorage.setItem('user', JSON.stringify(user)); // Stocke les détails de l'utilisateur en 
+sessionStorage. 
+ 
+        setToken(token); // Met à jour l'état du token. 
+        setUser(user); // Met à jour l'état de l'utilisateur. 
+ 
+        // navigate('/Compte'); // Décommentez cette ligne pour naviguer vers la page /Compte 
+après la sauvegarde du token. 
+        // } 
+ 
+        if (user.role === 'admin') { // Vérifie le rôle de l'utilisateur. 
+            navigate('/Compte'); // Navigue vers la page /Compte si l'utilisateur est un 
+administrateur. 
+        } else { 
+            navigate('/CompteContribuable'); // Navigue vers la page /CompteContribuable  si 
+l'utilisateur n'est pas un administrateur. 
+        } 
+    }; 
+ 
+
+===== PAGE 69 =====
+ 
+57 
+ 
+    const logout = () => { // Fonction pour se déconnecter. 
+        sessionStorage.clear(); // Efface toutes les données de sessionStorage. 
+        navigate('/Connex'); // Navigue vers la page de connexion. 
+    } 
+ 
+    const http = axios.create({ // Crée une instance personnalisée d'axios pour les requêtes HTTP. 
+        baseURL: "http://localhost:8000/api", // Définit l'URL de base pour les requêtes API. 
+        headers: { // Définit les en-têtes pour les requêtes HTTP. 
+            "Content-Type": "application/json", // Spécifie que le type de contenu est JSON. 
+            "Authorization": `Bearer ${token}` // Ajoute le token d'authentification dans l'en -tête 
+Authorization. 
+        } 
+    }); 
+ 
+    return { // Retourne un objet avec les méthodes et états pour être utilisés par d'autres 
+composants. 
+        setToken: saveToken, // Méthode pour sauvegarder le token et les détails de l'utilisateur. 
+        token, // État du token. 
+        user, // État des détails de l'utilisateur. 
+        getToken, // Fonction pour récupérer le token. 
+        http, // Instance d'axios personnalisée. 
+        logout // Méthode pour se déconnecter. 
+    } 
+} 
+
+===== PAGE 70 =====
+ 
+58 
+ 
+Chapitre 9 : Présentation de l’application développée 
+9.1 Formulaire d’authentification 
+Pour mettre le logiciel en sécurité nous devons remplir l’authentification : le droit de 
+l’utilisateur et le mot de passe avant de l’accéder. La fenêtre d’authentification se présente par 
+la figure suivant : 
+ 
+figure 9- 1:page de connexion 
+9.2 Menu principale de projet 
+Après authentification et vérification des informations, nous avons accès au menu principal. 
+Une fois cet accès accordé, nous accédons au menu des comptes, qui comprend un formulaire 
+pour ajouter un compte contribuable, une liste des comptes déjà créés, et  l'affichage du solde 
+du compte. Il y a également une petite boîte contenant les informations du compte connecté 
+ainsi que des boutons pour naviguer vers l'option 'contribuable', qui permet de créer un nouveau 
+contribuable,une option pour gere un rapport Financiere et un bouton de déconnexion. 
+
+
+===== PAGE 71 =====
+ 
+59 
+ 
+ 
+figure 9- 2:menu principal 
+ 
+ 
+ 
+figure 9- 3:page comptte 
+ 
+ 
+
+
+===== PAGE 72 =====
+ 
+60 
+ 
+9.3 Formulaire Transaction  
+Après avoir créé un compte de trésorerie, il est possible d'effectuer des  transactions liées aux 
+dépenses et aux recettes. Ces transactions mettent à jour le solde du compte de trésorerie du 
+contribuable enregistré. Une petite boîte est également apparue sur cette page. 
+ 
+ 
+ 
+ 
+ 
+figure 9- 4:page pour transaction 
+ 
+9.4 Formulaire Contribuable 
+Formulaire pour ajouter un nouveau contribuable : pour créer un compte de trésorerie, il est 
+nécessaire de compléter les champs requis. Le contribuable recevra ensuite un email 
+confirmant la création réussie de leur compte. 
+
+
+===== PAGE 73 =====
+ 
+61 
+ 
+ 
+ 
+figure 9- 5:page pour enregistrement contribuable 
+9.5 Formulaire du Rapport Financiere 
+Dans le formulaire du rapport financier, incluez des champs pour ajouter un titre et un contenu 
+afin de justifier le rapport. Ensuite, cette justification sera envoyée par email au contribuable. 
+ 
+figure 9- 6:page pour gere une rapport Financiere 
+
+
+===== PAGE 74 =====
+ 
+62 
+ 
+Statistiques des transactions des contribuables : il est également possible d'identifier une 
+transaction en sélectionnant l'identifiant du contribuable. 
+ 
+ 
+figure 9- 7:page pour afficher les statistiques 
+Liste des comptes de contribuables affichée dans un tableau créé avec React, utilisant Data Grid 
+Table pour le rendre dynamique, avec un champ de recherche rapide et efficace. 
+ 
+figure 9- 8:page pour afficher liste des comptes 
+ 
+
+
+===== PAGE 75 =====
+ 
+63 
+ 
+ 
+ 
+                                                     CONCLUSION 
+Nous avons eu l'honneur d'accomplir notre stage au sein de la Direction Générale des Impôts 
+de Fianarantsoa, où nous avons conçu et développé une application web intitulée « Mise en 
+place d'un Système Minimal de Trésorerie ». 
+Au cours de ce stage, malgré les contraintes de temps, nous avons réussi à réaliser l'analys e et 
+à développer une partie de l'application, tout en acquérant de précieuses expériences 
+professionnelles.Ce document présente en détail l'ensemble du processus, depuis l'étude de 
+l'existant jusqu'à la réalisation de l'application, en incluant la présent ation des outils utilisés 
+ainsi que les modélisations du système. Nous avons comparé les outils employés avec d'autres 
+alternatives et étudié l'architecture de l'application après avoir modélisé les besoins de 
+l'utilisateur. 
+L'application finale dispose d'une interface intuitive et répond aux fonctionnalités requises par 
+le cahier des charges, que nous avons illustrées par des captures d'écran. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 76 =====
+ 
+64 
+ 
+BIBLIOGRAPHIE 
+[1] BAKARI Maecha, 2019-2020 Cours Système d’Information : EMIT/UF.200p  
+[2] DI GALLO Frédéric « Merise : méthodologie des system d’information », cours du cycle 
+Probatoire du 17/07-01, 101 
+ [3] (Christophe C) : Christophe CAPRENA, « Caractéristique de quelques langages 
+informatique », Conservation national des arts et métiers, May 2006  
+[4] Net Ninja, publié entre 2015 et 2016, "Full React Tutorial: Creating a React Application," 
+32 vidéos. 
+ 
+ 
+ 
+ 
+WEBOGRAPHIE 
+-  Laracasts. "Laravel 10 From Scratch." Disponible sur : https://laracasts.com/series/laravel-
+10-from-scratch 
+-GitHub. "Laravel 10 GitHub Repository." Disponible sur : https://github.com/laravel/laravel 
+-React."React Documentation." Disponible sur : https://reactjs.org/docs/getting-started.html 
+-React. "React GitHub Repository." Disponible sur : https://github.com/facebook/react 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 77 =====
+ 
+65 
+ 
+ 
+ANNEXE 
+Extrait Code : 
+import { useRef, useState } from 'react'; 
+import { motion } from 'framer-motion'; 
+import IMAGE from '../3D/ilaina.png'; 
+import AuthUser from '../components/AuthUser'; 
+import { FaPlusCircle } from 'react-icons/fa'; 
+ 
+export default function Reg() { 
+  const cinRef = useRef(); 
+  const nameRef = useRef(); 
+  const emailRef = useRef(); 
+  const adresseRef = useRef(); 
+  const passwordRef = useRef(); 
+  const passwordConfirmRef = useRef(); 
+  const roleRef = useRef(); 
+  const [image, setImage] = useState(null); 
+  const [errors, setErrors] = useState({}); 
+  const [message, setMessage] = useState(''); 
+  const { http } = AuthUser(); 
+ 
+  // Fonction de validation des champs 
+  const validateFields = () => { 
+    const newErrors = {}; 
+    const cinValue = cinRef.current.value; 
+    const nameValue = nameRef.current.value; 
+    const adresseValue = adresseRef.current.value; 
+    const passwordValue = passwordRef.current.value; 
+ 
+    if (!/^\d{12}$/.test(cinValue)) { 
+      newErrors.cin = 'Le CIN doit contenir exactement 12 chiffres.'; 
+    } 
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]{1,50}$/.test(nameValue)) { 
+      newErrors.name = 'Le nom ne doit contenir que des lettres et doit être limité à 50 
+caractères.'; 
+    } 
+    if (adresseValue.length > 50) { 
+      newErrors.adresse = 'L\'adresse doit être limitée à 50 caractères.'; 
+    } 
+    if (passwordValue.length !== 8) { 
+      newErrors.password = 'Le mot de passe doit contenir exactement 8 caractères ou 
+chiffres.'; 
+    } 
+ 
+    setErrors(newErrors); 
+    return Object.keys(newErrors).length === 0; 
+  }; 
+ 
+  const handleRegister = async (e) => { 
+    e.preventDefault(); 
+ 
+    if (!validateFields()) { 
+
+===== PAGE 78 =====
+ 
+66 
+ 
+      return; 
+    } 
+ 
+    const formData = new FormData(); 
+    formData.append('Nom_util', nameRef.current.value); 
+    formData.append('CIN', cinRef.current.value); 
+    formData.append('email', emailRef.current.value); 
+    formData.append('adresse', adresseRef.current.value); 
+    formData.append('password', passwordRef.current.value); 
+    formData.append('password_confirmation', passwordConfirmRef.current.value); 
+    formData.append('role', roleRef.current.value); 
+    if (image) { 
+      formData.append('image', image); 
+    } 
+ 
+    try { 
+      const response = await http.post('/register', formData, { 
+        headers: { 
+          'Content-Type': 'multipart/form-data', 
+        }, 
+      }); 
+      setMessage('Enregistrement réussi ! Un e-mail a été envoyé.'); 
+      setErrors({}); 
+    } catch (err) { 
+      if (err.response && err.response.data) { 
+        setErrors(err.response.data.errors || { error: 'Une erreur est survenue.' }); 
+      } else { 
+        setErrors({ error: 'Erreur inconnue.' }); 
+      } 
+    } 
+  }; 
+ 
+  return ( 
+    <div className='w-[100%] h-[550px] bg-[#ffffff] flex flex-col p-20'> 
+      <div className='w-full flex flex-col mb-2'> 
+        <div className='w-full h-[400px] flex flex-col '> 
+          <h3 className='text-2xl text-[#336666] font-semibold mb-4 my-6'>Inscription</h3> 
+          <p className='text-sm mb-12'>Bienvenue ! Veuillez entrer vos informations.</p> 
+          <form onSubmit={handleRegister}> 
+            <div className='w-full flex flex-col'> 
+              <div className="md:flex space-x-12 hidden"> 
+                <input 
+                  type='text' 
+                  ref={cinRef} 
+                  placeholder='CIN' 
+                  required 
+                  className="mt-1 block my-[1rem] w-[50%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+                /> 
+                <input 
+                  type='text' 
+                  ref={nameRef} 
+                  placeholder='Nom' 
+                  required 
+                  className="mt-1 block my-[1rem] w-[50%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+
+===== PAGE 79 =====
+ 
+67 
+ 
+                /> 
+              </div> 
+              <div className="md:flex space-x-12 hidden"> 
+                <input 
+                  type='email' 
+                  ref={emailRef} 
+                  placeholder='Email' 
+                  required 
+                  className="mt-1 my-[1rem] block w-[50%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+                /> 
+                <input 
+                  type='text' 
+                  ref={adresseRef} 
+                  placeholder='Adresse' 
+                  required 
+                  className="mt-1 my-[1rem] block w-[50%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+                /> 
+              </div> 
+              <div className="md:flex space-x-12 hidden"> 
+                <input 
+                  type='password' 
+                  ref={passwordRef} 
+                  placeholder='Mot de passe' 
+                  required 
+                  className="mt-1 block my-[1rem] w-[100%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+                /> 
+                <input 
+                  type='password' 
+                  ref={passwordConfirmRef} 
+                  placeholder='Confirmer le mot de passe' 
+                  required 
+                  className="mt-1 block my-[1rem] w-[100%] px-3 py-2 bg-gray-50 border 
+border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-indigo-500 
+focus:border-indigo-500" 
+                /> 
+              </div> 
+              <div className="md:flex space-x-12 hidden"> 
+                <select 
+                  ref={roleRef} 
+                  required 
+                  className='w-[47%] text-black bg-none border-b border-black outline-none 
+focus:outline-none my-4' 
+                > 
+                  <option value=''>Sélectionner le rôle</option> 
+                  <option value='user'>user</option> 
+                  <option value='admin'>admin</option> 
+                </select> 
+                <label htmlFor="image" className="cursor-pointer text-[#336666] hover:text-
+blue-700 md:flex space-x-4 hidden"> 
+                  <FaPlusCircle className="text-xl w-[100%] my-4" /><h1 className="my-
+3">Photo</h1> 
+                </label> 
+
+===== PAGE 80 =====
+ 
+68 
+ 
+                <input 
+                  id='image' 
+                  type='file' 
+                  onChange={(e) => setImage(e.target.files[0])} 
+                  className='w-[100%] text-black bg-none border-b border-black outline-none 
+focus:outline-none my-4 hidden' 
+                /> 
+              </div> 
+              {errors && <p style={{ color: 'red' }}>{Object.values(errors).join(', 
+')}</p>} 
+              {message && <p style={{ color: 'green' }}>{message}</p>} 
+              <button 
+                className='w-[47%] h-14 mx-[53%] text-white bg-[#336666] rounded-md text-
+center flex items-center justify-center my-6' 
+                type='submit' 
+              > 
+                Enregistrer 
+              </button> 
+            </div> 
+          </form> 
+        </div> 
+      </div> 
+    </div> 
+  ); 
+} 
+ 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 81 =====
+ 
+69 
+ 
+RESUME 
+Nous avons réalisé notre stage au sein de la Direction Générale des Impôts de Fianarantsoa, où 
+nous avons développé un projet intitulé « Mise en place d'un Système Minimal de Trésorerie 
+en Ligne ». Malgré les contraintes temporelles, nous avons réussi à mener à bien l'analyse et la 
+conception d'une partie de l'application, tout en acquérant une expérience professionnelle 
+précieuse. 
+Ce document présente en détail l'ensemble du processus, de l'analyse de l'existant à la réalisation 
+finale de l'application. Il inclut la description des outils utilisés, les modélisations du système, 
+ainsi que les comparaisons entre les outils sélectionnés et d'autres options disponibles. Nous 
+avons également étudié l'architecture de l'application en fonction des besoins des utilisateurs. 
+L'application développée offre une interface conviviale et intègre toutes les fonctionnalités 
+requises, comme illustré par les captures d'écran fournies. 
+Mots-clés : Laravel,React Js ,Postman ,tailwindcss, 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 82 =====
+ 
+70 
+ 
+ABSTRACT  
+We completed our internship at the Directorate General of Taxes in Fianarantsoa, where we 
+developed a project titled "Implementation of a Minimal Online Treasury System." Despite 
+time constraints, we successfully conducted the analysis and developed a portion of the 
+application, gaining valuable professional experience in the process. 
+This document provides a comprehensive overview of the project, detailing every stage from 
+the initial study of existing systems to the final impl ementation. It includes descriptions of the 
+tools used, system modeling, and comparisons of the chosen tools with alternatives. 
+Additionally, we examined the application's architecture based on user requirements. 
+The resulting application features a  user-friendly interface and incorporates all necessary 
+functionalities, as demonstrated through the provided screenshots. 
+Keywords: Laravel, React.js, Postman, Tailwind CSS 
+ 

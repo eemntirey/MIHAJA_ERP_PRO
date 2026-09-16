@@ -1,5 +1,10 @@
 // shared/storage/authStorage.js
 // Stockage unifie de l'authentification pour web et desktop.
+//
+// A1 FIX : Sur web, les tokens JWT sont dans des cookies HttpOnly —
+// getAccessToken/getRefreshToken retournent null, setAccessToken/setRefreshToken
+// sont des no-ops. Sur Electron, les tokens continuent d'être stockés dans
+// secureStore via tokenStore.
 
 import { getString, setString, removeKey, readJSON, writeJSON } from './storageAdapter';
 import { tokenStore } from './tokenStore';
@@ -18,18 +23,25 @@ const NEW = {
   subscription: 'erp.auth.subscription',
 };
 
+// Electron = secureStore ; web = cookies HttpOnly
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+
 export const authStorage = {
-  getAccessToken: () => getString(ACCESS_TOKEN_KEY),
-  getRefreshToken: () => getString(REFRESH_TOKEN_KEY),
+  // A1 : web retourne null (cookies HttpOnly)
+  getAccessToken: () => isElectron ? getString(ACCESS_TOKEN_KEY) : null,
+  getRefreshToken: () => isElectron ? getString(REFRESH_TOKEN_KEY) : null,
   getUser: () => readJSON(USER_KEY),
   getTenant: () => readJSON(TENANT_KEY),
   getSubscription: () => readJSON(SUBSCRIPTION_KEY),
 
+  // A1 : web — no-op (tokens en cookies HttpOnly gérés par le backend)
   setAccessToken: (token) => {
+    if (!isElectron) return;
     setString(ACCESS_TOKEN_KEY, token);
     setString(NEW.access, token);
   },
   setRefreshToken: (token) => {
+    if (!isElectron) return;
     setString(REFRESH_TOKEN_KEY, token);
     setString(NEW.refresh, token);
   },

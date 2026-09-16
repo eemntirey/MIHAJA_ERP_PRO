@@ -4,6 +4,8 @@ from app.models.fournisseur import Fournisseur, TypeFournisseur
 from app.models.client import Client, TypeClient, SecteurActivite
 from app.models.produit import Produit
 from app.models.stock import MouvementStock, TypeMouvement
+from app.models.stock_entrepot import StockEntrepot
+from app.models.entrepot import Entrepot
 from app.models.vente import Vente
 from app.models.facture import Facture
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
@@ -21,6 +23,7 @@ from app.models.suivi_livraison import SuiviLivraison
 from app.models.employe import Employe, TypeContrat, Sexe, StatutEmploye
 from app.models.stagiaire import Stagiaire, TypeContratStagiaire, SexeStagiaire, StatutStagiaire
 from app.models.presence import Presence, StatutPresence
+from app.models.conge import Conge, TypeConge, StatutConge
 from app.models.salaire import Salaire, StatutPaiementSalaire
 from app.models.prime import Prime, TypePrime
 from app.models.compte_comptable import CompteComptable, TypeCompte
@@ -37,6 +40,8 @@ from app.models.notification import Notification
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.models.role_permission import RoleModel, Permission
+from app.models.subscription_audit import SubscriptionAuditTrail
+from app.models.platform_config import PlatformConfig
 from app import db
 from app.models.tenant import Tenant, StatutTenant
 
@@ -54,6 +59,8 @@ __all__ = [
     'Produit',
     'MouvementStock',
     'TypeMouvement',
+    'StockEntrepot',
+    'Entrepot',
     'Vente',
     'Facture',
     'Paiement',
@@ -76,6 +83,9 @@ __all__ = [
     'StatutEmploye',
     'Presence',
     'StatutPresence',
+    'Conge',
+    'TypeConge',
+    'StatutConge',
     'Salaire',
     'StatutPaiementSalaire',
     'Prime',
@@ -112,6 +122,8 @@ __all__ = [
     'StatutTenant',
     'Abonnement',
     'StatutAbonnement',
+    'SubscriptionAuditTrail',
+    'PlatformConfig',
     'Stagiaire',
     'TypeContratStagiaire',
     'SexeStagiaire',

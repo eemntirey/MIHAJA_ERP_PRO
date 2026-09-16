@@ -30,7 +30,9 @@ class PermissionList(Resource):
             return err
         search = (request.args.get('search') or '').strip().lower()
         module = (request.args.get('module') or '').strip().lower()
-        query = Permission.query
+        # Permissions sont globales (tenant_id IS NULL) — bypass du filtre tenant auto
+        # sinon le filtre global `tenant_id == current_tenant` masque tout (0 résultat) pour un admin tenant
+        query = Permission.query.execution_options(_skip_tenant_filter=True)
         if search:
             query = query.filter(
                 db.or_(

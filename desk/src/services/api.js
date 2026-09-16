@@ -1,7 +1,33 @@
 
 // src/services/api.js
-// Réexport en une seule passe de tous les services de la bibliothèque
-// partagée (shared/services/api), y compris l'export par défaut `api`.
+// Réexport du shared avec remplacement des services opérationnels
+// par leurs versions offline-aware du desktop.
 
-export * from '../../shared/services/api';
 export { default } from '../../shared/services/api';
+export * from '../../shared/services/api';
+
+// Remplacer par versions offline-aware (écrase le shared)
+export {
+  saleService,
+  stockService,
+  clientService,
+  factureService,
+  dashboardService,
+  productService,
+  notificationService,
+  favoriteService,
+  columnConfigService,
+  filterPresetService,
+  syncService,
+  employeService,
+  presenceService,
+  salaireService,
+  primeService,
+  stagiaireService,
+  compteService,
+  ecritureService,
+  tresorerieService,
+  documentService,
+  devisService,
+  tenantService,
+} from './desktopApi';

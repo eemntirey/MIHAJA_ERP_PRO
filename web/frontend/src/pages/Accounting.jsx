@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { compteService, ecritureService, tresorerieService } from '../services/api';
+import { compteService, ecritureService, tresorerieService, resultatService } from '../services/api';
 import { PAYMENT_METHODS } from '../constants/erpConstants';
 import './Pages.css';
 
@@ -33,6 +33,12 @@ export default function Accounting() {
     const [journalLoading, setJournalLoading] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
+    const [resultats, setResultats] = useState(null);
+    const [resultatsLoading, setResultatsLoading] = useState(false);
+    const [resDebut, setResDebut] = useState('');
+    const [resFin, setResFin] = useState('');
+    const [resPeriode, setResPeriode] = useState('mois');
+
     const fetchAll = async () => {
         setLoading(true);
         setLoadError(null);
@@ -42,7 +48,6 @@ export default function Accounting() {
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
               const errMsg = msgs.join(', ');
-              toast.warning(`Chargement partiel: ${errMsg}`);
               setLoadError(errMsg);
             }
             setComptes((c.status === 'fulfilled' ? c.value?.data?.comptes || c.value?.data || [] : []));
@@ -68,6 +73,22 @@ export default function Accounting() {
             setJournal(null);
         }
         finally { setJournalLoading(false); }
+    };
+
+    const fetchResultats = async () => {
+        setResultatsLoading(true);
+        setResultats(null);
+        try {
+            const params = { periode: resPeriode };
+            if (resDebut) params.date_debut = resDebut;
+            if (resFin) params.date_fin = resFin;
+            const res = await resultatService.getResultats(params);
+            setResultats(res.data);
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message || 'Erreur résultats';
+            toast.error(msg);
+            setResultats(null);
+        } finally { setResultatsLoading(false); }
     };
 
     const fetchSolde = async () => {
@@ -203,7 +224,7 @@ export default function Accounting() {
             <div className="page-header">
                 <h1>Comptabilité</h1>
                 <div className="tabs">
-                    {['comptes', 'ecritures', 'tresorerie', 'journal'].map(t => (
+                    {['comptes', 'ecritures', 'tresorerie', 'resultats', 'journal'].map(t => (
                         <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setEditingId(null); setImportFile(null); setImportResult(null); }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
                     ))}
                 </div>
@@ -212,6 +233,21 @@ export default function Accounting() {
                 <button className="btn-secondary" onClick={() => handleExport(tab === 'comptes' ? 'compte' : tab === 'ecritures' ? 'ecriture' : 'tresorerie')}>Exporter CSV</button>
                 {tab === 'journal' && <button className="btn-secondary" onClick={() => handleExport('ecriture')}>Exporter journal CSV</button>}
             </div>
+
+            {tab === 'resultats' && (
+                <div className="form-row" style={{marginBottom: 8}}>
+                    <label style={{marginRight: 8}}>Du</label>
+                    <input type="date" value={resDebut} onChange={e => setResDebut(e.target.value)} />
+                    <label style={{marginRight: 8}}>Au</label>
+                    <input type="date" value={resFin} onChange={e => setResFin(e.target.value)} />
+                    <select value={resPeriode} onChange={e => setResPeriode(e.target.value)}>
+                        <option value="mois">Par mois</option>
+                        <option value="jour">Par jour</option>
+                        <option value="annee">Par année</option>
+                    </select>
+                    <button className="btn-primary" onClick={fetchResultats}>Afficher les résultats</button>
+                </div>
+            )}
 
             {solde !== null && <div className="stats-row"><div className="stat-card"><h3>Solde trésorerie</h3><p className="stat-value">{solde.toFixed(2)} MGA</p></div></div>}
 
@@ -418,6 +454,49 @@ export default function Accounting() {
   <i className="ti ti-trash" aria-hidden="true" />
 </button></td></tr>)}</tbody></table>
                     </div>
+                </div>
+            )}
+
+            {tab === 'resultats' && (
+                <div className="card">
+                    <h3>Résultats comptables (produits - charges)</h3>
+                    {resultatsLoading ? (
+                        <p className="text-muted">Chargement des résultats…</p>
+                    ) : resultats ? (
+                        <>
+                            <div className="stats-row">
+                                <div className="stat-card"><h4>Produits</h4><p className="stat-value">{(resultats.total_produits || 0).toFixed(2)} MGA</p></div>
+                                <div className="stat-card"><h4>Charges</h4><p className="stat-value">{(resultats.total_charges || 0).toFixed(2)} MGA</p></div>
+                                <div className="stat-card"><h4>Résultat net</h4><p className="stat-value" style={{ color: (resultats.resultat_net || 0) >= 0 ? '#2ecc71' : '#e74c3c' }}>{(resultats.resultat_net || 0).toFixed(2)} MGA</p></div>
+                            </div>
+                            <h4 style={{marginTop: 12}}>Par période</h4>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>Période</th><th>Produits</th><th>Charges</th><th>Résultat</th></tr></thead>
+                                <tbody>{resultats.par_periode.length === 0 ? <tr><td colSpan="4" className="text-muted" style={{textAlign: 'center'}}>Aucune écriture validée sur la période</td></tr> : resultats.par_periode.map(p => (
+                                    <tr key={p.periode}>
+                                        <td>{p.periode}</td>
+                                        <td>{(p.produits || 0).toFixed(2)}</td>
+                                        <td>{(p.charges || 0).toFixed(2)}</td>
+                                        <td style={{ color: (p.resultat || 0) >= 0 ? undefined : '#e74c3c' }}>{(p.resultat || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                            <h4 style={{marginTop: 16}}>Détail par compte</h4>
+                            <div className="table-container">
+                                <table className="data-table"><thead><tr><th>N° compte</th><th>Nom</th><th>Type</th><th>Montant</th></tr></thead>
+                                <tbody>{resultats.details.length === 0 ? <tr><td colSpan="4" className="text-muted" style={{textAlign: 'center'}}>Aucun compte concerné</td></tr> : resultats.details.map(d => (
+                                    <tr key={d.compte_id}>
+                                        <td>{d.numero}</td>
+                                        <td>{d.nom}</td>
+                                        <td>{d.type_compte === 'produit' ? 'Produit' : 'Charge'}</td>
+                                        <td>{d.montant.toFixed(2)}</td>
+                                    </tr>
+                                ))}</tbody></table>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-muted">Aucun résultat affiché. Définissez une période puis cliquez sur « Afficher les résultats ».</p>
+                    )}
                 </div>
             )}
 

@@ -40,3 +40,13 @@
 .main-layout.desktop-layout[data-theme='dark'] {
   color-scheme: dark;
 }
+
+/* Auto-stretch : dilate le layout vers le bas */
+.main-layout.desktop-layout.is-stretched,
+.desktop-layout.is-stretched .desktop-main,
+.desktop-layout.is-stretched .main-content.desktop-content {
+  min-height: 100vh;
+  height: 100vh;
+  align-items: stretch;
+  overflow-y: auto;
+}

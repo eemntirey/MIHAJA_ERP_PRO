@@ -12,10 +12,10 @@ class CommandeService(BaseService):
     
     @classmethod
     def _generate_reference(cls):
+        import secrets
         prefix = 'CMD'
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        random_part = ''.join(random.choices(string.digits, k=4))
-        return f"{prefix}-{timestamp}-{random_part}"
+        random_part = secrets.token_urlsafe(10).replace('-', '').replace('_', '')[:12].upper()
+        return f"{prefix}-{random_part}"
     
     @classmethod
     def create_commande(cls, data):
@@ -50,6 +50,14 @@ class CommandeService(BaseService):
         items = data.get('items', [])
         if not isinstance(items, list) or len(items) == 0:
             raise ValueError("Le panier doit contenir au moins un article")
+
+        # Compte client connecté (optionnel : commande invité si absent)
+        utilisateur_id = data.get('utilisateur_id')
+        if utilisateur_id is not None:
+            try:
+                utilisateur_id = int(utilisateur_id)
+            except (TypeError, ValueError):
+                utilisateur_id = None
 
         # Validate and collect products by produit_id
         validated_items = []
@@ -115,6 +123,7 @@ class CommandeService(BaseService):
             total_ht=total_ht,
             total_ttc=total_ttc,
             tenant_id=tenant_id,
+            utilisateur_id=utilisateur_id,
             notes=data.get('notes')
         )
         

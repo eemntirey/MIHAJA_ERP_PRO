@@ -6,6 +6,7 @@ PERMISSION_DEFINITIONS = {
     "product.delete": {"module": "product", "action": "delete", "description": "Supprimer des produits"},
     "stock.view": {"module": "stock", "action": "view", "description": "Voir les stocks"},
     "stock.update": {"module": "stock", "action": "update", "description": "Modifier les stocks"},
+    "stock.delete": {"module": "stock", "action": "delete", "description": "Supprimer des stocks / entrepots"},
     "sale.view": {"module": "sale", "action": "view", "description": "Voir les ventes"},
     "sale.create": {"module": "sale", "action": "create", "description": "Creer des ventes"},
     "sale.update": {"module": "sale", "action": "update", "description": "Modifier des ventes"},
@@ -52,6 +53,10 @@ PERMISSION_DEFINITIONS = {
     "presence.create": {"module": "rh", "action": "create", "description": "Creer des presences"},
     "presence.update": {"module": "rh", "action": "update", "description": "Modifier des presences"},
     "presence.delete": {"module": "rh", "action": "delete", "description": "Supprimer des presences"},
+    "conge.view": {"module": "rh", "action": "view", "description": "Voir les conges"},
+    "conge.create": {"module": "rh", "action": "create", "description": "Creer des conges"},
+    "conge.update": {"module": "rh", "action": "update", "description": "Modifier des conges (incl. approbation/refus)"},
+    "conge.delete": {"module": "rh", "action": "delete", "description": "Supprimer des conges"},
     "salaire.view": {"module": "rh", "action": "view", "description": "Voir les salaires"},
     "salaire.create": {"module": "rh", "action": "create", "description": "Creer des salaires"},
     "salaire.update": {"module": "rh", "action": "update", "description": "Modifier des salaires"},
@@ -75,14 +80,56 @@ PERMISSION_DEFINITIONS = {
     "super_admin.access": {"module": "admin", "action": "access", "description": "Acces super admin (plateforme)"},
 }
 
-ROLE_PERMISSIONS = {
-    "super_admin": ["*"],
+WILDCARD_PERMISSION = "*"
+
+# Listes de permissions par defaut, exposees pour seed/presets/UI.
+# Une liste `*` represente un acces total (wildcard) traite par has_permission().
+DEFAULT_PERMISSION_LISTS = {
+    # Plateforme : SUPER_ADMIN n'agit PAS sur les donnees metier des tenants.
+    # Il peut uniquement CONSULTER (lecture seule) les ressources des tenants
+    # pour supervision / support. Toute ecriture (create/update/delete) est
+    # reservee aux utilisateurs du tenant (admin, manager, ...).
+    "super_admin": [
+        # Acces plateforme (gestion des tenants, abonnements, plans).
+        "super_admin.access",
+        "admin.access",
+        "manager.access",
+        # Lecture seule sur les ressources metier des tenants.
+        "product.view",
+        "stock.view",
+        "sale.view",
+        "client.view",
+        "invoice.view",
+        "payment.view",
+        "quote.view",
+        "supplier.view",
+        "purchase_order.view",
+        "compte.view",
+        "ecriture.view",
+        "tresorerie.view",
+        "employe.view",
+        "presence.view",
+        "conge.view",
+        "salaire.view",
+        "prime.view",
+        "stagiaire.view",
+        "delivery.view",
+        "report.view",
+        "dashboard.view",
+        "user.view",
+        # Notifications : lecture + marquage lu sur les siennes uniquement.
+        "notification.view",
+        "notification.update",
+        # Profil propre.
+        "profile.view",
+        "profile.update",
+    ],
     "admin": [
         "admin.access",
         "client.create", "client.update", "client.delete", "client.view",
         "compte.create", "compte.update", "compte.view",
         "ecriture.create", "ecriture.update", "ecriture.view",
-        "invoice.create", "invoice.update", "invoice.view",
+        "invoice.create", "invoice.update", "invoice.delete", "invoice.view",
         "notification.manage", "notification.update", "notification.view",
         "payment.create", "payment.view",
         "product.create", "product.update", "product.delete", "product.view",
@@ -91,24 +138,25 @@ ROLE_PERMISSIONS = {
         "quote.create", "quote.view",
         "report.view",
         "sale.create", "sale.update", "sale.view", "sale.delete",
-        "stock.update", "stock.view",
+        "stock.delete", "stock.update", "stock.view",
         "supplier.create", "supplier.update", "supplier.view",
         "tresorerie.create", "tresorerie.update", "tresorerie.view",
         "user.create", "user.update", "user.view",
-        # RH : un admin de tenant gère aussi les ressources humaines.
+        # RH : un admin de tenant gere aussi les ressources humaines.
         "employe.view", "employe.create", "employe.update", "employe.delete",
         "presence.view", "presence.create", "presence.update", "presence.delete",
+        "conge.view", "conge.create", "conge.update", "conge.delete",
         "salaire.view", "salaire.create", "salaire.update", "salaire.delete",
         "prime.view", "prime.create", "prime.update", "prime.delete",
         "stagiaire.view", "stagiaire.create", "stagiaire.update", "stagiaire.delete",
-        # Livraisons : l'admin voit et gère les livraisons.
+        # Livraisons : l'admin voit et gere les livraisons.
         "delivery.view", "delivery.update",
     ],
     "manager": [
         "client.create", "client.update", "client.view",
         "compte.update", "compte.view",
         "ecriture.create", "ecriture.update", "ecriture.view",
-        "invoice.create", "invoice.update", "invoice.view",
+        "invoice.create", "invoice.update", "invoice.delete", "invoice.view",
         "notification.update", "notification.view",
         "payment.create", "payment.view",
         "product.create", "product.update", "product.view",
@@ -124,7 +172,7 @@ ROLE_PERMISSIONS = {
     ],
     "sales": [
         "client.create", "client.update", "client.view",
-        "invoice.create", "invoice.update", "invoice.view",
+        "invoice.create", "invoice.update", "invoice.delete", "invoice.view",
         "notification.update", "notification.view",
         "payment.create", "payment.view",
         "product.view",
@@ -173,6 +221,7 @@ ROLE_PERMISSIONS = {
         "employe.view", "employe.create", "employe.update", "employe.delete",
         "notification.update", "notification.view",
         "presence.view", "presence.create", "presence.update", "presence.delete",
+        "conge.view", "conge.create", "conge.update", "conge.delete",
         "salaire.view", "salaire.create", "salaire.update", "salaire.delete",
         "prime.view", "prime.create", "prime.update", "prime.delete",
         "stagiaire.view", "stagiaire.create", "stagiaire.update", "stagiaire.delete",
@@ -196,5 +245,8 @@ ROLE_PERMISSIONS = {
         "profile.update",
     ],
 }
+
+# Alias historique conserve pour la compatibilite avec le reste du code.
+ROLE_PERMISSIONS = DEFAULT_PERMISSION_LISTS
 
 PERMISSIONS = ROLE_PERMISSIONS

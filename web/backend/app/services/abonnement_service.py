@@ -4,7 +4,14 @@ from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.models.tenant import Tenant, StatutTenant
 from app.security.tenant import get_current_tenant_id
-from app.security.plans import apply_plan_to_abonnement, get_plan_duration_days, get_plan_price, is_unlimited
+from app.security.plans import (
+    apply_plan_to_abonnement,
+    get_plan_duration_days,
+    get_plan_price,
+    is_unlimited,
+    compute_effective_subscription_price,
+    days_since_expiration,
+)
 from app.services.papi.payment import resolve_payment_provider
 
 
@@ -64,9 +71,9 @@ class AbonnementService:
         if not tenant_id:
             raise ValueError("tenant_id requis")
 
-        plan = data.get('plan', 'starter')
+        plan = data.get('plan', 'gratuit')
 
-        if plan == 'gratuit':
+        if plan == 'gratuit' and get_plan_price(plan) == 0:
             return cls.activate_free_plan(tenant_id, plan), None
 
         duree_jours = get_plan_duration_days(plan)
@@ -76,7 +83,8 @@ class AbonnementService:
         else:
             date_fin = now + timedelta(days=duree_jours)
 
-        montant_officiel = get_plan_price(plan)
+        prix_base = get_plan_price(plan)
+        montant_officiel = prix_base
         abonnement = Abonnement(
             tenant_id=tenant_id,
             montant=montant_officiel,
@@ -87,7 +95,7 @@ class AbonnementService:
             methode_paiement=data.get('methode_paiement'),
             reference_paiement=data.get('reference_paiement'),
             notes=data.get('notes'),
-            plan=plan
+            plan=plan,
         )
         apply_plan_to_abonnement(abonnement, abonnement.plan)
         db.session.add(abonnement)
@@ -137,10 +145,39 @@ class AbonnementService:
         return paginated.items, paginated.total
 
     @classmethod
-    def renew_subscription(cls, abonnement_id):
+    def renew_subscription(cls, abonnement_id, new_plan=None, payment_method=None):
         abonnement = Abonnement.query.filter_by(id=abonnement_id, is_active=True).first()
         if not abonnement:
             return None
+
+        if new_plan and new_plan != abonnement.plan:
+            from app.security.plans import PLAN_CONFIG
+            if new_plan not in PLAN_CONFIG:
+                raise ValueError(f"Plan invalide: {new_plan}")
+            if new_plan == 'gratuit':
+                raise ValueError(
+                    "Impossible de renouveler vers le plan gratuit. "
+                    "Utilisez une demande de demission ou contactez le support."
+                )
+            if abonnement.plan == 'gratuit':
+                raise ValueError(
+                    "Le plan gratuit ne peut pas etre renouvele. "
+                    "Choisissez un plan payant pour migrer."
+                )
+            abonnement.plan = new_plan
+
+        # Si l'abonnement est expiré, le prix du renouvellement est majoré
+        # (pénalité d'expiration). On calcule le prix effectif maintenant.
+        prix_base = get_plan_price(abonnement.plan)
+        nb_jours_expires = days_since_expiration(abonnement)
+        expired = nb_jours_expires > 0
+        effective = compute_effective_subscription_price(
+            prix_base, abonnement.plan, expired=expired, days_after_expiry=nb_jours_expires
+        )
+        abonnement.montant = effective['prix_final']
+
+        if payment_method:
+            abonnement.methode_paiement = payment_method
 
         now = datetime.utcnow()
         if abonnement.date_fin and abonnement.date_fin > now:
@@ -160,24 +197,128 @@ class AbonnementService:
         apply_plan_to_abonnement(abonnement, abonnement.plan)
         abonnement.save()
 
-        provider, payment_method = resolve_payment_provider(abonnement.methode_paiement)
+        provider, resolved_payment_method = resolve_payment_provider(
+            abonnement.methode_paiement
+        )
+
+        notes_parts = [
+            f"Renouvellement de l'abonnement {abonnement.id}",
+        ]
+        if new_plan and new_plan != abonnement.plan:
+            notes_parts.append(f"Changement de plan vers {abonnement.plan}")
+        if payment_method and payment_method != abonnement.methode_paiement:
+            notes_parts.append(f"Mode de paiement: {resolved_payment_method}")
+        if effective['penalty_active']:
+            notes_parts.append(
+                f"Pen d'expiration appliquee: +{int(effective['penalty_percent'] * 100)}% "
+                f"(+{effective['penalty_amount']} Ar)"
+            )
 
         paiement = Paiement(
             tenant_id=abonnement.tenant_id,
             subscription_id=abonnement.id,
-            montant=abonnement.montant or get_plan_price(abonnement.plan),
+            montant=abonnement.montant or prix_base,
             devise=abonnement.devise,
             statut=StatutPaiement.EN_ATTENTE,
             type=TypePaiement.ABONNEMENT,
             provider=provider,
-            payment_method=payment_method,
+            payment_method=resolved_payment_method,
             reference=f"Renouvellement {abonnement.id}",
-            notes=f"Renouvellement de l'abonnement {abonnement.id}",
+            notes=" - ".join(notes_parts),
         )
         db.session.add(paiement)
         db.session.commit()
 
         return abonnement, paiement
+
+    @classmethod
+    def downgrade_to_gratuit_plan(cls, tenant_id, trigger='automatique', user_id=None, target_plan='gratuit'):
+        from app.models.subscription_audit import SubscriptionAuditTrail
+        tenant = db.session.get(Tenant, tenant_id)
+        if not tenant:
+            raise ValueError("Tenant non trouvé")
+        abn_pro = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.ACTIF,
+            Abonnement.is_active == True,
+            Abonnement.plan == 'pro'
+        ).order_by(Abonnement.created_at.desc()).first()
+        ancien_plan = abn_pro.plan if abn_pro else 'pro'
+        if abn_pro:
+            abn_pro.statut = StatutAbonnement.EXPIRE
+            db.session.add(abn_pro)
+        now = datetime.utcnow()
+        from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
+        duree = get_plan_duration_days(target_plan)
+        date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
+        abn_target = Abonnement(
+            tenant_id=tenant_id,
+            montant=0,
+            devise='MGA',
+            date_debut=now,
+            date_fin=date_fin,
+            statut=StatutAbonnement.ACTIF,
+            plan=target_plan,
+        )
+        apply_plan_to_abonnement(abn_target, target_plan)
+        db.session.add(abn_target)
+        tenant.plan = target_plan
+        db.session.add(tenant)
+        audit = SubscriptionAuditTrail(
+            tenant_id=tenant_id,
+            abonnement_id=abn_target.id,
+            date_changement=now,
+            ancien_plan=ancien_plan,
+            nouveau_plan=target_plan,
+            declencheur=trigger,
+            description=f"Rétrogradation vers {target_plan.title()} (trigger={trigger})",
+            utilisateur_id=user_id,
+        )
+        db.session.add(audit)
+        db.session.commit()
+        return abn_target, audit
+
+    @classmethod
+    def downgrade_to_free_plan(cls, tenant_id, trigger='automatique', user_id=None):
+        return cls.downgrade_to_gratuit_plan(tenant_id, trigger=trigger, user_id=user_id, target_plan='gratuit')
+
+    @classmethod
+    def upgrade_to_pro(cls, tenant_id, trigger='manuel', user_id=None):
+        from app.models.subscription_audit import SubscriptionAuditTrail
+        tenant = db.session.get(Tenant, tenant_id)
+        if not tenant:
+            raise ValueError("Tenant non trouvé")
+        from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
+        now = datetime.utcnow()
+        duree = get_plan_duration_days('pro')
+        date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
+        abn_pro = Abonnement(
+            tenant_id=tenant_id,
+            montant=PLAN_CONFIG.get('pro', {}).get('prix', 15000),
+            devise='MGA',
+            date_debut=now,
+            date_fin=date_fin,
+            statut=StatutAbonnement.ACTIF,
+            plan='pro',
+        )
+        apply_plan_to_abonnement(abn_pro, 'pro')
+        db.session.add(abn_pro)
+        tenant.plan = 'pro'
+        db.session.add(tenant)
+        ancien_plan = tenant.plan if tenant else 'gratuit'
+        audit = SubscriptionAuditTrail(
+            tenant_id=tenant_id,
+            abonnement_id=abn_pro.id,
+            date_changement=now,
+            ancien_plan=ancien_plan,
+            nouveau_plan='pro',
+            declencheur=trigger,
+            description=f"Ré-abonnement vers Pro (trigger={trigger})",
+            utilisateur_id=user_id,
+        )
+        db.session.add(audit)
+        db.session.commit()
+        return abn_pro, audit
 
     @classmethod
     def cancel_subscription(cls, abonnement_id):

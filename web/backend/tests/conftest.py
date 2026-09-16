@@ -1,22 +1,29 @@
 
+import os
+
+# Doit etre pose AVANT tout import de `app` : Config lit les variables
+# PAPI_* au moment de l'import (attributs de classe), pas a l'appel.
+os.environ.setdefault('PAPI_WEBHOOK_SECRET', 'test-webhook-secret')
+
 import pytest
-from app import create_app, db as _db
+from app import create_app, db as app_db
 from app.models.utilisateur import Role
+from tests._db_utils import reset_schema as _reset_schema
 
 
 @pytest.fixture(scope='session')
 def _db(app):
     """Alias session de la base de test."""
-    return _db
+    return app_db
 
 
 @pytest.fixture(autouse=True)
 def _db_isolation(app):
     """Isole chaque test via un SAVEPOINT PostgreSQL."""
     with app.app_context():
-        conn = _db.engine.connect()
+        conn = app_db.engine.connect()
         trans = conn.begin()
-        sess = _db.session
+        sess = app_db.session
         nested = sess.begin_nested()
         yield
         try:
@@ -36,7 +43,11 @@ def _db_isolation(app):
 @pytest.fixture(scope='session')
 def app():
     import os
-    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test'
+    # URL de test dérivée de l'environnement (jamais de credential en dur :
+    # un scan de secrets avait rédigé cette ligne et cassé toute la suite).
+    _base = os.getenv('TEST_DATABASE_URL') or os.getenv('DATABASE_URL') or \
+        'postgresql+psycopg://postgres@localhost:55432/erp_test'
+    os.environ['DATABASE_URL'] = _base.rsplit('/', 1)[0] + '/erp_test'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
     os.environ['PAPI_API_KEY'] = 'test-api-key'
     os.environ['PAPI_ENVIRONMENT'] = 'sandbox'
@@ -47,12 +58,38 @@ def app():
 
     with app.app_context():
         from app.models.role_permission import RoleModel, Permission
-        _db.drop_all()
-        _db.create_all()
+        _reset_schema(app_db)
+        app_db.create_all()
         from scripts.seed_roles import seed_roles
         seed_roles()
         yield app
-        _db.drop_all()
+        _reset_schema(app_db)
+
+
+@pytest.fixture(autouse=True, scope='session')
+def _patch_db_drop_all():
+    """Redirige ``db.drop_all`` vers ``reset_schema`` pour tous les tests.
+
+    SQLAlchemy ne peut pas résoudre les cycles de ForeignKey dans le schéma
+    de production (``tenants`` <-> ``utilisateurs``, ``livreurs`` <->
+    ``vehicules``, ``utilisateurs`` <-> ``roles``, plus les auto-références
+    ``utilisateurs.created_by``/``updated_by``). Beaucoup de fichiers de
+    tests appellent ``db.drop_all()`` directement ; on remplace la méthode
+    au niveau de la classe pour que le patch s'applique à toutes les
+    instances et survive aux fixtures ``app`` redéfinies localement.
+    """
+    from flask_sqlalchemy import SQLAlchemy
+    original = SQLAlchemy.drop_all
+
+    def _patched_drop_all(self, *args, **kwargs):
+        _reset_schema(self)
+        return None
+
+    SQLAlchemy.drop_all = _patched_drop_all
+    try:
+        yield
+    finally:
+        SQLAlchemy.drop_all = original
 
 
 @pytest.fixture
@@ -63,5 +100,5 @@ def client(app):
 @pytest.fixture
 def db(app):
     with app.app_context():
-        yield _db
-        _db.session.rollback()
+        yield app_db
+        app_db.session.rollback()

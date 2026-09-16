@@ -427,7 +427,7 @@ const Inventory = () => {
           <div className="search-box">
             <input
               type="text"
-              placeholder={view === 'inventory' ? 'Rechercher un produit...' : 'Rechercher un mouvement...'}
+              placeholder={view === 'inventory' ? 'Rechercher un produit…' : 'Rechercher un mouvement…'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />

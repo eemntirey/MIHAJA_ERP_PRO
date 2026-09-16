@@ -1,0 +1,63 @@
+# Secrets / environnement
+**/.env
+**/.env.*
+!.env.example
+**/.env.example
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+
+# Bases de données locales
+**/*.db
+**/*.db.bak
+**/*.db.bak_*
+**/*.sqlite
+**/*.sqlite3
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+**/*.egg-info/
+
+# Logs
+**/logs/
+**/*.log
+
+# Node
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+
+# Artefacts générés par l'app
+web/backend/app/uploads/*
+!web/backend/app/uploads/.gitkeep
+web/backend/app/generated/*
+web/backend/exports/*
+web/backend/reports/*
+
+# Assets/artefacts locaux (tests e2e)
+storage_state.json
+login_result.json
+sc1_*.png
+
+# IDE / OS
+.git/
+.gitignore
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Outils locaux
+graphify-out/
+.kilo/
+.refact/
+.freebuff/
+.kilocode/

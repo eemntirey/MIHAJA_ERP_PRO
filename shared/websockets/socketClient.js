@@ -6,9 +6,9 @@ import { io } from 'socket.io-client';
 import { tokenStore } from '../storage/tokenStore';
 
 const SOCKET_URL =
-  process.env.REACT_APP_SOCKET_URL ||
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+  import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     : 'http://localhost:5000');
 
 let socket = null;
@@ -17,6 +17,9 @@ const listeners = new Map();
 const getSocket = () => {
   if (!socket) {
     const token = tokenStore.getAccessToken();
+    // A1 : web — withCredentials envoie le cookie HttpOnly au handshake.
+    // Electron — le token est dans secureStore et passé via auth dict.
+    const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
     socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
         upgrade: false,
@@ -24,7 +27,8 @@ const getSocket = () => {
       reconnectionAttempts: 20,
       reconnectionDelay: 500,
       reconnectionDelayMax: 10000,
-      auth: token ? { token } : undefined,
+      withCredentials: !isElectron,
+      auth: isElectron && token ? { token } : undefined,
     });
 
     socket.on('connect', () => {

@@ -29,25 +29,41 @@ def create_app():
     if not app.config['SECRET_KEY']:
         raise ValueError("SECRET_KEY environment variable is required")
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    database_url = os.getenv(
         'DATABASE_URL',
-        'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp'
+        'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db'
     )
 
+    if os.getenv('FLASK_ENV', '').lower() == 'production' and database_url.startswith('sqlite'):
+        raise ValueError(
+            'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
+        )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 1800,
-    }
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:
         raise ValueError("JWT_SECRET_KEY environment variable is required")
     app.config['JWT_SECRET_KEY'] = jwt_secret
     app.config['JWT_ALGORITHM'] = 'HS256'
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']
+
+    _is_prod = os.getenv('FLASK_ENV', '').lower() == 'production'
+
+    # A1 FIX : web utilise des cookies HttpOnly (XSS-safe), Electron continue
+    # avec les headers Authorization (secureStore chiffré côté desktop).
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
+    # Cookies JWT — HttpOnly empêche l'accès JS (XSS), SameSite=Strict bloque
+    # les requêtes cross-origin, Secure n'est activé qu'en production.
+    app.config['JWT_ACCESS_COOKIE'] = 'access_token_cookie'
+    app.config['JWT_REFRESH_COOKIE'] = 'refresh_token_cookie'
+    app.config['JWT_COOKIE_SECURE'] = _is_prod
+    app.config['JWT_COOKIE_HTTPONLY'] = True
+    app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # CSRF couvert par SameSite + CORS allow-list
 
     from datetime import timedelta
 
@@ -55,8 +71,15 @@ def create_app():
         seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
     )
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(
-        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 30))
+        days=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 7))
     )
+
+    # I2 FIX (P0) : MAX_CONTENT_LENGTH n'etait defini que dans Config (jamais
+    # charge via app.config.from_object) -> uploads/Excel illimites (DoS pandas).
+    app.config['MAX_CONTENT_LENGTH'] = int(
+        os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
+    )
+    app.config['MAX_FORM_MEMORY_SIZE'] = 2 * 1024 * 1024
 
     app.config['PROPAGATE_EXCEPTIONS'] = True
     app.url_map.strict_slashes = False
@@ -68,10 +91,47 @@ def create_app():
     with app.app_context():
         register_tenant_filter_event()
 
-    CORS_ORIGINS = os.getenv(
-        'CORS_ORIGINS',
-        'http://localhost:3000'
-    ).split(',')
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv(
+            'CORS_ORIGINS',
+            '' if _is_prod else 'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
+        ).split(',')
+        if origin.strip()
+    ]
+
+    # I4 FIX : allow-list stricte en production (patterns LAN/tunnels = DEV only).
+    _is_prod_cors = _is_prod
+    _DYNAMIC_CORS_PATTERNS = []
+    if not _is_prod_cors:
+        _DYNAMIC_CORS_PATTERNS = [
+        r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
+        r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[01]$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[01]$',
+    ]
+    import re as _re
+    _dynamic_extra = []
+    try:
+        _fwd = os.getenv('CORS_DYNAMIC_ORIGINS', '')
+        for _pat in [p.strip() for p in _fwd.split(',') if p.strip()]:
+            if _is_prod_cors:
+                logger.warning('CORS_DYNAMIC_ORIGINS ignore en production: %s', _pat)
+            else:
+                _DYNAMIC_CORS_PATTERNS.append(_pat)
+    except Exception:
+        pass
+    _origin_env_hint = os.getenv('FRONTEND_URL', '').strip()
+    if _origin_env_hint and _origin_env_hint not in CORS_ORIGINS:
+        _dynamic_extra.append(_origin_env_hint)
+    CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
+
+    # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
+    # clé dans app.config, le handshake /socket.io n'autorise que
+    # http://localhost:3000 et renvoie « HTTP 400 Not an accepted origin. »
+    # pour toute autre origine (ex: http://192.168.40.236:3000).
+    app.config['CORS_ORIGINS'] = CORS_ORIGINS
+    app.config['CORS_DYNAMIC_PATTERNS'] = list(_DYNAMIC_CORS_PATTERNS)
 
     if '*' in CORS_ORIGINS:
         raise ValueError(
@@ -79,13 +139,27 @@ def create_app():
             "Specify explicit allowed origins."
         )
 
+    # flask-cors n'accepte ni les callables ni les fonctions dans ``origins``
+    # (il les encapsule dans une liste puis appelle ``c in origin`` → TypeError
+    # sur toute réponse qui ne passe pas par le décorateur cross_origin, ex:
+    # une NoAuthorizationError levée avant la vue → 500 au lieu de 401).
+    # On passe donc les origines statiques + les patterns dynamiques compilés,
+    # que flask-cors sait matcher nativement via ``try_match_any``.
+    _cors_origins_config = list(CORS_ORIGINS) + [
+        _re.compile(_pat) for _pat in _DYNAMIC_CORS_PATTERNS
+    ]
+
     CORS(
         app,
-        origins=CORS_ORIGINS,
+        origins=_cors_origins_config,
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-        allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+        allow_headers=[
+            'Content-Type', 'Authorization', 'X-Requested-With', 'Accept',
+            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key',
+        ],
+        expose_headers=['X-Request-Id'],
         supports_credentials=True,
-        max_age=3600
+        max_age=3600,
     )
 
     jwt.init_app(app)
@@ -132,6 +206,55 @@ def create_app():
     def handle_revoked_token_error(e):
         return {'message': 'Token JWT révoqué'}, 401
 
+    from werkzeug.exceptions import HTTPException
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        return {
+            'message': e.description or e.name,
+            'code': e.code,
+        }, e.code or 500
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_exception(e):
+        from flask import jsonify
+        # JWT-specific exceptions are handled by the dedicated handlers above
+        # (and on the Api namespace); ignore them here.
+        from flask_jwt_extended.exceptions import (
+            NoAuthorizationError, InvalidHeaderError,
+            RevokedTokenError, JWTDecodeError, WrongTokenError,
+        )
+        from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidSignatureError, InvalidTokenError
+        if isinstance(e, (
+            NoAuthorizationError, InvalidHeaderError,
+            RevokedTokenError, JWTDecodeError,
+            WrongTokenError, ExpiredSignatureError,
+            # PyJWT brut : flask_jwt_extended 4.x laisse fuiter le DecodeError
+            # (ex: header de token non décodable en base64) sans l'envelopper
+            # dans JWTDecodeError — sinon il sort en 500 (audit : /auth/refresh
+            # avec un token garbage devait répondre 401, pas 500).
+            DecodeError, InvalidSignatureError, InvalidTokenError,
+        )):
+            # Re-lève pour laisser error_router (flask_restx) retomber sur le
+            # handler Flask de flask-jwt-extended -> réponse 401 propre au lieu
+            # d'un 500 "'Response' object has no attribute 'get'".
+            raise e
+        logger.exception('Unhandled exception during request: %s', e)
+        # Tuple (dict, code) et non Response: flask_restx.Api.handle_error fait
+        # default_data.get(...) -> crash si default_data est une Response Flask.
+        return {
+            'message': 'Erreur interne du serveur',
+            'code': 500,
+        }, 500
+
+    api = Api(
+        app,
+        title='ERP Commercial API',
+        version='1.0',
+        doc='/docs/' if os.getenv('FLASK_ENV', '').lower() != 'production' else False,
+        decorators=[cross_origin()]
+    )
+
     @app.route('/')
     @app.route('/index')
     def index():
@@ -139,15 +262,59 @@ def create_app():
 
     @app.route('/health')
     def health():
-        return {'status': 'healthy', 'database': 'connected'}, 200
+        """Health-check public monitoré (P0 audit 14/09/2026).
 
-    api = Api(
-        app,
-        title='ERP Commercial API',
-        version='1.0',
-        doc='/docs/',
-        decorators=[cross_origin()]
-    )
+        Vérifie réellement la connexion DB au lieu de répondre en aveugle.
+        200 = sain, 503 = dégradé (DB injoignable). Jamais de 500 générique.
+        """
+        from sqlalchemy import text as _sa_text
+        checks = {}
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+            checks['database'] = 'connected'
+            healthy = True
+        except Exception as exc:  # pragma: no cover - dépend de l'infra
+            logger.warning('Health-check DB échoué: %s', exc)
+            checks['database'] = 'unreachable'
+            healthy = False
+        payload = {
+            'status': 'healthy' if healthy else 'degraded',
+            'service': 'erp-backend',
+            'checks': checks,
+        }
+        return payload, 200 if healthy else 503
+
+    @app.route('/ready')
+    def ready():
+        """Readiness pour orchestrateurs/tunnels : DB + migrations à jour."""
+        from sqlalchemy import text as _sa_text
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+        except Exception as exc:
+            return {'ready': False, 'reason': 'database_unreachable'}, 503
+        return {'ready': True}, 200
+
+    @app.route('/monitor')
+    def monitor():
+        """Endpoint de monitoring visible et monitoré (audit P0 14/09/2026)."""
+        from flask import g
+        from sqlalchemy import text as _sa_text
+        db_status = 'unknown'
+        try:
+            db.session.execute(_sa_text('SELECT 1'))
+            db_status = 'connected'
+        except Exception:
+            db_status = 'disconnected'
+        return {
+            'status': 'running',
+            'monitor': True,
+            'database': db_status,
+            'service': 'erp-backend',
+            'tenant_active': g.current_tenant is not None,
+            'current_tenant_id': g.current_tenant.id if g.current_tenant else None,
+        }, 200
+
+    api.errorhandler(Exception)(handle_unexpected_exception)
 
     api.errorhandler(NoAuthorizationError)(handle_no_auth_error)
     api.errorhandler(InvalidHeaderError)(handle_invalid_header_error)
@@ -168,8 +335,8 @@ def create_app():
     from app.api.v1.tenants import ns as tenants_ns
     from app.api.v1.abonnements import ns as abonnements_ns
     from app.api.v1.livraisons import ns_livreurs as livreurs_ns, ns_vehicules as vehicules_ns, ns_itineraires as itineraires_ns, ns_livraisons as livraisons_ns
-    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
-    from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns
+    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_conges as conges_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
+    from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns, ns_resultats as resultats_ns
     from app.api.v1.documents import ns_modeles as modeles_documents_ns, ns_documents as documents_ns
     from app.api.v1.achats_devis import ns_commandes_achat as commandes_achat_ns, ns_receptions as receptions_ns, ns_devis as devis_ns, ns_bons_livraison as bons_livraison_ns, ns_avoirs as avoirs_ns
     from app.api.v1.roles import ns as roles_ns
@@ -178,7 +345,9 @@ def create_app():
     from app.api.v1.papi import ns as papi_ns
     from app.api.v1.notifications import ns as notifications_ns
     from app.api.v1.super_admin import ns as super_admin_ns
+    from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
+    from app.api.v1.entrepots import ns as entrepots_ns
     from app.api.v1.desk import desk_bp
 
     api.add_namespace(super_admin_ns, path='/api/v1/super-admin')
@@ -197,7 +366,25 @@ def create_app():
     api.add_namespace(stocks_ns, path='/api/v1/stocks')
     api.add_namespace(ventes_ns, path='/api/v1/ventes')
     api.add_namespace(ai_ns, path='/api/v1/ai')
-    api.add_namespace(public_ns, path='/public')
+    # Vitrine publique : le frontend appelle /api/v1/public/... via REACT_APP_API_URL.
+    # On expose le namespace aux deux préfixes (compat ascendante pour les tests
+    # qui utilisent /public/...) SANS dupliquer les routes dans Swagger.
+    api.add_namespace(public_ns, path='/api/v1/public')
+    try:
+        for _pub_entry in list(public_ns.resources):
+            _pub_resource = _pub_entry[0] if len(_pub_entry) > 0 else None
+            _pub_urls = _pub_entry[1] if len(_pub_entry) > 1 else []
+            _pub_kwargs = _pub_entry[2] if len(_pub_entry) > 2 else {}
+            if _pub_resource is None:
+                continue
+            for _pub_url in list(_pub_urls or []):
+                _compat = '/public' + _pub_url
+                try:
+                    api.add_resource(_pub_resource, _compat, endpoint='public_compat_' + _pub_resource.__name__, **(_pub_kwargs or {}))
+                except Exception:
+                    pass
+    except Exception:
+        pass
     api.add_namespace(tenants_ns, path='/api/v1/tenants')
     api.add_namespace(abonnements_ns, path='/api/v1/abonnements')
     api.add_namespace(livreurs_ns, path='/api/v1/livreurs')
@@ -207,11 +394,13 @@ def create_app():
     api.add_namespace(employes_ns, path='/api/v1/employes')
     api.add_namespace(stagiaires_ns, path='/api/v1/stagiaires')
     api.add_namespace(presences_ns, path='/api/v1/presences')
+    api.add_namespace(conges_ns, path='/api/v1/conges')
     api.add_namespace(salaires_ns, path='/api/v1/salaires')
     api.add_namespace(primes_ns, path='/api/v1/primes')
     api.add_namespace(comptes_ns, path='/api/v1/comptes')
     api.add_namespace(ecritures_ns, path='/api/v1/ecritures')
     api.add_namespace(tresorerie_ns, path='/api/v1/tresorerie')
+    api.add_namespace(resultats_ns, path='/api/v1/resultats')
     api.add_namespace(modeles_documents_ns, path='/api/v1/modeles-documents')
     api.add_namespace(documents_ns, path='/api/v1/documents')
     api.add_namespace(commandes_achat_ns, path='/api/v1/commandes-achat')
@@ -223,21 +412,35 @@ def create_app():
     api.add_namespace(permissions_ns, path='/api/v1/permissions')
     api.add_namespace(users_ns, path='/api/v1/users')
     api.add_namespace(papi_ns, path='/api/v1/papi')
+    api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
+    api.add_namespace(entrepots_ns, path='/api/v1/entrepots')
 
     app.register_blueprint(desk_bp)
+
+    from app.realtime.socket_server import init_socketio
+    app.socketio = init_socketio(app)
 
     @app.before_request
     def before_request():
         from flask import g
         from app.security.tenant import resolve_tenant_from_header
 
+        # g.current_tenant_id doit être remis à zéro comme les deux autres :
+        # dans un contexte applicatif partagé (client de test, serveur
+        # embarqué, worker), `g` survit d'une requête à l'autre et le
+        # tenant_id de la requête précédente fuitait dans la suivante
+        # (filtrage tenant erroné, 403 « Abonnement requis » aléatoires).
         g.current_tenant = None
         g.current_user = None
+        g.current_tenant_id = None
+        g.current_abonnement = None
+        g.current_limits = None
+        g.current_modules = None
 
         try:
-            from flask_jwt_extended import verify_jwt_in_request_optional, get_jwt
-            verify_jwt_in_request_optional()
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt
+            verify_jwt_in_request(optional=True)
             claims = get_jwt()
             if claims:
                 tenant_id = claims.get('tenant_id')
@@ -261,8 +464,40 @@ def create_app():
             )
             g.current_tenant = None
 
-    # NOTE: le seeding complet (_seed_roles / _seed_initial_data) est conserve
-    # dans le depot historique. Ici on garde la structure de demarrage saine
-    # avec blocklist JWT. Le seeding peut etre declenche via CLI / endpoint.
+    # Auto-seed des rôles/permissions système si la table est vide.
+    # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
+    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
+    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+    try:
+        with app.app_context():
+            from app.models.role_permission import RoleModel, Permission
+            roles_empty = db.session.query(RoleModel.id).first() is None
+            perms_empty = db.session.query(Permission.id).first() is None
+            if roles_empty or perms_empty:
+                from scripts.seed_roles import seed_roles
+                seed_roles(app)
+                logger.info("Auto-seed rôles/permissions effectué (base vide).")
+    except Exception:
+        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+
+    # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
+
+    # P2 : en-têtes de sécurité (Helmet-like) sans dépendance externe.
+    @app.after_request
+    def _security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+            "object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        )
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = (
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=(), '
+            'magnetometer=(), gyroscope=()'
+        )
+        return response
 
     return app

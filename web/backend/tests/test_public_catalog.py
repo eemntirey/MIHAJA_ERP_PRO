@@ -29,6 +29,13 @@ def app(monkeypatch, tmp_path):
     application.config['TESTING'] = True
     with application.app_context():
         db.create_all()
+        # Ces tests valident les restrictions du MODE COMMERCIAL (toggle ACTIF) :
+        # le catalogue public et le filtrage par module ne s'appliquent qu'à
+        # ce moment (en mode découverte, tous les modules sont ouverts).
+        from app.models.platform_config import PlatformConfig
+        cfg = PlatformConfig.get_config()
+        cfg.is_subscription_active = True
+        db.session.commit()
         yield application
         db.session.remove()
         db.engine.dispose()
@@ -42,6 +49,12 @@ def _make_tenant_and_admin(client, name, email, plan='starter'):
         domaine=f'{name.lower().replace(" ", "-")}.test',
         statut=StatutTenant.ACTIF,
         plan=plan,
+        # Pré-requis vitrine : abonnement actif (ci-dessous) + compte
+        # marchand Papi configuré + toggle vitrine activé. Sans ces trois
+        # conditions, le tenant n'apparaît pas dans le catalogue public
+        # (voir Tenant.is_vitrine_active).
+        papi_api_key_encrypted='enc::test-key',
+        vitrine_enabled=True,
     )
     db.session.add(tenant)
     db.session.flush()
@@ -204,7 +217,6 @@ class TestPublicCatalogStockFiltering:
             prix_achat_ht=500,
             prix_vente_ht=1000,
             marge_standard=50,
-            fournisseur_id=1,
         )
         db.session.add(produit)
         db.session.commit()

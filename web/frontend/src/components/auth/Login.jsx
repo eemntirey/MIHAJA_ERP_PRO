@@ -51,13 +51,16 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       const result = await login(data.email, data.password);
+      console.log('[Login] result:', result);
 
-      if (result.success) {
+      if (result && result.success) {
         const redirectTo = result.redirectPath || '/dashboard';
+        console.log('[Login] redirecting to:', redirectTo);
         navigate(redirectTo);
+      } else {
+        console.warn('[Login] login failed without exception:', result);
       }
     } catch (error) {
-      // Les erreurs sont gérées par AuthContext et affichées via ToastContainer.
       console.error('Erreur dans onSubmit:', error);
     }
   };

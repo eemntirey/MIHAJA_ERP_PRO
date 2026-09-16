@@ -55,7 +55,8 @@ export const SuperAdminAuthProvider = ({ children }) => {
         throw new Error('Réponse invalide du serveur');
       }
 
-      if (userData.role !== 'super_admin') {
+      const role = String(userData.role || '').toLowerCase();
+      if (role !== 'super_admin') {
         throw new Error('Accès réservé au Super Admin uniquement');
       }
 
@@ -72,7 +73,14 @@ export const SuperAdminAuthProvider = ({ children }) => {
       toast.success('Connexion Super Admin réussie');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Échec de la connexion';
+      let message = error.response?.data?.message || error.message || 'Échec de la connexion';
+      // Cas "Connexion..." fige : backend injoignable ou delai depasse.
+      // Axios renvoie alors "Network Error" / ECONNABORTED sans response.
+      if (!error.response && (error.code === 'ECONNABORTED' || message.includes('timeout'))) {
+        message = "Serveur injoignable (délai dépassé) : vérifiez que le backend tourne sur http://127.0.0.1:5000";
+      } else if (!error.response && message === 'Network Error') {
+        message = "Serveur injoignable : vérifiez que le backend tourne sur http://127.0.0.1:5000";
+      }
       toast.error(message);
       localStorage.removeItem('super_admin_access_token');
       localStorage.removeItem('super_admin_user');

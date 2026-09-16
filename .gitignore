@@ -353,7 +353,19 @@ Desktop.ini
 .ai-cache/
 .ai-temp/
 
+# Kilo Code - fichiers de configuration et cache locaux
+.kilo/kilo.json
+.kilo/plugins/AGENTS.md
+
+# Graphify - rapport de graphe de connaissances local
+graphify-out/
+RAPPORT_DETAIL.txt
+
 # Ne pas ignorer automatiquement les règles du projet.
+
+# Fichiers d'environnement dans les worktrees Kilo
+.kilo/worktrees/*/.env
+.kilo/worktrees/**/.env
 
 
 # ============================================================
@@ -519,6 +531,7 @@ password.txt
 credentials.txt
 secrets.txt
 private_key.txt
+a.txt
 
 # Configurations locales sensibles
 config.local.json
@@ -563,3 +576,30 @@ settings.local.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# ============================================================
+# 26. ARTEFACTS LOCAUX NON VERSIONNABLES (ajout 2026-09-15)
+# ============================================================
+
+# Etat de session Playwright / e2e (cookies, tokens)
+storage_state.json
+login_result.json
+sc1_*.png
+
+# Backups et base sqlite locale du backend
+web/backend/backups/
+web/backend/.env_sqlite
+
+# Sorties de diagnostic temporaires du backend
+web/backend/_*.txt
+web/backend/_*.py
+web/backend/_*.ps1
+
+# Export web statique genere (mobile)
+mobile/dist-web/
+
+# Etat local des outils d'agents
+.freebuff/
+.kilo/diag/
+.kilocode/tasks/
+.refact/

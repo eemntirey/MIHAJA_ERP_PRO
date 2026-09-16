@@ -185,15 +185,8 @@ pytest
 - Le backend supporte SQLite (dev) et PostgreSQL (prod).
 - Le frontend web et desktop partagent la même API backend.
 
-dernier Données de test renouvelées avec succès. Les abonnements et paiements ont été recréés avec les dates du jour.
-
-Clés des abonnés (mot de passe commun : Test1234!) :
+Clé des comptes de démo (mot de passe : défini par l'utilisateur lors du premier accès / changé au premier boot) :
 
 Email	Rôle	Plan abonnement
 distrifood@erp.com	admin	enterprise
-epicerie@erp.com	admin	starter
-grosriz@erp.com	admin	pro
-wholesale@erp.com	sales	pro
-grossiste-btp@erp.com	admin	starter
-client.simple@erp.com	user	—
-client.pub@erp.com	user	—
+grosriz@erp.com	sales	pro

@@ -1,4 +1,5 @@
 from functools import wraps
+from datetime import datetime
 from flask import g
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from flask_jwt_extended.exceptions import (
@@ -45,17 +46,59 @@ def _get_tenant_from_claims_or_g():
     return db.session.get(Tenant, tenant_id)
 
 
+def _cached_context(tenant):
+    """Contexte (abonnement, limits, modules) déja résolu par `tenant_required`.
+
+    Ne renvoie le cache que s'il correspond au MÊME tenant que celui
+    demandé : évite de réutiliser les limites d'un autre tenant et d'avoir
+    3 coûts de résolution par requête. Retourne None si absent/autre tenant.
+    """
+    if tenant is None:
+        return None
+    g_tenant = getattr(g, 'current_tenant', None)
+    if g_tenant is None or g_tenant.id != tenant.id:
+        return None
+    limits = getattr(g, 'current_limits', None)
+    modules = getattr(g, 'current_modules', None)
+    abonnement = getattr(g, 'current_abonnement', None)
+    if limits is None or modules is None:
+        return None
+    return abonnement, limits, modules
+
+
+def resolve_tenant_context(tenant):
+    """Résout en une seule passe (abonnement, limits, modules) du tenant.
+
+    Source unique de vérité pour les guards : `tenant_required` remplit
+    `g.current_abonnement/current_limits/current_modules` à partir d'ici,
+    et `check_plan_limits`/`require_module`/limites relisent ce cache au
+    lieu de re-querquer.
+    """
+    abonnement = _get_active_abonnement(tenant)
+    limits = resolve_limits(tenant, abonnement)
+    modules = resolve_modules(tenant, abonnement)
+    return abonnement, limits, modules
+
+
 def _get_active_abonnement(tenant):
     if not tenant:
         return None
+    cached = _cached_context(tenant)
+    if cached is not None:
+        return cached[0]
+    now = datetime.utcnow()
     return Abonnement.query.filter(
         Abonnement.tenant_id == tenant.id,
         Abonnement.statut == StatutAbonnement.ACTIF,
         Abonnement.is_active == True,
+        Abonnement.date_fin > now,
     ).order_by(Abonnement.created_at.desc()).first()
 
 
 def _get_limits(tenant):
+    cached = _cached_context(tenant)
+    if cached is not None:
+        return cached[1]
     abonnement = _get_active_abonnement(tenant)
     if abonnement:
         return resolve_limits(tenant, abonnement)
@@ -63,10 +106,18 @@ def _get_limits(tenant):
 
 
 def _get_modules(tenant):
+    cached = _cached_context(tenant)
+    if cached is not None:
+        return cached[2]
     abonnement = _get_active_abonnement(tenant)
     if abonnement:
         return resolve_modules(tenant, abonnement)
     return resolve_modules(tenant)
+
+
+def is_subscription_inactive():
+    """Désactivé : les limites du plan s'appliquent toujours."""
+    return False
 
 
 def check_plan_limits(feature):

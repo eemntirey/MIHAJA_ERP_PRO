@@ -14,7 +14,7 @@ from app.models.client import Client
 from app.models.fournisseur import Fournisseur
 from app.models.employe import Employe
 from app.models.stagiaire import Stagiaire
-from app.models.admin_device import AdminDevice
+from app.models.admin_device import AdminDevice, StatutDevice
 from app.models.livreur import Livreur
 from app.models.vehicule import Vehicule
 from app.models.itineraire import Itineraire
@@ -42,12 +42,12 @@ from app.models.prime import Prime
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
-from app.security.plans import apply_plan_to_abonnement
+from app.security.plans import apply_plan_to_abonnement, get_plan_price
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
 from sqlalchemy.orm import contains_eager, joinedload
-import json
+import json, os
 
 ns = Namespace('super-admin', description='Endpoints réservés au SUPER_ADMIN')
 
@@ -57,6 +57,16 @@ def _ensure_super_admin():
     user = db.session.get(Utilisateur, user_id)
     if not user or not is_super_admin(user.role):
         return {'message': 'Acces super administrateur requis'}, 403
+    # Liveness + révocation (audit P1-4) : un super admin désactivé,
+    # suspendu ou révoqué ne doit plus gérer la plateforme, et un reset
+    # de mot de passe (token_version) doit fermer les sessions émises.
+    if not user.is_active or user.statut != StatutUtilisateur.ACTIF or (
+        user.admin_statut is not None and user.admin_statut != StatutAdmin.ACTIVE
+    ):
+        return {'message': 'Compte super administrateur inactif ou suspendu'}, 403
+    claims = get_jwt() or {}
+    if (user.token_version or 0) > claims.get('pwd_v', 0):
+        return {'message': 'Votre session a expire. Veuillez vous reconnecter.'}, 401
     return None
 
 
@@ -322,6 +332,138 @@ class SuperAdminTenantsList(Resource):
         }, 200
 
 
+@ns.route('/tenants/papi-overview')
+class SuperAdminTenantsPapiOverview(Resource):
+    """Vue agrégée : configuration Papi marchand + vitrine pour tous les tenants."""
+
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+
+        search = (request.args.get('search') or '').strip().lower()
+        papi_filter = (request.args.get('papi') or '').strip().lower()
+        vitrine_filter = (request.args.get('vitrine') or '').strip().lower()
+
+        query = Tenant.query.filter(Tenant.is_active == True)
+
+        if search:
+            like = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Tenant.nom.ilike(like),
+                    Tenant.slug.ilike(like),
+                    Tenant.email_contact.ilike(like),
+                )
+            )
+
+        tenants = query.order_by(Tenant.created_at.desc()).all()
+
+        # Agrégats globaux
+        total = len(tenants)
+        papi_configured = sum(1 for t in tenants if t.has_papi_configured())
+        vitrine_enabled = sum(1 for t in tenants if t.vitrine_enabled)
+        vitrine_active = sum(1 for t in tenants if t.is_vitrine_active())
+
+        # Volume d'encaissement par tenant (commandes via Papi tenant uniquement)
+        from app.models.paiement import Paiement
+        from app.models.commande_client import CommandeClient
+        from sqlalchemy import func as sql_func
+
+        commande_paiements = (
+            db.session.query(
+                Paiement.tenant_id,
+                sql_func.count(Paiement.id),
+                sql_func.coalesce(sql_func.sum(Paiement.montant), 0),
+            )
+            .filter(
+                Paiement.is_active == True,
+                Paiement.type == TypePaiement.COMMANDE,
+                Paiement.provider == 'papi',
+                Paiement.statut.in_([
+                    StatutPaiement.SUCCESS,
+                    StatutPaiement.CONFIRME,
+                ]),
+            )
+            .group_by(Paiement.tenant_id)
+            .all()
+        )
+        encaissements_by_tenant = {
+            row[0]: {'count': row[1], 'total': float(row[2] or 0)}
+            for row in commande_paiements
+        }
+
+        # Commandes vitrine par tenant
+        cmd_counts = dict(
+            db.session.query(
+                CommandeClient.tenant_id,
+                sql_func.count(CommandeClient.id),
+            )
+            .filter(CommandeClient.is_active == True)
+            .group_by(CommandeClient.tenant_id)
+            .all()
+        )
+
+        rows = []
+        for t in tenants:
+            statut = (
+                t.statut.value if hasattr(t.statut, 'value') else t.statut
+            )
+            row = {
+                'id': t.id,
+                'nom': t.nom,
+                'slug': t.slug,
+                'email_contact': t.email_contact,
+                'plan': t.plan,
+                'statut': statut,
+                'papi_configured': t.has_papi_configured(),
+                'papi_environment': t.papi_environment,
+                'papi_configured_at': (
+                    t.papi_configured_at.isoformat()
+                    if t.papi_configured_at
+                    else None
+                ),
+                'vitrine_enabled': bool(t.vitrine_enabled),
+                'vitrine_enabled_at': (
+                    t.vitrine_enabled_at.isoformat()
+                    if t.vitrine_enabled_at
+                    else None
+                ),
+                'vitrine_active': t.is_vitrine_active(),
+                'commandes_total': cmd_counts.get(t.id, 0),
+                'commandes_paiements_count': encaissements_by_tenant.get(
+                    t.id, {}
+                ).get('count', 0),
+                'commandes_paiements_total': encaissements_by_tenant.get(
+                    t.id, {}
+                ).get('total', 0.0),
+            }
+            rows.append(row)
+
+        if papi_filter in ('configured', '1', 'yes', 'true'):
+            rows = [r for r in rows if r['papi_configured']]
+        elif papi_filter in ('not_configured', '0', 'no', 'false'):
+            rows = [r for r in rows if not r['papi_configured']]
+
+        if vitrine_filter in ('enabled', '1', 'yes', 'true'):
+            rows = [r for r in rows if r['vitrine_enabled']]
+        elif vitrine_filter in ('disabled', '0', 'no', 'false'):
+            rows = [r for r in rows if not r['vitrine_enabled']]
+        elif vitrine_filter == 'active':
+            rows = [r for r in rows if r['vitrine_active']]
+
+        return {
+            'rows': rows,
+            'summary': {
+                'total_tenants': total,
+                'papi_configured': papi_configured,
+                'vitrine_enabled': vitrine_enabled,
+                'vitrine_active': vitrine_active,
+            },
+        }, 200
+
+
 @ns.route('/tenants/<int:tenant_id>')
 class SuperAdminTenantDetail(Resource):
     @jwt_required()
@@ -377,7 +519,7 @@ class SuperAdminTenantDetail(Resource):
             Utilisateur.tenant_id == tenant.id,
             Utilisateur.is_active == True,
         ).filter(
-            Utilisateur.role.in_(['admin', 'super_admin'])
+            Utilisateur.role.in_([Role.ADMIN, Role.SUPER_ADMIN])
         ).all()
         for admin in admins:
             tenant_data['administrateurs'].append({
@@ -419,18 +561,24 @@ class SuperAdminTenantDetail(Resource):
 
             tenant_nom = tenant.nom
             tenant_id_log = tenant.id
-            _hard_delete_tenant_data(tenant_id)
+            backup_path = _backup_tenant_data(tenant_id)
+            _tenant_soft_delete(tenant)
             db.session.commit()
 
             _log_audit(
                 TypeActionAudit.SUPPRESSION_TENANT,
-                f"Suppression definitive du tenant {tenant_nom} (id={tenant_id_log})",
+                f"Suppression (soft) du tenant {tenant_nom} (id={tenant_id_log}), backup: {backup_path}",
                 tenant_id=tenant_id_log,
-                metadata={'action': 'delete_tenant'},
+                metadata={'action': 'delete_tenant', 'backup': backup_path},
             )
 
+            try:
+                broadcast_to_tenant(tenant_id_log, 'tenant:updated', tenant.to_dict())
+            except Exception:
+                pass
+
             return {
-                'message': 'Tenant supprime definitivement',
+                'message': 'Tenant desactive (suppression logique), donnees archivees',
                 'tenant': {'id': tenant_id_log, 'nom': tenant_nom},
             }, 200
         except Exception as e:
@@ -1573,7 +1721,7 @@ def _cascade_delete_tenant_data(tenant_id):
     from app.models.audit_log import AuditLog
     from app.models.document_genere import DocumentGenere
     from app.models.notification import Notification
-    from app.models.admin_device import AdminDevice
+    from app.models.admin_device import AdminDevice, StatutDevice
     from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
     from app.models.password_reset_token import PasswordResetToken
     from app.models.ligne_vente import LigneVente
@@ -1617,95 +1765,135 @@ def _cascade_delete_tenant_data(tenant_id):
         user.mark_deleted()
 
 
-def _hard_delete_tenant_data(tenant_id):
-    """Supprime physiquement toutes les donnees d'un tenant.
-
-    Cette fonction effectue une suppression reelle de toutes les donnees
-    associees au tenant dans l'ordre des dependances FK pour eviter
-    les violations de contrainte.
-    """
-    from app.models.stagiaire import Stagiaire
-    from app.models.presence import Presence
-    from app.models.salaire import Salaire
-    from app.models.prime import Prime
-    from app.models.commande_achat import CommandeAchat, ReceptionAchat, QualiteAchat
-    from app.models.devis_avoir_bl import Devis, BonLivraison, Avoir
-    from app.models.livraison import Livraison
-    from app.models.stock import MouvementStock
-    from app.models.compte_comptable import CompteComptable
-    from app.models.ecriture_comptable import EcritureComptable
-    from app.models.audit_log import AuditLog
-    from app.models.document_genere import DocumentGenere
-    from app.models.notification import Notification
-    from app.models.admin_device import AdminDevice
-    from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
-    from app.models.password_reset_token import PasswordResetToken
-    from app.models.ligne_vente import LigneVente
-    from app.models.ligne_achat import LigneAchat
-    from app.models.commande_client import CommandeClient
-    from app.models.suivi_livraison import SuiviLivraison
-    from app.models.payment_event import PaymentEvent
-    from app.models.facture_fournisseur import FactureFournisseur
-    from app.models.livreur import Livreur
-    from app.models.vehicule import Vehicule
-    from app.models.itineraire import Itineraire
-
-    hard_delete_order = [
-        SyncEvent,
-        PasswordResetToken,
-        Notification,
-        DeskFavorite,
-        DeskFilterPreset,
-        DeskColumnConfig,
-        AdminDevice,
-        Presence,
-        Salaire,
-        Prime,
-        Stagiaire,
-        PaymentEvent,
-        LigneVente,
-        LigneAchat,
-        SuiviLivraison,
-        EcritureComptable,
-        DocumentGenere,
-        Paiement,
-        Avoir,
-        BonLivraison,
-        Facture,
-        Vente,
-        Devis,
-        Livraison,
-        CommandeClient,
-        CommandeFournisseur,
-        QualiteAchat,
-        ReceptionAchat,
-        CommandeAchat,
-        FactureFournisseur,
-        MouvementStock,
-        Produit,
-        Client,
-        Fournisseur,
-        Employe,
-        Livreur,
-        Vehicule,
-        Itineraire,
-        Abonnement,
-        CompteComptable,
-        Tresorerie,
-        ModeleDocument,
-        Utilisateur,
-    ]
-
-    for user in Utilisateur.query.filter_by(tenant_id=tenant_id):
-        AdminDevice.query.filter_by(user_id=user.id).delete(synchronize_session=False)
-
-    for model in hard_delete_order:
+@ns.route('/email-config')
+class SuperAdminEmailConfig(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
         try:
-            model.query.filter_by(tenant_id=tenant_id).delete(synchronize_session=False)
-        except Exception:
-            pass
+            import os
+            cfg = {
+                'MAIL_HOST': os.getenv('MAIL_HOST', ''),
+                'MAIL_PORT': int(os.getenv('MAIL_PORT', '587')),
+                'MAIL_USERNAME': os.getenv('MAIL_USERNAME', os.getenv('MAIL_USER', '')),
+                'MAIL_FROM': os.getenv('MAIL_FROM', 'no-reply@mihaja-erp.local'),
+                'MAIL_FROM_NAME': os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP'),
+                'MAIL_USE_TLS': os.getenv('MAIL_USE_TLS', '1') == '1',
+            }
+            return cfg, 200
+        except Exception as e:
+            return {'message': f'Erreur lecture config email: {str(e)}'}, 500
 
-    Tenant.query.filter_by(id=tenant_id).delete(synchronize_session=False)
+    @jwt_required()
+    def put(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        data = request.get_json() or {}
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), '.env')
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                lines = f.read().splitlines(keepends=True)
+        new_vars = {
+            'MAIL_HOST': data.get('MAIL_HOST'),
+            'MAIL_PORT': str(data.get('MAIL_PORT', 587)),
+            'MAIL_USERNAME': data.get('MAIL_USERNAME'),
+            'MAIL_FROM': data.get('MAIL_FROM'),
+            'MAIL_FROM_NAME': data.get('MAIL_FROM_NAME'),
+            'MAIL_USE_TLS': '1' if data.get('MAIL_USE_TLS', True) else '0',
+        }
+        updated = {}
+        for i, line in enumerate(lines):
+            for key in new_vars:
+                if line.startswith(key + '='):
+                    lines[i] = f"{key}={new_vars[key]}\n"
+                    updated[key] = True
+                    break
+        for key, val in new_vars.items():
+            if key not in updated:
+                lines.append(f"{key}={val}\n")
+        try:
+            with open(env_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+            return {'message': 'Configuration email mise à jour'}, 200
+        except Exception as e:
+            return {'message': f'Erreur écriture config: {str(e)}'}, 500
+
+
+def _tenant_soft_delete(tenant):
+    """Soft-delete complet d'un tenant : archive les utilisateurs et révoque
+    les appareils admin sans supprimer aucune donnée physique. L'historique
+    (ventes, factures, audit) reste intégralement en base et consultable.
+    """
+    users = Utilisateur.query.filter_by(tenant_id=tenant.id).all()
+    for user in users:
+        AdminDevice.query.filter_by(user_id=user.id).update(
+            {'statut': StatutDevice.REVOKED}, synchronize_session=False
+        )
+        if user.is_active:
+            user.is_active = False
+            # Libere les contraintes d'unicite email/username (meme strategie
+            # que Utilisateur.mark_deleted) sans detruire l'historique.
+            if '@' in (user.email or ''):
+                user.email = f"deleted-tenant.{user.id}@{user.email.split('@', 1)[1]}"
+            user.username = f"deleted-tenant.{user.id}.{user.username}"
+            db.session.add(user)
+
+    tenant.is_active = False
+    tenant.statut = StatutTenant.INACTIF
+    tenant.vitrine_enabled = False
+    db.session.add(tenant)
+
+
+def _backup_tenant_data(tenant_id):
+    """Exporte un instantané JSON des données du tenant avant suppression.
+
+    Le fichier est écrit dans BACKUP_DIR (config) ; il permet une
+    consultation ou une restauration manuelle après le soft-delete.
+    Aucune exception n'est remontée : l'échec de sauvegarde est journalisé
+    mais ne bloque pas la suppression.
+    """
+    import os
+    import logging
+    import json as _json
+
+    models = [
+        Utilisateur, Produit, Client, Fournisseur, Vente, LigneVente,
+        Facture, Paiement, CommandeClient, CommandeFournisseur,
+        CommandeAchat, FactureFournisseur, MouvementStock, Abonnement,
+        Employe, Presence, Salaire, Prime, Stagiaire, Livreur, Vehicule,
+        Itineraire, Livraison, Devis, BonLivraison, Avoir,
+        CompteComptable, EcritureComptable, Tresorerie, DocumentGenere,
+        ModeleDocument, Notification,
+    ]
+    snapshot = {
+        'tenant_id': tenant_id,
+        'created_at': datetime.utcnow().isoformat(),
+        'models': {},
+    }
+    for model in models:
+        try:
+            rows = model.query.filter_by(tenant_id=tenant_id).all()
+            snapshot['models'][model.__tablename__] = [r.to_dict() for r in rows]
+        except Exception:
+            continue
+
+    backup_dir = os.path.join(os.getcwd(), os.getenv('BACKUP_DIR', 'backups'))
+    os.makedirs(backup_dir, exist_ok=True)
+    path = os.path.join(backup_dir, f'tenant_{tenant_id}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.json')
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            _json.dump(snapshot, f, ensure_ascii=False, default=str)
+        logger = logging.getLogger(__name__)
+        logger.info('Backup tenant %s écrit: %s', tenant_id, path)
+        return path
+    except OSError as exc:
+        logger = logging.getLogger(__name__)
+        logger.exception('Échec de la sauvegarde du tenant %s: %s', tenant_id, exc)
+        return None
 
 
 @ns.route('/users')
@@ -1843,8 +2031,15 @@ class SuperAdminUserDetail(Resource):
             if is_admin and tenant_id:
                 tenant = db.session.get(Tenant, tenant_id)
                 tenant_nom = tenant.nom if tenant else "inconnu"
-                _hard_delete_tenant_data(tenant_id)
-                message = f"Admin {user_username}, tenant {tenant_nom} et toutes ses données ont été supprimés"
+                if tenant and tenant.is_active:
+                    backup_path = _backup_tenant_data(tenant_id)
+                    _tenant_soft_delete(tenant)
+                    message = (
+                        f"Admin {user_username} désactivé, tenant {tenant_nom} "
+                        f"désactivé (suppression logique), données archivées"
+                    )
+                else:
+                    message = f"Admin {user_username} désactivé"
             else:
                 user.mark_deleted()
                 message = f"Utilisateur {user_username} désactivé"
@@ -1868,3 +2063,92 @@ class SuperAdminUserDetail(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': f'Erreur lors de la suppression: {str(e)}'}, 500
+
+
+@ns.route('/subscriptions/notify-activation')
+class SuperAdminSubscriptionsNotifyActivation(Resource):
+    @jwt_required()
+    def post(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        try:
+            from app.services.notification_service import create_notification
+            from app.models.abonnement import Abonnement
+            abonnements = Abonnement.query.filter(Abonnement.is_active == True, Abonnement.statut != 'expire').all()
+            count = 0
+            for ab in abonnements:
+                tenant = db.session.get(Tenant, ab.tenant_id) if ab.tenant_id else None
+                if tenant:
+                    create_notification(
+                        tenant_id=ab.tenant_id,
+                        title='Activation du système d\'abonnement',
+                        message='Vous avez 30 jours pour activer votre abonnement. Passé ce délai, le compte pourra être bloqué.',
+                        notif_type='subscription_reminder',
+                        link='/subscriptions',
+                        commit=False,
+                    )
+                    count += 1
+            db.session.commit()
+            return {'message': 'Notification 30j envoyée', 'notified': count}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur: {str(e)}'}, 500
+
+@ns.route('/subscriptions/send-reminder-3j')
+class SuperAdminSubscriptionsSendReminder3j(Resource):
+    @jwt_required()
+    def post(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        try:
+            from app.services.notification_service import create_notification
+            from app.models.abonnement import Abonnement
+            abonnements = Abonnement.query.filter(Abonnement.is_active == True, Abonnement.statut != 'expire').all()
+            count = 0
+            for ab in abonnements:
+                tenant = db.session.get(Tenant, ab.tenant_id) if ab.tenant_id else None
+                if tenant:
+                    create_notification(
+                        tenant_id=ab.tenant_id,
+                        title='Rappel abonnement : -3 jours',
+                        message='Il reste 3 jours pour activer votre abonnement. Après ce délai, le compte pourra être bloqué.',
+                        notif_type='subscription_reminder_3j',
+                        link='/subscriptions',
+                        commit=False,
+                    )
+                    count += 1
+            db.session.commit()
+            return {'message': 'Rappel -3j envoyé automatiquement', 'notified': count}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Erreur: {str(e)}'}, 500
+
+@ns.route('/subscription-toggle')
+class SuperAdminSubscriptionToggle(Resource):
+    @jwt_required()
+    def get(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        # Le toggle ne sert plus : le système d'abonnement est toujours actif.
+        return {
+            'subscription_active': True,
+        }, 200
+
+    @jwt_required()
+    def put(self):
+        err = _ensure_super_admin()
+        if err:
+            return err
+        # No-op : le mode inactif a été supprimé, toujours actif.
+        return {
+            'subscription_active': True,
+            'is_subscription_active': True,
+            'message': 'Le mode abonnement est toujours actif',
+        }, 200
+
+    @jwt_required()
+    def post(self):
+        return self.put()

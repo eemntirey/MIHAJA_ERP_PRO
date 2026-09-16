@@ -396,8 +396,8 @@ class TresorerieService:
             query = query.filter(cls.model.date >= date_debut)
         if date_fin:
             query = query.filter(cls.model.date <= date_fin)
-        entrees = query.filter(cls.model.type_operation == 'entree').with_entities(func.sum(cls.model.montant)).scalar() or 0
-        sorties = query.filter(cls.model.type_operation == 'sortie').with_entities(func.sum(cls.model.montant)).scalar() or 0
+        entrees = query.filter(cls.model.type_operation == TypeTresorerie.ENTREE).with_entities(func.sum(cls.model.montant)).scalar() or 0
+        sorties = query.filter(cls.model.type_operation == TypeTresorerie.SORTIE).with_entities(func.sum(cls.model.montant)).scalar() or 0
         return float(entrees) - float(sorties)
 
     @classmethod
@@ -423,6 +423,113 @@ class TresorerieService:
             d['solde_courant'] = float(round(solde, 2))
             result.append(d)
         return result
+
+
+class ResultatService:
+    """Résultats comptables (produits - charges) par période.
+
+    S'appuie exclusivement sur les écritures VALIDÉES rattachées à des
+    comptes de type PRODUIT / CHARGE :
+    - compte PRODUIT : le crédit augmente les produits (ventes),
+      le débit les diminue (contrepassations, retours) ;
+    - compte CHARGE  : le débit augmente les charges (achats, frais),
+      le crédit les diminue.
+    Le résultat net vaut produits - charges. Le regroupement par période
+    accepte ``jour``, ``mois`` (défaut) ou ``annee``.
+    """
+
+    PERIODES = ('jour', 'mois', 'annee')
+
+    @staticmethod
+    def _period_key(d, periode):
+        if periode == 'jour':
+            return d.isoformat()
+        if periode == 'annee':
+            return str(d.year)
+        return d.strftime('%Y-%m')
+
+    @classmethod
+    def get_resultats(cls, date_debut=None, date_fin=None, periode='mois'):
+        tenant_id = get_current_tenant_id()
+        query = (
+            db.session.query(EcritureComptable, CompteComptable)
+            .join(CompteComptable, EcritureComptable.compte_id == CompteComptable.id)
+            .filter(
+                EcritureComptable.is_active.is_(True),
+                EcritureComptable.statut == StatutEcriture.VALIDE,
+                CompteComptable.is_active.is_(True),
+                CompteComptable.type_compte.in_([TypeCompte.PRODUIT, TypeCompte.CHARGE]),
+            )
+        )
+        if tenant_id is not None:
+            query = query.filter(EcritureComptable.tenant_id == tenant_id)
+        if date_debut:
+            query = query.filter(EcritureComptable.date >= date_debut)
+        if date_fin:
+            query = query.filter(EcritureComptable.date <= date_fin)
+
+        rows = query.order_by(EcritureComptable.date, EcritureComptable.id).all()
+
+        total_produits = Decimal('0')
+        total_charges = Decimal('0')
+        par_periode: Dict[str, Dict[str, Decimal]] = {}
+        details: Dict[int, Dict[str, Any]] = {}
+
+        for ecriture, compte in rows:
+            debit = Decimal(str(ecriture.montant_debit or 0))
+            credit = Decimal(str(ecriture.montant_credit or 0))
+            if compte.type_compte == TypeCompte.PRODUIT:
+                net = credit - debit
+                total_produits += net
+            else:
+                net = debit - credit
+                total_charges += net
+
+            if net != 0:
+                detail = details.get(compte.id)
+                if detail is None:
+                    detail = {
+                        'compte_id': compte.id,
+                        'numero': compte.numero,
+                        'nom': compte.nom,
+                        'type_compte': compte.type_compte.value,
+                        'montant': net,
+                    }
+                    details[compte.id] = detail
+                else:
+                    detail['montant'] += net
+
+            key = cls._period_key(ecriture.date, periode)
+            bucket = par_periode.get(key)
+            if bucket is None:
+                bucket = {'produits': Decimal('0'), 'charges': Decimal('0')}
+                par_periode[key] = bucket
+            if compte.type_compte == TypeCompte.PRODUIT:
+                bucket['produits'] += net
+            else:
+                bucket['charges'] += net
+
+        return {
+            'date_debut': date_debut.isoformat() if date_debut else None,
+            'date_fin': date_fin.isoformat() if date_fin else None,
+            'periode': periode,
+            'total_produits': float(round(total_produits, 2)),
+            'total_charges': float(round(total_charges, 2)),
+            'resultat_net': float(round(total_produits - total_charges, 2)),
+            'par_periode': [
+                {
+                    'periode': key,
+                    'produits': float(round(v['produits'], 2)),
+                    'charges': float(round(v['charges'], 2)),
+                    'resultat': float(round(v['produits'] - v['charges'], 2)),
+                }
+                for key, v in sorted(par_periode.items())
+            ],
+            'details': [
+                {**d, 'montant': float(round(d['montant'], 2))}
+                for d in sorted(details.values(), key=lambda x: x['numero'])
+            ],
+        }
 
 
 class ComptaImportService:
@@ -453,11 +560,14 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'numero', 'nom', 'type_compte', 'sous_compte_id', 'solde', 'is_actif', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for c in comptes:
             writer.writerow([
-                c.id, c.numero, c.nom,
-                c.type_compte.value if c.type_compte else '',
-                c.sous_compte_id or '', c.solde, c.is_actif, c.tenant_id,
+                c.id,
+                _sanitize_csv_cell(str(c.numero)),
+                _sanitize_csv_cell(str(c.nom)),
+                _sanitize_csv_cell(c.type_compte.value if c.type_compte else ''),
+                c.sous_compte_id or '', _sanitize_csv_cell(str(c.solde)), c.is_actif, c.tenant_id,
             ])
         return buf.getvalue()
 
@@ -473,10 +583,14 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'date', 'compte_id', 'montant_debit', 'montant_credit', 'libelle', 'piece_joint', 'reference_externe', 'entite_type', 'entite_id', 'statut', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for e in ecritures:
             writer.writerow([
-                e.id, e.date.isoformat() if e.date else '', e.compte_id, e.montant_debit, e.montant_credit, e.libelle,
-                e.piece_joint or '', e.reference_externe or '', e.entite_type or '', e.entite_id or '',
+                e.id, e.date.isoformat() if e.date else '', e.compte_id, e.montant_debit, e.montant_credit,
+                _sanitize_csv_cell(str(e.libelle)) if e.libelle else '',
+                _sanitize_csv_cell(str(e.piece_joint)) if e.piece_joint else '',
+                _sanitize_csv_cell(str(e.reference_externe)) if e.reference_externe else '',
+                e.entite_type or '', e.entite_id or '',
                 e.statut.value if e.statut else '', e.tenant_id,
             ])
         return buf.getvalue()
@@ -493,10 +607,15 @@ class ComptaImportService:
         buf = io.StringIO()
         writer = _csv.writer(buf)
         writer.writerow(['id', 'date', 'type_operation', 'montant', 'mode_paiement', 'libelle', 'compte_bancaire', 'reference', 'is_reconcilie', 'compte_id', 'ecriture_id', 'tenant_id'])
+        from app.utils.compta_import import _sanitize_csv_cell
         for t in entries:
             writer.writerow([
                 t.id, t.date.isoformat() if t.date else '',
-                t.type_operation.value if t.type_operation else '', t.montant, t.mode_paiement or '',
-                t.libelle, t.compte_bancaire or '', t.reference or '', t.is_reconcilie, t.compte_id or '', t.ecriture_id or '', t.tenant_id,
+                t.type_operation.value if t.type_operation else '', t.montant,
+                _sanitize_csv_cell(str(t.mode_paiement)) if t.mode_paiement else '',
+                _sanitize_csv_cell(str(t.libelle)) if t.libelle else '',
+                _sanitize_csv_cell(str(t.compte_bancaire)) if t.compte_bancaire else '',
+                _sanitize_csv_cell(str(t.reference)) if t.reference else '',
+                t.is_reconcilie, t.compte_id or '', t.ecriture_id or '', t.tenant_id,
             ])
         return buf.getvalue()

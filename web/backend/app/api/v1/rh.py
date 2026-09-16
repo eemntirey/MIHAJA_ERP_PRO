@@ -5,13 +5,14 @@ from app import db
 from app.security.tenant import tenant_required_readonly
 from app.security.plan_limits import check_plan_limits, require_module
 from app.security.permissions import permission_required
-from app.services.rh_service import EmployeService, PresenceService, SalaireService, PrimeService
+from app.services.rh_service import EmployeService, PresenceService, SalaireService, PrimeService, CongeService
 from app.services.stagiaire_service import StagiaireService
 from app.utils.audit import log_audit
 from app.models.audit_log import TypeActionAudit
 
 ns_employes = Namespace('employes', description='Gestion des employes')
 ns_presences = Namespace('presences', description='Gestion des presences')
+ns_conges = Namespace('conges', description='Gestion des conges')
 ns_salaires = Namespace('salaires', description='Gestion des salaires')
 ns_primes = Namespace('primes', description='Gestion des primes')
 ns_stagiaires = Namespace('stagiaires', description='Gestion des stagiaires')
@@ -182,6 +183,78 @@ class PresenceResource(Resource):
         if not success:
             return {'message': 'Presence non trouvee'}, 404
         return {'message': 'Presence supprimee'}, 200
+
+
+@ns_conges.route('/')
+class CongeList(Resource):
+    @permission_required('conge.view')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def get(self):
+        conges, total = CongeService.get_all()
+        return {'conges': [c.to_dict() for c in conges], 'total': total}, 200
+
+    @permission_required('conge.create')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def post(self):
+        data = request.get_json() or {}
+        try:
+            conge = CongeService.create(data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        return conge.to_dict(), 201
+
+
+@ns_conges.route('/solde/<int:employe_id>')
+class CongeSolde(Resource):
+    @permission_required('conge.view')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def get(self, employe_id):
+        annee = request.args.get('annee')
+        try:
+            annee = int(annee) if annee else None
+        except (ValueError, TypeError):
+            return {'message': 'Parametre annee invalide (entier attendu)'}, 400
+        solde = CongeService.get_solde(employe_id, annee)
+        if not solde:
+            return {'message': 'Employe non trouve'}, 404
+        return solde, 200
+
+
+@ns_conges.route('/<int:id>')
+class CongeResource(Resource):
+    @permission_required('conge.view')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def get(self, id):
+        conge = CongeService.get_by_id(id)
+        if not conge:
+            return {'message': 'Conge non trouve'}, 404
+        return conge.to_dict(), 200
+
+    @permission_required('conge.update')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def put(self, id):
+        data = request.get_json() or {}
+        try:
+            conge = CongeService.update(id, data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
+        if not conge:
+            return {'message': 'Conge non trouve'}, 404
+        return conge.to_dict(), 200
+
+    @permission_required('conge.delete')
+    @tenant_required_readonly
+    @require_module(_MODULE_RH)
+    def delete(self, id):
+        success = CongeService.delete(id)
+        if not success:
+            return {'message': 'Conge non trouve'}, 404
+        return {'message': 'Conge supprime'}, 200
 
 
 @ns_salaires.route('/')

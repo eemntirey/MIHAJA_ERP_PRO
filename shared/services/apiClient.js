@@ -1,7 +1,7 @@
 // shared/services/apiClient.js
 // Instance axios partagée (web + desktop) avec :
-//  - injection du Bearer access_token (depuis tokenStore)
-//  - refresh automatique sur 401 (logique identique web/desktop)
+//  - injection du Bearer access_token (depuis tokenStore, Electron seul)
+//  - refresh automatique sur 401 (cookies HttpOnly sur web, header sur Electron)
 //  - émission de l'événement 'auth:logout' en cas d'échec de refresh
 // Remplace la duplication des intercepteurs présents dans les deux api.js.
 
@@ -9,7 +9,10 @@ import axios from 'axios';
 import { tokenStore } from '../storage/tokenStore';
 
 export const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || '/api/v1';
+  import.meta.env.VITE_API_URL || '/api/v1';
+
+// A1 : Electron = secureStore + header ; web = cookies HttpOnly
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,9 +22,13 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     config.headers = config.headers || {};
-    const token = tokenStore.getAccessToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    config.withCredentials = true;
+    // A1 : web n'a pas besoin du header — le navigateur envoie les cookies
+    if (isElectron) {
+      const token = tokenStore.getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -46,17 +53,23 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        const refreshToken = tokenStore.getRefreshToken();
-        if (!refreshToken) throw new Error('Refresh token absent');
+        // A1 : web — le refresh token est en cookie HttpOnly (envoyé automatiquement).
+        // Electron — le token est dans secureStore et passé via le header.
+        const refreshToken = isElectron ? tokenStore.getRefreshToken() : null;
+
+        const refreshHeaders = { 'Content-Type': 'application/json' };
+        if (isElectron && refreshToken) {
+          refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+        }
 
         const { data } = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
           null,
-          { headers: { Authorization: `Bearer ${refreshToken}`, 'Content-Type': 'application/json' } }
+          { headers: refreshHeaders, withCredentials: true }
         );
 
         const newAccess = data.access_token;
-        if (!newAccess) throw new Error('Nouveau access_token absent');
+        if (!newAccess && isElectron) throw new Error('Nouveau access_token absent');
 
         tokenStore.setSession({
           access_token: newAccess,
@@ -65,7 +78,9 @@ api.interceptors.response.use(
           tenant: data.tenant,
         });
 
-        originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+        if (isElectron && newAccess) {
+          originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+        }
         return api(originalRequest);
       } catch (refreshError) {
         tokenStore.clear();

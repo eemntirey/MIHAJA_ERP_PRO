@@ -191,34 +191,53 @@ def create_access_token_for_user(user, tenant=None):
 # AUTHENTIFICATION PRINCIPALE
 # ============================================================
 
+_GENERIC_LOGIN_ERROR = "Identifiants invalides"
+
+
+def _login_failed(identifier, reason):
+    """Log la raison reelle cote serveur et retourne un message generique
+    (anti-enumeration de comptes / tenants au login)."""
+    current_app.logger.warning(
+        "Echec d authentification pour %s (raison: %s)", identifier, reason
+    )
+    return None, _GENERIC_LOGIN_ERROR
+
+
 def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
     tenant = None
 
     if tenant_slug:
         tenant = Tenant.query.filter_by(slug=tenant_slug, is_active=True).first()
         if not tenant:
-            return None, "Tenant non trouve"
+            return _login_failed(identifier, "tenant introuvable ou inactif")
         user = Utilisateur.query.filter(
             Utilisateur.tenant_id == tenant.id,
             Utilisateur.is_active == True,
             or_(Utilisateur.username == identifier, Utilisateur.email == identifier)
         ).first()
     else:
+        # Recherche améliorée pour permettre aux super-admins de se connecter sans restriction de tenant
         user = Utilisateur.query.filter(
             Utilisateur.is_active == True,
             or_(Utilisateur.username == identifier, Utilisateur.email == identifier)
         ).first()
+        
+        # Si on trouve un utilisateur avec un tenant_id, on récupère le tenant associé
         if user and user.tenant_id:
             tenant = db.session.get(Tenant, user.tenant_id)
-
+        # Si l'utilisateur est un super-admin et qu'on ne trouve pas de tenant associé,
+        # on continue quand meme car les super-admins peuvent ne pas etre associés à un tenant
+        elif user and user.role == Role.SUPER_ADMIN:
+            tenant = None  # Le super-admin n'a pas necessairement de tenant associé
+            
     if not user:
-        return None, "Utilisateur non trouve"
+        return _login_failed(identifier, "utilisateur introuvable")
 
     if not verify_password(password, user.password_hash):
-        return None, "Mot de passe incorrect"
+        return _login_failed(identifier, "mot de passe incorrect")
 
     if user.statut != StatutUtilisateur.ACTIF:
-        return None, "Utilisateur inactif ou bloque"
+        return _login_failed(identifier, "utilisateur inactif ou bloque")
 
     allowed, error_msg = _check_admin_device(user, device_id=device_id, tenant=tenant)
     if not allowed:
@@ -238,7 +257,12 @@ def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
         identity=user.id,
         additional_claims=_build_token_claims(user, tenant),
     )
-    refresh_token = create_refresh_token(identity=user.id)
+    # V2 : le refresh porte aussi pwd_v pour que /refresh rejette les
+    # sessions antérieures à un changement de mot de passe.
+    refresh_token = create_refresh_token(
+        identity=user.id,
+        additional_claims={'pwd_v': user.token_version or 0},
+    )
 
     return {
         "access_token": access_token,
@@ -247,3 +271,4 @@ def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
         "tenant": tenant.to_dict() if tenant else None,
         "must_change_password": bool(user.must_change_password),
     }, None
+

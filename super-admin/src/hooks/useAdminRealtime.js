@@ -2,9 +2,9 @@
 import { io } from 'socket.io-client';
 
 const SOCKET_URL =
-  process.env.REACT_APP_SOCKET_URL ||
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+  import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     : (typeof window !== 'undefined' ? window.location.origin : ''));
 
 let socket = null;

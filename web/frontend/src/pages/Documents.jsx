@@ -16,6 +16,8 @@ export default function Documents() {
     const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', donnees: '{}' });
 
     const [editingId, setEditingId] = useState(null);
+    const contenuRef = useRef(null);
+    const [stretchActive, setStretchActive] = useState(false);
 
     useEffect(() => {
         try {
@@ -43,7 +45,6 @@ export default function Documents() {
             const failed = [m, d].filter(r => r.status === 'rejected');
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-              toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
             }
             setModeles((m.status === 'fulfilled' ? m.value?.data?.modeles || m.value?.data || [] : []));
             setDocuments((d.status === 'fulfilled' ? d.value?.data?.documents || d.value?.data || [] : []));
@@ -52,6 +53,20 @@ export default function Documents() {
     };
 
     useEffect(() => { fetchAll(); }, []);
+
+    useEffect(() => {
+        if (!contenuRef.current || !stretchActive) return;
+        const ta = contenuRef.current;
+        ta.style.fieldSizing = 'content';
+        ta.style.height = 'auto';
+        const handleInput = () => {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+        };
+        ta.addEventListener('input', handleInput);
+        handleInput();
+        return () => ta.removeEventListener('input', handleInput);
+    }, [stretchActive]);
 
     if (loading && modeles.length === 0 && documents.length === 0) {
         return (
@@ -183,6 +198,7 @@ export default function Documents() {
         <div className="page-container">
             <div className="page-header">
                 <h1>Documents</h1>
+                <a href="/documentation" className="manual-link" title="Manuel d'utilisation du module Documents, de A à Z">Manuel d'utilisation — Module Documents (de A à Z)</a>
                 <div className="tabs">
                     {['modeles', 'documents'].map(t => (
                         <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setEditingId(null); }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
@@ -207,10 +223,20 @@ export default function Documents() {
                             Défaut
                         </label>
                         <div className="form-group full-width">
-                            <textarea placeholder="Contenu HTML avec {{placeholders}}" value={modeleForm.contenu_modele} onChange={e => setModeleForm({...modeleForm, contenu_modele: e.target.value})} rows={4} required />
+                            <textarea ref={contenuRef} placeholder="Contenu HTML avec {{placeholders}}" value={modeleForm.contenu_modele} onChange={e => setModeleForm({...modeleForm, contenu_modele: e.target.value})} rows={4} required />
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                <button type="button" className="btn-secondary btn-sm" onClick={() => setStretchActive(v => !v)}>{stretchActive ? 'Auto-stretch actif' : 'Auto-stretch'}</button>
+                            </div>
                         </div>
                         <div className="form-group">
-                            <input placeholder="Logo URL" value={modeleForm.logo_url} onChange={e => setModeleForm({...modeleForm, logo_url: e.target.value})} />
+                            <input type="file" accept="image/*" onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (ev) => setModeleForm({...modeleForm, logo_url: ev.target.result});
+                                reader.readAsDataURL(file);
+                            }} />
+                            {modeleForm.logo_url && <img src={modeleForm.logo_url} alt="Logo" style={{maxHeight: 40, marginTop: 6, display: 'block'}} />}
                         </div>
                         <div className="form-group full-width">
                             <textarea placeholder="Mentions légales" value={modeleForm.mention_legales} onChange={e => setModeleForm({...modeleForm, mention_legales: e.target.value})} rows={2} />
@@ -239,7 +265,8 @@ export default function Documents() {
                             </select>
                         </div>
                         <div className="form-group">
-                            <input placeholder="Référence" value={docForm.reference} onChange={e => setDocForm({...docForm, reference: e.target.value})} required />
+                            <label htmlFor="reference">Référence</label>
+                            <input id="reference" name="reference" placeholder="Référence" value={docForm.reference} onChange={e => setDocForm({...docForm, reference: e.target.value})} autoComplete="on" required />
                         </div>
                         <div className="form-group">
                             <select value={docForm.type_document} onChange={e => setDocForm({...docForm, type_document: e.target.value})}>

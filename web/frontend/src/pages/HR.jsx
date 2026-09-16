@@ -1,7 +1,7 @@
 // src/pages/HR.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { employeService, presenceService, salaireService, primeService, stagiaireService } from '../services/api';
+import { employeService, presenceService, congeService, salaireService, primeService, stagiaireService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants/erpConstants';
 import './Pages.css';
 import './HR.css';
@@ -19,6 +19,20 @@ const PRESENCE_STATUTS = {
   en_retard: { label: 'En retard', class: 'warning' },
   conge: { label: 'Congé', class: 'info' },
   maladie: { label: 'Maladie', class: 'warning' },
+};
+
+const CONGE_STATUTS = {
+  en_attente: { label: 'En attente', class: 'warning' },
+  approuve: { label: 'Approuvé', class: 'success' },
+  refuse: { label: 'Refusé', class: 'danger' },
+  annule: { label: 'Annulé', class: 'info' },
+};
+
+const TYPES_CONGE = {
+  annuel: 'Annuel',
+  maladie: 'Maladie',
+  exceptionnel: 'Exceptionnel',
+  autre: 'Autre / sans solde',
 };
 
 const PAIEMENT_STATUTS = {
@@ -55,6 +69,7 @@ const TABS = [
   { key: 'employes', label: 'Employés', icon: 'ti-users' },
   { key: 'stagiaires', label: 'Stagiaires', icon: 'ti-school' },
   { key: 'presences', label: 'Présences', icon: 'ti-clock' },
+  { key: 'conges', label: 'Congés', icon: 'ti-calendar' },
   { key: 'salaires', label: 'Salaires', icon: 'ti-cash' },
   { key: 'primes', label: 'Primes', icon: 'ti-trophy' },
 ];
@@ -62,6 +77,29 @@ const TABS = [
 const fmtMoney = (v) => `${(Number(v) || 0).toLocaleString('mg-MG')} Ar`;
 const fmtTime = (v) => (v ? String(v).slice(11, 16) : '—');
 const fmtDate = (v) => (v ? String(v).slice(0, 10) : '—');
+
+const parseHM = (str) => {
+  if (!str) return null;
+  const s = String(str).slice(11, 16) || String(str).slice(0, 5);
+  const [h, m] = s.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+};
+
+const workedHours = (p) => {
+  const arr = parseHM(p.heure_arrivee);
+  const dep = parseHM(p.heure_depart);
+  if (arr === null || dep === null || dep <= arr) return '—';
+  let pause = 0;
+  const pd = parseHM(p.heure_pause_debut);
+  const pf = parseHM(p.heure_pause_fin);
+  if (pd !== null && pf !== null && pf > pd) pause = pf - pd;
+  const total = dep - arr - pause;
+  if (total <= 0) return '—';
+  const h = Math.floor(total / 60);
+  const mn = total % 60;
+  return `${h}h${mn > 0 ? String(mn).padStart(2, '0') : ''}`;
+};
 const empName = (e) => e?.nom_complet || `${e?.prenom ? e.prenom + ' ' : ''}${e?.nom || ''}`.trim() || `#${e?.id}`;
 const initials = (e) => {
   const n = (e?.prenom?.[0] || '') + (e?.nom?.[0] || '');
@@ -69,9 +107,10 @@ const initials = (e) => {
 };
 
 const emptyForms = {
-  employe: { matricule: '', nom: '', prenom: '', date_naissance: '', lieu_naissance: '', sexe: 'M', adresse: '', telephone: '', email: '', poste: '', departement: '', date_embauche: '', date_fin_contrat: '', type_contrat: 'cdi', salaire_base: '', banque_nom: '', banque_iban: '', banque_bic: '', statut: 'actif' },
+  employe: { matricule: '', nom: '', prenom: '', date_naissance: '', lieu_naissance: '', sexe: 'M', adresse: '', telephone: '', email: '', poste: '', departement: '', date_embauche: '', date_fin_contrat: '', type_contrat: 'cdi', salaire_base: '', conges_credit_annuel: '', banque_nom: '', banque_iban: '', banque_bic: '', statut: 'actif' },
   stagiaire: { matricule: '', nom: '', prenom: '', date_naissance: '', lieu_naissance: '', sexe: 'M', adresse: '', telephone: '', email: '', etablissement: '', formation: '', type_contrat: 'stage_initiation', date_debut: '', date_fin: '', indemnite: '', tuteur_id: '', departement: '', note: '', statut: 'actif' },
   presence: { employe_id: '', date: '', heure_arrivee: '', heure_depart: '', heure_pause_debut: '', heure_pause_fin: '', statut: 'present', remarque: '' },
+  conge: { employe_id: '', type_conge: 'annuel', date_debut: '', date_fin: '', motif: '', statut: 'en_attente' },
   salaire: { employe_id: '', mois: '', annee: '', salaire_base: '', primes: '', indemnites: '', deductions: '', avances: '', mode_paiement: 'virement', reference_paiement: '', notes: '', statut_paiement: 'en_attente' },
   prime: { employe_id: '', type_prime: 'performance', montant: '', date_octroi: '', motif: '' },
 };
@@ -80,6 +119,7 @@ const services = {
   employe: employeService,
   stagiaire: stagiaireService,
   presence: presenceService,
+  conge: congeService,
   salaire: salaireService,
   prime: primeService,
 };
@@ -89,6 +129,7 @@ export default function HR() {
   const [employes, setEmployes] = useState([]);
   const [stagiaires, setStagiaires] = useState([]);
   const [presences, setPresences] = useState([]);
+  const [conges, setConges] = useState([]);
   const [salaires, setSalaires] = useState([]);
   const [primes, setPrimes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,27 +141,30 @@ export default function HR() {
   const [submitting, setSubmitting] = useState(false);
   const [genMois, setGenMois] = useState(new Date().getMonth() + 1);
   const [genAnnee, setGenAnnee] = useState(new Date().getFullYear());
+  const [presenceMois, setPresenceMois] = useState(new Date().toISOString().slice(0, 7));
+  const [registre, setRegistre] = useState(null);
 
   const empMap = useMemo(() => Object.fromEntries(employes.map((e) => [e.id, e])), [employes]);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [e, st, p, s, pr] = await Promise.allSettled([
+      const [e, st, p, c, s, pr] = await Promise.allSettled([
         employeService.getAll(),
         stagiaireService.getAll(),
         presenceService.getAll(),
+        congeService.getAll({ per_page: 1000 }),
         salaireService.getAll(),
         primeService.getAll(),
       ]);
-      const failed = [e, st, p, s, pr].filter(r => r.status === 'rejected');
+      const failed = [e, st, p, c, s, pr].filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
-        toast.warning(`Chargement partiel: ${msgs.join(', ')}`);
       }
       setEmployes((e.status === 'fulfilled' ? e.value?.data?.employes || e.value?.data || [] : []));
       setStagiaires((st.status === 'fulfilled' ? st.value?.data?.stagiaires || st.value?.data || [] : []));
       setPresences((p.status === 'fulfilled' ? p.value?.data?.presences || p.value?.data || [] : []));
+      setConges((c.status === 'fulfilled' ? c.value?.data?.conges || c.value?.data || [] : []));
       setSalaires((s.status === 'fulfilled' ? s.value?.data?.salaires || s.value?.data || [] : []));
       setPrimes((pr.status === 'fulfilled' ? pr.value?.data?.primes || pr.value?.data || [] : []));
     } catch (err) {
@@ -130,12 +174,25 @@ export default function HR() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled && loading) {
+        setLoading(false);
+      }
+    }, 10000); // timeout de sécurité pour éviter le blocage indéfini (P1 audit)
+    fetchAll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const tabCounts = {
     employes: employes.length,
     stagiaires: stagiaires.length,
     presences: presences.length,
+    conges: conges.length,
     salaires: salaires.length,
     primes: primes.length,
   };
@@ -146,8 +203,9 @@ export default function HR() {
     const masseSalariale = salaires.reduce((sum, s) => sum + (Number(s.salaire_net) || 0), 0);
     const totalPrimes = primes.reduce((sum, p) => sum + (Number(p.montant) || 0), 0);
     const presencesMois = presences.filter((p) => p.date && p.date.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
-    return { total: employes.length, actifs, stagiairesActifs, masseSalariale, totalPrimes, presencesMois };
-  }, [employes, stagiaires, salaires, primes, presences]);
+    const congesEnAttente = conges.filter((c) => c.statut === 'en_attente').length;
+    return { total: employes.length, actifs, stagiairesActifs, masseSalariale, totalPrimes, presencesMois, congesEnAttente };
+  }, [employes, stagiaires, salaires, primes, presences, conges]);
 
   const openModal = (type, item = null) => {
     if (item) {
@@ -156,7 +214,7 @@ export default function HR() {
         const val = item[k];
         if (k === 'employe_id') filled[k] = item.employe_id ?? '';
         else if (val === undefined || val === null) filled[k] = '';
-        else if (['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date'].includes(k)) filled[k] = String(val).slice(0, 10);
+        else if (['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date', 'date_debut', 'date_fin'].includes(k)) filled[k] = String(val).slice(0, 10);
         else if (['heure_arrivee', 'heure_depart', 'heure_pause_debut', 'heure_pause_fin'].includes(k)) filled[k] = String(val).slice(0, 16);
         else filled[k] = val;
       });
@@ -187,13 +245,20 @@ export default function HR() {
     const raw = forms[type];
     let data = { ...raw };
     const numFields = {
-      employe: ['salaire_base'],
+      employe: ['salaire_base', 'conges_credit_annuel'],
       stagiaire: ['indemnite', 'tuteur_id'],
       presence: ['employe_id'],
+      conge: ['employe_id'],
       salaire: ['employe_id', 'mois', 'annee', 'salaire_base', 'primes', 'indemnites', 'deductions', 'avances'],
       prime: ['employe_id', 'montant'],
     }[type];
-    numFields.forEach((k) => { data[k] = Number(data[k]) || 0; });
+    numFields.forEach((k) => {
+      if (data[k] === '' || data[k] === undefined || data[k] === null) {
+        delete data[k];
+      } else {
+        data[k] = Number(data[k]);
+      }
+    });
     const dateFields = ['date_naissance', 'date_embauche', 'date_fin_contrat', 'date_octroi', 'date', 'date_debut', 'date_fin'];
     dateFields.forEach((k) => { if (data[k] === '') data[k] = null; });
 
@@ -232,6 +297,16 @@ export default function HR() {
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur génération');
+    }
+  };
+
+  const handleSetStatut = async (type, item, statut) => {
+    try {
+      await services[type].update(item.id, { ...item, statut });
+      toast.success(`Statut mis à jour (${statut})`);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Erreur de mise à jour du statut');
     }
   };
 
@@ -281,6 +356,12 @@ export default function HR() {
     presences: presences.filter((p) =>
       !search ||
       (empMap[p.employe_id] ? empName(empMap[p.employe_id]) : p.employe_nom || '').toLowerCase().includes(search.toLowerCase())
+    ),
+    conges: conges.filter((c) =>
+      !search ||
+      (empMap[c.employe_id] ? empName(empMap[c.employe_id]) : c.employe_nom || '').toLowerCase().includes(search.toLowerCase()) ||
+      (TYPES_CONGE[c.type_conge] || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.statut || '').toLowerCase().includes(search.toLowerCase())
     ),
     salaires: salaires.filter((s) =>
       !search ||
@@ -362,6 +443,13 @@ export default function HR() {
             <span className="stat-label">Total primes</span>
           </div>
         </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--color-warning)' }}><i className="ti ti-calendar" aria-hidden="true" /></div>
+          <div className="stat-content">
+            <span className="stat-value">{summary.congesEnAttente}</span>
+            <span className="stat-label">Congés en attente</span>
+          </div>
+        </div>
       </div>
 
       <div className="hr-tabs">
@@ -383,7 +471,7 @@ export default function HR() {
           <div className="search-box">
             <input
               type="text"
-              placeholder={`Rechercher un${tab === 'employes' ? 'e employé' : tab === 'stagiaires' ? 'e stagiaire' : `e ${TABS.find((t) => t.key === tab).label.toLowerCase().slice(0, -1)}`}...`}
+              placeholder="Rechercher…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -523,10 +611,62 @@ export default function HR() {
               <p>Pointage, retards et absences</p>
             </div>
             <div className="hr-section-actions">
+              <input type="month" className="form-control hr-filter-input" value={presenceMois}
+                onChange={(e) => setPresenceMois(e.target.value)} aria-label="Filtrer par mois" />
+              <button className="btn-secondary" onClick={async () => {
+                try {
+                  const r = await presenceService.getRegistre({ mois: Number(presenceMois.slice(5, 7)), annee: Number(presenceMois.slice(0, 4)) });
+                  setRegistre(r.data?.registre || r.data || null);
+                  toast.success('Registre mensuel généré');
+                } catch (err) {
+                  toast.error(err.response?.data?.message || 'Erreur de génération du registre');
+                }
+              }}><i className="ti ti-file-report" aria-hidden="true" /> Registre mensuel</button>
               <button className="btn-primary" onClick={() => openModal('presence')}>+ Nouvelle présence</button>
               <button className="btn-secondary" onClick={() => handleExport('presence')}>Exporter CSV</button>
             </div>
           </div>
+
+          {registre && (
+            <div className="card full-width hr-registre">
+              <div className="hr-registre-head">
+                <h3>Registre mensuel — {presenceMois}</h3>
+                <button className="btn-small btn-edit" onClick={() => setRegistre(null)} title="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employé</th>
+                      <th>Jours ouvrés</th>
+                      <th>Jours travaillés</th>
+                      <th>Retards</th>
+                      <th>Absences</th>
+                      <th>Heures totales</th>
+                      <th>Heures suppl.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registre.length === 0 ? (
+                      <tr><td colSpan="7" className="text-center">Aucune donnée pour ce mois</td></tr>
+                    ) : (
+                      registre.map((r, idx) => (
+                        <tr key={r.employe_id || idx}>
+                          <td>{r.employe_nom || (empMap[r.employe_id] ? empName(empMap[r.employe_id]) : '—')}</td>
+                          <td>{r.jours_ouvres ?? '—'}</td>
+                          <td>{r.jours_travailles ?? '—'}</td>
+                          <td>{r.retards ?? '—'}</td>
+                          <td>{r.absences ?? '—'}</td>
+                          <td>{r.heures_totales ? `${r.heures_totales} h` : '—'}</td>
+                          <td>{r.heures_supplementaires ? `${r.heures_supplementaires} h` : '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="card full-width">
             <div className="table-container">
@@ -537,20 +677,22 @@ export default function HR() {
                     <th>Date</th>
                     <th>Arrivée</th>
                     <th>Départ</th>
+                    <th>Heures</th>
                     <th>Statut</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.presences.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center">Aucune présence trouvée</td></tr>
+                  {filtered.presences.filter((p) => !p.date || p.date.slice(0, 7) === presenceMois).length === 0 ? (
+                    <tr><td colSpan="7" className="text-center">Aucune présence trouvée pour {presenceMois}</td></tr>
                   ) : (
-                    filtered.presences.map((p) => (
+                    filtered.presences.filter((p) => !p.date || p.date.slice(0, 7) === presenceMois).map((p) => (
                       <tr key={p.id}>
                         <td>{empMap[p.employe_id] ? empName(empMap[p.employe_id]) : (p.employe_nom || '—')}</td>
                         <td>{fmtDate(p.date)}</td>
                         <td>{fmtTime(p.heure_arrivee)}</td>
                         <td>{fmtTime(p.heure_depart)}</td>
+                        <td>{workedHours(p)}</td>
                         <td>{renderBadge(PRESENCE_STATUTS, p.statut)}</td>
                         <td>
                           <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal('presence', p)}><i className="ti ti-edit" aria-hidden="true" /></button>
@@ -567,6 +709,62 @@ export default function HR() {
       )}
 
       {/* ============ SALAIRES ============ */}
+      {tab === 'conges' && (
+        <>
+          <div className="hr-section-head">
+            <div>
+              <h2>Gestion des congés</h2>
+              <p>Demandes, solde annuel et jours restants</p>
+            </div>
+            <div className="hr-section-actions">
+              <button className="btn-primary" onClick={() => openModal('conge')}>+ Demande de congé</button>
+            </div>
+          </div>
+
+          <div className="card full-width">
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Employé</th>
+                    <th>Type</th>
+                    <th>Période</th>
+                    <th>Jours</th>
+                    <th>Solde restant</th>
+                    <th>Motif</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.conges.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center">Aucun congé trouvé</td></tr>
+                  ) : (
+                    filtered.conges.map((c) => (
+                      <tr key={c.id}>
+                        <td>{empMap[c.employe_id] ? empName(empMap[c.employe_id]) : (c.employe_nom || '—')}</td>
+                        <td>{TYPES_CONGE[c.type_conge] || c.type_conge}</td>
+                        <td>{fmtDate(c.date_debut)} → {fmtDate(c.date_fin)}</td>
+                        <td>{c.nb_jours}</td>
+                        <td>{c.solde_restant !== undefined ? c.solde_restant : '—'}</td>
+                        <td>{c.motif || '—'}</td>
+                        <td>{renderBadge(CONGE_STATUTS, c.statut)}</td>
+                        <td>
+                          <button className="btn-small btn-edit" title="Modifier" onClick={() => openModal('conge', c)}><i className="ti ti-edit" aria-hidden="true" /></button>
+                          <button className="btn-small btn-info" title="Approuver" onClick={() => handleSetStatut('conge', c, 'approuve')}><i className="ti ti-check" aria-hidden="true" /></button>
+                          <button className="btn-small btn-warning" title="Refuser" onClick={() => handleSetStatut('conge', c, 'refuse')}><i className="ti ti-x" aria-hidden="true" /></button>
+                          <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('conge', c.id)}><i className="ti ti-trash" aria-hidden="true" /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
       {tab === 'salaires' && (
         <>
           <div className="hr-section-head">
@@ -734,6 +932,7 @@ export default function HR() {
                     </div>
                     <div className="form-grid">
                       <div className="form-group"><label>Salaire de base</label><input type="number" name="salaire_base" value={forms.employe.salaire_base} onChange={handleChange('employe')} placeholder="0" /></div>
+                      <div className="form-group"><label>Crédit annuel de congés</label><input type="number" min="0" name="conges_credit_annuel" value={forms.employe.conges_credit_annuel} onChange={handleChange('employe')} placeholder="30" /></div>
                       <div className="form-group"><label>Banque</label><input name="banque_nom" value={forms.employe.banque_nom} onChange={handleChange('employe')} placeholder="Nom banque" /></div>
                       <div className="form-group"><label>IBAN</label><input name="banque_iban" value={forms.employe.banque_iban} onChange={handleChange('employe')} placeholder="IBAN" /></div>
                       <div className="form-group"><label>BIC</label><input name="banque_bic" value={forms.employe.banque_bic} onChange={handleChange('employe')} placeholder="BIC" /></div>
@@ -798,6 +997,23 @@ export default function HR() {
                     <div className="form-group"><label>Fin pause</label><input type="time" name="heure_pause_fin" value={forms.presence.heure_pause_fin} onChange={handleChange('presence')} /></div>
                     <div className="form-group"><label>Statut</label><select name="statut" value={forms.presence.statut} onChange={handleChange('presence')}><option value="present">Présent</option><option value="absent">Absent</option><option value="en_retard">En retard</option><option value="conge">Congé</option><option value="maladie">Maladie</option></select></div>
                     <div className="form-group full-width"><label>Remarque</label><input name="remarque" value={forms.presence.remarque} onChange={handleChange('presence')} placeholder="Remarque" /></div>
+                  </div>
+                </div>
+              )}
+
+              {modalType === 'conge' && (
+                <div className="hr-form-section">
+                  <div className="hr-form-section-header">
+                      <span className="hr-form-section-icon"><i className="ti ti-calendar" aria-hidden="true" /></span>
+                    <span className="hr-form-section-title">Demande de congé</span>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group"><label>Employé <span className="hr-required">*</span></label>{employeOptions()}</div>
+                    <div className="form-group"><label>Type de congé <span className="hr-required">*</span></label><select name="type_conge" value={forms.conge.type_conge} onChange={handleChange('conge')} required><option value="annuel">Annuel</option><option value="maladie">Maladie</option><option value="exceptionnel">Exceptionnel</option><option value="autre">Autre / sans solde</option></select></div>
+                    <div className="form-group"><label>Date de début <span className="hr-required">*</span></label><input type="date" name="date_debut" value={forms.conge.date_debut} onChange={handleChange('conge')} required /></div>
+                    <div className="form-group"><label>Date de fin <span className="hr-required">*</span></label><input type="date" name="date_fin" value={forms.conge.date_fin} onChange={handleChange('conge')} required /></div>
+                    <div className="form-group"><label>Statut</label><select name="statut" value={forms.conge.statut} onChange={handleChange('conge')}><option value="en_attente">En attente</option><option value="approuve">Approuvé</option><option value="refuse">Refusé</option><option value="annule">Annulé</option></select></div>
+                    <div className="form-group full-width"><label>Motif</label><textarea name="motif" value={forms.conge.motif} onChange={handleChange('conge')} placeholder="Motif du congé" /></div>
                   </div>
                 </div>
               )}

@@ -39,6 +39,8 @@ class TypeActionAudit(enum.Enum):
     PASSWORD_RESET_REQUESTED = 'password_reset_requested'
     PASSWORD_RESET_COMPLETED = 'password_reset_completed'
     PASSWORD_RESET_FAILED = 'password_reset_failed'
+    # Paramétrage plateforme (ex: toggle abonnement global du Super Admin)
+    MODIFICATION_PARAMETRE = 'modification_parametre'
 
 
 class AuditLog(BaseModel):

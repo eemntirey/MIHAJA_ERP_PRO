@@ -1,4 +1,4 @@
-from flask import request, g
+from flask import request, g, current_app
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import IntegrityError
@@ -7,11 +7,12 @@ from app.models.role_permission import RoleModel
 from app.models.tenant import Tenant
 from app.models.admin_device import AdminDevice
 from app import db
-from app.security.auth import hash_password, _validate_password, verify_password as _verify_password
+from datetime import datetime
+from app.security.auth import hash_password, _validate_password, verify_password as _verify_password, invalidate_user_tokens
 from app.security.plan_limits import check_plan_limits, is_admin_limit_reached, is_employee_limit_reached, is_unlimited, _get_limits
 from app.security.tenant import tenant_required, get_current_tenant_id
 from app.security.roles import can_manage_role
-from app.security.permissions import permission_required
+from app.security.permissions import permission_required, permission_required_all
 from app.utils.audit import log_audit
 from app.models.audit_log import TypeActionAudit
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_user
@@ -129,7 +130,7 @@ class UserList(Resource):
         users = query.order_by(Utilisateur.created_at.desc()).all()
         return {'users': [u.to_dict() for u in users]}, 200
 
-    @permission_required('user.create')
+    @permission_required_all('user.create')
     @check_plan_limits('utilisateurs')
     @tenant_required
     def post(self):
@@ -243,16 +244,15 @@ class UserList(Resource):
         except Exception:
             pass
 
-        if temp_password_plain:
+        # Mot de passe temporaire renvoyé au créateur (impression client) ET
+        # envoyé par email à l'utilisateur (service email reactivé, B5).
+        # L'email n'interrompt jamais la création : toute erreur est loggée.
+        if auto_generated:
             try:
                 from app.services.email_service import send_welcome_email
-                tenant_obj = db.session.get(Tenant, tenant_id) if tenant_id else None
-                send_welcome_email(user, tenant_obj, temp_password_plain)
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning(
-                    'send_welcome_email echoue pour %s : %s', user.email, exc
-                )
+                send_welcome_email(user, tenant if tenant_id is not None else None, temp_password_plain)
+            except Exception:
+                current_app.logger.exception('Erreur envoi email de bienvenue a %s', user.email)
 
         try:
             broadcast_to_tenant(tenant_id, 'user:updated', user.to_dict())
@@ -261,7 +261,14 @@ class UserList(Resource):
             pass
 
         response = user.to_dict()
+        # Le mot de passe temporaire est renvoye UNE seule fois, au createur
+        # authentifie, uniquement quand il vient d'etre genere (auto_generated).
+        # Il n'est jamais stocke en clair (seul le hash est en base), n'apparait
+        # pas dans les logs et n'est pas re-consultable ensuite : c'est au
+        # createur de le transmettre/imprimer immediatement (email de bienvenue
+        # envoye en parallele -> B5 reactivé).
         if auto_generated:
+            response['must_change_password'] = True
             response['temporary_password'] = temp_password_plain
         return response, 201
 
@@ -332,16 +339,25 @@ class UserItem(Resource):
                         return err, status
             setattr(user, key, value)
         if 'password' in data and data['password']:
-            if user.id != get_jwt_identity():
-                current_pwd = data.get('current_password')
+            current_pwd = data.get('current_password')
+            if user.id == get_jwt_identity():
+                # Self-change : exige aussi le current_password
+                if not current_pwd:
+                    return {'message': 'Mot de passe actuel requis pour modifier votre propre mot de passe'}, 400
+                if not _verify_password(current_pwd, user.password_hash):
+                    return {'message': 'Mot de passe actuel invalide'}, 403
+            else:
+                # Admin change : exige current_password + permission
                 if not current_pwd:
                     return {'message': 'Mot de passe actuel requis pour modifier celui d\'un autre utilisateur'}, 400
-                if not _verify_password(user, current_pwd):
+                if not _verify_password(current_pwd, user.password_hash):
                     return {'message': 'Mot de passe actuel invalide'}, 403
             pwd_error = _validate_password(data['password'])
             if pwd_error:
                 return {'message': pwd_error}, 400
             user.password_hash = hash_password(data['password'])
+            user.password_changed_at = datetime.utcnow()
+            invalidate_user_tokens(user)
         user.updated_by = get_jwt_identity()
         db.session.commit()
         db.session.refresh(user)
@@ -360,7 +376,7 @@ class UserItem(Resource):
             pass
         return user.to_dict(), 200
 
-    @permission_required('user.update')
+    @permission_required_all('user.delete', 'user.update')
     @tenant_required
     def delete(self, user_id):
         err, status = _require_admin()

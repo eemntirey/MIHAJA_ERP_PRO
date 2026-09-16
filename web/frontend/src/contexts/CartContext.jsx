@@ -14,7 +14,7 @@ export const useCart = () => {
     return context;
 };
 
-const getItemKey = (produit) => produit.id || produit.reference || produit._id;
+const getItemKey = (produit) => produit.produit_id || produit.id || produit.reference || produit._id;
 
 export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);

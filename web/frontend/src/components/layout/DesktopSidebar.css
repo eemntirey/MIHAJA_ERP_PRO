@@ -343,3 +343,11 @@
   min-width: 220px;
   box-shadow: var(--shadow-lg);
 }
+
+/* Auto-stretch : dilate la plage en bas */
+.desktop-sidebar.is-stretched {
+  min-height: 100vh;
+  height: 100vh;
+  align-items: stretch;
+  overflow-y: auto;
+}

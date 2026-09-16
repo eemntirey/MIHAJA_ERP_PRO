@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { userService, roleService, subscriptionService } from '../services/api';
 import { toast } from 'react-toastify';
+import TempPasswordCard from '@shared/components/TempPasswordCard';
 import './Pages.css';
 
 const ROLE_LABELS = {
@@ -38,6 +39,7 @@ const Users = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [tempCredentials, setTempCredentials] = useState(null);
 
   const isEmployeeLimitReached = () => {
     if (!tenantSummary || !isEmployeeRole(formData.role)) return false;
@@ -171,6 +173,12 @@ const Users = () => {
         if (response.data && response.data.id) {
           setUsers(prev => [...prev, response.data]);
         }
+        if (response.data && response.data.temporary_password) {
+          setTempCredentials({
+            email: response.data.email || response.data.username,
+            password: response.data.temporary_password,
+          });
+        }
       }
       closeModal();
       fetchUsers();
@@ -197,7 +205,7 @@ const Users = () => {
       <div className="page-header">
         <h1>Employés</h1>
         <button className="btn-primary" onClick={() => openModal()}>
-          Nouvel employé
+          + Nouvel employé
         </button>
       </div>
 
@@ -339,6 +347,14 @@ const Users = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {tempCredentials && (
+        <TempPasswordCard
+          email={tempCredentials.email}
+          password={tempCredentials.password}
+          onClose={() => setTempCredentials(null)}
+        />
       )}
     </div>
   );

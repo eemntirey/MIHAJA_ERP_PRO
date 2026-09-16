@@ -11,9 +11,9 @@ import { API_BASE_URL } from '../services/apiClient';
 import { tokenStore } from '../storage/tokenStore';
 
 const SOCKET_URL =
-  process.env.REACT_APP_WS_URL ||
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+  import.meta.env.VITE_WS_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     : API_BASE_URL.replace(/\/api\/v1\/?$/, ''));
 
 let socket = null;
@@ -37,8 +37,13 @@ export const connect = () => {
   if (socket || typeof window === 'undefined') return;
   import('socket.io-client')
     .then(({ io }) => {
+      // A1 : web — withCredentials envoie le cookie HttpOnly au handshake.
+      // Electron — le token est dans secureStore et passé via auth dict.
+      const token = tokenStore.getAccessToken();
+      const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
       socket = io(SOCKET_URL, {
-        auth: { token: tokenStore.getAccessToken() },
+        auth: isElectron && token ? { token } : undefined,
+        withCredentials: !isElectron,
         transports: ['polling', 'websocket'],
         upgrade: false,
         reconnection: true,
@@ -47,6 +52,16 @@ export const connect = () => {
       });
       socket.on('connect', () => { fallbackActive = false; stopPolling(); });
       socket.on('disconnect', () => startPolling());
+      socket.io.on('error', (err) => {
+        // "Session is disconnected" (HTTP 400 sur le polling suivant)
+        // signifie que le serveur a purgé le sid. On détruit l'instance
+        // pour forcer un nouveau handshake au prochain connect().
+        if (err && /Session is disconnected/i.test(err.message || '')) {
+          try { socket.disconnect(); } catch {}
+          socket = null;
+          connect();
+        }
+      });
       ['preferences:updated', 'favorite:updated', 'column:updated', 'filter:updated', 'notification:updated']
         .forEach((evt) => socket.on(evt, (p) => emitLocal(evt, p)));
       setTimeout(() => { if (!socket?.connected) { startPolling(); } }, 4000);
@@ -71,10 +86,17 @@ const startPolling = () => {
   // Polling long : le backend renvoie les changements depuis `since`.
   let since = Date.now() - 60000;
   const tick = async () => {
-    if (!tokenStore.getAccessToken()) return;
+    // A1 : web — le cookie HttpOnly est envoyé automatiquement avec credentials.
+    // Electron — le token est dans secureStore et passé via le header.
+    const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+    const token = isElectron ? tokenStore.getAccessToken() : null;
+    if (!isElectron && typeof window === 'undefined') return;
     try {
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(`${API_BASE_URL.replace('/api/v1', '')}/api/v1/desk/events?since=${since}`, {
-        headers: { Authorization: `Bearer ${tokenStore.getAccessToken()}` },
+        credentials: isElectron ? 'omit' : 'include',
+        headers,
       });
       if (res.ok) {
         const body = await res.json();

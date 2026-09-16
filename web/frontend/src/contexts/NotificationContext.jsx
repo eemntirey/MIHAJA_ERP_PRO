@@ -2,7 +2,7 @@
 // src/contexts/NotificationContext.jsx
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { notificationService } from '../services/api';
+import { notificationService, publicCatalogueService } from '../services/api';
 import { tokenStore } from '../../../../shared/storage/tokenStore';
 
 const NotificationContext = createContext();
@@ -25,8 +25,8 @@ export const NotificationProvider = ({ children }) => {
             return;
         }
         try {
-            const res = await notificationService.getAll();
-            const data = res?.data || [];
+            const res = await publicCatalogueService.getNotifications();
+            const data = res?.data?.notifications || res?.data || res || [];
             setNotifications(Array.isArray(data) ? data : []);
         } catch {
             setNotifications([]);

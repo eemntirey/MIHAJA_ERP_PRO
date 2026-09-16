@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
 import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
@@ -25,6 +25,7 @@ import MainLayout from './components/layout/MainLayout';
 // Contextes
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { LanguageProvider, useTranslation } from './i18n';
 
 // Pages
 import Home from './pages/Home';
@@ -42,9 +43,11 @@ import Checkout from './pages/Checkout';
 import OrderTracking from './pages/OrderTracking';
 import SuperAdmin from './pages/SuperAdmin';
 import SuperAdminProfile from './pages/SuperAdminProfile';
+import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import Subscription from './pages/Subscription';
+import PaymentSettings from './pages/PaymentSettings';
 import Catalogue from './pages/Catalogue';
 import Suivi from './pages/Suivi';
 import Contact from './pages/Contact';
@@ -68,6 +71,37 @@ const roleFallbackForPath = (pathname) => {
   return Array.isArray(item?.roleFallback) ? item.roleFallback : null;
 };
 
+// Écran d'accès refusé explicite (audit P1 ordre 3) : remplace toute
+// redirection silencieuse vers /dashboard par un message 403 exploitable
+// (permission manquante + module du plan). Aucune donnée n'est exposée.
+const AccessDenied = ({ pathname }) => {
+  const { t } = useTranslation();
+  const required = PATH_PERMISSION_MAP[pathname] || [];
+  const module = PATH_MODULE_MAP[pathname] || null;
+  return (
+    <div className="page-container">
+      <div className="card full-width" role="alert" style={{ textAlign: 'center', padding: '48px' }}>
+        <p className="stat-label">403 — Accès refusé</p>
+        <h1 style={{ margin: '8px 0 12px' }}>{t('accessDenied.title', undefined, 'Module non accessible')}</h1>
+        <p className="text-muted" style={{ maxWidth: '560px', margin: '0 auto 12px' }}>
+          {t(
+            'accessDenied.body',
+            { path: pathname, module: module || '—', permissions: required.join(', ') || '—' },
+            `La page ${pathname} nécessite ${
+              module ? `le module « ${module} » de votre abonnement` : 'une autorisation'
+            }${required.length ? ` et la permission (${required.join(', ')})` : ''}. ` +
+              `Contactez votre administrateur ou changez d'abonnement. Aucune redirection silencieuse n'a eu lieu.`
+          )}
+        </p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '12px' }}>
+          <a className="btn-primary" href="/dashboard">Retour au tableau de bord</a>
+          <a className="btn-secondary" href="/subscription">Voir mon abonnement</a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProtectedRoute = ({ children }) => {
   const {
     isAuthenticated,
@@ -82,12 +116,13 @@ const ProtectedRoute = ({ children }) => {
     hasRole,
   } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const hasToken = !!authStorage.getAccessToken();
   const shouldAllow = isAuthenticated || hasToken;
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   if (!shouldAllow) {
@@ -136,15 +171,50 @@ const ProtectedRoute = ({ children }) => {
       skipModuleGatePaths: ADMIN_PATHS,
     });
     if (!ok) {
-      return <Navigate to="/dashboard" replace />;
+      // P1-3 : jamais de retour muet au dashboard — écran 403 explicite.
+      return <AccessDenied pathname={location.pathname} />;
     }
   }
 
   return children;
 };
 
+// Modale « limite de plan » — libellés traduits via i18n (design inchangé).
+const PlanLimitModal = ({ message, onClose }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{t('planLimit.title')}</h2>
+          <button onClick={onClose} className="btn-close">×</button>
+        </div>
+        <div className="modal-body">
+          <p>{message}</p>
+        </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            onClick={() => { onClose(); window.location.href = '/subscription'; }}
+            className="btn-primary"
+          >
+            {t('planLimit.change')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-secondary"
+          >
+            {t('planLimit.close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
-  useRealtimeSync();
+  // useRealtimeSync();
   const [planLimitModal, setPlanLimitModal] = useState({ open: false, message: '' });
 
   useEffect(() => {
@@ -156,8 +226,9 @@ function App() {
   }, []);
 
   return (
-    <SyncProvider>
-      <NotificationProvider>
+    <LanguageProvider>
+      <SyncProvider>
+        <NotificationProvider>
           <CartProvider>
             <BrowserRouter>
               <div className="app">
@@ -190,6 +261,7 @@ function App() {
                   <Route path="ai" element={<AI />} />
                   <Route path="documentation" element={<Documentation />} />
                   <Route path="subscription" element={<Subscription />} />
+                  <Route path="payment-settings" element={<PaymentSettings />} />
                   <Route path="delivery" element={<Delivery />} />
                   <Route path="hr" element={<HR />} />
                   <Route path="accounting" element={<Accounting />} />
@@ -197,6 +269,7 @@ function App() {
                   <Route path="purchases" element={<Purchases />} />
                   <Route path="super-admin" element={<SuperAdmin />} />
                   <Route path="super-admin/profile" element={<SuperAdminProfile />} />
+                  <Route path="profile" element={<Profile />} />
                   <Route path="users" element={<Users />} />
                   <Route path="roles" element={<Roles />} />
                   <Route path="permissions" element={<Permissions />} />
@@ -229,39 +302,17 @@ function App() {
               />
 
               {planLimitModal.open && (
-                <div className="modal-overlay" onClick={() => setPlanLimitModal({ open: false, message: '' })}>
-                  <div className="modal" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-header">
-                      <h2>Limite du plan atteinte</h2>
-                      <button onClick={() => setPlanLimitModal({ open: false, message: '' })} className="btn-close">×</button>
-                    </div>
-                    <div className="modal-body">
-                      <p>{planLimitModal.message}</p>
-                    </div>
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); window.location.href = '/subscription'; }}
-                        className="btn-primary"
-                      >
-                        Modifier mon abonnement
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setPlanLimitModal({ open: false, message: '' }); }}
-                        className="btn-secondary"
-                      >
-                        Fermer
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <PlanLimitModal
+                  message={planLimitModal.message}
+                  onClose={() => setPlanLimitModal({ open: false, message: '' })}
+                />
               )}
             </div>
           </BrowserRouter>
         </CartProvider>
       </NotificationProvider>
-    </SyncProvider>
+        </SyncProvider>
+    </LanguageProvider>
 );
 }
 

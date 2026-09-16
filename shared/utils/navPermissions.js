@@ -37,36 +37,10 @@ export const canAccessNavItem = (item, ctx) => {
   if (!item) return false;
   if (!ctx) return false;
 
-  // Super admin : accès complet (comportement backend préservé).
-  if (ctx.isSuperAdmin) return true;
-
-  // 1. Permission effective (RBAC : rôle ENUM ou rôle custom).
-  //    Une liste de permissions VIDE rend l'item NON visible (sécurité par
-  //    défaut) — l'item doit déclarer explicitement ses permissions.
-  let permOk = true;
-  if (Array.isArray(item.permissions) && item.permissions.length > 0) {
-    permOk = ctx.hasAnyPermission
-      ? ctx.hasAnyPermission(item.permissions)
-      : item.permissions.some((p) => ctx.hasPermission && ctx.hasPermission(p));
-  } else if (!Array.isArray(item.permissions)) {
-    permOk = true;
-  } else {
-    permOk = false;
-  }
-
-  if (!permOk) {
-    // Repli déclaratif explicite (ex. section Admin : rôles admin/super_admin,
-    // aligné sur les règles backend existantes _ensure_admin / is_admin).
-    const fallback = Array.isArray(item.roleFallback) ? item.roleFallback : [];
-    if (fallback.length === 0) return false;
-    if (!fallback.some((r) => (ctx.hasRole ? ctx.hasRole(r) : false))) return false;
-  }
-
-  // 2. Module disponible pour le tenant (plan d'abonnement).
-  //    allowedModules === null signifie "aucune restriction connue" (essai, etc.).
-  if (!isModuleAllowed(item.module, ctx.allowedModules)) return false;
-
-  return true;
+  // Les modules restent toujours visibles dans la navigation (même sans
+  // permission d'écriture), mais les actions sont bloquées par le backend.
+  // Seul le gating par plan d'abonnement (module) reste appliqué.
+  return isModuleAllowed(item.module, ctx.allowedModules);
 };
 
 /**
@@ -124,7 +98,6 @@ export const getRequiredPermissions = (pathname, pathPermissions) => {
  */
 export const canAccessRoute = (pathname, pathPermissions, ctx, opts = {}) => {
   if (!ctx) return false;
-  if (ctx.isSuperAdmin) return true;
 
   const skipModule = Array.isArray(opts.skipModuleGatePaths)
     && opts.skipModuleGatePaths.includes(pathname);

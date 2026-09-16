@@ -113,7 +113,7 @@ const Permissions = () => {
       <div className="page-header">
         <h1>Permissions</h1>
         <button className="btn-primary" onClick={() => openModal()}>
-          Nouvelle permission
+          + Nouvelle permission
         </button>
       </div>
 

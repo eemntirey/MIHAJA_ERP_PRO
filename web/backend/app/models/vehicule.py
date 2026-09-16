@@ -12,7 +12,11 @@ class Vehicule(BaseTenantModel):
     capacite_volume = db.Column(db.Integer)  # en litres
     statut = db.Column(db.String(20), default='disponible')  # disponible/en_mission/en_maintenance
 
-    chauffeur_id = db.Column(db.Integer, db.ForeignKey('livreurs.id'), index=True)
+    chauffeur_id = db.Column(
+        db.Integer,
+        db.ForeignKey('livreurs.id', use_alter=True, name='vehicules_chauffeur_id_fkey'),
+        index=True,
+    )
 
     chauffeurs = db.relationship('Livreur', back_populates='vehicule', foreign_keys='Livreur.vehicule_id')
     itineraires = db.relationship('Itineraire', back_populates='vehicule', lazy='dynamic')
