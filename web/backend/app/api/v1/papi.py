@@ -16,6 +16,7 @@ from app.services.papi.payment import (
     normalize_payment_method,
 )
 from app.config.settings import Config
+from app.security.rate_limit import rate_limit
 from app.services.papi.webhook import process_papi_webhook
 from app.services.papi.errors import (
     PapiError,
@@ -177,6 +178,7 @@ class PapiPaymentDetail(Resource):
 @ns.route('/webhook')
 class PapiWebhook(Resource):
 
+    @rate_limit(60, 300)
     def post(self):
         payload = request.get_json() or {}
         current_app.logger.info(

@@ -9,9 +9,7 @@ import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
 const RAW_API_BASE_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-        ? process.env.REACT_APP_API_URL
-        : '/api/v1';
+    import.meta.env.VITE_API_URL || '/api/v1';
 
 const resolveAbsoluteApiUrl = (raw) => {
     if (!raw) return raw;
@@ -34,15 +32,22 @@ const api = axios.create({
 // INTERCEPTEUR REQUEST
 // ======================================================
 
+// A1 : sur web, les tokens sont en cookies HttpOnly (envoyés automatiquement).
+// Sur Electron, le header Authorization est toujours nécessaire (secureStore).
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+
 api.interceptors.request.use(
     (config) => {
         config.headers = config.headers || {};
-        const token = tokenStore.getAccessToken();
-
-        if (token && !config.headers.Authorization) {
-            config.headers.Authorization = `Bearer ${token}`;
+        // A1 : web n'a pas besoin du header — le navigateur envoie les cookies
+        if (isElectron) {
+            const token = tokenStore.getAccessToken();
+            if (token && !config.headers.Authorization) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
         }
-
+        // Toujours envoyer les credentials (cookies) pour web
+        config.withCredentials = true;
         return config;
     },
     (error) => Promise.reject(error)
@@ -94,11 +99,15 @@ api.interceptors.response.use(
         ) {
             originalRequest._retry = true;
 
-            const refreshToken = tokenStore.getRefreshToken();
+            // A1 : web — le refresh token est en cookie HttpOnly, envoyé
+            // automatiquement avec withCredentials. Electron — le token est
+            // dans secureStore et envoyé via le header Authorization.
+            const refreshToken = isElectron ? tokenStore.getRefreshToken() : null;
 
-            // Aucun refresh token : on ne tente pas le renouvellement,
-            // on nettoie et on notifie la déconnexion.
-            if (!refreshToken) {
+            // Aucun refresh token (et web sans cookie) : déconnexion
+            if (!isElectron && error.response.status === 401) {
+                // Sur web, tenter le refresh (le cookie sera envoyé automatiquement)
+            } else if (!refreshToken) {
                 tokenStore.clear();
                 delete api.defaults.headers.common.Authorization;
                 window.dispatchEvent(new Event('auth:logout'));
@@ -111,7 +120,10 @@ api.interceptors.response.use(
                 return new Promise((resolve, reject) => {
                     failedQueue.push({
                         resolve: (token) => {
-                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            // A1 : Electron met à jour le header ; web n'en a pas besoin
+                            if (isElectron && token && token !== 'cookie-auth') {
+                                originalRequest.headers.Authorization = `Bearer ${token}`;
+                            }
                             resolve(api(originalRequest));
                         },
                         reject,
@@ -122,20 +134,27 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                // A1 : web envoie le refresh token via cookie (withCredentials).
+                // Electron l'envoie via le header Authorization.
+                const refreshHeaders = { 'Content-Type': 'application/json' };
+                if (isElectron && refreshToken) {
+                    refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+                }
                 const refreshResponse = await axios.post(
                     `${API_BASE_URL.replace(/\/+$/, '')}/auth/refresh`,
                     null,
                     {
-                        headers: {
-                            Authorization: `Bearer ${refreshToken}`,
-                            'Content-Type': 'application/json',
-                        },
+                        headers: refreshHeaders,
+                        withCredentials: true,
                     }
                 );
 
                 const newAccessToken = refreshResponse.data?.access_token;
 
-                if (!newAccessToken) {
+                if (!newAccessToken && !isElectron) {
+                    // A1 : web — le nouveau access token est en cookie, pas besoin
+                    // de le lire depuis la réponse. La seule erreur est un 401/403.
+                } else if (!newAccessToken) {
                     throw new Error('Nouveau access_token absent');
                 }
 
@@ -146,9 +165,13 @@ api.interceptors.response.use(
                     tenant: refreshResponse.data.tenant,
                 });
 
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                // A1 : Electron met à jour le header ; web n'en a pas besoin
+                if (isElectron && newAccessToken) {
+                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                }
 
-                processQueue(null, newAccessToken);
+                // A1 : web — le queued request n'a pas besoin de token header
+                processQueue(null, newAccessToken || 'cookie-auth');
 
                 return api(originalRequest);
 
@@ -210,9 +233,7 @@ api.interceptors.request.use(
 // ======================================================
 
 const RAW_PUBLIC_API_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
-        ? process.env.REACT_APP_PUBLIC_API_URL
-        : '';
+    import.meta.env.VITE_PUBLIC_API_URL || '';
 
 export const publicApi = axios.create({
     baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
@@ -305,20 +326,27 @@ export const publicCatalogueService = {
     createCommande: (data, { idempotencyKey } = {}) => {
         // Si l'utilisateur est connecté, on envoie le JWT pour que le backend
         // lie la commande à son compte (Mes Commandes après reconnexion).
+        // A1 : web — le cookie HttpOnly est envoyé automatiquement.
+        // Electron — le token est dans secureStore et passé via header.
         const token = tokenStore.getAccessToken();
         const key = idempotencyKey || publicCatalogueService.getOrderIdempotencyKey();
         const headers = {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             'Idempotency-Key': key,
         };
-        return publicApi.post('/public/commandes', data, { headers });
+        if (isElectron && token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+        return publicApi.post('/public/commandes', data, { headers, withCredentials: true });
     },
 
     getMesCommandes: () => {
+        // A1 : web — le cookie HttpOnly est envoyé automatiquement.
+        // Electron — le token est dans secureStore et passé via header.
         const token = tokenStore.getAccessToken();
-        const config = token
-            ? { headers: { Authorization: `Bearer ${token}` } }
-            : undefined;
+        const config = { withCredentials: true };
+        if (isElectron && token) {
+            config.headers = { Authorization: `Bearer ${token}` };
+        }
         return publicApi.get('/public/mes-commandes', config);
     },
 
@@ -517,8 +545,13 @@ export const authService = {
     register: (data) =>
         api.post('/auth/register', data),
 
+    // V4 : transmet le refresh stocké pour révocation serveur (best-effort :
+    // le backend ignore un refresh absent/invalide, le logout reste 200).
+    // A1 : withCredentials=true pour que le backend puisse clear les cookies JWT.
     logout: () =>
-        api.post('/auth/logout'),
+        api.post('/auth/logout', {
+            refresh_token: isElectron ? (tokenStore.getRefreshToken() || null) : null,
+        }, { withCredentials: true }),
 
     getCurrentUser: () =>
         api.get('/auth/me'),
@@ -1015,6 +1048,15 @@ export const presenceService = {
     delete: (id) => api.delete(`/presences/${id}`),
     getRegistre: (params) => api.get('/presences/registre', { params }),
     export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
+};
+
+export const congeService = {
+    getAll: (params) => api.get('/conges', { params }),
+    getById: (id) => api.get(`/conges/${id}`),
+    create: (data) => api.post('/conges', data),
+    update: (id, data) => api.put(`/conges/${id}`, data),
+    delete: (id) => api.delete(`/conges/${id}`),
+    getSolde: (employeId, annee) => api.get(`/conges/solde/${employeId}`, { params: annee ? { annee } : {} }),
 };
 
 export const salaireService = {

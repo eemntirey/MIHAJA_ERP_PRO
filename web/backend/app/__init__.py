@@ -47,9 +47,23 @@ def create_app():
         raise ValueError("JWT_SECRET_KEY environment variable is required")
     app.config['JWT_SECRET_KEY'] = jwt_secret
     app.config['JWT_ALGORITHM'] = 'HS256'
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']
+
+    _is_prod = os.getenv('FLASK_ENV', '').lower() == 'production'
+
+    # A1 FIX : web utilise des cookies HttpOnly (XSS-safe), Electron continue
+    # avec les headers Authorization (secureStore chiffré côté desktop).
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
+    # Cookies JWT — HttpOnly empêche l'accès JS (XSS), SameSite=Strict bloque
+    # les requêtes cross-origin, Secure n'est activé qu'en production.
+    app.config['JWT_ACCESS_COOKIE'] = 'access_token_cookie'
+    app.config['JWT_REFRESH_COOKIE'] = 'refresh_token_cookie'
+    app.config['JWT_COOKIE_SECURE'] = _is_prod
+    app.config['JWT_COOKIE_HTTPONLY'] = True
+    app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # CSRF couvert par SameSite + CORS allow-list
 
     from datetime import timedelta
 
@@ -81,13 +95,13 @@ def create_app():
         origin.strip()
         for origin in os.getenv(
             'CORS_ORIGINS',
-            'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
+            '' if _is_prod else 'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
         ).split(',')
         if origin.strip()
     ]
 
     # I4 FIX : allow-list stricte en production (patterns LAN/tunnels = DEV only).
-    _is_prod_cors = os.getenv('FLASK_ENV', '').lower() == 'production'
+    _is_prod_cors = _is_prod
     _DYNAMIC_CORS_PATTERNS = []
     if not _is_prod_cors:
         _DYNAMIC_CORS_PATTERNS = [
@@ -210,11 +224,16 @@ def create_app():
             NoAuthorizationError, InvalidHeaderError,
             RevokedTokenError, JWTDecodeError, WrongTokenError,
         )
-        from jwt.exceptions import ExpiredSignatureError
+        from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidSignatureError, InvalidTokenError
         if isinstance(e, (
             NoAuthorizationError, InvalidHeaderError,
             RevokedTokenError, JWTDecodeError,
             WrongTokenError, ExpiredSignatureError,
+            # PyJWT brut : flask_jwt_extended 4.x laisse fuiter le DecodeError
+            # (ex: header de token non décodable en base64) sans l'envelopper
+            # dans JWTDecodeError — sinon il sort en 500 (audit : /auth/refresh
+            # avec un token garbage devait répondre 401, pas 500).
+            DecodeError, InvalidSignatureError, InvalidTokenError,
         )):
             # Re-lève pour laisser error_router (flask_restx) retomber sur le
             # handler Flask de flask-jwt-extended -> réponse 401 propre au lieu
@@ -227,16 +246,6 @@ def create_app():
             'message': 'Erreur interne du serveur',
             'code': 500,
         }, 500
-
-    @app.after_request
-    def _security_headers(response):
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()'
-        return response
 
     api = Api(
         app,
@@ -326,7 +335,7 @@ def create_app():
     from app.api.v1.tenants import ns as tenants_ns
     from app.api.v1.abonnements import ns as abonnements_ns
     from app.api.v1.livraisons import ns_livreurs as livreurs_ns, ns_vehicules as vehicules_ns, ns_itineraires as itineraires_ns, ns_livraisons as livraisons_ns
-    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
+    from app.api.v1.rh import ns_employes as employes_ns, ns_presences as presences_ns, ns_conges as conges_ns, ns_salaires as salaires_ns, ns_primes as primes_ns, ns_stagiaires as stagiaires_ns
     from app.api.v1.comptabilite import ns_comptes as comptes_ns, ns_ecritures as ecritures_ns, ns_tresorerie as tresorerie_ns, ns_resultats as resultats_ns
     from app.api.v1.documents import ns_modeles as modeles_documents_ns, ns_documents as documents_ns
     from app.api.v1.achats_devis import ns_commandes_achat as commandes_achat_ns, ns_receptions as receptions_ns, ns_devis as devis_ns, ns_bons_livraison as bons_livraison_ns, ns_avoirs as avoirs_ns
@@ -385,6 +394,7 @@ def create_app():
     api.add_namespace(employes_ns, path='/api/v1/employes')
     api.add_namespace(stagiaires_ns, path='/api/v1/stagiaires')
     api.add_namespace(presences_ns, path='/api/v1/presences')
+    api.add_namespace(conges_ns, path='/api/v1/conges')
     api.add_namespace(salaires_ns, path='/api/v1/salaires')
     api.add_namespace(primes_ns, path='/api/v1/primes')
     api.add_namespace(comptes_ns, path='/api/v1/comptes')
@@ -424,6 +434,9 @@ def create_app():
         g.current_tenant = None
         g.current_user = None
         g.current_tenant_id = None
+        g.current_abonnement = None
+        g.current_limits = None
+        g.current_modules = None
 
         try:
             from flask_jwt_extended import verify_jwt_in_request, get_jwt
@@ -457,8 +470,10 @@ def create_app():
     # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
     try:
         with app.app_context():
-            from app.models.role_permission import RoleModel
-            if db.session.query(RoleModel.id).first() is None:
+            from app.models.role_permission import RoleModel, Permission
+            roles_empty = db.session.query(RoleModel.id).first() is None
+            perms_empty = db.session.query(Permission.id).first() is None
+            if roles_empty or perms_empty:
                 from scripts.seed_roles import seed_roles
                 seed_roles(app)
                 logger.info("Auto-seed rôles/permissions effectué (base vide).")
@@ -472,10 +487,17 @@ def create_app():
     def _security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none';"
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+            "object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        )
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        response.headers['Permissions-Policy'] = (
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=(), '
+            'magnetometer=(), gyroscope=()'
+        )
         return response
 
     return app

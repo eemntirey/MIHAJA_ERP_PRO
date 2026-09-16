@@ -1,10 +1,15 @@
 import os
 import sys
 
-# Set environment variables before importing app
-os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:5432/erp'
-os.environ['SECRET_KEY'] = 'test-secret'
-os.environ['JWT_SECRET_KEY'] = 'test-secret'
+# Set environment variables before importing app (use .env if available)
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
+if 'DATABASE_URL' not in os.environ:
+    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres@localhost:55432/erp'
+if 'SECRET_KEY' not in os.environ:
+    os.environ['SECRET_KEY'] = 'test-secret'
+if 'JWT_SECRET_KEY' not in os.environ:
+    os.environ['JWT_SECRET_KEY'] = 'test-secret'
 
 # Racine du backend (web/backend) : derivee de l'emplacement du script (scripts/)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

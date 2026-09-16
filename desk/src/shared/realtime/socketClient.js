@@ -11,9 +11,9 @@ import { API_BASE_URL } from '../services/apiClient';
 import { tokenStore } from '../storage/tokenStore';
 
 const SOCKET_URL =
-  process.env.REACT_APP_WS_URL ||
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-    ? process.env.REACT_APP_API_URL.replace(/\/api\/v1\/?$/, '')
+  import.meta.env.VITE_WS_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     : API_BASE_URL.replace(/\/api\/v1\/?$/, ''));
 
 let socket = null;

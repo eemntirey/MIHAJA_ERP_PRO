@@ -86,6 +86,37 @@ class CommandeClient(BaseTenantModel):
             })
         data['items'] = enriched_items
         return data
+
+    def to_public_dict(self):
+        _PUBLIC_EXCLUDE = {'utilisateur_id', 'tenant_id', 'created_by', 'updated_by', 'is_active'}
+        data = super().to_dict(exclude=_PUBLIC_EXCLUDE)
+        data['statut'] = (
+            self.statut.value
+            if hasattr(self.statut, 'value')
+            else self.statut
+        )
+        data['total_ht'] = float(self.total_ht)
+        data['total_ttc'] = float(self.total_ttc)
+        enriched_items = []
+        for item in self.items_list:
+            produit = None
+            try:
+                from app.models.produit import Produit
+                produit_query = Produit.query.filter_by(id=item.get('produit_id'))
+                if self.tenant_id:
+                    produit_query = produit_query.filter_by(tenant_id=self.tenant_id)
+                produit = produit_query.first()
+            except Exception:
+                pass
+            enriched_items.append({
+                'produit_id': item.get('produit_id'),
+                'quantite': item.get('quantite', 1),
+                'produit_nom': produit.nom if produit else None,
+                'prix_unitaire': float(produit.prix_vente_ht) if produit else 0,
+                'total': float(produit.prix_vente_ht or 0) * item.get('quantite', 1) if produit else 0,
+            })
+        data['items'] = enriched_items
+        return data
     
     def __repr__(self):
         return f'<CommandeClient {self.reference} - {self.nom_client}>'

@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  // Timeout anti-blocage : sans lui, une requete qui ne repond jamais
+  // (backend injoignable, mauvaise URL) fige le bouton sur "Connexion...".
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,9 +24,27 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+    const requestUrl = originalRequest.url || '';
+    // Les appels d'authentification eux-memes ne doivent jamais declencher
+    // ni refresh ni redirection : l'erreur doit remonter a l'ecran de login.
+    // Avant, un 401 sur /auth/login provoquait un rechargement complet de la
+    // page (toast d'erreur perdu + impression de bouton "Connexion..." fige).
+    const isAuthCall =
+      requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh');
 
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    const redirectToLogin = () => {
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    };
+
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthCall
+    ) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('super_admin_refresh_token');
 
@@ -53,10 +74,10 @@ api.interceptors.response.use(
           localStorage.removeItem('super_admin_access_token');
           localStorage.removeItem('super_admin_refresh_token');
           localStorage.removeItem('super_admin_user');
-          window.location.href = '/login';
+          redirectToLogin();
         }
       } else {
-        window.location.href = '/login';
+        redirectToLogin();
       }
     }
 
@@ -122,8 +143,11 @@ export const superAdminSubscriptionService = {
   getHistoriqueByTenant: (tenantId, params) =>
     api.get(`/abonnements/historique/${tenantId}`, { params }),
 
-  setAllFree: () =>
-    api.post('/super-admin/subscriptions/set-all-free'),
+  getToggle: () =>
+    api.get('/super-admin/subscription-toggle'),
+
+  setToggle: (active) =>
+    api.put('/super-admin/subscription-toggle', { subscription_active: active }),
 
   notifyActivation: () =>
     api.post('/super-admin/subscriptions/notify-activation'),

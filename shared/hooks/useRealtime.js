@@ -47,11 +47,14 @@ export function useRealtime(options = {}) {
       let socket = null;
       try {
         const { io } = require('socket.io-client');
+          // A1 : web — withCredentials envoie le cookie HttpOnly au handshake.
+          // Electron — le token est dans secureStore et passé via auth dict.
           const token = tokenStore.getAccessToken();
-        if (token) {
+          const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
           socket = io(window.location.origin, {
             path: '/socket.io',
-            query: { token },
+            auth: isElectron && token ? { token } : undefined,
+            withCredentials: !isElectron,
             transports: ['polling', 'websocket'],
         upgrade: false,
           });
@@ -64,7 +67,6 @@ export function useRealtime(options = {}) {
           socket.on('notification:new', (data) => processEvent({ entity: 'notification', data }));
           socket.on('user:updated', (data) => processEvent({ entity: 'user', data }));
           socket.on('tenant:updated', (data) => processEvent({ entity: 'tenant', data }));
-        }
       } catch {
         // socket.io-client non disponible, on utilisera le polling
       }
@@ -93,7 +95,11 @@ export function useRealtime(options = {}) {
       }
     };
 
-    const hasToken = !!tokenStore.getAccessToken();
+    // A1 : web — se connecter même sans token en localStorage (cookies HttpOnly).
+    // Electron — exiger le token (secureStore).
+    const token = tokenStore.getAccessToken();
+    const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+    const hasToken = isElectron ? !!token : true;
     if (!hasToken) {
       setConnected(false);
       return () => {

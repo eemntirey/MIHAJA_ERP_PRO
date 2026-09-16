@@ -9,7 +9,7 @@ import axios from 'axios';
 import { tokenStore } from '../storage/tokenStore';
 
 export const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || '/api/v1';
+  import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

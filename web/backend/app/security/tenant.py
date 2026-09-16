@@ -6,7 +6,7 @@ from app.models.admin_device import AdminDevice, StatutDevice
 from app import db
 from sqlalchemy import event
 import logging
-from app.security.roles import is_super_admin, is_admin, is_manager
+from app.security.roles import is_super_admin
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +54,16 @@ def register_tenant_filter_event():
                 return
         
         # Apply tenant filter to all entities in the query that have tenant_id
+        # Exclut les tables système globales (roles/permissions) sinon un admin tenant voit 0 permissions
+        _GLOBAL_TENANT_BYPASS = {'Permission', 'RoleModel', 'Role'}
         if hasattr(orm_execute_state.statement, 'column_descriptions'):
             for desc in orm_execute_state.statement.column_descriptions:
                 entity = desc.get('entity')
                 if entity is None:
                     continue
                 if entity.__name__ == 'Tenant':
+                    continue
+                if entity.__name__ in _GLOBAL_TENANT_BYPASS:
                     continue
                 if hasattr(entity, 'tenant_id'):
                     orm_execute_state.statement = orm_execute_state.statement.where(
@@ -140,21 +144,18 @@ def tenant_required(fn):
             return {'message': 'Utilisateur introuvable'}, 401
         if utilisateur.tenant_id != tenant_id:
             return {'message': 'Acces refuse a ce tenant'}, 403
-        
+
+        # Contexte abonnement/limites/modules resolu UNE fois par requete,
+        # consomme par check_plan_limits / require_module / utilisateurs :
+        # un seul endroit a lire, plus de double resolution tenant.
+        from app.security.plan_limits import resolve_tenant_context
+        abonnement_actif, current_limits, current_modules = resolve_tenant_context(tenant)
+
         if utilisateur.role not in [Role.SUPER_ADMIN, Role.USER, Role.ACCOUNTANT]:
-            from app.models.abonnement import Abonnement, StatutAbonnement
-            from datetime import datetime
-            now = datetime.utcnow()
-            abonnement_actif = Abonnement.query.filter(
-                Abonnement.tenant_id == tenant_id,
-                Abonnement.statut == StatutAbonnement.ACTIF,
-                Abonnement.date_fin > now,
-                Abonnement.is_active == True
-            ).first()
-            if not abonnement_actif:
+            if abonnement_actif is None:
                 if tenant.statut != StatutTenant.EN_ESSAI:
                     return {'message': 'Abonnement requis'}, 403
-        
+
         if utilisateur.role == Role.ADMIN:
             if utilisateur.admin_statut is not None and utilisateur.admin_statut != StatutAdmin.ACTIVE:
                 return {'message': 'Administrateur suspendu ou revoque'}, 403
@@ -176,10 +177,13 @@ def tenant_required(fn):
                 # sera declenche par la transaction en cours, ce qui
                 # elimine une requete par appel authentifie.
                 device.last_seen = datetime.utcnow()
-        
+
         g.current_tenant = tenant
         g.current_tenant_id = tenant_id
         g.current_user = utilisateur
+        g.current_abonnement = abonnement_actif
+        g.current_limits = current_limits
+        g.current_modules = current_modules
 
         return fn(*args, **kwargs)
 
@@ -197,8 +201,14 @@ def super_admin_readonly(fn):
 
         claims = get_jwt() or {}
         role = claims.get('role')
-
-        if is_super_admin(role):
+        # Repli sur le role en base (g.current_user est pose par
+        # tenant_required avant cet appel) : couvre les tokens sans
+        # claim 'role' (portail super-admin, tokens anciens) et empeche
+        # toute ecriture du super administrateur sur les tenants.
+        current_user = getattr(g, 'current_user', None)
+        if is_super_admin(role) or (
+            current_user is not None and is_super_admin(current_user.role)
+        ):
             if request.method in READONLY_METHODS:
                 return {'message': 'Acces en lecture seule pour le super administrateur'}, 403
         return fn(*args, **kwargs)
@@ -282,59 +292,3 @@ def ensure_tenant_for_model(model_instance):
     tenant_id = get_current_tenant_id()
     if tenant_id and hasattr(model_instance, 'tenant_id'):
         model_instance.tenant_id = tenant_id
-
-
-def subscription_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
-        from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
-
-        try:
-            verify_jwt_in_request()
-        except NoAuthorizationError:
-            return {'message': 'En-tête Authorization manquant ou invalide'}, 401
-        except InvalidHeaderError:
-            return {'message': 'En-tête Authorization invalide'}, 401
-        except RevokedTokenError:
-            return {'message': 'Token JWT révoqué'}, 401
-        except JWTDecodeError:
-            return {'message': 'Token JWT invalide'}, 401
-        except Exception:
-            return {'message': 'Token JWT invalide ou expiré'}, 401
-
-        user_id = get_jwt_identity()
-        if isinstance(user_id, str) and user_id.isdigit():
-            user_id = int(user_id)
-
-        utilisateur = db.session.get(Utilisateur, user_id)
-        if not utilisateur:
-            return {'message': 'Utilisateur introuvable'}, 401
-
-        if is_admin(utilisateur.role) or is_manager(utilisateur.role):
-            return fn(*args, **kwargs)
-
-        tenant_id = utilisateur.tenant_id
-        if not tenant_id:
-            return {'message': 'Aucun tenant associe a ce compte'}, 401
-
-        from app.models.abonnement import Abonnement, StatutAbonnement
-        from datetime import datetime
-        now = datetime.utcnow()
-
-        abonnement_actif = Abonnement.query.filter(
-            Abonnement.tenant_id == tenant_id,
-            Abonnement.statut == StatutAbonnement.ACTIF,
-            Abonnement.date_fin > now,
-            Abonnement.is_active == True
-        ).first()
-
-        if not abonnement_actif:
-            tenant = db.session.get(Tenant, tenant_id)
-            if tenant and tenant.statut == StatutTenant.EN_ESSAI:
-                return fn(*args, **kwargs)
-            return {'message': 'Abonnement requis'}, 403
-
-        return fn(*args, **kwargs)
-    
-    return wrapper

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const publicApi = axios.create({
-  baseURL: process.env.REACT_APP_PUBLIC_API_URL || '',
+  baseURL: import.meta.env.VITE_PUBLIC_API_URL || '',
   headers: {
     'Content-Type': 'application/json',
   },

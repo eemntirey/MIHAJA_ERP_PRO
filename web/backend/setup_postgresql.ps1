@@ -7,7 +7,7 @@ $containerName = 'erp-pg'
 Write-Host "Starting PostgreSQL container '$containerName'..."
 $running = docker inspect -f '{{.State.Running}}' $containerName 2>$null
 if ($LASTEXITCODE -ne 0) {
-    throw "Docker container '$containerName' was not found. Create it first with: docker run --name erp-pg -e POSTGRES_PASSWORD=eemntirey -p 55432:5432 -d postgres:16"
+    throw "Docker container '$containerName' was not found. Create it first with: docker run --name erp-pg -e POSTGRES_PASSWORD=<YOUR_PASSWORD> -p 55432:5432 -d postgres:16"
 }
 
 if ($running -ne 'true') {

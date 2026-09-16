@@ -1,5 +1,7 @@
 import os
 import io
+import html
+from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -22,6 +24,13 @@ WHITE = colors.white
 
 def _get_upload_folder():
     return Config.UPLOAD_FOLDER
+
+
+def _escape_pdf_text(value):
+    """Echappe du contenu libre avant injection dans un Paragraph reportlab
+    (anti-injection markup / XSS stocke -> PDF)."""
+    text = str(value) if value is not None else ''
+    return html.escape(text)
 
 
 def _build_styles():
@@ -191,14 +200,38 @@ def _try_load_logo(logo_path_or_url, max_width_cm=4):
     try:
         if not logo_path_or_url:
             return None
-        path = logo_path_or_url
-        if not os.path.isabs(path):
-            folder = _get_upload_folder()
-            candidate = os.path.join(folder, path)
-            if os.path.exists(candidate):
-                path = candidate
-        if os.path.exists(path):
-            img = ImageReader(path)
+        path = str(logo_path_or_url).strip()
+        if not path:
+            return None
+        # Rejeter les URLs distantes (http/https) — seul un chemin local
+        # dans le dossier uploads est autorisé (audit P2-2).
+        if path.startswith(('http://', 'https://', 'data:')):
+            return None
+        # Rejeter les chemins absolus en dehors du dossier uploads
+        if os.path.isabs(path):
+            resolved = os.path.realpath(path)
+            uploads = os.path.realpath(Config.UPLOAD_FOLDER)
+            if not resolved.startswith(uploads + os.sep) and resolved != uploads:
+                return None
+            if os.path.exists(resolved):
+                img = ImageReader(resolved)
+                iw, ih = img.getSize()
+                aspect = ih / float(iw)
+                max_w = max_width_cm * cm
+                w = min(max_w, iw)
+                h = w * aspect
+                if h > 3 * cm:
+                    h = 3 * cm
+                    w = h / aspect
+                return Image(resolved, width=w, height=h)
+            return None
+        folder = _get_upload_folder()
+        candidate = os.path.realpath(os.path.join(folder, path))
+        uploads = os.path.realpath(folder)
+        if not candidate.startswith(uploads + os.sep) and candidate != uploads:
+            return None
+        if os.path.exists(candidate):
+            img = ImageReader(candidate)
             iw, ih = img.getSize()
             aspect = ih / float(iw)
             max_w = max_width_cm * cm
@@ -207,7 +240,7 @@ def _try_load_logo(logo_path_or_url, max_width_cm=4):
             if h > 3 * cm:
                 h = 3 * cm
                 w = h / aspect
-            return Image(path, width=w, height=h)
+            return Image(candidate, width=w, height=h)
     except Exception:
         return None
 
@@ -224,18 +257,23 @@ def _build_table_header(styles):
 
 def _build_table_row(styles, item):
     return [
-        Paragraph(str(item.get('produit_nom', item.get('designation', item.get('description', '')))), styles['table_cell']),
-        Paragraph(str(item.get('quantite', item.get('qte', ''))), styles['table_cell_center']),
-        Paragraph(f"{float(item.get('prix_unitaire', item.get('prix_ht', 0))):.2f}", styles['table_cell_right']),
-        Paragraph(f"{item.get('taux_tva', item.get('tva', 0))}%", styles['table_cell_center']),
-        Paragraph(f"{float(item.get('total_ht', item.get('total', 0))):.2f}", styles['table_cell_right']),
+        Paragraph(_escape_pdf_text(item.get('produit_nom', item.get('designation', item.get('description', '')))), styles['table_cell']),
+        Paragraph(_escape_pdf_text(str(item.get('quantite', item.get('qte', '')))), styles['table_cell_center']),
+        Paragraph(_escape_pdf_text(f"{float(item.get('prix_unitaire', item.get('prix_ht', 0))):.2f}"), styles['table_cell_right']),
+        Paragraph(_escape_pdf_text(f"{item.get('taux_tva', item.get('tva', 0))}%"), styles['table_cell_center']),
+        Paragraph(_escape_pdf_text(f"{float(item.get('total_ht', item.get('total', 0))):.2f}"), styles['table_cell_right']),
     ]
 
 
 def generate_document_pdf(filename, type_document, reference, donnees, tenant, modele=None):
     folder = _get_upload_folder()
-    os.makedirs(folder, exist_ok=True)
-    filepath = os.path.join(folder, filename)
+    folder_abs = os.path.abspath(folder)
+    os.makedirs(folder_abs, exist_ok=True)
+    safe_filename = secure_filename(filename)
+    filepath = os.path.abspath(os.path.join(folder_abs, safe_filename))
+    # Path-traversal guard
+    if not filepath.startswith(folder_abs + os.sep) and filepath != folder_abs:
+        raise ValueError("Chemin PDF non valide : tentative de path-traversal.")
 
     styles = _build_styles()
     width, height = A4
@@ -273,16 +311,16 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
     tenant_pays = tenant.get('pays', '') if tenant else ''
     tenant_telephone = tenant.get('telephone', '') if tenant else ''
     tenant_email = tenant.get('email_contact', '') if tenant else ''
-    tenant_devise = tenant.get('devise', 'MGA') if tenant else 'MGA'
+    tenant_devise = _escape_pdf_text(tenant.get('devise', 'MGA') if tenant else 'MGA')
 
     if logo:
         story.append(logo)
         story.append(Spacer(1, 0.4 * cm))
 
-    story.append(Paragraph(tenant_name or 'ENTREPRISE', styles['tenant_name']))
+    story.append(Paragraph(_escape_pdf_text(tenant_name) or 'ENTREPRISE', styles['tenant_name']))
     if tenant_adresse or tenant_ville or tenant_telephone or tenant_email:
         info_line = ', '.join(filter(None, [tenant_adresse, tenant_ville, tenant_pays, tenant_telephone, tenant_email]))
-        story.append(Paragraph(info_line, styles['tenant_info']))
+        story.append(Paragraph(_escape_pdf_text(info_line), styles['tenant_info']))
     story.append(Spacer(1, 0.3 * cm))
 
     story.append(HRFlowable(width=content_width, thickness=1.5, color=GOLD, spaceAfter=0.4 * cm))
@@ -294,9 +332,9 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
         'bon_livraison': 'BON DE LIVRAISON',
         'avoir': 'AVOIR',
     }
-    title = type_labels.get(type_document, type_document.upper())
+    title = _escape_pdf_text(type_labels.get(type_document, type_document.upper()))
     story.append(Paragraph(title, styles['doc_title']))
-    story.append(Paragraph(f'Référence : {reference}', styles['doc_ref']))
+    story.append(Paragraph(f'Référence : {_escape_pdf_text(reference)}', styles['doc_ref']))
     story.append(Spacer(1, 0.4 * cm))
 
     client_nom = donnees.get('client_nom', donnees.get('client', ''))
@@ -308,7 +346,7 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
     if client_nom or client_adresse or client_email:
         story.append(Paragraph('CLIENT', styles['section_label']))
         client_lines = ' | '.join(filter(None, [client_nom, client_adresse, client_ville, client_email, client_telephone]))
-        story.append(Paragraph(client_lines or '-', styles['normal']))
+        story.append(Paragraph(_escape_pdf_text(client_lines) or '-', styles['normal']))
         story.append(Spacer(1, 0.3 * cm))
 
     items = donnees.get('items', donnees.get('lignes', []))
@@ -375,12 +413,12 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
 
     if modele and modele.get('conditions_generales'):
         story.append(Paragraph('CONDITIONS GÉNÉRALES', styles['section_label']))
-        story.append(Paragraph(modele.get('conditions_generales', ''), styles['small']))
+        story.append(Paragraph(_escape_pdf_text(modele.get('conditions_generales', '')), styles['small']))
         story.append(Spacer(1, 0.3 * cm))
 
     if modele and modele.get('mention_legales'):
         story.append(Paragraph('MENTIONS LÉGALES', styles['section_label']))
-        story.append(Paragraph(modele.get('mention_legales', ''), styles['small']))
+        story.append(Paragraph(_escape_pdf_text(modele.get('mention_legales', '')), styles['small']))
 
     page_count = 1
 
@@ -395,12 +433,16 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
 
 def generate_report_pdf(filename, data, title):
     folder = _get_upload_folder()
-    os.makedirs(folder, exist_ok=True)
-    filepath = os.path.join(folder, filename)
+    folder_abs = os.path.abspath(folder)
+    os.makedirs(folder_abs, exist_ok=True)
+    safe_filename = secure_filename(filename)
+    filepath = os.path.abspath(os.path.join(folder_abs, safe_filename))
+    if not filepath.startswith(folder_abs + os.sep) and filepath != folder_abs:
+        raise ValueError("Chemin PDF non valide : tentative de path-traversal.")
     doc = SimpleDocTemplate(filepath, pagesize=A4)
     styles = _build_styles()
     story = []
-    story.append(Paragraph(title, styles['doc_title']))
+    story.append(Paragraph(_escape_pdf_text(title), styles['doc_title']))
     story.append(Spacer(1, 0.5 * cm))
     if isinstance(data, list):
         table_data = [_build_table_header(styles)] if data else [['Aucune donnée', '', '', '', '']]
@@ -421,7 +463,7 @@ def generate_report_pdf(filename, data, title):
         story.append(table)
     else:
         for key, value in data.items() if isinstance(data, dict) else []:
-            story.append(Paragraph(f"{key}: {value}", styles['normal']))
+            story.append(Paragraph(f"{_escape_pdf_text(key)}: {_escape_pdf_text(value)}", styles['normal']))
     doc.build(story)
     return filepath
 

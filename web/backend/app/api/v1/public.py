@@ -20,6 +20,37 @@ ns_public = Namespace('public', description='API publique (catalogue, commandes,
 ns = ns_public
 
 
+def _resolve_public_commande(ref):
+    """Résout une commande pour les endpoints vitrine (tracking, paiement,
+    statut) en bornant strictement la portée.
+
+    La recherche par référence dans CommandeService n'est filtrée par tenant
+    QUAND un JWT portant un tenant_id est présent — un appelant anonyme
+    retombait sur une portée globale (audit P2-4). On re-scope donc ici :
+    autorisé si la commande appartient à un tenant éligible vitrine, OU si
+    le JWT présent autorise explicitement son propriétaire (commande liée
+    à un compte particulier).
+    """
+    commande = CommandeService.get_by_reference(ref)
+    if not commande or not commande.tenant_id:
+        return None
+    try:
+        if commande.tenant_id in _get_active_tenant_ids():
+            return commande
+    except Exception:
+        return None
+    if commande.utilisateur_id:
+        try:
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+            verify_jwt_in_request(optional=True)
+            ident = get_jwt_identity()
+            if ident is not None and str(ident).isdigit() and int(ident) == commande.utilisateur_id:
+                return commande
+        except Exception:
+            return None
+    return None
+
+
 def _resolve_public_tenant():
     """Résout un tenant côté public via les en-têtes X-Tenant-Slug / X-Tenant-Domaine.
 
@@ -120,6 +151,7 @@ def _infer_tenant_from_items(items):
 
 @ns_public.route('/produits')
 class PublicProduitList(Resource):
+    @rate_limit(30, 300)
     def get(self):
         active_tenant_ids = _get_active_tenant_ids()
         scoped_tenant = _resolve_public_tenant()
@@ -155,6 +187,7 @@ class PublicProduitList(Resource):
 
 @ns_public.route('/produits/<int:produit_id>')
 class PublicProduitDetail(Resource):
+    @rate_limit(30, 300)
     def get(self, produit_id):
         active_tenant_ids = _get_active_tenant_ids()
         scoped_tenant = _resolve_public_tenant()
@@ -191,8 +224,16 @@ class PublicProduitDetail(Resource):
 
 @ns_public.route('/tenants/<int:tenant_id>')
 class PublicTenantDetail(Resource):
+    @rate_limit(30, 300)
     def get(self, tenant_id):
-        tenant = Tenant.query.filter_by(id=tenant_id, is_active=True).first()
+        # Un tenant n'est visible publiquement QUE s'il est éligible
+        # vitrine (abonnement actif + Papi configuré + vitrine_enabled).
+        # Sans ce gate, un attaquant itérait les IDs et lisait slug,
+        # domaine, statut interne et plan de TOUS les tenants actifs,
+        # y compris suspendus ou jamais exposés (audit P1-1).
+        if tenant_id not in _get_active_tenant_ids():
+            return {'message': 'Vendeur non trouve'}, 404
+        tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
             return {'message': 'Vendeur non trouve'}, 404
         data = {
@@ -202,8 +243,6 @@ class PublicTenantDetail(Resource):
             'domaine': tenant.domaine,
             'ville': tenant.ville,
             'pays': tenant.pays,
-            'statut': tenant.statut.value if hasattr(tenant.statut, 'value') else tenant.statut,
-            'plan': tenant.plan,
         }
         return data, 200
 
@@ -256,9 +295,9 @@ class PublicCommandeCreate(Resource):
         if idempotency_key:
             cached_ref = self._idempotency_get(idempotency_key)
             if cached_ref:
-                commande = CommandeService.get_by_reference(cached_ref)
+                commande = _resolve_public_commande(cached_ref)
                 if commande:
-                    return commande.to_dict(), 200
+                    return commande.to_public_dict(), 200
 
         # Lier la commande au compte connecté (si un JWT valide est présent).
         # Une commande invité (sans JWT) reste valide : utilisateur_id = None.
@@ -324,23 +363,24 @@ class PublicCommandeCreate(Resource):
                 return {'message': 'Montant de commande trop eleve pour un achat public'}, 403
             if idempotency_key:
                 self._idempotency_put(idempotency_key, commande.reference)
-            return commande.to_dict(), 201
+            return commande.to_public_dict(), 201
         except ValueError as e:
             return {'message': str(e)}, 400
         except Exception as exc:
             db.session.rollback()
             current_app.logger.exception('Erreur création commande publique: %s', exc)
-            # Ne jamais retourner 500 générique sans contexte exploitable (P1 ordre 5)
+            # Message générique : jamais renvoyer str(exc) à un anonyme
+            # (audit P2-4 — fuite d'informations sur les internes/schema).
             return {
                 'message': 'Erreur lors de la création de la commande. Vérifiez les coordonnées, le panier et le mode de paiement.',
-                'detail': str(exc) if str(exc) else 'Exception inconnue',
             }, 500
 
 
 @ns_public.route('/commandes/tracking/<string:ref>')
 class PublicCommandeTracking(Resource):
+    @rate_limit(30, 300)
     def get(self, ref):
-        commande = CommandeService.get_by_reference(ref)
+        commande = _resolve_public_commande(ref)
         if not commande:
             return {'message': 'Commande non trouvee'}, 404
         statut_value = (
@@ -363,7 +403,7 @@ class PublicCommandePapiPayment(Resource):
         une commande vitrine existante. Le client est ensuite redirigé
         vers le ``paymentLink`` retourné.
         """
-        commande = CommandeService.get_by_reference(ref)
+        commande = _resolve_public_commande(ref)
         if not commande:
             return {'message': 'Commande introuvable'}, 404
 
@@ -416,7 +456,7 @@ class PublicCommandePapiPayment(Resource):
             current_app.logger.warning(
                 'Commande Papi payment error: ref=%s err=%s', ref, exc
             )
-            return {'message': str(exc)}, 400
+            return {'message': 'Erreur lors de la creation du paiement'}, 400
         except Exception:
             current_app.logger.exception(
                 'Erreur inattendue paiement Papi commande: ref=%s', ref
@@ -428,10 +468,11 @@ class PublicCommandePapiPayment(Resource):
 
 @ns_public.route('/commandes/<string:ref>/papi-status')
 class PublicCommandePapiStatus(Resource):
-    """Permet au frontend de savoir si la commande a été payée."""
+    """Permet au frontend de savoir si la commande a été payée (statut minimal)."""
 
+    @rate_limit(30, 300)
     def get(self, ref):
-        commande = CommandeService.get_by_reference(ref)
+        commande = _resolve_public_commande(ref)
         if not commande:
             return {'message': 'Commande introuvable'}, 404
 
@@ -449,13 +490,24 @@ class PublicCommandePapiStatus(Resource):
                 if hasattr(commande.statut, 'value')
                 else commande.statut
             ),
-            'paiement': paiement.to_dict() if paiement else None,
+            # Minimal : expose seulement l'état du paiement, jamais le détail complet
+            'paiement_statut': (
+                paiement.statut.value
+                if paiement and hasattr(paiement.statut, 'value')
+                else (paiement.statut if paiement else None)
+            ),
+            'paiement_updated_at': (
+                paiement.updated_at.isoformat()
+                if paiement and getattr(paiement, 'updated_at', None)
+                else None
+            ),
         }
         return data, 200
 
 
 @ns_public.route('/mes-commandes')
 class PublicMesCommandes(Resource):
+    @rate_limit(30, 300)
     def get(self):
         """Liste les commandes du compte connecté (tous vendeurs confondus).
 
@@ -489,19 +541,20 @@ class PublicMesCommandes(Resource):
 
 @ns_public.route('/notifications')
 class PublicNotifications(Resource):
+    @rate_limit(30, 300)
     def get(self):
         ref = request.args.get('ref')
         if ref:
-            commande = CommandeService.get_by_reference(ref)
+            commande = _resolve_public_commande(ref)
             if not commande:
                 return {'message': 'Commande non trouvee'}, 404
-            
+
             statut_value = (
                 commande.statut.value
                 if hasattr(commande.statut, 'value')
                 else commande.statut
             )
-            
+
             return {
                 'commande_ref': commande.reference,
                 'statut': statut_value,
@@ -513,7 +566,7 @@ class PublicNotifications(Resource):
                     }
                 ]
             }, 200
-        
+
         return {'notifications': []}, 200
     
     def post(self):

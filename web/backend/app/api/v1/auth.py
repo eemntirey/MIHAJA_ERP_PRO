@@ -5,8 +5,12 @@ from flask_restx import Namespace, Resource
 from flask_jwt_extended import (
     jwt_required,
     get_jwt_identity,
+    get_jwt,
     create_access_token,
     create_refresh_token,
+    set_access_cookies,
+    set_refresh_cookies,
+    unset_jwt_cookies,
 )
 from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
@@ -35,20 +39,9 @@ api = Namespace(
 @api.route('/plans')
 class PublicPlans(Resource):
     def get(self):
-        from app.security.plans import PLAN_CONFIG
+        from app.security.plans import get_public_plans
         return {
-            'plans': [
-                {
-                    'code': code,
-                    'label': config.get('label', code.replace('_', ' ').title()),
-                    'prix': config.get('prix', 0),
-                    'duree_jours': config.get('duree_jours', 30),
-                    'max_utilisateurs': config.get('max_utilisateurs', 1),
-                    'max_employees': config.get('max_employees', 0),
-                    'modules': config.get('modules', []),
-                }
-                for code, config in PLAN_CONFIG.items()
-            ]
+            'plans': get_public_plans(),
         }, 200
 
 
@@ -97,6 +90,7 @@ class AuthLogin(Resource):
             }, 401
 
         access_token = result.get('access_token') if isinstance(result, dict) else None
+        refresh_token = result.get('refresh_token') if isinstance(result, dict) else None
         user_data = result.get('user') if isinstance(result, dict) else None
         if not isinstance(access_token, str) or not access_token.strip() or not isinstance(user_data, dict):
             current_app.logger.error(
@@ -107,7 +101,21 @@ class AuthLogin(Resource):
                 'message': 'Le service d\u2019authentification n\u2019a pas généré une session valide'
             }, 500
 
-        return result, 200
+        # A1 FIX : les tokens sont envoyés en cookies HttpOnly (XSS-safe).
+        # Les tokens restent aussi dans le body pour Electron (secureStore).
+        resp = {'user': user_data}
+        if refresh_token:
+            resp['access_token'] = access_token
+            resp['refresh_token'] = refresh_token
+        resp_obj = current_app.response_class(
+            response=__import__('json').dumps(resp),
+            status=200,
+            mimetype='application/json',
+        )
+        set_access_cookies(resp_obj, access_token)
+        if refresh_token:
+            set_refresh_cookies(resp_obj, refresh_token)
+        return resp_obj
 
 
 @api.route('/me')
@@ -214,7 +222,7 @@ class AuthRegister(Resource):
             pays = data.get('pays', 'Madagascar')
             email_contact = data.get('email_contact', email)
             telephone_entreprise = data.get('telephone_entreprise')
-            plan = data.get('plan', 'starter')
+            plan = data.get('plan', 'gratuit')
 
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
@@ -335,16 +343,28 @@ class AuthRegister(Resource):
                     'tenant_slug': tenant.slug,
                 }
             )
-            refresh_token = create_refresh_token(identity=user.id)
+            refresh_token = create_refresh_token(
+                identity=user.id,
+                additional_claims={'pwd_v': user.token_version or 0},
+            )
 
-            return {
+            import json as _json
+            resp_data = {
                 'message': 'Compte entreprise créé avec succès',
                 'user': user.to_dict(),
                 'tenant': tenant.to_dict(),
                 'profile_type': 'company',
                 'access_token': access_token,
                 'refresh_token': refresh_token,
-            }, 201
+            }
+            resp_obj = current_app.response_class(
+                response=_json.dumps(resp_data),
+                status=201,
+                mimetype='application/json',
+            )
+            set_access_cookies(resp_obj, access_token)
+            set_refresh_cookies(resp_obj, refresh_token)
+            return resp_obj
 
         user = Utilisateur(
             username=username,
@@ -371,15 +391,27 @@ class AuthRegister(Resource):
                 'tenant_id': user.tenant_id,
             }
         )
-        refresh_token = create_refresh_token(identity=user.id)
+        refresh_token = create_refresh_token(
+            identity=user.id,
+            additional_claims={'pwd_v': user.token_version or 0},
+        )
 
-        return {
+        import json as _json
+        resp_data = {
             'message': 'Compte utilisateur créé avec succès',
             'user': user.to_dict(),
             'profile_type': 'simple',
             'access_token': access_token,
             'refresh_token': refresh_token,
-        }, 201
+        }
+        resp_obj = current_app.response_class(
+            response=_json.dumps(resp_data),
+            status=201,
+            mimetype='application/json',
+        )
+        set_access_cookies(resp_obj, access_token)
+        set_refresh_cookies(resp_obj, refresh_token)
+        return resp_obj
 
 
 @api.route('/refresh')
@@ -387,6 +419,8 @@ class AuthRefresh(Resource):
 
     @jwt_required(refresh=True)
     def post(self):
+        from flask_jwt_extended import get_jwt
+
         user_id = get_jwt_identity()
 
         user = db.session.get(Utilisateur, user_id)
@@ -395,6 +429,19 @@ class AuthRefresh(Resource):
             return {
                 'message': 'Utilisateur non trouve'
             }, 404
+
+        # V2/V3 : un refresh émis avant un changement de mot de passe ne
+        # doit plus pouvoir forger de nouveaux access tokens. Les refresh
+        # antérieurs à pwd_v (sans claim) portent 0 par défaut : ils restent
+        # valides uniquement si l'utilisateur n'a jamais changé de mot de
+        # passe (token_version == 0).
+        refresh_claims = get_jwt() or {}
+        refresh_pwd_v = refresh_claims.get('pwd_v', 0)
+        if refresh_pwd_v < (user.token_version or 0):
+            return {
+                'message': 'Votre session a expire. Veuillez vous reconnecter.',
+                'code': 'TOKEN_VERSION_EXPIRED',
+            }, 401
 
         tenant = None
 
@@ -413,7 +460,18 @@ class AuthRefresh(Resource):
                 ),
                 'tenant_id': tenant.id if tenant else user.tenant_id,
                 'tenant_slug': tenant.slug if tenant else None,
+                'pwd_v': user.token_version or 0,
             }
+        )
+
+        # Refresh token rotation : un nouveau refresh est émis à chaque
+        # renouvellement d'access_token et il porte le pwd_v courant. Le
+        # frontend doit stocker le refresh renvoyé (les intercepteurs
+        # partagés le font déjà via tokenStore.setSession). Un refresh
+        # antérieur à un changement de mot de passe est rejeté ci-dessus.
+        new_refresh_token = create_refresh_token(
+            identity=user.id,
+            additional_claims={'pwd_v': user.token_version or 0},
         )
 
         if not isinstance(access_token, str) or not access_token.strip():
@@ -425,21 +483,99 @@ class AuthRefresh(Resource):
                 'message': 'Impossible de renouveler la session'
             }, 500
 
-        return {
+        # Audit P2-5 : détection de réutilisation du refresh token. Le
+        # refresh présenté est immédiatement révoqué côte serveur après
+        # avoir servi — un token volé ne peut pas être rejoué.
+        from app.models.token_blocklist import TokenBlocklist
+        used_claims = get_jwt() or {}
+        used_jti = used_claims.get('jti')
+        used_exp = used_claims.get('exp')
+        if used_jti and used_exp:
+            used_expires_at = datetime.utcfromtimestamp(used_exp)
+            TokenBlocklist.revoke(
+                used_jti,
+                expires_at=used_expires_at,
+                token_type='refresh',
+                user_id=user.id,
+            )
+            db.session.commit()
+
+        import json as _json
+        resp_data = {
             'access_token': access_token,
-            'refresh_token': None,
+            'refresh_token': new_refresh_token,
             'user': user.to_dict(),
             'tenant': tenant.to_dict() if tenant else None,
-        }, 200
+        }
+        resp_obj = current_app.response_class(
+            response=_json.dumps(resp_data),
+            status=200,
+            mimetype='application/json',
+        )
+        set_access_cookies(resp_obj, access_token)
+        set_refresh_cookies(resp_obj, new_refresh_token)
+        return resp_obj
 
 
 @api.route('/logout')
 class AuthLogout(Resource):
 
+    @jwt_required()
     def post(self):
-        return {
-            'message': 'Deconnexion reussie'
-        }, 200
+        from flask_jwt_extended import get_jwt, decode_token, get_jwt_identity
+        from app.models.token_blocklist import TokenBlocklist
+        from datetime import datetime
+
+        claims = get_jwt()
+        jti = claims.get('jti')
+        exp_ts = claims.get('exp')
+        user_id = get_jwt_identity()
+
+        if jti and exp_ts:
+            expires_at = datetime.utcfromtimestamp(exp_ts)
+            TokenBlocklist.revoke(jti, expires_at=expires_at, token_type='access', user_id=user_id)
+
+        # Révoque le refresh token s'il est fourni dans le body (Electron)
+        # ou s'il est présent en cookie (web — lu depuis le cookie via decode_token).
+        # Meilleur effort : absent/invalide/expiré = ignoré silencieusement.
+        try:
+            data = request.get_json(silent=True) or {}
+            raw_refresh = data.get('refresh_token')
+
+            # Si pas de refresh dans le body, tenter de le lire depuis le cookie
+            if not raw_refresh:
+                from flask import make_response
+                raw_refresh = request.cookies.get('refresh_token_cookie')
+
+            if raw_refresh and isinstance(raw_refresh, str):
+                decoded = decode_token(raw_refresh)
+                if decoded.get('type') == 'refresh' and str(decoded.get('sub')) == str(user_id):
+                    r_jti = decoded.get('jti')
+                    r_exp = decoded.get('exp')
+                    if r_jti and r_exp:
+                        TokenBlocklist.revoke(
+                            r_jti,
+                            expires_at=datetime.utcfromtimestamp(r_exp),
+                            token_type='refresh',
+                            user_id=user_id,
+                        )
+        except Exception:
+            current_app.logger.debug(
+                'Logout : refresh_token non révoqué (absent/invalide/expiré)',
+                exc_info=True,
+            )
+
+        db.session.commit()
+
+        # A1 FIX : effacer les cookies JWT HttpOnly
+        import json as _json
+        resp_obj = current_app.response_class(
+            response=_json.dumps({'message': 'Deconnexion reussie'}),
+            status=200,
+            mimetype='application/json',
+        )
+        unset_jwt_cookies(resp_obj)
+        return resp_obj
 
 
 @api.route('/forgot-password')
@@ -451,6 +587,17 @@ class AuthForgotPassword(Resource):
         email = data.get('email')
         if not email:
             return {'message': 'Email requis'}, 400
+
+        # M6 : en production, exiger un SMTP réellement configuré. Sans lui,
+        # un token de reset serait créé mais jamais délivré. On coupe net avec
+        # un 501 explicite pour tout le monde (même message, pas d'énumération).
+        if os.getenv('FLASK_ENV', '').lower() == 'production':
+            from app.config.settings import Config
+            mail_ready = bool(getattr(Config, 'MAIL_ENABLED', False)) and bool(getattr(Config, 'MAIL_HOST', None))
+            if not mail_ready:
+                return {
+                    'message': 'La réinitialisation par email n\'est pas disponible. Contactez un administrateur.'
+                }, 501
 
         user = Utilisateur.query.filter_by(email=email, is_active=True).first()
 
@@ -523,6 +670,7 @@ class AuthForgotPassword(Resource):
 class AuthVerifyResetToken(Resource):
     """Vérifie la validité d'un token de réinitialisation sans l'utiliser."""
 
+    @rate_limit(10, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')
@@ -557,6 +705,7 @@ class AuthVerifyResetToken(Resource):
 @api.route('/reset-password')
 class AuthResetPassword(Resource):
 
+    @rate_limit(10, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')
@@ -821,6 +970,13 @@ class SuperAdminMe(Resource):
             }, 403
 
         data = request.get_json() or {}
+        sensitive_fields = {'email'}
+        provided_fields = set(data.keys())
+        if sensitive_fields & provided_fields:
+            password = data.get('password')
+            if not password or not verify_password(password, user.password_hash):
+                return {'message': 'Mot de passe actuel requis pour modifier les champs sensibles'}, 403
+
         for key, value in data.items():
             if key in ['nom', 'prenom', 'telephone', 'mobile', 'email']:
                 setattr(user, key, value)

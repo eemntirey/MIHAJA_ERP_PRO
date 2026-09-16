@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-erp_db}
       POSTGRES_USER: ${POSTGRES_USER:-erp_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
       - "${POSTGRES_HOST_PORT:-127.0.0.1:5432}:5432"
     volumes:
@@ -25,12 +25,12 @@ services:
       - "${REDIS_HOST_PORT:-127.0.0.1:6379}:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./backend/Dockerfile
     container_name: erp_backend
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -40,22 +40,21 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_DEBUG=${FLASK_DEBUG:-False}
     ports:
-      - "5000:5000"
+      - "${BACKEND_HOST_PORT:-127.0.0.1:5000}:5000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     volumes:
-      - ./backend:/app
       - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
     command: python run.py
 
   celery-worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./backend/Dockerfile
     container_name: erp_celery_worker
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -66,7 +65,7 @@ services:
       redis:
         condition: service_started
     volumes:
-      - ./backend:/app
+      - ./backend/uploads:/app/uploads
     command: celery -A app.tasks worker --loglevel=info
 
   frontend:
@@ -75,7 +74,7 @@ services:
       dockerfile: Dockerfile
     container_name: erp_frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-127.0.0.1:3000}:3000"
     environment:
       - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api/v1}
     depends_on:

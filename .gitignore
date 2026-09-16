@@ -531,6 +531,7 @@ password.txt
 credentials.txt
 secrets.txt
 private_key.txt
+a.txt
 
 # Configurations locales sensibles
 config.local.json

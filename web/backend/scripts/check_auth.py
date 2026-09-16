@@ -5,7 +5,7 @@ sys.path.insert(0, _BACKEND_ROOT)
 os.chdir(_BACKEND_ROOT)
 
 # Configure database URL
-os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:5432/erp'
+os.environ['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'postgresql+psycopg://postgres:localhost:55432/erp')
 
 from app import create_app, db
 from app.security.auth import hash_password

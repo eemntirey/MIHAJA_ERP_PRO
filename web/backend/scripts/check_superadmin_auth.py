@@ -26,9 +26,12 @@ print("MIHAJA ERP - Test d'authentification Super Admin")
 print("=" * 60)
 
 # Configuration de l'application Flask (utilisée uniquement pour la création de données en base de données)
-os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:5432/erp'
-os.environ['JWT_SECRET_KEY'] = 'test-secret'
-os.environ['SECRET_KEY'] = 'test-secret'
+if 'DATABASE_URL' not in os.environ:
+    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres@localhost:55432/erp'
+if 'JWT_SECRET_KEY' not in os.environ:
+    os.environ['JWT_SECRET_KEY'] = 'test-secret'
+if 'SECRET_KEY' not in os.environ:
+    os.environ['SECRET_KEY'] = 'test-secret'
 
 app = create_app()
 

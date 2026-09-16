@@ -41,17 +41,16 @@ class Config:
 
     # Email
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_HOST = os.getenv('MAIL_HOST') or MAIL_SERVER
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
-    MAIL_USE_TLS = True
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-
-    # Email service (Nouveaux alias pour app.services.email_service)
-    MAIL_HOST = os.getenv('MAIL_HOST') or MAIL_SERVER
-    MAIL_USERNAME_ALT = os.getenv('MAIL_USERNAME')  # alias
-    MAIL_PASSWORD_ALT = os.getenv('MAIL_PASSWORD')  # alias
-    MAIL_USE_TLS_ALT = os.getenv('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
-    MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
+    # Interrupteur global du service d'emails. Desactive par defaut : aucun
+    # envoi SMTP sans opt-in explicite (MAIL_ENABLED=true) — protege les tests
+    # et les environnements de dev contre les envois accidentels.
+    MAIL_ENABLED = os.getenv('MAIL_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
+    MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME or 'no-reply@mihaja-erp.local')
     MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
     MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '30'))
 
@@ -63,11 +62,11 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
 
-    # CORS - inclut le tunnel de développement HTTPS pour Socket.IO
+    # CORS - inclut le tunnel de développement HTTPS pour Socket.IO (dev only)
     CORS_ORIGINS = os.getenv(
         'CORS_ORIGINS',
         'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
-    ).split(',')
+    ).split(',') if os.getenv('CORS_ORIGINS') else []
 
     # Pagination
     DEFAULT_PAGE_SIZE = 20

@@ -9,9 +9,7 @@ import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
 const API_BASE_URL =
-    typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-        ? process.env.REACT_APP_API_URL
-        : '/api/v1';
+    import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -200,9 +198,7 @@ api.interceptors.request.use(
 // ======================================================
 
 export const publicApi = axios.create({
-    baseURL: typeof process !== 'undefined' && process.env?.REACT_APP_PUBLIC_API_URL
-        ? process.env.REACT_APP_PUBLIC_API_URL
-        : '',
+    baseURL: import.meta.env.VITE_PUBLIC_API_URL || '',
     headers: {
         'Content-Type': 'application/json',
     },
