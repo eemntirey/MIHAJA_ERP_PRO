@@ -569,6 +569,13 @@ def create_app():
                     tenant = db.session.get(Tenant, tenant_id)
                     if tenant:
                         g.current_tenant = tenant
+                        # INDISPENSABLE : get_current_tenant_id() est utilisé
+                        # pour l'INSERT (desk.py, etc.). Sans cette ligne, les
+                        # écritures partaient avec tenant_id = NULL pendant que
+                        # le listener SQLAlchemy filtrait les SELECT sur
+                        # tenant.id — d'où ObjectDeletedError au refresh
+                        # post-commit et doublons à chaque sauvegarde desk.
+                        g.current_tenant_id = tenant.id
                         return
         except Exception:
             pass
@@ -577,6 +584,7 @@ def create_app():
             tenant = resolve_tenant_from_header()
             if tenant:
                 g.current_tenant = tenant
+                g.current_tenant_id = tenant.id
         except Exception:
             logger.warning(
                 "Impossible de résoudre le tenant depuis les headers HTTP",
