@@ -9,7 +9,11 @@ const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   (import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
-    : 'http://localhost:5000');
+    // Same-origin par défaut : en dev, Vite relaie /socket.io vers le
+    // backend (ws: true) ; en prod, reverse-proxy same-origin. Un fallback
+    // absolu http://localhost:5000 serait bloqué par la CSP de l'app
+    // Electron (connect-src 'self') dès que la page est servie autrement.
+    : (typeof window !== 'undefined' ? window.location.origin : ''));
 
 let socket = null;
 const listeners = new Map();
