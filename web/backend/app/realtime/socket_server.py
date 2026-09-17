@@ -74,6 +74,7 @@ def _register_handlers():
     if not socketio:
         return
     from flask_jwt_extended import decode_token
+    from flask_socketio import join_room
     from app import db
     from app.models.token_blocklist import TokenBlocklist
     from app.models.utilisateur import Utilisateur
@@ -127,12 +128,12 @@ def _register_handlers():
         role = claims.get("role")
         from app.security.roles import is_super_admin
         if is_super_admin(role):
-            socketio.enter_room(request.sid, "super_admin")
+            join_room("super_admin")
         tenant_id = claims.get("tenant_id")
         if tenant_id:
-            socketio.enter_room(request.sid, f"tenant:{tenant_id}")
+            join_room(f"tenant:{tenant_id}")
         if user_id:
-            socketio.enter_room(request.sid, f"user:{user_id}")
+            join_room(f"user:{user_id}")
         return True
 
     @socketio.on("disconnect")
