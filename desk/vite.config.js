@@ -11,8 +11,10 @@ export default defineConfig({
     // Convention CRA conservée : le JSX vit dans des fichiers .js.
     // Sans cette option, esbuild refuse le JSX dans .js (« The JSX syntax
     // extension is not currently enabled »). Même approche que super-admin.
+    // Le pattern couvre aussi le dossier racine ../shared (alias @shared),
+    // en dehors de desk/src — sinon SyncContext.jsx & co. ne passent pas.
     loader: 'jsx',
-    include: /src[\\/].*\.jsx?$/,
+    include: /(src|shared)[\\/].*\.[jt]sx?$/,
     exclude: [],
   },
   optimizeDeps: {
