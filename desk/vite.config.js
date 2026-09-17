@@ -17,11 +17,6 @@ export default defineConfig({
     include: /(src|shared)[\\/].*\.[jt]sx?$/,
     exclude: [],
   },
-  optimizeDeps: {
-    esbuildOptions: {
-      loader: { '.js': 'jsx' },
-    },
-  },
   resolve: {
     alias: {
       '@shared': sharedDir,

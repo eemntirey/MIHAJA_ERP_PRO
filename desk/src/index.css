@@ -1,8 +1,6 @@
 /* src/index.css */
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Les @import doivent précéder toute autre règle (@tailwind inclus) :
+   PostCSS rejette « @import must precede all other statements » sinon. */
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@500;600;700;800&display=swap');
 
@@ -16,6 +14,10 @@
 @import './styles/forms.css';
 @import './styles/tables.css';
 @import './styles/responsive.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 * {
   margin: 0;
