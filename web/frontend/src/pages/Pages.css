@@ -645,6 +645,31 @@
   vertical-align: middle;
 }
 
+.data-table td input,
+.data-table td select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.data-table td select {
+  cursor: pointer;
+}
+
+.data-table td input:focus,
+.data-table td select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
 .data-table th {
   background: var(--color-background);
   font-family: var(--font-heading);

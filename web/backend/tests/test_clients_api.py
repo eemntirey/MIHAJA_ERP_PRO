@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret-key')
     app = create_app()
     app.config['TESTING'] = True

@@ -290,7 +290,7 @@ function createWindow() {
   // Les liens externes sont ouverts dans le navigateur par défaut.
   const ALLOWED_NAVIGATION_HOSTS = isDev
     ? ['localhost', '127.0.0.1']
-    : ['app.mihaja-erp.local', 'localhost'];
+    : ['app.mihaja-erp.local'];
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     // Ouvrir les liens externes dans le navigateur système

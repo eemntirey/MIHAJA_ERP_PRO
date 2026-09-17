@@ -24,7 +24,7 @@ from app.security.auth import hash_password, create_access_token_for_user
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret-key')
     monkeypatch.setenv('PAPI_API_URL', 'https://test.papi.mg/dashboard/api/payment-links')
     monkeypatch.setenv('PAPI_API_KEY', 'test-api-key')

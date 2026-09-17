@@ -21,7 +21,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch, tmp_path):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     application = create_app()

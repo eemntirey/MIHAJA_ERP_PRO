@@ -219,7 +219,12 @@ class PayerAbonnement(Resource):
                 return {'message': 'Abonnement non trouve'}, 404
             return self._effectuer_paiement(abonnement)
 
-        abonnement = db.session.get(Abonnement, id)
+        # Même correctif que /renouveler : charger sans filtre tenant puis
+        # appliquer les contrôles explicites (401/403) au lieu d'un 404
+        # trompeur produit par le filtre tenant global.
+        abonnement = Abonnement.query.execution_options(
+            _skip_tenant_filter=True
+        ).filter_by(id=id).first()
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 
@@ -296,7 +301,17 @@ class RenouvelerAbonnement(Resource):
                 'paiement': paiement.to_dict()
             }, 200
 
-        abonnement = db.session.get(Abonnement, id)
+        # FIX : le filtre tenant global (security/tenant.py, do_orm_execute)
+        # réécrit db.session.get(Abonnement, id) en WHERE tenant_id = courant.
+        # Un admin du tenant A qui vise un abonnement du tenant B obtenait
+        # 404 "Abonnement non trouve" (fuite d'info évitée certes, mais le
+        # message ne correspond pas au modèle d'accès : le test d'architecture
+        # attend 403). On charge SANS filtre tenant, puis on applique le
+        # contrôle d'accès explicite tenant_id + admin principal ci-dessous,
+        # qui reste la source de vérité (401/403/404 dans cet ordre).
+        abonnement = Abonnement.query.execution_options(
+            _skip_tenant_filter=True
+        ).filter_by(id=id).first()
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 

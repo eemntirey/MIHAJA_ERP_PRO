@@ -14,6 +14,7 @@ import HomeScreen from '../screens/HomeScreen';
 import VenteScreen from '../screens/VenteScreen';
 import InventaireScreen from '../screens/InventaireScreen';
 import LivraisonScreen from '../screens/LivraisonScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -92,7 +93,11 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-        <Stack.Screen name="Main" component={MainTabs} />
+        {!isAuthenticated ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : (
+          <Stack.Screen name="Main" component={MainTabs} />
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

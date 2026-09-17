@@ -127,8 +127,16 @@ def _check_admin_device(user, device_id=None, tenant=None):
             user_id=user.id, device_id=device_id, statut=StatutDevice.ACTIVE
         ).first()
         if not device:
+            # FIX C-03 (rétabli avec garde-fou) : l'enrôlement automatique ne
+            # vaut QUE pour le tout premier appareil (aucun appareil existant).
+            # Sinon l'admin fraîchement créé ne peut jamais se connecter pour
+            # appeler /admin/devices/register — blocage chicken-and-egg
+            # (régression détectée par test_10_first_device_auto_registered).
+            # Les appareils suivants restent soumis à l'allow-list stricte :
+            # pas d'auto-enrôlement -> "Appareil non autorise" (anti-bypass
+            # C-03 conservé pour le multi-appareils).
             any_device = AdminDevice.query.filter_by(user_id=user.id).first()
-            if not any_device and device_id:
+            if not any_device:
                 device = AdminDevice(
                     user_id=user.id, device_id=device_id, device_name=None,
                     statut=StatutDevice.ACTIVE, last_seen=datetime.utcnow()
@@ -138,7 +146,7 @@ def _check_admin_device(user, device_id=None, tenant=None):
                 db.session.add(user)
                 db.session.commit()
             else:
-                return False, "Appareil non autorise"
+                return False, "Appareil non autorise - demandez l'enregistrement aupres de l'administrateur"
         else:
             device.last_seen = datetime.utcnow()
             db.session.add(device)

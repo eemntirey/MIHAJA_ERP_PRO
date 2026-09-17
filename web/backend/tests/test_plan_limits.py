@@ -13,7 +13,7 @@ from app.security.plans import resolve_limits, resolve_modules, admin_limit
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()

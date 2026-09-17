@@ -1,6 +1,14 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+let isRefreshing = false;
+let failedQueue = [];
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  failedQueue = [];
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,9 +53,20 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       !isAuthCall
     ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject,
+          });
+        });
+      }
       originalRequest._retry = true;
+      isRefreshing = true;
       const refreshToken = localStorage.getItem('super_admin_refresh_token');
-
       if (refreshToken) {
         try {
           const refreshResponse = await axios.post(
@@ -60,7 +79,6 @@ api.interceptors.response.use(
               },
             }
           );
-
           const newAccessToken = refreshResponse.data.access_token;
           if (newAccessToken) {
             localStorage.setItem('super_admin_access_token', newAccessToken);
@@ -68,17 +86,28 @@ api.interceptors.response.use(
               localStorage.setItem('super_admin_refresh_token', refreshResponse.data.refresh_token);
             }
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            processQueue(null, newAccessToken);
             return api(originalRequest);
           }
-        } catch {
+          throw new Error('refresh sans token');
+        } catch (e) {
+          processQueue(e);
           localStorage.removeItem('super_admin_access_token');
           localStorage.removeItem('super_admin_refresh_token');
           localStorage.removeItem('super_admin_user');
           redirectToLogin();
+        } finally {
+          isRefreshing = false;
         }
       } else {
+        isRefreshing = false;
+        processQueue(new Error('no refresh token'));
         redirectToLogin();
       }
+    }
+
+    if (error.response?.status === 403) {
+      toast.error("Accès refusé");
     }
 
     return Promise.reject(error);

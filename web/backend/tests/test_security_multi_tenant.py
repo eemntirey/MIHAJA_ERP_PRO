@@ -32,7 +32,7 @@ from app.models.utilisateur import Role, StatutUtilisateur, StatutAdmin
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -545,14 +545,14 @@ class TestSecurityMultiTenancy:
 
     def test_secret_key_required(self, monkeypatch):
         monkeypatch.delenv('SECRET_KEY', raising=False)
-        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
         monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
         with pytest.raises(ValueError, match='SECRET_KEY'):
             create_app()
 
     def test_cors_wildcard_rejected(self, monkeypatch):
         monkeypatch.setenv('CORS_ORIGINS', '*')
-        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
         monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
         monkeypatch.setenv('SECRET_KEY', 'test-secret')
         with pytest.raises(ValueError, match='CORS_ORIGINS cannot contain'):

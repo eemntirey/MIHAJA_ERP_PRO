@@ -20,6 +20,90 @@ jwt = JWTManager()
 
 logger = logging.getLogger(__name__)
 
+# Tables minimales attendues : leur absence signifie que les migrations n'ont
+# jamais ete jouees sur la base cible (cf. incident 2026-09-17 : base Postgres
+# `erp_db` creee mais vide -> traceback psycopg UndefinedTable de 60 lignes au
+# demarrage, puis 500 sur /api/v1/auth/login).
+REQUIRED_TABLES = ('tenants', 'utilisateurs', 'roles', 'permissions')
+
+# Endpoints publics qui ne doivent JAMAIS heriter du tenant porte par un JWT
+# residuel. /auth/register cree un NOUVEAU tenant : si le filtre global
+# (app/security/tenant.py) s'applique avec l'ancien tenant du navigateur, le
+# rafraichissement de l'utilisateur tout juste cree ne trouve aucune ligne
+# (WHERE id = ... AND tenant_id = <ancien>) -> ObjectDeletedError -> 500.
+# Meme logique pour /auth/login (recherche du compte par email/username) et
+# /auth/refresh (le tenant vient uniquement du refresh token).
+PUBLIC_PATH_PREFIXES = (
+    '/api/v1/auth/plans',
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/forgot-password',
+    '/api/v1/auth/verify-reset-token',
+    '/api/v1/auth/reset-password',
+    '/api/v1/public',
+    '/public',
+)
+
+# Rappel des commandes de correction, affiche uniquement si le schema manque.
+_SCHEMA_FIX_HELP = (
+    "  Commandes de correction (depuis web/backend) :\n"
+    "    python scripts/create_superadmin.py --create-tables   "
+    "# cree les tables + le super-admin\n"
+    "    python scripts/seed_roles.py                          "
+    "# roles et permissions systeme\n"
+    "    python -m flask --app 'app:create_app' db stamp head  "
+    "# marque les migrations comme appliquees\n"
+    "  Alternatives :\n"
+    "    - dev SQLite : DATABASE_URL=sqlite:///./erp.db "
+    "(base web/backend/instance/erp.db)\n"
+    "    - conteneur  : powershell -File setup_postgresql.ps1 "
+    "(Postgres erp-pg, port 55432)"
+)
+
+
+def _inspect_database_schema():
+    """Retourne (tables_manquantes, erreur) sans jamais lever d'exception.
+
+    ``tables_manquantes`` vaut ``None`` quand l'inspection a echoue
+    (base injoignable, droits insuffisants, ...).
+    """
+    from sqlalchemy import inspect
+
+    try:
+        existing = set(inspect(db.engine).get_table_names())
+    except Exception as exc:
+        return None, exc
+    return [name for name in REQUIRED_TABLES if name not in existing], None
+
+
+def _log_database_schema_problem(missing, error):
+    """Journalise un diagnostic actionnable quand le schema de la base manque.
+
+    Remplace la traceback SQLAlchemy par un message en francais. Le mot de
+    passe eventuel de l'URL est masque : aucun secret ne doit apparaitre en log.
+    """
+    try:
+        target = db.engine.url.render_as_string(hide_password=True)
+    except Exception:
+        target = os.getenv('DATABASE_URL', '<inconnue>')
+
+    if error is not None:
+        logger.error(
+            "Base de donnees injoignable (%s) : %s. "
+            "Verifiez DATABASE_URL et que le serveur de base est demarre : "
+            "l'application demarre mais toute requete metier echouera.",
+            target, error,
+        )
+        return
+
+    logger.error(
+        "Schema de base incomplet pour %s : table(s) manquante(s) : %s. "
+        "Les migrations n'ont pas ete jouees sur cette base, donc "
+        "l'authentification et les modules metier renverront une erreur 500.\n%s",
+        target, ', '.join(missing), _SCHEMA_FIX_HELP,
+    )
+
 
 def create_app():
 
@@ -50,6 +134,9 @@ def create_app():
 
     _is_prod = os.getenv('FLASK_ENV', '').lower() == 'production'
 
+    if _is_prod and not os.getenv('DATABASE_URL'):
+        raise ValueError('DATABASE_URL requis en production (pas de fallback autorisé)')
+
     # A1 FIX : web utilise des cookies HttpOnly (XSS-safe), Electron continue
     # avec les headers Authorization (secureStore chiffré côté desktop).
     app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
@@ -63,7 +150,8 @@ def create_app():
     app.config['JWT_COOKIE_SECURE'] = _is_prod
     app.config['JWT_COOKIE_HTTPONLY'] = True
     app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # CSRF couvert par SameSite + CORS allow-list
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
+    app.config['JWT_CSRF_IN_COOKIES'] = True
 
     from datetime import timedelta
 
@@ -95,7 +183,10 @@ def create_app():
         origin.strip()
         for origin in os.getenv(
             'CORS_ORIGINS',
-            '' if _is_prod else 'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
+            '' if _is_prod
+            else 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,'
+                 'http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,'
+                 'https://bj470sl0-3000.inc1.devtunnels.ms'
         ).split(',')
         if origin.strip()
     ]
@@ -107,8 +198,8 @@ def create_app():
         _DYNAMIC_CORS_PATTERNS = [
         r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
         r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
-        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[01]$',
-        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[01]$',
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[012]$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[012]$',
     ]
     import re as _re
     _dynamic_extra = []
@@ -123,7 +214,14 @@ def create_app():
         pass
     _origin_env_hint = os.getenv('FRONTEND_URL', '').strip()
     if _origin_env_hint and _origin_env_hint not in CORS_ORIGINS:
-        _dynamic_extra.append(_origin_env_hint)
+        # Valide FRONTEND_URL pour éviter injection d'origine malveillante
+        import re as _re2
+        if _is_prod_cors and not _re2.match(r'^https://[a-z0-9.-]+(?::\d+)?$', _origin_env_hint):
+            logger.warning('FRONTEND_URL ignoré (format invalide en prod): %s', _origin_env_hint)
+        elif _origin_env_hint.startswith('https://') or _origin_env_hint.startswith('http://'):
+            _dynamic_extra.append(_origin_env_hint)
+        else:
+            logger.warning('FRONTEND_URL ignoré (schéma invalide): %s', _origin_env_hint)
     CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
 
     # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
@@ -155,7 +253,7 @@ def create_app():
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allow_headers=[
             'Content-Type', 'Authorization', 'X-Requested-With', 'Accept',
-            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key',
+            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key', 'X-CSRF-TOKEN',
         ],
         expose_headers=['X-Request-Id'],
         supports_credentials=True,
@@ -210,10 +308,25 @@ def create_app():
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(e):
-        return {
+        resp = e.get_response()
+        if resp is None:
+            return {
+                'message': e.description or e.name,
+                'code': e.code,
+            }, e.code or 500
+        # Réponse Werkzeug conservée (code 415/404/405... correct) : on y
+        # injecte juste le message JSON. Avant, renvoyer un tuple (dict,
+        # code) depuis ce handler faisait repasser la requête dans le
+        # dispatch Flask puis flask_restx Api.error_router, qui relançait
+        # la HTTPException -> 500 générique au lieu du vrai code HTTP
+        # (audit: POST /clients sans Content-Type JSON renvoyait 500
+        # "Erreur interne" au lieu de 415).
+        resp.set_data(__import__('json').dumps({
             'message': e.description or e.name,
             'code': e.code,
-        }, e.code or 500
+        }))
+        resp.headers['Content-Type'] = 'application/json'
+        return resp, e.code or 500
 
     @app.errorhandler(Exception)
     def handle_unexpected_exception(e):
@@ -423,7 +536,7 @@ def create_app():
 
     @app.before_request
     def before_request():
-        from flask import g
+        from flask import g, request
         from app.security.tenant import resolve_tenant_from_header
 
         # g.current_tenant_id doit être remis à zéro comme les deux autres :
@@ -437,6 +550,13 @@ def create_app():
         g.current_abonnement = None
         g.current_limits = None
         g.current_modules = None
+
+        # Les routes publiques ne sont jamais rattachées à un tenant : on
+        # n'y résout ni JWT ni header, sinon un JWT residuel (ancienne
+        # session du navigateur) fausse la creation d'un nouveau tenant.
+        # Les queries y restent donc non filtrées (g.current_tenant = None).
+        if request.path.startswith(PUBLIC_PATH_PREFIXES):
+            return
 
         try:
             from flask_jwt_extended import verify_jwt_in_request, get_jwt
@@ -468,15 +588,21 @@ def create_app():
     # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
     # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
     # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
+    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
     try:
         with app.app_context():
-            from app.models.role_permission import RoleModel, Permission
-            roles_empty = db.session.query(RoleModel.id).first() is None
-            perms_empty = db.session.query(Permission.id).first() is None
-            if roles_empty or perms_empty:
-                from scripts.seed_roles import seed_roles
-                seed_roles(app)
-                logger.info("Auto-seed rôles/permissions effectué (base vide).")
+            missing_tables, inspection_error = _inspect_database_schema()
+            if inspection_error is not None or missing_tables:
+                _log_database_schema_problem(missing_tables, inspection_error)
+            else:
+                from app.models.role_permission import RoleModel, Permission
+                roles_empty = db.session.query(RoleModel.id).first() is None
+                perms_empty = db.session.query(Permission.id).first() is None
+                if roles_empty or perms_empty:
+                    from scripts.seed_roles import seed_roles
+                    seed_roles(app)
+                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
     except Exception:
         logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 

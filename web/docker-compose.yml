@@ -35,8 +35,13 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SECRET_KEY=${SECRET_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - PAPI_API_KEY=${PAPI_API_KEY}
+      - PAPI_WEBHOOK_SECRET=${PAPI_WEBHOOK_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_DEBUG=${FLASK_DEBUG:-False}
     ports:
@@ -59,6 +64,12 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - PAPI_API_KEY=${PAPI_API_KEY}
+      - PAPI_WEBHOOK_SECRET=${PAPI_WEBHOOK_SECRET}
     depends_on:
       postgres:
         condition: service_healthy

@@ -21,7 +21,7 @@ from app.security.auth import hash_password, verify_password
 def app(monkeypatch, tmp_path):
     # Base de donnÃ©es PostgreSQL de test, partagÃ©e au niveau session.
     # L'isolation entre tests est assurÃ©e par des SAVEPOINTs (cf. conftest).
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     application = create_app()

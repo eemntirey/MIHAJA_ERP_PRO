@@ -11,7 +11,7 @@ from app.models.stock import MouvementStock, TypeMouvement
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
     app = create_app()
     app.config['TESTING'] = True
     with app.app_context():
