@@ -789,6 +789,16 @@ export const presenceService = {
     export: () => api.get('/presences/registre/export', { responseType: 'blob' }),
 };
 
+// Aligné sur le shared racine (feature Congés) — utilisé par src/pages/HR.jsx
+export const congeService = {
+    getAll: (params) => api.get('/conges', { params }),
+    getById: (id) => api.get(`/conges/${id}`),
+    create: (data) => api.post('/conges', data),
+    update: (id, data) => api.put(`/conges/${id}`, data),
+    delete: (id) => api.delete(`/conges/${id}`),
+    getSolde: (employeId, annee) => api.get(`/conges/solde/${employeId}`, { params: annee ? { annee } : {} }),
+};
+
 export const salaireService = {
     getAll: (params) => api.get('/salaires', { params }),
     getById: (id) => api.get(`/salaires/${id}`),

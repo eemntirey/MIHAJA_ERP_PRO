@@ -13,6 +13,7 @@ import {
   productService as sharedProductService,
   employeService as sharedEmployeService,
   presenceService as sharedPresenceService,
+  congeService as sharedCongeService,
   salaireService as sharedSalaireService,
   primeService as sharedPrimeService,
   stagiaireService as sharedStagiaireService,
@@ -352,6 +353,7 @@ export const dashboardService = offlineAware(CACHE_PREFIX + 'dashboard', sharedD
 export const productService = offlineAware(CACHE_PREFIX + 'produits', sharedProductService);
 export const employeService = offlineAware(CACHE_PREFIX + 'employes', sharedEmployeService);
 export const presenceService = offlineAware(CACHE_PREFIX + 'presences', sharedPresenceService);
+export const congeService = offlineAware(CACHE_PREFIX + 'conges', sharedCongeService);
 export const salaireService = offlineAware(CACHE_PREFIX + 'salaires', sharedSalaireService);
 export const primeService = offlineAware(CACHE_PREFIX + 'primes', sharedPrimeService);
 export const stagiaireService = offlineAware(CACHE_PREFIX + 'stagiaires', sharedStagiaireService);
