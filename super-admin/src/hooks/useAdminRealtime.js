@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 const SOCKET_URL =
@@ -15,7 +15,7 @@ const getSocket = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('super_admin_access_token') : null;
     socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
-        upgrade: false,
+        upgrade: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,

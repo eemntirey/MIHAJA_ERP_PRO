@@ -449,6 +449,20 @@
   background: var(--erp-paper);
 }
 
+/* Electron : fenêtre sans bord. La barre de titre custom est fixe en haut
+   (40px) et déplaçable ; on compense sa hauteur pour que le contenu ne soit
+   pas masqué dessous. */
+.auth-login--electron {
+  box-sizing: border-box;
+  padding-top: var(--titlebar-height, 40px);
+}
+
+.auth-login--electron .auth-login__layout,
+.auth-login--electron .auth-login__context,
+.auth-login--electron .auth-login__form-panel {
+  min-height: calc(100vh - var(--titlebar-height, 40px));
+}
+
 .auth-login__layout {
   display: grid;
   grid-template-columns: 1.2fr 1fr;

@@ -1,4 +1,4 @@
-﻿// shared/websockets/socketClient.js
+// shared/websockets/socketClient.js
 // Client Socket.IO partagÃ© pour web et desktop.
 // NÃ©cessite le paquet npm: socket.io-client
 
@@ -26,7 +26,7 @@ const getSocket = () => {
     const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
     socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
-        upgrade: false,
+        upgrade: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,

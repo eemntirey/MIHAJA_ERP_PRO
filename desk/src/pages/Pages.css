@@ -1925,10 +1925,32 @@
   gap: 12px;
 }
 
+/* Le nom complet, poids compris, reste dans le flux sur plusieurs lignes. */
 .product-card__header h3 {
+  min-width: 0;
+  margin: 0;
   font-size: 15px;
   font-weight: 700;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
   letter-spacing: -0.02em;
+}
+
+/* Contraste stable sur les fonds clairs, y compris au survol. */
+.home-page .product-card__actions .btn-secondary {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.home-page .product-card__actions .btn-primary {
+  background: #f4df9b;
+  color: #1f2937;
+}
+
+/* Conserve une respiration après la dernière rangée, même sur mobile. */
+.home-page .home-content {
+  padding-bottom: 48px;
 }
 
 .product-card__price {
@@ -2109,11 +2131,12 @@
   box-shadow: 0 6px 14px -6px rgba(212, 175, 55, 0.9);
 }
 
+/* Champ et bouton forment un bloc joint, sans espace intermédiaire. */
 .orders-track {
   display: flex;
-  gap: 12px;
+  gap: 0;
   align-items: stretch;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: 18px;
 }
 
@@ -2132,7 +2155,7 @@
 .orders-track__field {
   position: relative;
   flex: 1;
-  min-width: 240px;
+  min-width: 0;
 }
 
 .orders-track__icon {
@@ -2147,9 +2170,12 @@
 
 .orders-track__field input {
   width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: 0;
   padding: 12px 14px 12px 40px;
   border: 1px solid var(--color-border-strong);
-  border-radius: 12px;
+  border-radius: 12px 0 0 12px;
   font-size: 14px;
   font-family: var(--font-body);
   color: var(--color-text);
@@ -2167,12 +2193,17 @@
   color: var(--color-text-muted);
 }
 
-.orders-track__btn {
+.home-page .orders-track .orders-track__btn {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  border-radius: 12px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 0 12px 12px 0;
+  background: #f4df9b;
+  color: #1f2937;
+  transform: none;
   white-space: nowrap;
 }
 

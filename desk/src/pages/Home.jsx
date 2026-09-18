@@ -444,7 +444,6 @@ const Home = () => {
                             addItem(product, 1);
                             toast.success(`${product.nom} ajouté au panier`);
                           }}
-                          disabled={Number(product.quantite_stock ?? product.stock ?? 0) <= 0}
                         >
                           + Panier
                         </button>

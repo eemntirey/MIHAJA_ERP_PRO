@@ -262,6 +262,16 @@ class AuthRegister(Resource):
             if not allowed:
                 return {'message': limit_message}, 403
 
+            # Pré-validation UX : le domaine est soumis à une contrainte
+            # d'unicité en base (ix_tenants_domaine). On contrôle avant
+            # l'insertion pour renvoyer une erreur ciblée au lieu de
+            # laisser échapper l'IntegrityError ; la contrainte reste le
+            # garde-fou en cas d'inscriptions concurrentes.
+            if domaine and Tenant.query.filter_by(domaine=domaine).first():
+                return {
+                    'message': 'Une entreprise existe deja avec ce domaine. Veuillez en choisir un autre.'
+                }, 409
+
             base_slug = nom_entreprise.lower().replace(' ', '-').replace('.', '-')
             slug = base_slug
             counter = 1
@@ -270,6 +280,14 @@ class AuthRegister(Resource):
                 counter += 1
 
             try:
+                from app.security.plans import get_plan_duration_days
+                duree_essai = get_plan_duration_days(plan)
+                now = datetime.utcnow()
+                if duree_essai > 0:
+                    date_fin_essai = now + timedelta(days=duree_essai)
+                else:
+                    date_fin_essai = now + timedelta(days=365 * 99)
+
                 tenant = Tenant(
                     nom=nom_entreprise,
                     slug=slug,
@@ -282,6 +300,8 @@ class AuthRegister(Resource):
                     pays=pays,
                     statut=StatutTenant.EN_ESSAI,
                     plan=plan,
+                    date_debut_essai=now,
+                    date_fin_essai=date_fin_essai,
                 )
                 db.session.add(tenant)
                 db.session.flush()

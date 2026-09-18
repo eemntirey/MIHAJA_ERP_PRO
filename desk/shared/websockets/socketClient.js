@@ -1,4 +1,4 @@
-﻿// shared/websockets/socketClient.js
+// shared/websockets/socketClient.js
 // Client Socket.IO partagÃ© pour web et desktop.
 // NÃ©cessite le paquet npm: socket.io-client
 
@@ -22,7 +22,7 @@ const getSocket = () => {
   if (!socket) {
     socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
-        upgrade: false,
+        upgrade: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,

@@ -1,4 +1,4 @@
-﻿// shared/realtime/socketClient.js
+// shared/realtime/socketClient.js
 // Client temps-rÃ©el (Socket.IO) pour pousser les MAJ backend -> clients.
 // Repli automatique sur un polling long (SSE-like) si le serveur n'expose pas
 // de socket, afin de ne rien casser si flask-socketio n'est pas dÃ©ployÃ©.
@@ -40,7 +40,7 @@ export const connect = () => {
       socket = io(SOCKET_URL, {
         auth: { token: tokenStore.getAccessToken() },
         transports: ['polling', 'websocket'],
-        upgrade: false,
+        upgrade: true,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 8000,
