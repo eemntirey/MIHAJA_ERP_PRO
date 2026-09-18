@@ -49,16 +49,29 @@ Ces constats proviennent de l'audit du code ; chacun empêche ou dégrade série
   ```
   ⚠️ **1 worker obligatoire** tant que Socket.IO n'utilise pas `message_queue=redis` (sinon les événements temps réel ne traversent pas les workers). Pour scaler : `-w N` + configurer `SocketIO(..., message_queue=REDIS_URL)` et des sessions sticky au proxy.
 
-### B2 — Dockerfile frontend = serveur de développement
-- `web/frontend/Dockerfile` exécute `npm start` (dev-server CRA) : lent, mémoire, non sécurisé, sans TLS.
-- **Action** : remplacer par un build multi-étapes `node:20-alpine` (npm run build) → `nginx:alpine` servant `build/`, ou abandonner ce conteneur et servir le statique directement depuis le reverse proxy (recommandé).
+### B2 — Dockerfile frontend = serveur de développement — ✅ LEVÉ
+- **Constat initial** : `web/frontend/Dockerfile` exécutait `npm start` (dev-server CRA : lent, non sécurisé), et le contexte de build `./frontend` était **inutilisable** : le build CRA importe `shared/` hors du dossier frontend (alias `@shared` → `../../shared` dans `config-overrides.js`, chemins `../../../../shared` depuis `src/services/api.js`).
+- **Résolution appliquée** :
+  - `web/frontend/Dockerfile` : build multi-étapes `node:20-alpine` (`npm run build` avec `DISABLE_ESLINT_PLUGIN=true`, `CI=false`, `GENERATE_SOURCEMAP=false`) → `nginx:alpine` servant `/usr/share/nginx/html`.
+  - Topologie dans l'image : frontend dans `/app`, `shared/` dans `/shared` — les deux formes d'import du code pointent alors au bon endroit.
+  - `web/frontend/nginx.conf` : SPA (`try_files … /index.html`), cache long sur `/static/`, relais `/api/` et `/socket.io/` (upgrade WebSocket via `map`), `client_max_body_size` aligné sur les 16 Mo du backend.
+  - `web/docker-compose.yml` : contexte `..` (racine du monorepo), `dockerfile: web/frontend/Dockerfile`, port hôte 3000 → **80** du conteneur, mounts de développement supprimés, `restart: unless-stopped`.
+- **Deux problèmes découverts pendant la validation** :
+  1. `proxy_pass http://backend:5000` en dur : nginx refuse de **démarrer** si le backend n'est pas résoluble, et **fige l'IP** après un redémarrage du backend (502 permanent) → corrigé par `resolver 127.0.0.11` + `set $backend_upstream backend:5000;` (résolution à chaque requête).
+  2. L'entrypoint officiel (`10-listen-on-ipv6-by-default.sh` → `apk manifest nginx`) **reste bloqué** sur Docker Desktop : conteneur « Up » mais nginx jamais lancé, port fermé — reproduit avec un `nginx:alpine` **vierge**, donc environnemental → `ENTRYPOINT []` dans le Dockerfile (aucun script de l'entrypoint n'est utile : configuration statique, pas d'envsubst).
+- **Validation réelle** : image construite (95 Mo) ; conteneur `healthy` ; `GET /` et `GET /ventes` → 200 (index.html servi, fallback SPA) ; `GET /api/v1/health` → corps renvoyé par un backend factice (proxy opérationnel de bout en bout) ; `GET /socket.io/` → réponse du backend (location temps réel câblée) ; re-résolution du backend observée **sans redémarrage** de nginx.
+- **Dette identifiée** : `web/frontend/package-lock.json` est désynchronisé (`Missing: yaml@2.9.1 from lock file`) → `npm ci` échoue, le Dockerfile utilise donc `npm install`. Pour un build reproductible : `cd web/frontend && npm install` (resynchronise le lock) puis repasser à `npm ci`.
 
-### B3 — Celery non câblé
-- `docker-compose.yml` lance `celery -A app.tasks worker`, mais `app/tasks/__init__.py` n'expose **aucune instance `Celery(...)`**, aucun `shared_task`, aucun `beat_schedule`.
-- Les jobs existants sont des fonctions pures : `run_subscription_reminders()`, `run_subscription_expiration_check()` (`app/tasks/subscription_scheduler.py`), `backup_database`, `send_email`, rapports.
-- **Action (au choix)** :
-  - *Option minimale viable* : cron système / conteneur `ofelia` appelant une commande Flask CLI dédiée ; Celery retiré du compose.
-  - *Option complète* : créer `app/tasks/celery_app.py` (instance Celery + broker Redis), décorer en `shared_task`, ajouter un `beat_schedule` (rappels + expiration quotidienne, backup nocturne).
+### B3 — Celery non câblé — ✅ LEVÉ
+- **Constat initial** : `docker-compose.yml` lançait `celery -A app.tasks worker` alors qu'aucune instance `Celery(...)`, aucun `shared_task` ni `beat_schedule` n'existait → la commande échouait.
+- **Résolution appliquée** :
+  - `web/backend/app/tasks/celery_app.py` (nouveau) : instance Celery (broker/résultats Redis, reconstruits depuis `REDIS_URL` ou `REDIS_HOST/PORT/PASSWORD`), fuseau `Indian/Antananarivo`, `task_acks_late`, et **`FlaskContextTask`** qui pousse un contexte applicatif Flask autour de chaque tâche (indispensable : les traitements touchent la base et le filtre multi-tenant).
+  - Trois tâches : `subscriptions.rappels` (06:00), `subscriptions.expiration` (06:15), `backups.base` (02:00) — les deux premières délèguent aux fonctions existantes de `app/tasks/subscription_scheduler.py`.
+  - `app/tasks/__init__.py` exporte `celery` pour que `celery -A app.tasks worker|beat` trouve l'application.
+  - `docker-compose.yml` : service **`celery-beat`** ajouté (fichier de planification persisté dans un volume nommé `celerybeat_data`), `FLASK_ENV` ajouté au worker et au beat, `restart: unless-stopped`.
+  - `backups.base` ne prétend pas sauvegarder PostgreSQL : sur une base non SQLite, la tâche journalise et renvoie `skipped` (la sauvegarde prod reste `pg_dump`, cf. Phase 6).
+- **Validation réelle** : clés de planification et tâches enregistrées vérifiées (`['backups.base', 'subscriptions.expiration', 'subscriptions.rappels']`, base task = `FlaskContextTask`, broker dérivé de `REDIS_URL`), et test d'exécution prouvant que le contexte Flask est bien actif dans la tâche (`has_app_context() == True`).
+- **Alternative sans Celery** (si Redis n'est pas souhaité) : appeler directement les mêmes fonctions via cron système — le code reste utilisable tel quel.
 
 ### B4 — TLS obligatoire (cookies JWT)
 - En prod : `JWT_COOKIE_SECURE=True` (`app/__init__.py` L150) → le web ne pourra **pas** se connecter sans HTTPS.
@@ -144,8 +157,9 @@ admin.exemple.mg { root * /srv/admin ; try_files {path} /index.html ; file_serve
 ## 4. Déroulé de mise en production (phases)
 
 ### Phase 0 — Corrections préalables (dans le dépôt)
-1. ~~Lever B1~~ **✅ B1 levé** (gunicorn gthread + simple-websocket, cf. §1). Restent : **B2** (Dockerfile frontend), **B3** (cron ou Celery).
-2. Créer `web/docker-compose.prod.yml` (override) : images taguées, `restart: unless-stopped`, pas de mount `.`, commandes prod, healthchecks.
+1. ~~Lever B1, B2, B3~~ **✅ B1 (gunicorn gthread), B2 (Dockerfile frontend) et B3 (Celery + beat) sont levés** — cf. §1 pour le détail et les preuves de validation.
+2. Reste à faire : créer `web/docker-compose.prod.yml` (override) : images taguées, pas de mount `.`, healthchecks, et resynchroniser `web/frontend/package-lock.json` (dette B2).
+3. Traiter les points d'exploitation : B4 (TLS), B5 (CORS), B6 (PAPI), B7 (SMTP), B8 (sauvegardes), B9 (URL API des clients desk/mobile).
 
 ### Phase 1 — Provisionnement serveur
 1. Installer Docker ; créer le réseau Docker ; déployer Caddy.
@@ -174,7 +188,7 @@ admin.exemple.mg { root * /srv/admin ; try_files {path} /index.html ; file_serve
 3. Vérifier les logs : absence de `ValueError`, tables `tenants/utilisateurs/roles/permissions` présentes (sinon l'app logge le diagnostic `_SCHEMA_FIX_HELP`).
 
 ### Phase 4 — Frontends
-1. **Web** : `npm run build` (web/frontend) → publier `build/` dans `/srv/web`. ⚠️Après toute modification de `config-overrides.js`, **vider le cache webpack** (risque "Invalid hook call").
+1. **Web** : le conteneur `frontend` construit désormais le bundle et le sert via nginx (`docker compose build frontend`). Hors Docker : `npm run build` (web/frontend) → publier `build/` dans `/srv/web`. ⚠️Après toute modification de `config-overrides.js`, **vider le cache webpack** (risque "Invalid hook call").
 2. **Super-admin** : `npm run build` → `/srv/admin`.
 3. **Desk** : `npm run release` (vite build && electron-builder) → `dist/` NSIS/DMG/AppImage ; versionner les installateurs (GitHub Releases) ; signature de code optionnelle mais recommandée (SmartScreen).
 4. **Mobile** : `eas build` avec l'URL API de production.
@@ -259,9 +273,16 @@ gunicorn --workers 1 --threads 8 --worker-class gthread \
          --bind 0.0.0.0:5000 --timeout 120 --access-logfile - 'app:create_app()'
 
 # Builds clients
-cd web/frontend && npm run build
+cd web/frontend && npm run build              # ou : docker compose build frontend
 cd super-admin  && npm run build
 cd desk         && npm run release           # vite build && electron-builder
+
+# Frontend : image autonome (contexte = RACINE du monorepo, shared/ requis)
+docker build -f web/frontend/Dockerfile -t erp-frontend:latest .
+
+# Taches planifiees (B3)
+docker compose exec celery-worker celery -A app.tasks inspect registered
+docker compose logs -f celery-beat
 
 # Docker
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build

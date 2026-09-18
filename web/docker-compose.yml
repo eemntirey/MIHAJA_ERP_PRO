@@ -73,6 +73,7 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - PAPI_API_KEY=${PAPI_API_KEY}
       - PAPI_WEBHOOK_SECRET=${PAPI_WEBHOOK_SECRET}
+      - FLASK_ENV=${FLASK_ENV:-production}
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,23 +81,54 @@ services:
         condition: service_started
     volumes:
       - ./backend/uploads:/app/uploads
+    # B3 : `-A app.tasks` résout l'instance Celery créée dans
+    # app/tasks/celery_app.py (contexte Flask appliqué à chaque tâche).
     command: celery -A app.tasks worker --loglevel=info
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: erp_celery_beat
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - FLASK_ENV=${FLASK_ENV:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      # /app/instance existe dans l'image et appartient à l'utilisateur non
+      # root `app` : le fichier de planification y est persisté (un
+      # redémarrage ne rejoue pas les tâches déjà déclenchées).
+      - celerybeat_data:/app/instance
+    command: celery -A app.tasks beat --loglevel=info --schedule=/app/instance/celerybeat-schedule
+    restart: unless-stopped
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # B2 : contexte = RACINE du monorepo. Le build CRA importe shared/
+      # (alias @shared -> ../../shared, chemins ../../../../shared depuis src/),
+      # donc le contexte ./frontend ne suffit pas. Topologie dans l'image :
+      # frontend dans /app, shared dans /shared.
+      context: ..
+      dockerfile: web/frontend/Dockerfile
     container_name: erp_frontend
+    # nginx écoute sur 80 dans l'image (remplace le serveur de dev :3000).
     ports:
-      - "${FRONTEND_HOST_PORT:-127.0.0.1:3000}:3000"
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api/v1}
+      - "${FRONTEND_HOST_PORT:-127.0.0.1:3000}:80"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  celerybeat_data:
