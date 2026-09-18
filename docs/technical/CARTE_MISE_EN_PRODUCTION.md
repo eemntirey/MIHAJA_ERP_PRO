@@ -37,12 +37,15 @@ Backend <── worker/cron (abonnements, backups, emails, rapports)
 
 Ces constats proviennent de l'audit du code ; chacun empêche ou dégrade sérieusement une mise en production directe.
 
-### B1 — Aucun serveur WSGI de production (bloquant majeur)
-- `web/requirements.txt` ne contient **ni gunicorn, ni eventlet, ni gevent**.
-- `run.py` appelle `socketio.run(...)` avec `allow_unsafe_werkzeug=debug` → en prod (`debug=False`), Flask-SocketIO **refuse Werkzeug** (`RuntimeError: The Werkzeug web server is not designed to run in production`).
-- **Action** : ajouter `gunicorn==23.0.0` + `eventlet` (ou `gevent`) aux requirements et changer la commande de démarrage :
+### B1 — Aucun serveur WSGI de production (bloquant majeur) — ✅ LEVÉ
+- **Constat initial** : `web/requirements.txt` ne contenait ni gunicorn, ni eventlet, ni gevent ; `run.py` appelle `socketio.run(...)` qui **refuse Werkzeug en production** (`RuntimeError: The Werkzeug web server is not designed to run in production`).
+- **Résolution appliquée** (cohérente avec `async_mode="threading"` déjà forcé dans `app/realtime/socket_server.py` L63) :
+  - `web/requirements.txt` : ajout de `gunicorn==23.0.0` + `simple-websocket==1.1.0` (upgrade WebSocket en mode threading). **Pas d'eventlet/gevent** : monkey-patching incompatible psycopg3/pandas, et contredirait le mode threading choisi.
+  - `web/backend/Dockerfile` : `CMD` → gunicorn worker **`gthread`**.
+  - `web/docker-compose.yml` : commande backend alignée.
   ```
-  gunicorn -k eventlet -w 1 -b 0.0.0.0:5000 --timeout 120 'app:create_app()'
+  gunicorn --workers 1 --threads 8 --worker-class gthread \
+           --bind 0.0.0.0:5000 --timeout 120 --access-logfile - 'app:create_app()'
   ```
   ⚠️ **1 worker obligatoire** tant que Socket.IO n'utilise pas `message_queue=redis` (sinon les événements temps réel ne traversent pas les workers). Pour scaler : `-w N` + configurer `SocketIO(..., message_queue=REDIS_URL)` et des sessions sticky au proxy.
 
@@ -141,7 +144,7 @@ admin.exemple.mg { root * /srv/admin ; try_files {path} /index.html ; file_serve
 ## 4. Déroulé de mise en production (phases)
 
 ### Phase 0 — Corrections préalables (dans le dépôt)
-1. Lever B1 (gunicorn+eventlet, commande prod), B2 (Dockerfile frontend), B3 (cron ou Celery).
+1. ~~Lever B1~~ **✅ B1 levé** (gunicorn gthread + simple-websocket, cf. §1). Restent : **B2** (Dockerfile frontend), **B3** (cron ou Celery).
 2. Créer `web/docker-compose.prod.yml` (override) : images taguées, `restart: unless-stopped`, pas de mount `.`, commandes prod, healthchecks.
 
 ### Phase 1 — Provisionnement serveur
@@ -251,8 +254,9 @@ flask --app 'app:create_app' db stamp head   # rattrapage schema existant
 python manage.py create-superadmin           # délègue à scripts/create_superadmin.py
 python scripts/seed_roles.py                 # idempotent
 
-# Backend prod (après B1)
-gunicorn -k eventlet -w 1 -b 0.0.0.0:5000 --timeout 120 --access-logfile - 'app:create_app()'
+# Backend prod (B1 levé : gunicorn gthread, 1 worker)
+gunicorn --workers 1 --threads 8 --worker-class gthread \
+         --bind 0.0.0.0:5000 --timeout 120 --access-logfile - 'app:create_app()'
 
 # Builds clients
 cd web/frontend && npm run build
