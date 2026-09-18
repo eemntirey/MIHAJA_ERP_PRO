@@ -1,0 +1,55 @@
+# web/Caddyfile
+# Reverse proxy de production (B4) : TLS automatique (Let's Encrypt), les
+# domaines sont fournis par les variables ERP_DOMAIN / ADMIN_DOMAIN.
+#
+#  - {$ERP_DOMAIN}   -> conteneur `frontend` (nginx : SPA + relais /api et
+#                       /socket.io, cf. web/frontend/nginx.conf)
+#  - {$ADMIN_DOMAIN} -> build statique de la console super-admin monté dans
+#                       /srv/admin (cf. Phase 4 de la carte de mise en prod)
+#
+# Let's Encrypt exige que ces domaines pointent publiquement vers ce serveur
+# (ports 80 et 443 ouverts).
+
+{$ERP_DOMAIN} {
+	# Tout est relayé au frontend : nginx gère le statique, le cache /static/,
+	# le relais API (upstream re-résolu à chaque requête) et l'upgrade WebSocket.
+	reverse_proxy frontend:80
+
+	encode gzip
+
+	header {
+		# HSTS : HTTPS obligatoire (les cookies JWT sont Secure en production).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+{$ADMIN_DOMAIN} {
+	root * /srv/admin
+	# SPA : toute route inconnue est rendue par index.html.
+	try_files {path} /index.html
+	file_server
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

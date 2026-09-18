@@ -1,0 +1,90 @@
+# web/docker-compose.prod.yml
+# Override de production (B4/B5). Utilisation, depuis le dossier web/ :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Variables REQUISES (fail-fast : le lancement échoue si elles manquent) :
+#   POSTGRES_PASSWORD, REDIS_PASSWORD, SECRET_KEY, JWT_SECRET_KEY,
+#   ENCRYPTION_KEY, DATABASE_URL, REDIS_URL, CORS_ORIGINS,
+#   ERP_DOMAIN, ADMIN_DOMAIN
+# Variables optionnelles : FRONTEND_URL, IMAGE_TAG (tag des images, défaut
+# « latest »), SUPER_ADMIN_DIST (dossier du build statique super-admin).
+# Référence complète : docs/technical/CARTE_MISE_EN_PRODUCTION.md (§2 et §4).
+#
+# Points clés :
+#  - PostgreSQL et Redis ne sont plus exposés sur l'hôte, même pas en
+#    127.0.0.1 (`ports: !override []`) : accès uniquement via le réseau Docker.
+#  - Caddy est la seule porte d'entrée (TLS automatique Let's Encrypt) ;
+#    frontend et backend ne communiquent que sur le réseau interne.
+#  - Les images sont taguées (IMAGE_TAG) pour permettre un rollback immédiat.
+
+services:
+  postgres:
+    ports: !override []
+    restart: unless-stopped
+
+  redis:
+    ports: !override []
+    restart: unless-stopped
+
+  backend:
+    image: erp-backend:${IMAGE_TAG:-latest}
+    environment:
+      - FLASK_ENV=production
+      # B5 : allow-list CORS explicite et REQUISE en production. Le code
+      # (app/__init__.py) ignore les patterns de dev quand FLASK_ENV=production :
+      # sans cette variable, aucune origine n'est acceptée.
+      - "CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS requis en production - exemple https://erp.exemple.mg,https://admin.exemple.mg}"
+      - FRONTEND_URL=${FRONTEND_URL:-}
+    # /health vérifie réellement la connexion DB (200 sain, 503 dégradé).
+    # L'image slim n'a ni curl ni wget : on interroge en python standard.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    ports: !override []
+    restart: unless-stopped
+
+  celery-worker:
+    image: erp-backend:${IMAGE_TAG:-latest}
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+
+  celery-beat:
+    image: erp-backend:${IMAGE_TAG:-latest}
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+
+  frontend:
+    image: erp-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: erp_caddy
+    environment:
+      - "ERP_DOMAIN=${ERP_DOMAIN:?ERP_DOMAIN requis - exemple erp.exemple.mg}"
+      - "ADMIN_DOMAIN=${ADMIN_DOMAIN:?ADMIN_DOMAIN requis - exemple admin.exemple.mg}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      # Console super-admin : build statique à publier avant le lancement :
+      #   cd super-admin && npm run build
+      #   rm -rf super-admin-dist && cp -r dist ../web/super-admin-dist
+      - ${SUPER_ADMIN_DIST:-./super-admin-dist}:/srv/admin:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

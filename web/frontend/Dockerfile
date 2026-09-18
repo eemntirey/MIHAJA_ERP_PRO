@@ -17,12 +17,10 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY web/frontend/package.json web/frontend/package-lock.json ./
-# NOTE (dette) : `npm ci` est refusé ici car le package-lock.json du frontend
-# est désynchronisé avec package.json (« Missing: yaml@2.9.1 from lock file »).
-# `npm install` reste donc utilisé. Pour retrouver un build reproductible :
-#   cd web/frontend && npm install        # resynchronise le lock
-#   puis remplacer la ligne ci-dessous par : RUN npm ci --no-audit --no-fund
-RUN npm install --no-audit --no-fund
+# Lock resynchronisé avec package.json (l'ancien lock déclarait axios ^1.19.0
+# alors que package.json déclare ^1.7.0, ce qui faisait échouer npm ci) :
+# `npm ci` garantit un build reproductible à l'identique du lock.
+RUN npm ci --no-audit --no-fund
 
 # Bibliothèque partagée — doit être présente AVANT le build.
 COPY shared /shared

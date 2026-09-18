@@ -17,7 +17,7 @@
 | 5 | **Super-admin (Vite)** | `super-admin` | Build statique `dist/` | via reverse proxy |
 | 6 | **Desk Electron 38** | `desk` | Installateurs NSIS/DMG/AppImage | postes clients |
 | 7 | **Mobile Expo** | `mobile` | Build EAS (APK/AAB/IPA) | stores / distribution |
-| 8 | **Reverse proxy TLS** | à provisionner | nginx/Caddy + certificats | `:80/:443` publics |
+| 8 | **Reverse proxy TLS (Caddy)** | `web/Caddyfile` + service compose | TLS automatique Let's Encrypt | `:80/:443` publics |
 
 Architecture cible :
 
@@ -60,7 +60,7 @@ Ces constats proviennent de l'audit du code ; chacun empêche ou dégrade série
   1. `proxy_pass http://backend:5000` en dur : nginx refuse de **démarrer** si le backend n'est pas résoluble, et **fige l'IP** après un redémarrage du backend (502 permanent) → corrigé par `resolver 127.0.0.11` + `set $backend_upstream backend:5000;` (résolution à chaque requête).
   2. L'entrypoint officiel (`10-listen-on-ipv6-by-default.sh` → `apk manifest nginx`) **reste bloqué** sur Docker Desktop : conteneur « Up » mais nginx jamais lancé, port fermé — reproduit avec un `nginx:alpine` **vierge**, donc environnemental → `ENTRYPOINT []` dans le Dockerfile (aucun script de l'entrypoint n'est utile : configuration statique, pas d'envsubst).
 - **Validation réelle** : image construite (95 Mo) ; conteneur `healthy` ; `GET /` et `GET /ventes` → 200 (index.html servi, fallback SPA) ; `GET /api/v1/health` → corps renvoyé par un backend factice (proxy opérationnel de bout en bout) ; `GET /socket.io/` → réponse du backend (location temps réel câblée) ; re-résolution du backend observée **sans redémarrage** de nginx.
-- **Dette identifiée** : `web/frontend/package-lock.json` est désynchronisé (`Missing: yaml@2.9.1 from lock file`) → `npm ci` échoue, le Dockerfile utilise donc `npm install`. Pour un build reproductible : `cd web/frontend && npm install` (resynchronise le lock) puis repasser à `npm ci`.
+- **Dette B2 — levée** : le lock était désynchronisé sur **deux plans** : (1) il déclarait `axios ^1.19.0` alors que `package.json` déclare `^1.7.0` ; (2) il contenait des entrées résiduelles d'un `tailwindcss` non déclaré (dont `postcss-load-config` exigeait `yaml@^2.4.2`, absent du lock) — npm 10 le refuse (`Missing: yaml@2.9.1 from lock file`) là où npm 11 le tolérait. Corrigé par régénération complète du lock (`npm install --package-lock-only` : 0 entrée tailwind, axios cohérent, `npm ci` revalidé) et retour à `npm ci` dans le Dockerfile (build reproductible).
 
 ### B3 — Celery non câblé — ✅ LEVÉ
 - **Constat initial** : `docker-compose.yml` lançait `celery -A app.tasks worker` alors qu'aucune instance `Celery(...)`, aucun `shared_task` ni `beat_schedule` n'existait → la commande échouait.
@@ -73,13 +73,15 @@ Ces constats proviennent de l'audit du code ; chacun empêche ou dégrade série
 - **Validation réelle** : clés de planification et tâches enregistrées vérifiées (`['backups.base', 'subscriptions.expiration', 'subscriptions.rappels']`, base task = `FlaskContextTask`, broker dérivé de `REDIS_URL`), et test d'exécution prouvant que le contexte Flask est bien actif dans la tâche (`has_app_context() == True`).
 - **Alternative sans Celery** (si Redis n'est pas souhaité) : appeler directement les mêmes fonctions via cron système — le code reste utilisable tel quel.
 
-### B4 — TLS obligatoire (cookies JWT)
-- En prod : `JWT_COOKIE_SECURE=True` (`app/__init__.py` L150) → le web ne pourra **pas** se connecter sans HTTPS.
-- **Action** : reverse proxy avec certificat valide (Caddy automatique ou nginx + certbot) ; desk non impacté (Bearer).
+### B4 — TLS obligatoire (cookies JWT) — ✅ LEVÉ
+- En prod : `JWT_COOKIE_SECURE=True` (`app/__init__.py` L150) → le web ne peut pas se connecter sans HTTPS.
+- **Résolution appliquée** : `web/Caddyfile` (nouveau) — TLS automatique Let's Encrypt sur `{$ERP_DOMAIN}` (proxy vers le conteneur `frontend`, qui gère le statique + /api + /socket.io) et `{$ADMIN_DOMAIN}` (build statique super-admin monté dans `/srv/admin`) ; HSTS + en-têtes de sécurité ; logs avec rotation.
+- Câblé par le service `caddy` de `web/docker-compose.prod.yml` : Caddy est la seule porte d'entrée (80/443), frontend et backend restent sur le réseau Docker interne. Let's Encrypt exige que les domaines pointent publiquement vers le serveur.
+- Desk non impacté (Bearer).
 
-### B5 — CORS vide par défaut en production
+### B5 — CORS vide par défaut en production — ✅ LEVÉ
 - En prod, `CORS_ORIGINS` n'a **aucun fallback** (L186) et les patterns dev (tunnels, LAN) sont ignorés.
-- **Action** : lister explicitement `https://erp.exemple.mg` (+ domaine desk si servi).
+- **Résolution appliquée** : `web/docker-compose.prod.yml` rend la variable **requise avec échec immédiat** (`${CORS_ORIGINS:?…}`) — impossible de lancer la stack de production sans allow-list explicite. À renseigner au provisionnement avec les domaines réels (ex. `https://erp.exemple.mg,https://admin.exemple.mg`).
 
 ### B6 — Paiements PAPI en sandbox
 - `PAPI_ENVIRONMENT=sandbox` par défaut ; webhook `PAPI_CALLBACK_URL` doit être une **URL publique HTTPS**.
@@ -157,14 +159,14 @@ admin.exemple.mg { root * /srv/admin ; try_files {path} /index.html ; file_serve
 ## 4. Déroulé de mise en production (phases)
 
 ### Phase 0 — Corrections préalables (dans le dépôt)
-1. ~~Lever B1, B2, B3~~ **✅ B1 (gunicorn gthread), B2 (Dockerfile frontend) et B3 (Celery + beat) sont levés** — cf. §1 pour le détail et les preuves de validation.
-2. Reste à faire : créer `web/docker-compose.prod.yml` (override) : images taguées, pas de mount `.`, healthchecks, et resynchroniser `web/frontend/package-lock.json` (dette B2).
-3. Traiter les points d'exploitation : B4 (TLS), B5 (CORS), B6 (PAPI), B7 (SMTP), B8 (sauvegardes), B9 (URL API des clients desk/mobile).
+1. **✅ B1, B2, B3 levés** et **✅ B4 (Caddy + TLS) et B5 (CORS requis) livrés** — cf. §1 pour le détail et les preuves de validation. Livrables : `web/docker-compose.prod.yml`, `web/Caddyfile`, `web/frontend/nginx.conf`, `app/tasks/celery_app.py`, lock frontend resynchronisé (`npm ci` revalidé).
+2. Reste : provisionnement réel (Phase 1) puis points d'exploitation B6 (PAPI), B7 (SMTP), B8 (sauvegardes), B9 (URL API desk/mobile).
 
 ### Phase 1 — Provisionnement serveur
-1. Installer Docker ; créer le réseau Docker ; déployer Caddy.
-2. DNS + certificats (Caddy automatique).
-3. Créer `deploy/.env.prod` (jamais committé — gitleaks actif en CI).
+1. Installer Docker + compose v2.24+ (le tag YAML `!override` est utilisé par l'override de prod).
+2. DNS : `ERP_DOMAIN` et `ADMIN_DOMAIN` pointent publiquement vers le serveur (ports 80/443 ouverts) — requis pour les certificats Let's Encrypt de Caddy.
+3. Secrets : créer `web/.env.prod` (jamais committé — gitleaks actif en CI) avec les variables requises du §2 + `ERP_DOMAIN`/`ADMIN_DOMAIN`.
+4. Publier le build statique super-admin : `cd super-admin && npm run build` puis `rm -rf ../web/super-admin-dist && cp -r dist ../web/super-admin-dist` (monté en lecture seule par Caddy).
 
 ### Phase 2 — Base de données & amorçage
 1. Démarrer Postgres + Redis seuls ; attendre le healthcheck.
