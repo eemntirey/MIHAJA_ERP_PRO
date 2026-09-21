@@ -598,6 +598,32 @@ web/backend/_*.ps1
 # Export web statique genere (mobile)
 mobile/dist-web/
 
+# ============================================================
+# 27. ARTEFACTS LOCAUX DE SESSION DE TEST (ajout 2026-09-21)
+# ============================================================
+
+# Traces et instantanes Playwright MCP (etat de session e2e)
+.playwright-mcp/
+
+# Sorties de pytest et journal git local
+web/backend/pytest_*.txt
+_gitlog.txt
+
+# Dossier d'upload runtime du backend (Config.UPLOAD_FOLDER = web/backend/uploads)
+web/backend/uploads/
+
+# Config Vite locale du super-admin (QA uniquement, ne doit pas etre versionnee)
+super-admin/vite.config.qa.mjs
+
+# Lanceur local lie a une machine (contient un chemin absolu)
+start_frontend.bat
+
+# Scripts ponctuels de jeu de donnees de test (identifiants de test en clair)
+check_users.py
+create_user_latex.py
+web/backend/create_test_users_final.py
+web/backend/scripts/upload_real_images.py
+
 # Etat local des outils d'agents
 .freebuff/
 .kilo/diag/

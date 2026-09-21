@@ -179,6 +179,9 @@ def create_app():
     with app.app_context():
         register_tenant_filter_event()
 
+    # Dev par défaut : web (:3000), desk/Electron (:3001), super-admin (:3002)
+    # et Expo web de l'app mobile (:8081 — sinon « Impossible de joindre le
+    # serveur » dans le navigateur, faute d'en-tête Access-Control-Allow-Origin).
     CORS_ORIGINS = [
         origin.strip()
         for origin in os.getenv(
@@ -186,6 +189,7 @@ def create_app():
             '' if _is_prod
             else 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,'
                  'http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,'
+                 'http://localhost:8081,http://127.0.0.1:8081,'
                  'https://bj470sl0-3000.inc1.devtunnels.ms'
         ).split(',')
         if origin.strip()
@@ -198,8 +202,8 @@ def create_app():
         _DYNAMIC_CORS_PATTERNS = [
         r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
         r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
-        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[012]$',
-        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[012]$',
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}:(?:300[012]|8081)$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:(?:300[012]|8081)$',
     ]
     import re as _re
     _dynamic_extra = []
@@ -365,7 +369,14 @@ def create_app():
         title='ERP Commercial API',
         version='1.0',
         doc='/docs/' if os.getenv('FLASK_ENV', '').lower() != 'production' else False,
-        decorators=[cross_origin()]
+        # Même liste d'origines que le CORS global (statiques + patterns dev
+        # compilés) : flask-restx applique ce décorateur à toutes les ressources
+        # et il pose _FLASK_CORS_EVALUATED, ce qui fait sauter le after_request
+        # de flask-cors. Sans le passage explicite des origines ici, seules les
+        # origines statiques (app.config['CORS_ORIGINS']) étaient servies et les
+        # patterns LAN/tunnel (ex. Expo web http://192.168.x.y:8081) restaient
+        # sans en-tête Access-Control-Allow-Origin.
+        decorators=[cross_origin(origins=_cors_origins_config)]
     )
 
     @app.route('/')
@@ -531,6 +542,14 @@ def create_app():
 
     app.register_blueprint(desk_bp)
 
+    # Servir les fichiers uploades (images produits, etc.)
+    from flask import send_from_directory
+
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads')
+        return send_from_directory(upload_dir, filename)
+
     from app.realtime.socket_server import init_socketio
     app.socketio = init_socketio(app)
 
@@ -611,6 +630,21 @@ def create_app():
                     from scripts.seed_roles import seed_roles
                     seed_roles(app)
                     logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                else:
+                    # Convergence : la matrice peut gagner de nouveaux codes
+                    # (ex. `user.delete`) sans que la table `permissions` soit
+                    # vide. On complète alors UNIQUEMENT les lignes manquantes
+                    # (idempotent, aucune donnée existante n'est supprimée) afin
+                    # que presets et rôles personnalisés exposent bien le CRUD
+                    # complet des modules souscrits par le tenant.
+                    from scripts.seed_roles import missing_permission_codes, seed_roles
+                    missing_codes = missing_permission_codes()
+                    if missing_codes:
+                        seed_roles(app)
+                        logger.info(
+                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
+                            len(missing_codes), ", ".join(missing_codes[:10]),
+                        )
     except Exception:
         logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 

@@ -13,6 +13,7 @@ from app.services.commande_papi_service import (
 from app import db
 from app.security.rate_limit import rate_limit
 from datetime import datetime
+from sqlalchemy import func
 
 MAX_PUBLIC_ORDER_TOTAL = 500000
 
@@ -151,7 +152,7 @@ def _infer_tenant_from_items(items):
 
 @ns_public.route('/produits')
 class PublicProduitList(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self):
         active_tenant_ids = _get_active_tenant_ids()
         scoped_tenant = _resolve_public_tenant()
@@ -166,13 +167,18 @@ class PublicProduitList(Resource):
             Produit.is_active == True,
             Produit.published == True,
             Produit.quantite_stock > 0,
-            Produit.quantite_stock > Produit.seuil_alerte,
+            Produit.quantite_stock > func.coalesce(Produit.seuil_alerte, 0),
         )
         if allowed_tenant_ids:
             query = query.filter(Produit.tenant_id.in_(allowed_tenant_ids))
         else:
             query = query.filter(Produit.tenant_id == -1)
-        produits = query.all()
+        # created_at peut etre NULL sur des lignes historiques : tri stable sans
+        # faire echouer la comparaison sous PostgreSQL.
+        produits = query.order_by(
+            func.coalesce(Produit.created_at, datetime(1970, 1, 1)).desc(),
+            Produit.id.desc(),
+        ).all()
         tenant_map = {}
         if allowed_tenant_ids:
             tenants = Tenant.query.filter(Tenant.id.in_(allowed_tenant_ids)).all()
@@ -187,7 +193,7 @@ class PublicProduitList(Resource):
 
 @ns_public.route('/produits/<int:produit_id>')
 class PublicProduitDetail(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self, produit_id):
         active_tenant_ids = _get_active_tenant_ids()
         scoped_tenant = _resolve_public_tenant()
@@ -203,7 +209,7 @@ class PublicProduitDetail(Resource):
             Produit.is_active == True,
             Produit.published == True,
             Produit.quantite_stock > 0,
-            Produit.quantite_stock > Produit.seuil_alerte,
+            Produit.quantite_stock > func.coalesce(Produit.seuil_alerte, 0),
         )
         if allowed_tenant_ids:
             produit = produit.filter(Produit.tenant_id.in_(allowed_tenant_ids))
@@ -224,7 +230,7 @@ class PublicProduitDetail(Resource):
 
 @ns_public.route('/tenants/<int:tenant_id>')
 class PublicTenantDetail(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self, tenant_id):
         # Un tenant n'est visible publiquement QUE s'il est éligible
         # vitrine (abonnement actif + Papi configuré + vitrine_enabled).
@@ -278,7 +284,7 @@ class PublicCommandeCreate(Resource):
             cls._idempotency_cache.clear()
         cls._idempotency_cache[key] = (ref, time.time())
 
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def post(self):
         # silent=True : un corps JSON invalide ne doit jamais produire un 500
         # (werkzeug BadRequest non interceptee par flask-restx) mais un 4xx
@@ -378,7 +384,7 @@ class PublicCommandeCreate(Resource):
 
 @ns_public.route('/commandes/tracking/<string:ref>')
 class PublicCommandeTracking(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self, ref):
         commande = _resolve_public_commande(ref)
         if not commande:
@@ -397,7 +403,7 @@ class PublicCommandeTracking(Resource):
 
 @ns_public.route('/commandes/<string:ref>/papi-payment')
 class PublicCommandePapiPayment(Resource):
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self, ref):
         """Crée un lien de paiement Papi (compte marchand du tenant) pour
         une commande vitrine existante. Le client est ensuite redirigé
@@ -470,7 +476,7 @@ class PublicCommandePapiPayment(Resource):
 class PublicCommandePapiStatus(Resource):
     """Permet au frontend de savoir si la commande a été payée (statut minimal)."""
 
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self, ref):
         commande = _resolve_public_commande(ref)
         if not commande:
@@ -507,7 +513,7 @@ class PublicCommandePapiStatus(Resource):
 
 @ns_public.route('/mes-commandes')
 class PublicMesCommandes(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self):
         """Liste les commandes du compte connecté (tous vendeurs confondus).
 
@@ -541,7 +547,7 @@ class PublicMesCommandes(Resource):
 
 @ns_public.route('/notifications')
 class PublicNotifications(Resource):
-    @rate_limit(30, 300)
+    @rate_limit(120, 300)
     def get(self):
         ref = request.args.get('ref')
         if ref:

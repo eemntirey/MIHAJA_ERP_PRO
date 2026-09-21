@@ -9,38 +9,12 @@ import NotificationDropdown from './NotificationDropdown';
 import ThemeToggle from './ThemeToggle';
 import './DesktopTopBar.css';
 
-const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron;
-
 const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, isMobile, onLogout }) => {
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const { setCommandPaletteOpen, notifications, unreadCount } = useDesktop();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
-
-  const handleTopBarMouseDown = (e) => {
-    if (!IS_ELECTRON) return;
-    if (e.button !== 0) return;
-    if (e.target.closest('button, a, input, select, textarea, [data-no-drag]')) return;
-    try {
-      window.electron.startDragging();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const handleTopBarDoubleClick = (e) => {
-    if (!IS_ELECTRON) return;
-    if (e.target.closest('button, a, input, select, textarea, [data-no-drag]')) return;
-    try {
-      window.electron.isMaximized().then((max) => {
-        if (max) window.electron.unmaximize();
-        else window.electron.maximize();
-      });
-    } catch {
-      /* ignore */
-    }
-  };
 
   // Fermer le dropdown notifications au clic extérieur
   useEffect(() => {
@@ -68,7 +42,7 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
   };
 
   return (
-    <header className="desktop-topbar" onMouseDown={handleTopBarMouseDown} onDoubleClick={handleTopBarDoubleClick}>
+    <header className="desktop-topbar">
       <div className="desktop-topbar__left">
         {onToggleSidebar && (
           <button

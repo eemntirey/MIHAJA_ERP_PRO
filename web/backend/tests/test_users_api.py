@@ -177,7 +177,11 @@ class TestUsersApiSecurity:
                         json={'username': 'ghost', 'email': 'ghost@x.mg',
                               'password': 'Pass123!', 'tenant_id': 99999})
         assert r.status_code == 403, r.get_json()
-        assert 'user.create' in r.get_json().get('required_any_of', [])
+        # La route utilise `permission_required_all` : le refus porte sur les
+        # permissions MANQUANTES ('missing'), pas sur une liste any-of.
+        payload = r.get_json()
+        manquantes = payload.get('missing') or payload.get('required_any_of', [])
+        assert 'user.create' in manquantes
 
     def test_creation_user_mot_de_passe_faible_refuse(self, app):
         _make_context()

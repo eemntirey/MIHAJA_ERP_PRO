@@ -48,7 +48,7 @@ class PublicPlans(Resource):
 @api.route('/login')
 class AuthLogin(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         try:
             data = request.get_json(silent=True) or {}
@@ -177,7 +177,7 @@ class AuthMe(Resource):
 @api.route('/register')
 class AuthRegister(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         data = request.get_json() or {}
 
@@ -222,7 +222,10 @@ class AuthRegister(Resource):
             pays = data.get('pays', 'Madagascar')
             email_contact = data.get('email_contact', email)
             telephone_entreprise = data.get('telephone_entreprise')
-            plan = data.get('plan', 'gratuit')
+            # Règle métier : toute nouvelle entreprise/grossiste démarre toujours
+            # sur le plan gratuit (30 jours inclus). Le passage aux plans payants
+            # (Pro, Entreprise) nécessite un paiement validé via la page Abonnement.
+            plan = 'gratuit'
 
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
@@ -601,7 +604,7 @@ class AuthLogout(Resource):
 @api.route('/forgot-password')
 class AuthForgotPassword(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         data = request.get_json() or {}
         email = data.get('email')
@@ -690,7 +693,7 @@ class AuthForgotPassword(Resource):
 class AuthVerifyResetToken(Resource):
     """Vérifie la validité d'un token de réinitialisation sans l'utiliser."""
 
-    @rate_limit(10, 300)
+    @rate_limit(60, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')
@@ -725,7 +728,7 @@ class AuthVerifyResetToken(Resource):
 @api.route('/reset-password')
 class AuthResetPassword(Resource):
 
-    @rate_limit(10, 300)
+    @rate_limit(60, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')

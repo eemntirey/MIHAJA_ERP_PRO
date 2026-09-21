@@ -39,10 +39,15 @@ contextBridge.exposeInMainWorld('electron', {
   close: () => ipcRenderer.send('window:close'),
   quit: () => ipcRenderer.send('window:quit'),
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  // Renvoie une fonction de désabonnement : la barre de fenêtre est montée
+  // successivement sur l'écran de connexion puis dans le layout applicatif,
+  // ce qui évite d'accumuler des listeners dans le renderer.
   onMaximizeChanged: (callback) => {
-    ipcRenderer.on('window:maximize-changed', (_event, isMaximized) => callback(isMaximized));
+    const listener = (_event, isMaximized) => callback(isMaximized);
+    ipcRenderer.on('window:maximize-changed', listener);
+    return () => ipcRenderer.removeListener('window:maximize-changed', listener);
   },
-  // Déplacement de la fenêtre depuis une zone drag custom (topbar).
+  // Déplacement de la fenêtre depuis une zone drag custom (barre de titre).
   startDragging: () => ipcRenderer.send('window:start-move'),
 
   // === Impression ===

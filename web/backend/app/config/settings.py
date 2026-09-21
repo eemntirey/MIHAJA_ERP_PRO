@@ -63,9 +63,11 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
 
     # CORS - inclut le tunnel de développement HTTPS pour Socket.IO (dev only)
+    # et Expo web de l'app mobile (port 8081).
     CORS_ORIGINS = os.getenv(
         'CORS_ORIGINS',
-        'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
+        'http://localhost:3000,http://127.0.0.1:3000,http://localhost:8081,'
+        'http://127.0.0.1:8081,https://bj470sl0-3000.inc1.devtunnels.ms'
     ).split(',') if os.getenv('CORS_ORIGINS') else []
 
     # Pagination

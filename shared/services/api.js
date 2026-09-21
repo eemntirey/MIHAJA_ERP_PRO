@@ -654,6 +654,14 @@ export const productService = {
 
     delete: (id) =>
         api.delete(`/produits/${id}`),
+
+    uploadImage: (id, formData) =>
+        api.post(`/produits/${id}/image`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+
+    deleteImage: (id) =>
+        api.delete(`/produits/${id}/image`),
 };
 
 // ======================================================

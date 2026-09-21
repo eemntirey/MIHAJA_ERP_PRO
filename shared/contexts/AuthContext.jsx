@@ -363,6 +363,13 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
             return false;
         }
 
+        // Wildcard globale : un role personnalise peut recevoir ['*'].
+        // Meme semantique que le backend (app/security/roles.py::has_permission) :
+        // aucune action ne doit etre bloquee pour un role a acces total.
+        if (user.permissions.includes('*')) {
+            return true;
+        }
+
         // Support du wildcard par module (ex. 'sales.*' couvre 'sales.view').
         if (permission.includes('.')) {
             const moduleWildcard = `${permission.split('.')[0]}.*`;

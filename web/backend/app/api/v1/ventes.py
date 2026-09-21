@@ -81,7 +81,7 @@ class VenteList(Resource):
         except Exception as e:
             db.session.rollback()
             current_app.logger.exception('Erreur lors de la création de la vente')
-            return {'message': 'Erreur lors de la création de la vente'}, 400
+            return {'message': f'Erreur lors de la création de la vente: {type(e).__name__}: {str(e)}'}, 400
 
 @ns.route('/<int:id>')
 class VenteResource(Resource):

@@ -8,6 +8,10 @@ const isDev = process.env.ELECTRON_DEV === '1' || !app.isPackaged;
 
 const DEV_URL = 'http://localhost:3001';
 
+// Icône de l'application (fenêtre, barre des tâches, notifications).
+// Le PNG vit dans electron/ pour être inclus dans le package final.
+const ICON_PATH = path.join(__dirname, 'icon.png');
+
 let win = null;
 
 // ==== Store sécurisé (audit P1-2) ====
@@ -189,6 +193,7 @@ function createWindow() {
     backgroundColor: '#111111',
     frame: false,
     titleBarStyle: 'hidden',
+    icon: ICON_PATH,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -235,7 +240,7 @@ function createWindow() {
   // === Notifications système ===
   ipcMain.handle('notify', (_event, { title = 'ERP Pro', body = '' } = {}) => {
     if (Notification.isSupported()) {
-      new Notification({ title, body }).show();
+      new Notification({ title, body, icon: ICON_PATH }).show();
       return true;
     }
     return false;

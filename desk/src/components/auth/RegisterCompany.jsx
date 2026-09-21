@@ -40,7 +40,7 @@ const registerSchema = yup.object().shape({
   confirmPassword: yup
     .string()
     .oneOf([yup.ref('password'), null], 'Les mots de passe doivent correspondre'),
-  plan: yup.string().required('Choisissez un plan'),
+  plan: yup.string().default('gratuit'),
   acceptTerms: yup.boolean().oneOf([true], 'Vous devez accepter les conditions'),
 });
 
@@ -83,7 +83,7 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(registerSchema),
-    defaultValues: { plan: '' },
+    defaultValues: { plan: 'gratuit' },
   });
 
   const password = watch('password');
@@ -124,8 +124,8 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
       adresse: data.adresse,
       ville: data.ville,
       code_postal: data.code_postal,
-       pays: data.pays || 'Madagascar',
-       plan: data.plan,
+      pays: data.pays || 'Madagascar',
+      plan: 'gratuit',
     };
 
     const result = await registerAuth(payload);
@@ -352,37 +352,20 @@ const RegisterCompany = ({ darkMode, onToggleDarkMode }) => {
           </div>
 
           <div className="auth-login__field">
-            <label htmlFor="register-company-plan">Plan d'abonnement *</label>
-            <div className="auth-login__input-wrap auth-login__input-wrap--plain auth-login__select-wrap">
-              <i className="ti ti-chevron-down" aria-hidden="true" />
-              <select
-                id="register-company-plan"
-                {...register('plan')}
-                className={errors.plan ? 'error' : ''}
-                aria-invalid={Boolean(errors.plan)}
-                disabled={plansLoading || plans.length === 0}
-              >
-                {plansLoading && (
-                  <option value="">Chargement des plans...</option>
-                )}
-                {!plansLoading && plans.length === 0 && (
-                  <option value="">Aucun plan disponible</option>
-                )}
-                {!plansLoading && plans.length > 0 && (
-                  <option value="">-- Sélectionner un plan --</option>
-                )}
-                {!plansLoading && plans.map((plan) => (
-                  <option key={plan.code} value={plan.code}>
-                    {plan.label} — {formatPlanPrice(plan)} ({formatPlanDuration(plan)})
-                  </option>
-                ))}
-              </select>
+            <label>Plan d'abonnement</label>
+            <div className="register-plan-card">
+              <div className="register-plan-card__header">
+                <span className="register-plan-card__tag">
+                  <i className="ti ti-gift" aria-hidden="true" /> Inclus à l'inscription
+                </span>
+                <span className="register-plan-card__price">0 Ar</span>
+              </div>
+              <h4 className="register-plan-card__title">Plan Gratuit (30 jours inclus)</h4>
+              <p className="register-plan-card__desc">
+                Accès complet aux modules standards pour démarrer (3 collaborateurs, 50 produits, 100 clients).
+                Le passage aux plans <strong>Pro</strong> ou <strong>Entreprise</strong> se fait après inscription avec paiement sécurisé depuis votre espace Abonnement.
+              </p>
             </div>
-            {errors.plan && (
-              <span className="auth-login__error" role="alert">
-                {errors.plan.message}
-              </span>
-            )}
           </div>
 
           <div className="auth-login__field">

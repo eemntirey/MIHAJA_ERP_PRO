@@ -54,6 +54,16 @@ class DemanderAbonnement(Resource):
 
         data['tenant_id'] = tenant_id
         try:
+            # Annuler les éventuelles demandes précédentes restées en attente
+            anciennes_demandes = Abonnement.query.filter(
+                Abonnement.tenant_id == tenant_id,
+                Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+                Abonnement.is_active == True,
+            ).all()
+            for anc in anciennes_demandes:
+                anc.statut = StatutAbonnement.ANNULE
+            db.session.flush()
+
             abonnement, paiement = AbonnementService.create_abonnement(data)
             response = {
                 'abonnement': abonnement.to_dict(),
@@ -90,8 +100,16 @@ class MonAbonnement(Resource):
             current_app.logger.exception(
                 "Lecture du tenant %s impossible (donnees invalides)", tenant_id
             )
-            tenant = None
-        abonnement = AbonnementService.get_active_by_tenant(tenant_id)
+        # Priorité à une demande en attente de règlement (ex: passage au plan Pro/Entreprise)
+        abonnement = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+            Abonnement.is_active == True,
+        ).order_by(Abonnement.created_at.desc()).first()
+
+        if not abonnement:
+            abonnement = AbonnementService.get_active_by_tenant(tenant_id)
+
         can_renew = _is_principal_admin(utilisateur, tenant)
         is_free_plan = (abonnement.plan == 'gratuit') if abonnement else False
 
@@ -259,6 +277,14 @@ class PayerAbonnement(Resource):
 
         abonnement.statut = StatutAbonnement.ACTIF
         abonnement.save()
+
+        tenant = db.session.get(Tenant, abonnement.tenant_id)
+        if tenant:
+            tenant.statut = StatutTenant.ACTIF
+            tenant.is_active = True
+            tenant.plan = abonnement.plan
+            tenant.date_abonnement = datetime.utcnow()
+            db.session.commit()
 
         try:
             broadcast_to_tenant(abonnement.tenant_id, 'subscription:updated', abonnement.to_dict())

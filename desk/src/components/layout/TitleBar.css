@@ -3,6 +3,10 @@
 /* src/components/layout/TitleBar.css */
 
 :root {
+  /* Hauteur unique de la barre de fenêtre : consommée par la page de
+     connexion (Auth.css) et par le layout applicatif (DesktopLayout.css)
+     pour compenser le décalage de contenu. */
+  --titlebar-height: 40px;
   --titlebar-bg: #111111;
   --titlebar-border: rgba(212, 175, 55, 0.35);
   --titlebar-text: rgba(255, 255, 255, 0.82);
@@ -144,6 +148,35 @@
   --titlebar-close-hover: #e02e2e;
   --titlebar-close-active: #c02424;
   border-bottom: 1px solid #1e293b;
+}
+
+/* ==================== Environnement applicatif (DesktopLayout) ====================
+   Même barre que sur l'écran de connexion, adaptée aux surfaces de l'app :
+   fond clair en thème clair, ardoise en thème sombre, sous-titre doré. */
+.desktop-layout .app-titlebar {
+  --titlebar-bg: var(--erp-white);
+  --titlebar-border: var(--erp-line);
+  --titlebar-text: var(--erp-muted);
+  --titlebar-hover-bg: rgba(17, 17, 17, 0.06);
+  --titlebar-hover-text: var(--erp-onyx);
+  --titlebar-close-hover: #e02e2e;
+  --titlebar-close-active: #c02424;
+  border-bottom: 1px solid var(--erp-line);
+}
+
+.desktop-layout[data-theme='dark'] .app-titlebar {
+  --titlebar-bg: #0f172a;
+  --titlebar-border: #1e293b;
+  --titlebar-text: #94a3b8;
+  --titlebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --titlebar-hover-text: #e2e8f0;
+  --titlebar-close-hover: #e02e2e;
+  --titlebar-close-active: #c02424;
+  border-bottom: 1px solid #1e293b;
+}
+
+.desktop-layout .app-titlebar__brand-sub {
+  color: var(--erp-gold);
 }
 
 .auth-login .app-titlebar__brand-sub {

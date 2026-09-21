@@ -59,6 +59,8 @@ const Products = () => {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [barcodeMode, setBarcodeMode] = useState('manuel');
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -112,6 +114,8 @@ const Products = () => {
     setCurrentProduct(product);
     const mode = product ? 'manuel' : 'manuel';
     setBarcodeMode(mode);
+    setPendingImageFile(null);
+    setImagePreview(null);
     setFormData(
       product
         ? {
@@ -137,26 +141,46 @@ const Products = () => {
   const closeModal = () => {
     setShowModal(false);
     setCurrentProduct(null);
+    setPendingImageFile(null);
+    setImagePreview(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { code_barre_mode, ...submitData } = formData;
     try {
+      let savedProduct;
       if (currentProduct) {
-        await productService.update(currentProduct.id, submitData);
-        toast.success('Produit mis à jour avec succès');
+        const res = await productService.update(currentProduct.id, submitData);
+        savedProduct = res.data || { id: currentProduct.id };
+        toast.success('Produit mis a jour avec succes');
       } else {
-        await productService.create(submitData);
-        toast.success('Produit créé avec succès');
+        const res = await productService.create(submitData);
+        savedProduct = res.data;
+        toast.success('Produit cree avec succes');
       }
-      draft.clear(); // brouillon inutile après un enregistrement réussi
+
+      if (pendingImageFile && savedProduct?.id) {
+        try {
+          const fd = new FormData();
+          fd.append('image', pendingImageFile);
+          await productService.uploadImage(savedProduct.id, fd);
+          toast.success('Image uploadée');
+        } catch (imgErr) {
+          console.error('Image upload error:', imgErr);
+          toast.warn('Produit sauvegarde, mais echec de l\'upload image');
+        }
+      }
+
+      draft.clear();
+      setPendingImageFile(null);
+      setImagePreview(null);
       fetchProducts();
       closeModal();
     } catch (err) {
       console.error('Error saving product:', err);
       if (err.response?.status !== 403) {
-        const msg = err.response?.data?.message || 'Échec de la sauvegarde du produit';
+        const msg = err.response?.data?.message || 'Echec de la sauvegarde du produit';
         toast.error(msg);
       }
     }
@@ -187,6 +211,27 @@ console.error('Error deleting product:', err);
 
   const columns = useMemo(
     () => [
+      {
+        key: 'image_url',
+        label: '',
+        width: 50,
+        render: (value) => value ? (
+          <img
+            src={value}
+            alt=""
+            style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px' }}
+          />
+        ) : (
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '6px',
+            background: 'var(--color-bg-secondary, #f5f5f4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--color-text-muted, #a8a29e)', fontSize: '14px',
+          }}>
+            <i className="ti ti-photo" />
+          </div>
+        ),
+      },
       { key: 'code_barre', label: 'Code', width: 130, accessor: (row) => row.code_barre || row.id },
       { key: 'nom', label: 'Nom', width: 220 },
       { key: 'categorie', label: 'Catégorie', width: 150, render: (value) => value || 'N/A' },
@@ -593,25 +638,72 @@ console.error('Error deleting product:', err);
                     ))}
                   </select>
                 </FormField>
-                <FormField label="Image (URL ou fichier local)" htmlFor="produit-image-url">
+                <FormField label="Image du produit" htmlFor="produit-image-url">
+                  {(formData.image_url || imagePreview) && (
+                    <div style={{ marginBottom: '8px', position: 'relative' }}>
+                      <img
+                        src={imagePreview || formData.image_url}
+                        alt="Apercu"
+                        style={{
+                          width: '80px', height: '80px', objectFit: 'cover',
+                          borderRadius: '8px', border: '1px solid var(--color-border)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, image_url: '' }));
+                          setPendingImageFile(null);
+                          setImagePreview(null);
+                        }}
+                        style={{
+                          position: 'absolute', top: '-6px', right: '-6px',
+                          width: '20px', height: '20px', borderRadius: '50%',
+                          background: 'var(--color-danger, #ef4444)', color: '#fff',
+                          border: 'none', cursor: 'pointer', fontSize: '12px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                        aria-label="Supprimer l'image"
+                      >
+                        x
+                      </button>
+                    </div>
+                  )}
+                  <label
+                    htmlFor="produit-image-file"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '8px 14px', borderRadius: '8px',
+                      border: '1px dashed var(--color-border, #d6d3d1)',
+                      background: 'var(--color-bg-secondary, #fafafa)',
+                      cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-secondary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <i className="ti ti-upload" aria-hidden="true" />
+                    {formData.image_url || pendingImageFile ? 'Changer l\'image' : 'Choisir une image'}
+                  </label>
+                  <input
+                    id="produit-image-file"
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPendingImageFile(file);
+                        setImagePreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
                   <input
                     id="produit-image-url"
                     type="text"
                     name="image_url"
                     value={formData.image_url || ''}
                     onChange={handleChange}
-                    placeholder="https://... ou chemin local"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setFormData((prev) => ({ ...prev, image_url: URL.createObjectURL(file) }));
-                      }
-                    }}
-                    style={{ marginTop: '4px' }}
+                    placeholder="Ou coller une URL d'image"
+                    style={{ marginTop: '6px' }}
                   />
                 </FormField>
                 <FormField label="Actif" htmlFor="produit-published">

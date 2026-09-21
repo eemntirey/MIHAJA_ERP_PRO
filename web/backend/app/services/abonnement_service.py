@@ -85,16 +85,20 @@ class AbonnementService:
 
         prix_base = get_plan_price(plan)
         montant_officiel = prix_base
-        
-        # Pour les plans payants, on active l'abonnement directement
-        # (le paiement sera géré séparément, mais l'accès doit être immédiat)
+
+        is_paid = bool(data.get('is_paid', False))
+        statut_abn = StatutAbonnement.ACTIF if is_paid else StatutAbonnement.EN_ATTENTE
+        statut_paiement = StatutPaiement.CONFIRME if is_paid else StatutPaiement.EN_ATTENTE
+
+        # Pour les plans payants, l'abonnement reste EN_ATTENTE jusqu'à
+        # confirmation effective du règlement (PAPI / Mobile Money / Carte).
         abonnement = Abonnement(
             tenant_id=tenant_id,
             montant=montant_officiel,
             devise=data.get('devise', 'MGA'),
             date_debut=data.get('date_debut') or now,
             date_fin=data.get('date_fin') or date_fin,
-            statut=StatutAbonnement.ACTIF,
+            statut=statut_abn,
             methode_paiement=data.get('methode_paiement'),
             reference_paiement=data.get('reference_paiement'),
             notes=data.get('notes'),
@@ -104,9 +108,9 @@ class AbonnementService:
         db.session.add(abonnement)
         db.session.flush()
 
-        # Mettre à jour le statut du tenant
+        # Mettre à jour le statut du tenant uniquement si le paiement est confirmé
         tenant = db.session.get(Tenant, tenant_id)
-        if tenant:
+        if tenant and is_paid:
             tenant.statut = StatutTenant.ACTIF
             tenant.is_active = True
             tenant.plan = plan
@@ -120,7 +124,7 @@ class AbonnementService:
             subscription_id=abonnement.id,
             montant=montant_officiel,
             devise=data.get('devise', 'MGA'),
-            statut=StatutPaiement.EN_ATTENTE,
+            statut=statut_paiement,
             type=TypePaiement.ABONNEMENT,
             provider=provider,
             payment_method=payment_method,
