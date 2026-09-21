@@ -3,6 +3,12 @@ import os
 
 app = create_app()
 
+if os.getenv('FLASK_ENV') == 'local-embedded':
+    from app.services.local_bootstrap import ensure_local_db_ready
+    from app.services.replication.scheduler import start_replication_scheduler
+    ensure_local_db_ready(app)
+    start_replication_scheduler(app)
+
 if __name__ == '__main__':
     auto_migrate = os.getenv('AUTO_MIGRATE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
     if auto_migrate:
