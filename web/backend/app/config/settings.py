@@ -1,4 +1,5 @@
 import os
+import uuid
 from dotenv import load_dotenv
 from datetime import timedelta
 
@@ -16,10 +17,6 @@ class Config:
         'DATABASE_URL',
         'postgresql+psycopg://erp_user:erp_password@localhost:5432/erp_db'
     )
-    if os.getenv('FLASK_ENV', '').lower() == 'production' and DEFAULT_DATABASE_URL.startswith('sqlite'):
-        raise ValueError(
-            'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
-        )
     SQLALCHEMY_DATABASE_URI = DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {}
@@ -92,6 +89,13 @@ class Config:
     PAPI_WEBHOOK_SECRET = os.getenv('PAPI_WEBHOOK_SECRET')
     PAPI_CALLBACK_URL = os.getenv('PAPI_CALLBACK_URL')
 
+    @classmethod
+    def validate(cls):
+        if os.getenv('FLASK_ENV', '').lower() == 'production' and cls.DEFAULT_DATABASE_URL.startswith('sqlite'):
+            raise ValueError(
+                'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
+            )
+
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True
@@ -103,3 +107,29 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+
+
+class LocalEmbeddedConfig(Config):
+    FLASK_ENV = 'local-embedded'
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.getenv('LOCAL_DB_PATH', '')}"
+    REPLICATION_URL = os.getenv('REPLICATION_URL', '')
+    REPLICATION_DEVICE_ID = os.getenv('REPLICATION_DEVICE_ID', str(uuid.uuid4()))
+    CELERY_BROKER_URL = None
+    ENABLE_SOCKETIO = False
+
+    @classmethod
+    def validate(cls):
+        if not os.getenv('LOCAL_DB_PATH'):
+            raise ValueError('LOCAL_DB_PATH est requis en mode local-embedded.')
+        if not cls.REPLICATION_URL:
+            raise ValueError(
+                "REPLICATION_URL est requis en mode local-embedded "
+                "(URL du serveur central pour la réplication)."
+            )
+
+
+# Factory branch
+if os.getenv('FLASK_ENV', '').lower() == 'local-embedded':
+    CURRENT_CONFIG = LocalEmbeddedConfig
+else:
+    CURRENT_CONFIG = Config
