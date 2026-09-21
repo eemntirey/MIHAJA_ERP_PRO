@@ -11,7 +11,9 @@
     "electron:dev": "concurrently -k -n WEB,ELECTRON \"vite\" \"wait-on http://localhost:3001 && node electron/run.js\"",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "release": "vite build && electron-builder"
+    "release": "vite build && electron-builder",
+    "build:backend": "powershell -ExecutionPolicy Bypass -File electron/backend/build_backend.ps1",
+    "dist:offline": "npm run build && npm run build:backend && electron-builder"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
@@ -41,6 +43,7 @@
   "build": {
     "appId": "com.erppro.desk",
     "productName": "ERP Pro Desktop",
+    "extraResources": [{ "from": "electron/backend/dist", "to": "backend" }],
     "files": [
       "build/**/*",
       "electron/**/*"

@@ -477,6 +477,10 @@ desk/dist/
 desk/build/
 desk/release/
 
+# Backend embarqué PyInstaller
+desk/electron/backend/dist/
+desk/electron/backend/build/
+
 
 # ============================================================
 # 21. BACKEND FLASK
