@@ -9,6 +9,7 @@ from flask_jwt_extended import JWTManager
 
 
 import os
+import uuid
 from dotenv import load_dotenv
 import logging
 
@@ -123,8 +124,38 @@ def create_app():
             'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
         )
 
+    # Backend embarque dans Electron (desktop hors-ligne) : SQLite local
+    # OBLIGATOIRE + URL du serveur central pour la replication. Ce mode est
+    # reserve au poste de travail ; le serveur central reste en PostgreSQL.
+    _is_local_embedded = os.getenv('FLASK_ENV', '').lower() == 'local-embedded'
+    if _is_local_embedded:
+        local_db_path = os.getenv('LOCAL_DB_PATH')
+        if not local_db_path:
+            raise ValueError(
+                'LOCAL_DB_PATH est requis en mode local-embedded.'
+            )
+        replication_url = os.getenv('REPLICATION_URL')
+        if not replication_url:
+            raise ValueError(
+                "REPLICATION_URL est requis en mode local-embedded "
+                "(URL du serveur central pour la réplication)."
+            )
+        database_url = f'sqlite:///{local_db_path}'
+
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Mode embarque : conserve la trace du mode et les parametres de
+    # replication dans la config de l'app (lus par app/services/replication).
+    app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', '').lower()
+    app.config['LOCAL_EMBEDDED'] = _is_local_embedded
+    if _is_local_embedded:
+        app.config['REPLICATION_URL'] = replication_url
+        app.config['REPLICATION_DEVICE_ID'] = (
+            os.getenv('REPLICATION_DEVICE_ID') or str(uuid.uuid4())
+        )
+        app.config['ENABLE_SOCKETIO'] = False
+
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:
