@@ -21,6 +21,9 @@ from . import permissions
 from . import users
 from . import papi
 from . import admin_devices
+from . import replication
+from . import local_sync
+from . import sync_conflicts
 from . import notifications
 
 # Note: test namespace is imported conditionally in app/__init__.py during API registration
