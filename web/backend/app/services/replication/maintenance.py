@@ -8,7 +8,7 @@
 #    poste qui derive tranche les conflits a tort : on alerte des que l'ecart
 #    avec l'heure du central depasse le seuil.
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app import db
 from app.models.sync_replica import SyncOutbox
@@ -105,7 +105,7 @@ def check_clock_drift(app, tolerance_s=None):
         except ValueError:
             return None
         if parsed.tzinfo is not None:
-            parsed = parsed.astimezone().replace(tzinfo=None)
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
 
         drift = (datetime.utcnow() - parsed).total_seconds()
         app.extensions['clock_drift_seconds'] = drift

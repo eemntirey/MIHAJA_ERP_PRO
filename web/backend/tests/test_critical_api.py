@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from datetime import datetime, timedelta
 from app import create_app, db
@@ -17,7 +18,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -216,10 +217,10 @@ class TestPublicAPI:
 
     def test_public_checkout(self, app):
         tenant, user = _make_tenant()
-        # Pré-requis vitrine : le vendeur doit avoir configuré son compte
-        # marchand Papi ET activé explicitement le toggle vitrine (voir
+        # PrÃ©-requis vitrine : le vendeur doit avoir configurÃ© son compte
+        # marchand Papi ET activÃ© explicitement le toggle vitrine (voir
         # Tenant.is_vitrine_active). Sans cela, la commande publique est
-        # refusée en 403 — comportement volontaire, testé séparément.
+        # refusÃ©e en 403 â€” comportement volontaire, testÃ© sÃ©parÃ©ment.
         tenant.papi_api_key_encrypted = 'enc::test-key'
         tenant.vitrine_enabled = True
         produit = Produit(

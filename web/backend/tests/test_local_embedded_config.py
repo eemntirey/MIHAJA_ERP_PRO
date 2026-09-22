@@ -1,10 +1,11 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 
 
 def test_local_embedded_config_uses_sqlite_file(monkeypatch, tmp_path):
-    # Pas d'importlib.reload : LocalEmbeddedConfig lit l'environnement à
+    # Pas d'importlib.reload : LocalEmbeddedConfig lit l'environnement Ã 
     # l'ACCES (descripteurs _EnvVar / _DeviceIdVar) et validate() lit
-    # os.getenv à l'appel. Le module est déjà importé par conftest.
+    # os.getenv Ã  l'appel. Le module est dÃ©jÃ  importÃ© par conftest.
     monkeypatch.setenv('FLASK_ENV', 'local-embedded')
     monkeypatch.setenv('LOCAL_DB_PATH', str(tmp_path / 'erp-local.db'))
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
@@ -45,7 +46,7 @@ def test_central_production_still_rejects_sqlite(monkeypatch):
 
 def test_central_production_accepts_postgres(monkeypatch):
     monkeypatch.setenv('FLASK_ENV', 'production')
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     from app.config.settings import Config
-    # Aucune exception : PostgreSQL est accepté en production.
+    # Aucune exception : PostgreSQL est acceptÃ© en production.
     Config.validate()

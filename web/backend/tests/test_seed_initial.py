@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 """Tests pour le seed initial.
 
 Garantit :
@@ -19,7 +20,7 @@ from app import create_app, db
 @pytest.fixture
 def dev_app():
     import logging
-    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test'
+    os.environ['DATABASE_URL'] = test_database_url()
     os.environ['JWT_SECRET_KEY'] = 'seed-secret'
     os.environ['SECRET_KEY'] = 'seed-secret'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'
@@ -58,7 +59,7 @@ def dev_app():
 
 @pytest.fixture
 def prod_app():
-    os.environ['DATABASE_URL'] = 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test'
+    os.environ['DATABASE_URL'] = test_database_url()
     os.environ['JWT_SECRET_KEY'] = 'seed-secret'
     os.environ['SECRET_KEY'] = 'seed-secret'
     os.environ['PAPI_API_URL'] = 'https://test.papi.mg/dashboard/api/payment-links'

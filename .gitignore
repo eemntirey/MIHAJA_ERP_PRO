@@ -647,6 +647,11 @@ web/backend/tests/_check_enums.py
 .superpowers/
 .refact/
 
+# Fichiers parasites crees accidentellement en racine (redirects shell / captures)
+nul
+d.txt
+u.txt
+
 # Artefacts de debug/outputs LLM a la racine
 openrouter/
 check_db.py

@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from datetime import datetime, timedelta
 
@@ -12,7 +13,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     app = create_app()
     app.config['TESTING'] = True
@@ -23,7 +24,7 @@ def app(monkeypatch):
 
 
 def _make_context():
-    """CrÃ©e deux tenants (A et B) + un admin + un abonnement actif pour le tenant A."""
+    """CrÃƒÂ©e deux tenants (A et B) + un admin + un abonnement actif pour le tenant A."""
     ta = Tenant(nom='Tenant A', slug='tenant-a', statut=StatutTenant.ACTIF, plan='pro')
     tb = Tenant(nom='Tenant B', slug='tenant-b', statut=StatutTenant.ACTIF, plan='pro')
     db.session.add_all([ta, tb])
@@ -143,7 +144,7 @@ class TestUsersApiTenantIsolation:
         assert 'user_b' not in usernames
 
     def test_roles_accessibles_par_admin_tenant(self, app):
-        # Le module utilisateur charge aussi la liste des rÃ´les pour les filtres/formulaires
+        # Le module utilisateur charge aussi la liste des rÃƒÂ´les pour les filtres/formulaires
         _make_context()
         client = app.test_client()
         headers = _login(client, 'admin_a', 'Admin123!', 'tenant-a')
@@ -167,8 +168,8 @@ class TestUsersApiSecurity:
 
     def test_creation_user_tenant_inexistant_refuse(self, app):
         # Depuis la matrice read-only (2026-09), SUPER_ADMIN n'a plus
-        # 'user.create' : la requête est bloquée par la permission (403)
-        # avant même la validation du tenant (404 historique).
+        # 'user.create' : la requÃªte est bloquÃ©e par la permission (403)
+        # avant mÃªme la validation du tenant (404 historique).
         _make_context()
         client = app.test_client()
         headers = _login(client, 'super', 'Super123!')
@@ -264,9 +265,9 @@ class TestUsersApiSecurity:
         assert 'audit1' in log.description
 
     def test_super_admin_ne_peut_pas_creer_user_tenant(self, app):
-        # SUPER_ADMIN = lecture seule sur les données métier des tenants
-        # (cf. app/security/permission_matrix.py). La création d'un employé
-        # revient à l'admin du tenant; la création d'un tenant provisionne
+        # SUPER_ADMIN = lecture seule sur les donnÃ©es mÃ©tier des tenants
+        # (cf. app/security/permission_matrix.py). La crÃ©ation d'un employÃ©
+        # revient Ã  l'admin du tenant; la crÃ©ation d'un tenant provisionne
         # son admin principal via POST /api/v1/tenants.
         _make_context()
         client = app.test_client()
@@ -329,7 +330,7 @@ class TestSuperAdminTenantDeletion:
         assert r.status_code == 200, r.get_json()
 
         db.session.expunge_all()
-        # Soft-delete : le tenant et les utilisateurs sont desactivés, pas supprimés.
+        # Soft-delete : le tenant et les utilisateurs sont desactivÃ©s, pas supprimÃ©s.
         ta_row = Tenant.query.filter_by(id=ta_id).first()
         assert ta_row is not None
         assert ta_row.is_active is False
@@ -359,7 +360,7 @@ class TestSuperAdminTenantDeletion:
         assert r.status_code == 200, r.get_json()
 
         db.session.expunge_all()
-        # Soft-delete : le tenant reste en base, désactivé.
+        # Soft-delete : le tenant reste en base, dÃ©sactivÃ©.
         ta_row = Tenant.query.filter_by(id=ta_id).first()
         assert ta_row is not None
         assert ta_row.is_active is False

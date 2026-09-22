@@ -1,4 +1,17 @@
 from sqlalchemy import text, event
+import os
+
+
+def test_database_url() -> str:
+    """URL de la base de test, respectant l'environnement.
+
+    Priorité : TEST_DATABASE_URL > DATABASE_URL > défaut local 55432.
+    Le nom de base est normalisé sur ``erp_test``.
+    """
+    _base = (os.getenv('TEST_DATABASE_URL')
+             or os.getenv('DATABASE_URL')
+             or 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
+    return _base.rsplit('/', 1)[0] + '/erp_test'
 
 
 def reset_schema(database) -> None:

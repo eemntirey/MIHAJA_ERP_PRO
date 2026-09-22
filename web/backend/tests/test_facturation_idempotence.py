@@ -20,9 +20,9 @@ from app.models.vente import Vente
 from app.models.facture import Facture
 from app.models.abonnement import Abonnement, StatutAbonnement
 from app.security.auth import hash_password, create_access_token_for_user
-from tests._db_utils import reset_schema
+from tests._db_utils import reset_schema, test_database_url
 
-_TEST_DB = 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test'
+_TEST_DB = test_database_url()
 
 
 @pytest.fixture

@@ -1,13 +1,14 @@
-"""Tests de conformitÃ© pour le catalogue public â€” Protection du stock et des donnÃ©es privÃ©es.
+﻿from tests._db_utils import test_database_url
+"""Tests de conformitÃƒÂ© pour le catalogue public Ã¢â‚¬â€ Protection du stock et des donnÃƒÂ©es privÃƒÂ©es.
 
-VÃ©rifie :
-- Â§1  : Produit publiÃ© avec stock > seuil => visible publiquement
-- Â§2  : Produit au seuil d'alerte => masquÃ© du catalogue public
-- Â§3  : Produit sous le seuil d'alerte => masquÃ© du catalogue public
-- Â§4  : Produit Ã  stock zÃ©ro => masquÃ© du catalogue public
-- Â§5  : Produit non publiÃ© => masquÃ© du catalogue public
-- Â§6  : API publique ne retourne jamais stock_quantity, prix d'achat, marge, fournisseur_id
-- Â§7  : Produit masquÃ© sans rÃ©vÃ©ler la raison (absent, pas message "stock faible")
+VÃƒÂ©rifie :
+- Ã‚Â§1  : Produit publiÃƒÂ© avec stock > seuil => visible publiquement
+- Ã‚Â§2  : Produit au seuil d'alerte => masquÃƒÂ© du catalogue public
+- Ã‚Â§3  : Produit sous le seuil d'alerte => masquÃƒÂ© du catalogue public
+- Ã‚Â§4  : Produit ÃƒÂ  stock zÃƒÂ©ro => masquÃƒÂ© du catalogue public
+- Ã‚Â§5  : Produit non publiÃƒÂ© => masquÃƒÂ© du catalogue public
+- Ã‚Â§6  : API publique ne retourne jamais stock_quantity, prix d'achat, marge, fournisseur_id
+- Ã‚Â§7  : Produit masquÃƒÂ© sans rÃƒÂ©vÃƒÂ©ler la raison (absent, pas message "stock faible")
 """
 import pytest
 from datetime import datetime, timedelta
@@ -22,7 +23,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch, tmp_path):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     application = create_app()
@@ -30,8 +31,8 @@ def app(monkeypatch, tmp_path):
     with application.app_context():
         db.create_all()
         # Ces tests valident les restrictions du MODE COMMERCIAL (toggle ACTIF) :
-        # le catalogue public et le filtrage par module ne s'appliquent qu'à
-        # ce moment (en mode découverte, tous les modules sont ouverts).
+        # le catalogue public et le filtrage par module ne s'appliquent qu'Ã 
+        # ce moment (en mode dÃ©couverte, tous les modules sont ouverts).
         from app.models.platform_config import PlatformConfig
         cfg = PlatformConfig.get_config()
         cfg.is_subscription_active = True
@@ -49,9 +50,9 @@ def _make_tenant_and_admin(client, name, email, plan='starter'):
         domaine=f'{name.lower().replace(" ", "-")}.test',
         statut=StatutTenant.ACTIF,
         plan=plan,
-        # Pré-requis vitrine : abonnement actif (ci-dessous) + compte
-        # marchand Papi configuré + toggle vitrine activé. Sans ces trois
-        # conditions, le tenant n'apparaît pas dans le catalogue public
+        # PrÃ©-requis vitrine : abonnement actif (ci-dessous) + compte
+        # marchand Papi configurÃ© + toggle vitrine activÃ©. Sans ces trois
+        # conditions, le tenant n'apparaÃ®t pas dans le catalogue public
         # (voir Tenant.is_vitrine_active).
         papi_api_key_encrypted='enc::test-key',
         vitrine_enabled=True,
@@ -94,7 +95,7 @@ def _auth(client, email, password='Companie123'):
 class TestPublicCatalogStockFiltering:
 
     def test_published_product_above_alert_is_visible(self, app):
-        """Produit publiÃ© avec stock > seuil => visible publiquement."""
+        """Produit publiÃƒÂ© avec stock > seuil => visible publiquement."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Visible', 'tv@test.mg')
         produit = Produit(
@@ -116,7 +117,7 @@ class TestPublicCatalogStockFiltering:
         assert produit.id in ids
 
     def test_product_at_alert_threshold_is_hidden(self, app):
-        """Produit au seuil d'alerte (stock == seuil) => masquÃ©."""
+        """Produit au seuil d'alerte (stock == seuil) => masquÃƒÂ©."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Seuil', 'ts@test.mg')
         produit = Produit(
@@ -138,7 +139,7 @@ class TestPublicCatalogStockFiltering:
         assert produit.id not in ids
 
     def test_product_below_alert_threshold_is_hidden(self, app):
-        """Produit sous le seuil d'alerte => masquÃ©."""
+        """Produit sous le seuil d'alerte => masquÃƒÂ©."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Bas', 'tb@test.mg')
         produit = Produit(
@@ -160,7 +161,7 @@ class TestPublicCatalogStockFiltering:
         assert produit.id not in ids
 
     def test_product_zero_stock_is_hidden(self, app):
-        """Produit Ã  stock zÃ©ro => masquÃ©."""
+        """Produit ÃƒÂ  stock zÃƒÂ©ro => masquÃƒÂ©."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Zero', 'tz@test.mg')
         produit = Produit(
@@ -182,11 +183,11 @@ class TestPublicCatalogStockFiltering:
         assert produit.id not in ids
 
     def test_unpublished_product_is_hidden(self, app):
-        """Produit non publiÃ© => masquÃ©."""
+        """Produit non publiÃƒÂ© => masquÃƒÂ©."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant NonPub', 'tnp@test.mg')
         produit = Produit(
-            nom='Produit Non PubliÃ©',
+            nom='Produit Non PubliÃƒÂ©',
             reference='NONPUB-001',
             tenant_id=tenant.id,
             published=False,
@@ -241,7 +242,7 @@ class TestPublicCatalogStockFiltering:
         assert 'stock_apres' not in p
 
     def test_hidden_product_does_not_reveal_reason(self, app):
-        """Produit masquÃ© => simplement absent, pas de message 'stock faible'."""
+        """Produit masquÃƒÂ© => simplement absent, pas de message 'stock faible'."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Secret', 'tsec@test.mg')
         produit = Produit(
@@ -262,12 +263,12 @@ class TestPublicCatalogStockFiltering:
         produits = data.get('produits', [])
         assert produit.id not in [p['id'] for p in produits]
 
-        # Le dÃ©tail individuel doit aussi retourner 404
+        # Le dÃƒÂ©tail individuel doit aussi retourner 404
         r2 = client.get(f'/public/produits/{produit.id}', headers={'X-Tenant-Slug': tenant.slug})
         assert r2.status_code == 404
 
     def test_public_product_detail_respects_stock_rule(self, app):
-        """DÃ©tail public d'un produit respecte les mÃªmes rÃ¨gles que la liste."""
+        """DÃƒÂ©tail public d'un produit respecte les mÃƒÂªmes rÃƒÂ¨gles que la liste."""
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Detail', 'td@test.mg')
 
@@ -300,9 +301,9 @@ class TestPublicCatalogStockFiltering:
         assert r_cache.status_code == 404
 
     def test_newly_created_product_default_is_published(self, app):
-        """RÃ©gression : un produit crÃ©Ã© sans prÃ©ciser `published` doit Ãªtre publiÃ© par dÃ©faut.
+        """RÃƒÂ©gression : un produit crÃƒÂ©ÃƒÂ© sans prÃƒÂ©ciser `published` doit ÃƒÂªtre publiÃƒÂ© par dÃƒÂ©faut.
 
-        Couvre le bug d'origine : le dÃ©faut `published=False` rendait les
+        Couvre le bug d'origine : le dÃƒÂ©faut `published=False` rendait les
         produits invisibles du catalogue public tant qu'aucun back-office
         ne les activait explicitement.
         """
@@ -339,8 +340,8 @@ class TestPublicCatalogStockFiltering:
         assert produit.published is True
 
     def test_product_created_without_published_field_is_visible_in_catalog(self, app):
-        """RÃ©gression : produit crÃ©Ã© via le modÃ¨le (comme le fait ProduitService.create)
-        sans champ `published` doit apparaÃ®tre dans /public/produits si le stock le permet.
+        """RÃƒÂ©gression : produit crÃƒÂ©ÃƒÂ© via le modÃƒÂ¨le (comme le fait ProduitService.create)
+        sans champ `published` doit apparaÃƒÂ®tre dans /public/produits si le stock le permet.
         """
         client = app.test_client()
         tenant, _ = _make_tenant_and_admin(client, 'Tenant Nouveau', 'tnouv@test.mg')
@@ -368,7 +369,7 @@ class TestPublicCatalogStockFiltering:
 
     def test_tenant_b_cannot_see_tenant_a_products_in_public_catalog(self, app):
         """Isolation multi-tenant : un produit du tenant A ne doit JAMAIS
-        apparaÃ®tre dans le catalogue public destinÃ© aux visiteurs du tenant B.
+        apparaÃƒÂ®tre dans le catalogue public destinÃƒÂ© aux visiteurs du tenant B.
         """
         client = app.test_client()
         tenant_a, _ = _make_tenant_and_admin(client, 'Tenant Alpha', 'alpha@test.mg')
@@ -415,7 +416,7 @@ class TestPublicCatalogStockFiltering:
 
     def test_tenant_without_active_subscription_products_hidden(self, app):
         """Un tenant sans abonnement actif ne doit voir AUCUN produit dans
-        le catalogue public, mÃªme si ses produits sont publiÃ©s et en stock.
+        le catalogue public, mÃƒÂªme si ses produits sont publiÃƒÂ©s et en stock.
         """
         client = app.test_client()
         tenant_payant, _ = _make_tenant_and_admin(
