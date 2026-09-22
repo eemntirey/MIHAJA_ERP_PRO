@@ -104,6 +104,10 @@ class AuthLogin(Resource):
         # A1 FIX : les tokens sont envoyés en cookies HttpOnly (XSS-safe).
         # Les tokens restent aussi dans le body pour Electron (secureStore).
         resp = {'user': user_data}
+        # Backend embarqué : signale au frontend que la session a été ouverte
+        # hors-ligne (cache local scrypt), afin d'afficher l'état de synchro.
+        if isinstance(result, dict) and result.get('offline') is not None:
+            resp['offline'] = bool(result['offline'])
         if refresh_token:
             resp['access_token'] = access_token
             resp['refresh_token'] = refresh_token

@@ -7,6 +7,7 @@ import { notificationService } from '../../services/desktopApi';
 import Breadcrumbs from './Breadcrumbs';
 import NotificationDropdown from './NotificationDropdown';
 import ThemeToggle from './ThemeToggle';
+import SyncStatus from "@shared/components/SyncStatus/SyncStatus";
 import './DesktopTopBar.css';
 
 const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalette, onToggleSidebar, collapsed, isMobile, onLogout }) => {
@@ -101,6 +102,9 @@ const DesktopTopBar = ({ darkMode, onToggleDarkMode, counters = {}, onOpenPalett
         )}
 
                 <ThemeToggle enabled={darkMode} onChange={onToggleDarkMode} />
+        <div className="sync-badge-wrapper" style={{ marginLeft: 8 }}>
+          <SyncStatus />
+        </div>
 
         {onLogout && (
           <button type="button" className="topbar-icon-btn" onClick={onLogout} title="Déconnexion" aria-label="Déconnexion">

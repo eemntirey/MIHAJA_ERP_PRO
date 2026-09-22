@@ -15,6 +15,25 @@ import logging
 
 load_dotenv()
 
+# Variables injectées par le processus parent (Electron lance le backend
+# embarqué avec FLASK_ENV/LOCAL_DB_PATH/REPLICATION_URL/REPLICATION_DEVICE_ID)
+# ou par l'environnement de test (TEST_DATABASE_URL, FLASK_ENV=testing) : elles
+# doivent PRIMER sur .env/.env.local. Sans ce garde-fou, `.env.local` (chargé
+# avec override=True) imposerait la configuration du poste de développement et
+# le central comme la suite de tests utiliseraient la base du backend embarqué.
+_PROCESS_ENV_KEYS = (
+    'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
+    'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
+    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY',
+)
+_process_env_snapshot = {
+    key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
+}
+
+load_dotenv('.env.local', override=True)
+
+os.environ.update(_process_env_snapshot)
+
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
@@ -129,18 +148,14 @@ def create_app():
     # reserve au poste de travail ; le serveur central reste en PostgreSQL.
     _is_local_embedded = os.getenv('FLASK_ENV', '').lower() == 'local-embedded'
     if _is_local_embedded:
+        from app.config.settings import LocalEmbeddedConfig
+        # Config dédiée au poste de travail : SQLite local + URL du central.
+        # `validate()` leve une ValueError explicite si l'un des deux manque
+        # (mêmes messages que ceux attendus par le poste desktop).
+        LocalEmbeddedConfig.validate()
         local_db_path = os.getenv('LOCAL_DB_PATH')
-        if not local_db_path:
-            raise ValueError(
-                'LOCAL_DB_PATH est requis en mode local-embedded.'
-            )
-        replication_url = os.getenv('REPLICATION_URL')
-        if not replication_url:
-            raise ValueError(
-                "REPLICATION_URL est requis en mode local-embedded "
-                "(URL du serveur central pour la réplication)."
-            )
-        database_url = f'sqlite:///{local_db_path}'
+        database_url = LocalEmbeddedConfig.SQLALCHEMY_DATABASE_URI
+        replication_url = LocalEmbeddedConfig.REPLICATION_URL
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -154,6 +169,7 @@ def create_app():
         app.config['REPLICATION_DEVICE_ID'] = (
             os.getenv('REPLICATION_DEVICE_ID') or str(uuid.uuid4())
         )
+        app.config['LOCAL_DB_PATH'] = local_db_path
         app.config['ENABLE_SOCKETIO'] = False
 
 
@@ -203,8 +219,33 @@ def create_app():
     app.config['PROPAGATE_EXCEPTIONS'] = True
     app.url_map.strict_slashes = False
 
+    # Réglages d'entretien de la réplication (cf.
+    # app/services/replication/maintenance.py). Valeurs surchargeables par
+    # l'environnement du poste, sans redéploiement.
+    try:
+        app.config['SYNC_OUTBOX_RETENTION_DAYS'] = int(
+            os.getenv('SYNC_OUTBOX_RETENTION_DAYS', 30)
+        )
+    except ValueError:
+        app.config['SYNC_OUTBOX_RETENTION_DAYS'] = 30
+    try:
+        app.config['SYNC_CLOCK_DRIFT_TOLERANCE_S'] = int(
+            os.getenv('SYNC_CLOCK_DRIFT_TOLERANCE_S', 300)
+        )
+    except ValueError:
+        app.config['SYNC_CLOCK_DRIFT_TOLERANCE_S'] = 300
+
     db.init_app(app)
     migrate.init_app(app, db)
+
+    # Enregistrement du listener outbox uniquement en mode local-embedded :
+    # seules les écritures dans la base SQLite locale sont capturées (un test
+    # peut héberger un central et un poste dans le même processus).
+    if _is_local_embedded:
+        from app.services.replication.outbox import register_outbox_listeners
+        register_outbox_listeners(
+            db, local_db_path=app.config.get('LOCAL_DB_PATH'),
+        )
 
     from app.security.tenant import register_tenant_filter_event
     with app.app_context():
@@ -502,6 +543,14 @@ def create_app():
     from app.api.v1.super_admin import ns as super_admin_ns
     from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
+    from app.api.v1.replication import ns as replication_ns
+    # Etat et conflits de replication du POSTE (backend embarque). Enregistres
+    # ici sans condition, comme `replication_ns` : sur le serveur central ces
+    # tables ne sont jamais alimentees (elles sont locales au poste), mais
+    # l'enregistrement systematique evite un 404 cote poste et garde les deux
+    # moities de la fonctionnalite testables avec un seul `create_app()`.
+    from app.api.v1.local_sync import ns as local_sync_ns
+    from app.api.v1.sync_conflicts import ns as sync_conflicts_ns
     from app.api.v1.entrepots import ns as entrepots_ns
     from app.api.v1.desk import desk_bp
 
@@ -569,6 +618,16 @@ def create_app():
     api.add_namespace(papi_ns, path='/api/v1/papi')
     api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
+    api.add_namespace(replication_ns, path='/api/v1/sync/replicate')
+    # Cote POSTE : /api/v1/sync/local-status (badge d'etat, cf. SyncStatus.jsx)
+    # et /api/v1/sync/conflicts (+ /<id>/resolve). Sans ces deux lignes, le
+    # badge reste sur « Serveur local injoignable » et l'ecran de conflits
+    # renvoie 404 : le moteur de replication fonctionne mais n'est pas pilotable.
+    # NB : le `path` explicite REMPLACE le nom du namespace dans l'URL
+    # (flask-restx) — il doit donc contenir le prefixe complet attendu par le
+    # client (`/api/v1/sync/...`), pas seulement `/api/v1`.
+    api.add_namespace(local_sync_ns, path='/api/v1/sync')
+    api.add_namespace(sync_conflicts_ns, path='/api/v1/sync/conflicts')
     api.add_namespace(entrepots_ns, path='/api/v1/entrepots')
 
     app.register_blueprint(desk_bp)

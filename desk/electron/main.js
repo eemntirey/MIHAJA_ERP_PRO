@@ -1,6 +1,7 @@
 // desk/electron/main.js
 // Processus principal Electron pour l'application desktop ERP Pro.
 const { app, BrowserWindow, Menu, ipcMain, Notification, dialog, safeStorage } = require('electron');
+const backendHost = require('./backendHost');
 const path = require('path');
 const fs = require('fs');
 
@@ -184,7 +185,7 @@ function buildMenu() {
   return Menu.buildFromTemplate(template);
 }
 
-function createWindow() {
+function createWindow(port) {
   win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -283,11 +284,15 @@ function createWindow() {
     }
   });
 
+  // Port du backend local embarqué
+  ipcMain.handle('backend:port', () => backendHost.getPort());
+
   if (isDev) {
-    win.loadURL(DEV_URL);
+    const url = port ? `${DEV_URL}/?backendPort=${port}` : DEV_URL;
+    win.loadURL(url);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'build', 'index.html'));
+    win.loadFile(path.join(__dirname, '..', 'build', 'index.html'), port ? { query: { backendPort: String(port) } } : {});
   }
 
   // === Electron Security (OWASP) ===
@@ -324,15 +329,27 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(buildMenu());
   registerSecureStoreHandlers();
-  createWindow();
+  let port = null;
+  try {
+    const started = await backendHost.startLocalBackend();
+    port = started.port;
+  } catch (err) {
+    // La fenêtre s'ouvre quand même : écran d'erreur géré côté renderer.
+    dialog.showErrorBox(
+      'Erreur de démarrage',
+      "Impossible de démarrer le serveur local.\n" + String(err));
+  }
+  createWindow(port);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(port);
   });
 });
+
+app.on('before-quit', () => backendHost.stopLocalBackend());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

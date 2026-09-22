@@ -599,6 +599,11 @@ web/backend/_*.txt
 web/backend/_*.py
 web/backend/_*.ps1
 
+# Sorties d'extraction PDF / debug divers des scripts
+scripts/gen_out*.txt
+scripts/pdf_content.txt
+scripts/tail.txt
+
 # Export web statique genere (mobile)
 mobile/dist-web/
 
@@ -628,8 +633,25 @@ create_user_latex.py
 web/backend/create_test_users_final.py
 web/backend/scripts/upload_real_images.py
 
+# Utilitaires locaux de debug avec credentials en dur (jamais commités)
+web/backend/tests/kill_zombies.py
+web/backend/tests/_check_enums.py
+
 # Etat local des outils d'agents
+.aider*
 .freebuff/
 .kilo/diag/
-.kilocode/tasks/
+.kilo/worktrees/*
+.kilocode/
+.worktrees/
+.superpowers/
 .refact/
+
+# Artefacts de debug/outputs LLM a la racine
+openrouter/
+check_db.py
+zz_*
+_*.txt
+_*.log
+install.log
+build.log

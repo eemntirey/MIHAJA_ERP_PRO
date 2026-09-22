@@ -214,6 +214,14 @@ def _login_failed(identifier, reason):
 def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
     tenant = None
 
+    # Backend embarque (desktop hors-ligne) : la verification passe par le
+    # cache local lorsque le central est injoignable (cf. local_auth.py).
+    if current_app.config.get('LOCAL_EMBEDDED'):
+        from app.services.local_auth import authenticate_local_device
+        return authenticate_local_device(
+            identifier, password, tenant_slug=tenant_slug, device_id=device_id,
+        )
+
     if tenant_slug:
         tenant = Tenant.query.filter_by(slug=tenant_slug, is_active=True).first()
         if not tenant:

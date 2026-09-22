@@ -125,28 +125,115 @@ class SyncAppliedKey(db.Model):
     applied_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
-class SyncState(db.Model):
-    """État de réplication local, une ligne par tenant."""
-    __tablename__ = 'sync_state'
+class SyncCentralLog(db.Model):
+    """Journal central des révisions (pull côté serveur)."""
+    __tablename__ = 'sync_central_log'
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, nullable=False, index=True)
+    entity = db.Column(db.String(64), nullable=False, index=True)
+    entity_pk = db.Column(db.Integer, nullable=False)
+    op = db.Column(db.String(10), nullable=False)  # INSERT | UPDATE | DELETE
+    payload = db.Column(db.JSON, nullable=True)
+    revision = db.Column(db.BigInteger, nullable=False, index=True, default=0)
+    # Poste d'origine de la mutation : le pull local ignore ses propres
+    # mutations (sinon la ligne déjà présente localement serait recréée).
+    source_device_id = db.Column(db.String(64), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class SyncLocalMapping(db.Model):
+    """Correspondance clé primaire locale (SQLite) <-> PK du serveur central.
+
+    Risque n°6 du plan : les ids locaux diffèrent des ids centraux. Toute
+    référence croisée (UPDATE/DELETE d'un enregistrement déjà poussé) doit
+    passer par cette table, alimentée par le push (server_pk renvoyé) et par
+    le pull (change appliqué localement).
+    """
+    __tablename__ = 'sync_local_mappings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, nullable=False, index=True)
+    entity = db.Column(db.String(64), nullable=False, index=True)
+    local_pk = db.Column(db.Integer, nullable=False, index=True)
+    remote_pk = db.Column(db.Integer, nullable=False, index=True)
+    local_uuid = db.Column(db.String(36), nullable=True)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint('tenant_id', 'entity', 'local_pk',
+                            name='uq_sync_mapping_tenant_entity_local'),
+        db.UniqueConstraint('tenant_id', 'entity', 'remote_pk',
+                            name='uq_sync_mapping_tenant_entity_remote'),
+    )
+
+    @classmethod
+    def upsert(cls, tenant_id, entity, local_pk, remote_pk, local_uuid=None):
+        """Enregistre (ou met à jour) la correspondance pour une entité."""
+        row = cls.query.filter_by(
+            tenant_id=tenant_id, entity=entity, local_pk=local_pk
+        ).first()
+        if row is None:
+            row = cls(
+                tenant_id=tenant_id, entity=entity, local_pk=local_pk,
+                remote_pk=remote_pk, local_uuid=local_uuid,
+            )
+            db.session.add(row)
+        else:
+            row.remote_pk = remote_pk
+            if local_uuid:
+                row.local_uuid = local_uuid
+        return row
+
+    @classmethod
+    def remote_pk_for(cls, entity, local_pk):
+        """PK central correspondant à un PK local (None si jamais poussé)."""
+        row = cls.query.filter_by(entity=entity, local_pk=local_pk).first()
+        return row.remote_pk if row else None
+
+    @classmethod
+    def local_pk_for(cls, entity, remote_pk):
+        """PK local correspondant à un PK central (None si inconnu)."""
+        row = cls.query.filter_by(entity=entity, remote_pk=remote_pk).first()
+        return row.local_pk if row else None
+
+
+class SyncState(db.Model):
+    """État de réplication local (ligne unique id=1)."""
+    __tablename__ = 'sync_state'
+
+    id = db.Column(db.Integer, primary_key=True, default=1)
     online = db.Column(db.Boolean, nullable=False, default=False)
     pending_count = db.Column(db.Integer, nullable=False, default=0)
     last_push_at = db.Column(db.DateTime, nullable=True)
     last_pull_at = db.Column(db.DateTime, nullable=True)
     last_error = db.Column(db.Text, nullable=True)
-
-    __table_args__ = (
-        db.UniqueConstraint('tenant_id', name='uq_sync_state_tenant'),
-    )
+    # Jeton JWT du central servant à authentifier le push/pull. Renseigné au
+    # login en ligne (proxy vers le central) ; vide = poste jamais connecté
+    # ou session expirée (il faut se reconnecter en ligne).
+    service_token = db.Column(db.Text, nullable=True)
 
     @classmethod
-    def get_or_create(cls, tenant_id):
-        """Retourne ou crée la ligne d'état du tenant donné."""
-        state = cls.query.filter_by(tenant_id=tenant_id).first()
+    def get_or_create(cls):
+        state = db.session.get(cls, 1)
         if state is None:
-            state = cls(tenant_id=tenant_id)
+            state = cls(id=1)
             db.session.add(state)
             db.session.commit()
         return state
+
+    @classmethod
+    def set_service_token(cls, token):
+        state = cls.get_or_create()
+        state.service_token = token
+        db.session.commit()
+        return state
+
+    @classmethod
+    def get_service_token(cls):
+        state = cls.get_or_create()
+        return state.service_token
+

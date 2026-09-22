@@ -18,7 +18,9 @@ if __name__ == '__main__':
 
     debug = os.getenv('FLASK_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
     host = os.getenv('FLASK_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_PORT', 5000))
+    # Mode local-embedded : le backend embarqué écoute sur le port dynamique
+    # assigné par Electron (LOCAL_API_PORT), sinon sur FLASK_PORT.
+    port = int(os.getenv('LOCAL_API_PORT') or os.getenv('FLASK_PORT', 5000))
 
     # P2 audit : ne jamais laisser le debugger Werkzeug actif en production.
     is_production = os.getenv('FLASK_ENV', '').strip().lower() == 'production'

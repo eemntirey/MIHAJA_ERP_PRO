@@ -86,7 +86,16 @@ class Utilisateur(BaseModel):
     token_version = db.Column(
         db.Integer, default=0, nullable=False
     )
-    
+
+    # ================================================================
+    # Cache d'identifiants du backend embarque (desktop hors-ligne)
+    # ================================================================
+    # Renseigne UNIQUEMENT par le backend local (FLASK_ENV=local-embedded)
+    # lors d'un login reussi en ligne : hash scrypt du mot de passe, qui
+    # permet de s'authentifier sans reseau. Jamais utilise par le serveur
+    # central (qui reste sur bcrypt/password_hash).
+    local_password_hash = db.Column(db.String(255), nullable=True)
+
     tenant = db.relationship('Tenant', back_populates='utilisateurs', foreign_keys='Utilisateur.tenant_id')
     clients = db.relationship('Client', back_populates='commercial', foreign_keys='Client.commercial_id', lazy='dynamic')
     ventes = db.relationship('Vente', back_populates='commercial', foreign_keys='Vente.commercial_id', lazy='dynamic')
