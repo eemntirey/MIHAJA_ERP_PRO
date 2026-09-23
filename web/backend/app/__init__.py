@@ -306,7 +306,17 @@ def create_app():
             _dynamic_extra.append(_origin_env_hint)
         else:
             logger.warning('FRONTEND_URL ignoré (schéma invalide): %s', _origin_env_hint)
-    CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
+    # Origines de déploiement connues : elles restent explicitement autorisées
+    # même si le service Render existant n'a pas encore resynchronisé
+    # CORS_ORIGINS depuis render.yaml. Liste exacte uniquement (jamais *.onrender.com).
+    _DEPLOYED_FRONTEND_ORIGINS = [
+        'https://erp.sekoliko.com',
+        'https://mihaja-erp-frontend-796e-qdh1.onrender.com',
+        'https://mihaja-erp-frontend-796e.onrender.com',
+    ]
+    CORS_ORIGINS = list(dict.fromkeys(
+        CORS_ORIGINS + _dynamic_extra + _DEPLOYED_FRONTEND_ORIGINS
+    ))
 
     # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
     # clé dans app.config, le handshake /socket.io n'autorise que
