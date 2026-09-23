@@ -1,4 +1,5 @@
 from flask_restx import Namespace, Resource, fields
+from datetime import datetime, timedelta
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
 from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats
@@ -30,8 +31,31 @@ class VenteList(Resource):
     @tenant_required_readonly
     def get(self):
         """Liste toutes les ventes"""
+        # Filtres de date optionnels : strptime GARDE pour qu'une date
+        # invalide (ou vide) donne un 400 francais, jamais un 500 (P0 #16).
+        date_debut = request.args.get('date_debut')
+        date_fin = request.args.get('date_fin')
+        debut = fin = None
+        if date_debut is not None:
+            try:
+                debut = datetime.strptime(date_debut, '%Y-%m-%d')
+            except (TypeError, ValueError):
+                return {'message': 'Format de date invalide (AAAA-MM-JJ).'}, 400
+        if date_fin is not None:
+            try:
+                fin = datetime.strptime(date_fin, '%Y-%m-%d')
+            except (TypeError, ValueError):
+                return {'message': 'Format de date invalide (AAAA-MM-JJ).'}, 400
         try:
             ventes = get_sales_summary()
+            if debut is not None or fin is not None:
+                borne_fin = fin + timedelta(days=1) if fin is not None else None
+                ventes = [
+                    v for v in ventes
+                    if v.date is not None
+                    and (debut is None or v.date >= debut)
+                    and (borne_fin is None or v.date < borne_fin)
+                ]
             result = []
             for v in ventes:
                 d = v.to_dict()

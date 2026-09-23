@@ -199,6 +199,77 @@ class TestDocumentAPI:
         assert r.status_code == 201
 
 
+class TestVenteDateFilter:
+    """Filtres de date sur GET /ventes : 400 sur date invalide, jamais 500.
+
+    Verrou P0 #16 : un strptime de filtre sans garde provoque une erreur 500.
+    Le endpoint doit repondre 400 avec un message francais explicite.
+    """
+
+    def test_date_debut_invalide_retourne_400(self, app):
+        tenant, user = _make_tenant()
+        client = app.test_client()
+        headers = _login(client, 'admin@test.com', 'Admin123!', 'test-tenant')
+        r = client.get('/api/v1/ventes/?date_debut=not-a-date', headers=headers)
+        assert r.status_code == 400, r.get_json()
+        assert 'Format de date invalide' in r.get_json()['message']
+
+    def test_date_fin_invalide_retourne_400(self, app):
+        tenant, user = _make_tenant()
+        client = app.test_client()
+        headers = _login(client, 'admin@test.com', 'Admin123!', 'test-tenant')
+        r = client.get('/api/v1/ventes/?date_fin=13-13-2026', headers=headers)
+        assert r.status_code == 400, r.get_json()
+        assert 'Format de date invalide' in r.get_json()['message']
+
+    def test_date_vide_retourne_400(self, app):
+        tenant, user = _make_tenant()
+        client = app.test_client()
+        headers = _login(client, 'admin@test.com', 'Admin123!', 'test-tenant')
+        r = client.get('/api/v1/ventes/?date_debut=', headers=headers)
+        assert r.status_code == 400, r.get_json()
+        assert 'Format de date invalide' in r.get_json()['message']
+
+    def test_sans_parametre_date_retourne_200(self, app):
+        tenant, user = _make_tenant()
+        client = app.test_client()
+        headers = _login(client, 'admin@test.com', 'Admin123!', 'test-tenant')
+        r = client.get('/api/v1/ventes/', headers=headers)
+        assert r.status_code == 200, r.get_json()
+
+    def test_filtre_periode_retourne_ventes_dans_la_periode(self, app):
+        tenant, user = _make_tenant()
+        client = app.test_client()
+        headers = _login(client, 'admin@test.com', 'Admin123!', 'test-tenant')
+        with app.app_context():
+            cli = Client(code='CL-FILTRE', nom='Filtre', tenant_id=tenant.id)
+            db.session.add(cli)
+            db.session.flush()
+            db.session.add_all([
+                Vente(
+                    reference='VENT-FILTRE-JANV',
+                    client_id=cli.id,
+                    date=datetime(2026, 1, 10, 9, 0),
+                    tenant_id=tenant.id,
+                ),
+                Vente(
+                    reference='VENT-FILTRE-JUIN',
+                    client_id=cli.id,
+                    date=datetime(2026, 6, 15, 9, 0),
+                    tenant_id=tenant.id,
+                ),
+            ])
+            db.session.commit()
+        r = client.get(
+            '/api/v1/ventes/?date_debut=2026-06-01&date_fin=2026-06-30',
+            headers=headers,
+        )
+        assert r.status_code == 200, r.get_json()
+        refs = [v['reference'] for v in r.get_json()['ventes']]
+        assert 'VENT-FILTRE-JUIN' in refs
+        assert 'VENT-FILTRE-JANV' not in refs
+
+
 class TestPublicAPI:
     def test_public_catalogue(self, app):
         tenant, user = _make_tenant()
