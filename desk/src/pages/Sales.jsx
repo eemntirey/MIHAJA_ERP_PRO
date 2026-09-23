@@ -185,6 +185,10 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   };
 
   const handleProduitChange = (index, produitId) => {
+    // B1 (miroir web) : register() ne capture pas la valeur quand on lui
+    // écrase onChange — écrire explicitement produit_id dans le formulaire.
+    const pid = produitId === '' ? '' : Number(produitId);
+    setValue(`lignes.${index}.produit_id`, pid, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     const product = products.find(p => p.id === Number(produitId));
     const clientType = clients.find(c => c.id === Number(watch('client_id')))?.type;
     setValue(`lignes.${index}.prix_unitaire`, product ? getPrixAuto(product, watch('type_vente'), clientType) : 0, { shouldValidate: true });
@@ -288,7 +292,14 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
             </div>
             <div className="form-group">
               <label>Type de vente</label>
-              <select {...register('type_vente')} onChange={(e) => handleTypeVenteChange(e.target.value)}>
+              <select
+                {...register('type_vente')}
+                onChange={(e) => {
+                  // Ne pas écraser l'onChange de register : composer les deux.
+                  register('type_vente').onChange(e);
+                  handleTypeVenteChange(e.target.value);
+                }}
+              >
                 <option value="detail">Détail (prix public)</option>
                 <option value="gros">Gros (prix grossiste)</option>
               </select>
