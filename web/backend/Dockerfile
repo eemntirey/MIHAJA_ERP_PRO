@@ -18,8 +18,9 @@ RUN groupadd --system app && useradd --system --gid app --create-home --home-dir
 COPY backend/app ./app
 COPY backend/migrations ./migrations
 COPY backend/scripts ./scripts
-COPY backend/instance ./instance
-COPY backend/uploads ./uploads
+# instance/ et uploads/ sont gitignorés : créer les dossiers à vide
+# (sinon COPY échoue si le dossier n'existe pas dans le build context)
+RUN mkdir -p ./instance ./uploads
 COPY backend/run.py backend/run_socket.py ./
 
 RUN chown -R app:app /app
