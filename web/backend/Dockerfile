@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=600 --retries=20 --disable-pip-version-check -r requirements.txt \
-    && python -c "import barcode; print('python-barcode OK:', barcode.__version__)"
+    && python -c "import barcode; print('python-barcode OK')"
 
 # Create and use a non-root user
 RUN groupadd --system app && useradd --system --gid app --create-home --home-dir /home/app app
