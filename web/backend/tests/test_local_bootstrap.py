@@ -35,6 +35,71 @@ def test_bootstrap_is_idempotent(local_app):
         assert RoleModel.query.count() == before
 
 
+def test_repair_missing_columns_non_nullable_python_default(local_app):
+    """Colonnes tombes d'une base deja stamped head : la reparation les remet.
+
+    Pathologie de l'incident 2026-09-22 : base creee par create_all + stamp
+    head, colonnes ajoutees ensuite aux modeles absentes du schema.
+    upgrade() est no-op (deja a la tete) ; seul _repair_missing_columns peut
+    agir. Ici produits.stock_min (default Python 0, pas de server_default) et
+    produits.published (non-nullable, default Python True, pas de
+    server_default) doivent etre repares, avec un defaut serveur aligne sur
+    la migration — sinon SELECT echoue avec "no such column".
+    """
+    from sqlalchemy import inspect, text
+
+    from app import db
+    from app.services.local_bootstrap import (
+        _repair_missing_columns, ensure_local_db_ready,
+    )
+
+    # Schema complet + Alembic stamped head (1re installation).
+    ensure_local_db_ready(local_app)
+
+    with local_app.app_context():
+        # Simule la base ancienne : les colonnes manquent au schema.
+        db.session.execute(text('ALTER TABLE produits DROP COLUMN stock_min'))
+        db.session.execute(text('ALTER TABLE produits DROP COLUMN published'))
+        db.session.commit()
+        avant = {
+            c['name'] for c in inspect(db.engine).get_columns('produits')
+        }
+        assert 'stock_min' not in avant and 'published' not in avant
+
+        # Chemin de reparation (le 2e appel du bootstrap, upgrade no-op).
+        _repair_missing_columns()
+
+        cols = {
+            c['name']: c
+            for c in inspect(db.engine).get_columns('produits')
+        }
+        assert 'stock_min' in cols, (
+            'produits.stock_min non repare (default Python ignore)'
+        )
+        assert 'published' in cols, (
+            'produits.published non repare '
+            '(non-nullable sans server_default)'
+        )
+        # Drift en trois voies : le defaut doit etre aligne migration/modele.
+        assert cols['stock_min']['default'] is not None, (
+            'produits.stock_min repare sans defaut serveur (drift migration)'
+        )
+        assert cols['published']['default'] is not None, (
+            'produits.published NOT NULL repare sans defaut serveur'
+        )
+        # Symptome incident : SELECT echouait "no such column".
+        db.session.execute(text(
+            'SELECT reference, stock_min, published FROM produits'
+        ))
+
+        # Idempotence : un second passage n'ajoute ni ne casse rien.
+        _repair_missing_columns()
+        apres = {
+            c['name'] for c in inspect(db.engine).get_columns('produits')
+        }
+        assert 'stock_min' in apres and 'published' in apres
+
+
 def test_offline_login_uses_cached_credentials(
     local_embedded_app, cached_local_user, client
 ):

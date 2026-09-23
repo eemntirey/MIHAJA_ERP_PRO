@@ -3,8 +3,11 @@
 #
 # Appelé au démarrage du backend local (run.py / run_local.py) : première
 # installation -> création du schéma + stamp Alembic ; ensuite, no-op.
+import datetime
+import enum
 import logging
 import re
+from decimal import Decimal
 
 from sqlalchemy import inspect as sa_inspect
 
@@ -38,6 +41,69 @@ def _render_server_default(server_default):
     return "'" + rendered.replace("'", "''") + "'"
 
 
+def _render_value_literal(value):
+    """Rend une valeur Python en littéral SQL, ou None si non rendable."""
+    if isinstance(value, enum.Enum):
+        value = value.value
+    if isinstance(value, bool):
+        return '1' if value else '0'
+    if isinstance(value, (int, float, Decimal)):
+        return str(value)
+    if value is None:
+        return 'NULL'
+    if isinstance(value, (str, datetime.date)):
+        # datetime est une sous-classe de date.
+        return "'" + str(value).replace("'", "''") + "'"
+    return None
+
+
+def _placeholder_literal(column_type):
+    """Placeholder SQL sûr pour une colonne NOT NULL sans défaut rendable."""
+    from sqlalchemy import types as sql_types
+    if isinstance(column_type, sql_types.Boolean):
+        return '0'
+    if isinstance(column_type, sql_types.Integer):
+        return '0'
+    if isinstance(column_type, sql_types.Numeric):
+        return '0'
+    if isinstance(column_type, sql_types.DateTime):
+        return "'1970-01-01 00:00:00'"
+    if isinstance(column_type, sql_types.Date):
+        return "'1970-01-01'"
+    if isinstance(column_type, sql_types.Enum):
+        # Enum natif : '' peut être invalide, pas de placeholder sûr.
+        return None
+    if isinstance(column_type, sql_types.String):
+        return "''"
+    return None
+
+
+def _column_default_literal(column):
+    """Défaut serveur à utiliser pour ALTER TABLE ADD COLUMN.
+
+    Comble le drift en trois voies modèle/migration/réparation :
+
+    1. `server_default` (modèle ou migration, ex. produits.published = 1) ;
+    2. `default` Python du modèle (colonnes déclarées sans server_default,
+       ex. produits.stock_min = 0, employes.conges_credit_annuel = 30) ;
+    3. placeholder selon le type pour une colonne NOT NULL sans défaut.
+
+    Retourne None si aucun défaut n'est applicable (colonne nullable sans
+    défaut, ou type sans placeholder sûr) — l'appelant décide alors.
+    """
+    if column.server_default is not None:
+        return _render_server_default(column.server_default)
+    if column.default is not None:
+        arg = getattr(column.default, 'arg', column.default)
+        if not callable(arg):
+            literal = _render_value_literal(arg)
+            if literal is not None:
+                return literal
+    if not column.nullable:
+        return _placeholder_literal(column.type)
+    return None
+
+
 def _repair_missing_columns():
     """Ajoute les colonnes des modèles absentes de la base locale.
 
@@ -46,8 +112,11 @@ def _repair_missing_columns():
     (même pathologie que l'incident central du 2026-09-22 sur instance/erp.db,
     colonnes produits.stock_min / utilisateurs.local_password_hash manquantes).
     SQLite autorise ALTER TABLE ADD COLUMN pour une colonne nullable ou avec
-    défaut serveur ; chaque ajout est journalisé et n'interrompt jamais le
-    démarrage du poste.
+    défaut serveur ; pour une colonne NOT NULL déclarée sans server_default
+    (drift modèle/migration, ex. produits.published), le défaut est dérivé du
+    `default` Python du modèle puis, à défaut, d'un placeholder de type, afin
+    que la réparation ne soit jamais bloquée. Chaque ajout est journalisé et
+    n'interrompt jamais le démarrage du poste.
     """
     from app import db
     from sqlalchemy import text
@@ -68,9 +137,10 @@ def _repair_missing_columns():
         for column in table.columns:
             if column.name in existing_cols:
                 continue
-            if not column.nullable and column.server_default is None:
+            default_literal = _column_default_literal(column)
+            if default_literal is None and not column.nullable:
                 logger.warning(
-                    'Colonne %s.%s non-nullable sans défaut serveur : '
+                    'Colonne %s.%s non-nullable sans défaut exploitable : '
                     'ajout ignoré (schéma local à reconstruire).',
                     table.name, column.name,
                 )
@@ -78,11 +148,8 @@ def _repair_missing_columns():
             try:
                 col_type = column.type.compile(dialect=dialect)
                 default_sql = ''
-                if column.server_default is not None:
-                    default_sql = (
-                        ' DEFAULT '
-                        + _render_server_default(column.server_default)
-                    )
+                if default_literal is not None:
+                    default_sql = ' DEFAULT ' + default_literal
                 db.session.execute(text(
                     f'ALTER TABLE {table.name} ADD COLUMN '
                     f'{column.name} {col_type}{default_sql}'
