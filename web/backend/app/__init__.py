@@ -24,7 +24,7 @@ load_dotenv()
 _PROCESS_ENV_KEYS = (
     'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
     'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
-    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY',
+    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY', 'REDIS_URL',
 )
 _process_env_snapshot = {
     key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
@@ -158,6 +158,15 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Redis est utilise par le rate-limit et Celery. La variable du processus
+    # doit primer sur .env.local et etre exposee explicitement dans Flask.
+    redis_url = os.getenv('REDIS_URL', '').strip()
+    if not redis_url:
+        redis_url = 'redis://localhost:6379/0'
+    app.config['REDIS_URL'] = redis_url
+    app.config['CELERY_BROKER_URL'] = redis_url
+    app.config['CELERY_RESULT_BACKEND'] = redis_url
 
     # Mode embarque : conserve la trace du mode et les parametres de
     # replication dans la config de l'app (lus par app/services/replication).
