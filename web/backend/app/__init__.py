@@ -24,7 +24,7 @@ load_dotenv()
 _PROCESS_ENV_KEYS = (
     'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
     'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
-    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY', 'REDIS_URL',
+    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY', 'REDIS_URL', 'CORS_ORIGINS',
 )
 _process_env_snapshot = {
     key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
