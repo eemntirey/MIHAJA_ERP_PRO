@@ -103,10 +103,17 @@ async function startLocalBackend() {
     FLASK_ENV: 'local-embedded',
     LOCAL_DB_PATH: path.join(dbDir, 'erp-local.db'),
     LOCAL_API_PORT: String(port),
-    REPLICATION_URL: cfg.replicationUrl || process.env.REPLICATION_URL || 'https://erp.mihaja.mg',
+    REPLICATION_URL: cfg.replicationUrl || process.env.REPLICATION_URL || 'http://127.0.0.1:5000',
     SECRET_KEY: cfg.secretKey || 'local-embedded-secret-a-remplacer',
     JWT_SECRET_KEY: cfg.jwtSecretKey || 'local-embedded-jwt-a-remplacer',
   };
+  if (!cfg.secretKey || !cfg.jwtSecretKey) {
+    console.warn(
+      '[backend-local] SECRET_KEY ou JWT_SECRET_KEY non configuré : '
+      + 'valeur par défaut local-embedded-*-a-remplacer utilisée '
+      + '(réservée à la démo locale, à remplacer avant toute mise en service).'
+    );
+  }
 
   if (isDev) {
     const pythonCmd = await resolvePython(backendRoot);
