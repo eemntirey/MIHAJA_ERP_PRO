@@ -70,11 +70,17 @@ def _reset_postgresql(database) -> None:
     def _do_drop():
         engine = database.engine
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            # 1. Kill zombie connections holding locks on erp_test.
+            # 1. Tuer uniquement les connexions qui peuvent verrouiller le
+            #    schéma (requête en cours, transaction ouverte). On NE touche
+            #    PAS aux connexions "idle" du pool : à plusieurs applications
+            #    de test (app session + app locales), les tuer provoquait
+            #    "server closed the connection" sur les tests suivants.
             conn.execute(text(
                 "SELECT pg_terminate_backend(pid) "
                 "FROM pg_stat_activity "
-                "WHERE datname = current_database() AND pid <> pg_backend_pid()"
+                "WHERE datname = current_database() "
+                "AND pid <> pg_backend_pid() "
+                "AND state NOT IN ('idle')"
             ))
 
             # 2. Drop and recreate the public schema.

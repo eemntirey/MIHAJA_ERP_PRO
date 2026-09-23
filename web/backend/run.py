@@ -18,6 +18,10 @@ if __name__ == '__main__':
 
     debug = os.getenv('FLASK_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
     host = os.getenv('FLASK_HOST', '0.0.0.0')
+    # Mode embarqué : la base locale (SQLite) ne doit jamais être exposée
+    # hors du poste ; on n'écoute que sur l'interface de bouclage.
+    if os.getenv('FLASK_ENV') == 'local-embedded':
+        host = os.getenv('FLASK_HOST', '127.0.0.1')
     # Mode local-embedded : le backend embarqué écoute sur le port dynamique
     # assigné par Electron (LOCAL_API_PORT), sinon sur FLASK_PORT.
     port = int(os.getenv('LOCAL_API_PORT') or os.getenv('FLASK_PORT', 5000))
@@ -47,9 +51,15 @@ if __name__ == '__main__':
 
     if getattr(app, 'socketio', None):
         print(f"SocketIO: actif sur ws://{host}:{port}/socket.io")
-        # allow_unsafe_werkzeug reste uniquement en mode debug explicite
-        # pour ne pas exposer le debugger Werkzeug en production.
+        # Werkzeug est autorisé hors production : dev central (debug explicite)
+        # et backend embarqué du poste (FLASK_ENV=local-embedded : écoute sur
+        # 127.0.0.1 avec port dynamique, jamais exposé au réseau, debugger
+        # désactivé). Incident du 22/09/2026 : sans ce flag, flask_socketio
+        # lève "The Werkzeug web server is not designed to run in production."
+        # et le serveur local du desktop mourait au démarrage.
+        allow_unsafe_werkzeug = debug or \
+            os.getenv('FLASK_ENV', '').strip().lower() == 'local-embedded'
         app.socketio.run(app, debug=debug, host=host, port=port,
-                         allow_unsafe_werkzeug=debug)
+                         allow_unsafe_werkzeug=allow_unsafe_werkzeug)
     else:
         app.run(**server_opts)

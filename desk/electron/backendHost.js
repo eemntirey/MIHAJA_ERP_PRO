@@ -1,8 +1,11 @@
 // desk/electron/backendHost.js
 // Démarre et supervise le backend Flask local embarqué.
-// Dev  : spawn `python run.py` avec env local-embedded.
+// Dev  : spawn `run.py` avec env local-embedded, après avoir résolu un
+//        interpréteur Python disposant des dépendances (cf. incident
+//        2026-09-22 : `python` du PATH pointait vers un venv sans Flask ->
+//        "Impossible de démarrer le serveur local").
 // Prod : spawn l'exécutable PyInstaller packagé (resources/backend/).
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const path = require('path');
 const net = require('net');
 const fs = require('fs');
@@ -10,6 +13,8 @@ const { app, BrowserWindow } = require('electron');
 
 let backendProc = null;
 let currentPort = null;
+let ready = false;
+let resolvedPython = null;
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -36,9 +41,55 @@ function readUserConfig() {
   }
 }
 
+// Candidats interpréteurs, par priorité :
+//  - MIHAJA_PYTHON : chemin explicite choisi par l'utilisateur ;
+//  - `python` du PATH (souvent correct, mais peut être un venv incomplet) ;
+//  - launcher Windows `py` avec les versions compatibles du projet.
+function pythonCandidates() {
+  const candidates = [];
+  if (process.env.MIHAJA_PYTHON) {
+    candidates.push([process.env.MIHAJA_PYTHON]);
+  }
+  candidates.push(['python'], ['py', '-3.11'], ['py', '-3.12'], ['py', '-3'], ['python3']);
+  return candidates;
+}
+
+// Sonde : `import app` valide d'un coup l'interpréteur ET toutes les
+// dépendances du backend (flask, flask_restx, sqlalchemy, ...).
+function probePython(candidate, backendRoot) {
+  return new Promise((resolve) => {
+    const args = [...candidate.slice(1), '-c', 'import app'];
+    execFile(candidate[0], args, {
+      cwd: backendRoot,
+      timeout: 30000,
+      windowsHide: true,
+    }, (err) => resolve(!err));
+  });
+}
+
+async function resolvePython(backendRoot) {
+  if (resolvedPython) return resolvedPython;
+  const candidates = pythonCandidates();
+  const results = await Promise.all(
+    candidates.map((c) => probePython(c, backendRoot).then((ok) => ({ c, ok })))
+  );
+  const winner = results.find((r) => r.ok);
+  if (winner) {
+    resolvedPython = winner.c;
+    console.log('[backend-local] Interpréteur Python retenu :',
+      winner.c.join(' '));
+  }
+  return resolvedPython;
+}
+
 async function startLocalBackend() {
+  // Déjà démarré : ne pas lancer un second processus.
+  if (backendProc) {
+    return { port: currentPort, pid: backendProc.pid };
+  }
   const port = await getFreePort();
   currentPort = port; // fix : conserver le port (signalé dans le plan)
+  ready = false;
   const dbDir = path.join(app.getPath('userData'), 'local-db');
   fs.mkdirSync(dbDir, { recursive: true });
   const cfg = readUserConfig();
@@ -57,22 +108,78 @@ async function startLocalBackend() {
     JWT_SECRET_KEY: cfg.jwtSecretKey || 'local-embedded-jwt-a-remplacer',
   };
 
-  backendProc = isDev
-    ? spawn('python', ['run.py'], { cwd: backendRoot, env, shell: true })
-    : spawn(path.join(backendRoot, 'mihaja-backend.exe'), [], { env });
-
+  if (isDev) {
+    const pythonCmd = await resolvePython(backendRoot);
+    if (!pythonCmd) {
+      throw new Error(
+        'Aucun interpréteur Python avec les dépendances du backend n’a été '
+        + 'trouvé sur ce poste.\n\n'
+        + 'Correction (depuis la racine du projet) :\n'
+        + '  py -3.11 -m pip install -r web/requirements.txt\n\n'
+        + 'Ou désignez explicitement l’interpréteur via la variable '
+        + 'd’environnement MIHAJA_PYTHON.'
+      );
+    }
+    // Sans `shell: true` : kill() termine bien le processus Python lui-même
+    // (avec cmd.exe intermédiaire, le kill libérait cmd mais pas python).
+    backendProc = spawn(
+      pythonCmd[0], [...pythonCmd.slice(1), 'run.py'],
+      { cwd: backendRoot, env, windowsHide: true }
+    );
+  } else {
+    backendProc = spawn(path.join(backendRoot, 'mihaja-backend.exe'), [], { env });
+  }
   emitStatus('starting');
-  backendProc.on('exit', () => {
-    backendProc = null;
-    emitStatus('stopped');
+
+  // Journal circulaire : les 40 dernières lignes servent au diagnostic
+  // affiché dans le dialogue d'erreur.
+  const logTail = [];
+  const pushLog = (chunk, stream) => {
+    for (const line of chunk.toString().split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      logTail.push(`[${stream}] ${trimmed}`);
+      if (logTail.length > 40) logTail.shift();
+      console.log(`[backend-local] ${trimmed}`);
+    }
+  };
+  backendProc.stdout?.on('data', (chunk) => pushLog(chunk, 'out'));
+  backendProc.stderr?.on('data', (chunk) => pushLog(chunk, 'err'));
+
+  let exitInfo = null;
+  backendProc.on('error', (err) => {
+    exitInfo = `échec du lancement : ${err.message}`;
   });
+  backendProc.on('exit', (code, signal) => {
+    backendProc = null;
+    exitInfo = signal
+      ? `interrompu (${signal})`
+      : `terminé avec le code ${code}`;
+    // Ne pas écraser un 'error' déjà émis pendant le démarrage.
+    emitStatus(ready ? 'stopped' : 'error');
+  });
+
+  const failureDetail = () => {
+    const lines = exitInfo ? [`Le processus backend : ${exitInfo}.`] : [];
+    if (logTail.length) {
+      lines.push('Dernières sorties du backend :', ...logTail);
+    }
+    return lines.join('\n');
+  };
 
   // Health-check : /health doit répondre avant de déclarer 'ready'
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
+    if (!backendProc) {
+      emitStatus('error');
+      throw new Error(
+        'Le serveur local s’est arrêté avant de répondre.\n' + failureDetail()
+      );
+    }
     try {
       const r = await fetch(`http://127.0.0.1:${port}/health`);
       if (r.ok) {
+        ready = true;
         emitStatus('ready');
         return { port, pid: backendProc ? backendProc.pid : null };
       }
@@ -82,7 +189,9 @@ async function startLocalBackend() {
     await new Promise((r) => setTimeout(r, 500));
   }
   emitStatus('error');
-  throw new Error("Le serveur local n'a pas démarré dans les 20 secondes.");
+  throw new Error(
+    "Le serveur local n'a pas démarré dans les 20 secondes.\n" + failureDetail()
+  );
 }
 
 function stopLocalBackend() {

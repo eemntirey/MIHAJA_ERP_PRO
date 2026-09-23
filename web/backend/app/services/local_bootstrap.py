@@ -4,6 +4,7 @@
 # Appelé au démarrage du backend local (run.py / run_local.py) : première
 # installation -> création du schéma + stamp Alembic ; ensuite, no-op.
 import logging
+import re
 
 from sqlalchemy import inspect as sa_inspect
 
@@ -19,16 +20,85 @@ _REQUIRED_TABLES = (
 
 def _import_models():
     """Importe tous les modèles pour que `create_all` crée le schéma complet."""
-    import app.models.tenant  # noqa: F401
-    import app.models.utilisateur  # noqa: F401
-    import app.models.role_permission  # noqa: F401
-    import app.models.abonnement  # noqa: F401
-    import app.models.produit  # noqa: F401
-    import app.models.client  # noqa: F401
-    import app.models.vente  # noqa: F401
-    import app.models.facture  # noqa: F401
-    import app.models.fournisseur  # noqa: F401
+    import app.models  # noqa: F401  (importe l'ensemble des modèles métier)
     import app.models.sync_replica  # noqa: F401
+
+
+def _render_server_default(server_default):
+    """Rend un server_default sous forme SQL littérale (SQLite)."""
+    arg = server_default.arg
+    if hasattr(arg, 'text'):  # sa.text('...')
+        return arg.text
+    rendered = str(arg).strip()
+    if not rendered:
+        return ''
+    if rendered.upper() in ('TRUE', 'FALSE', 'NULL') or \
+            re.fullmatch(r'-?\d+(\.\d+)?', rendered):
+        return rendered
+    return "'" + rendered.replace("'", "''") + "'"
+
+
+def _repair_missing_columns():
+    """Ajoute les colonnes des modèles absentes de la base locale.
+
+    Une base locale créée par `create_all` lors d'une version antérieure reste
+    marquée Alembic 'head' : les migrations ultérieures ne s'appliquent jamais
+    (même pathologie que l'incident central du 2026-09-22 sur instance/erp.db,
+    colonnes produits.stock_min / utilisateurs.local_password_hash manquantes).
+    SQLite autorise ALTER TABLE ADD COLUMN pour une colonne nullable ou avec
+    défaut serveur ; chaque ajout est journalisé et n'interrompt jamais le
+    démarrage du poste.
+    """
+    from app import db
+    from sqlalchemy import text
+
+    inspector = sa_inspect(db.engine)
+    existing_tables = set(inspector.get_table_names())
+    dialect = db.engine.dialect
+    added = []
+    for table in db.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            continue
+        try:
+            existing_cols = {
+                col['name'] for col in inspector.get_columns(table.name)
+            }
+        except Exception:
+            continue
+        for column in table.columns:
+            if column.name in existing_cols:
+                continue
+            if not column.nullable and column.server_default is None:
+                logger.warning(
+                    'Colonne %s.%s non-nullable sans défaut serveur : '
+                    'ajout ignoré (schéma local à reconstruire).',
+                    table.name, column.name,
+                )
+                continue
+            try:
+                col_type = column.type.compile(dialect=dialect)
+                default_sql = ''
+                if column.server_default is not None:
+                    default_sql = (
+                        ' DEFAULT '
+                        + _render_server_default(column.server_default)
+                    )
+                db.session.execute(text(
+                    f'ALTER TABLE {table.name} ADD COLUMN '
+                    f'{column.name} {col_type}{default_sql}'
+                ))
+                db.session.commit()
+                added.append(f'{table.name}.{column.name}')
+            except Exception:
+                db.session.rollback()
+                logger.exception(
+                    'Ajout impossible de la colonne %s.%s sur la base locale.',
+                    table.name, column.name,
+                )
+    if added:
+        logger.warning(
+            'Schéma local réparé : colonnes ajoutées -> %s', ', '.join(added)
+        )
 
 
 def ensure_local_db_ready(app):
@@ -38,19 +108,36 @@ def ensure_local_db_ready(app):
     """
     with app.app_context():
         from app import db
-        from flask_migrate import stamp
+        from flask_migrate import stamp, upgrade
 
         _import_models()
         tables = sa_inspect(db.engine).get_table_names()
-        missing = [t for t in _REQUIRED_TABLES if t not in tables]
-        if missing or 'alembic_version' not in tables:
+
+        # create_all est idempotent : il complète une base ancienne incomplète
+        # (tables ajoutées dans de nouvelles versions du modèle) et ne touche
+        # à rien sur une base à jour.
+        db.create_all()
+
+        if 'alembic_version' not in tables:
+            # Première installation : le schéma vient d'être créé par
+            # create_all, on marque la version pour les migrations futures.
             logger.warning(
-                'Base locale embarquée incomplète (%s) : création du schéma.',
-                ', '.join(missing) or 'version Alembic absente',
+                'Base locale embarquée inexistante : création du schéma.'
             )
-            db.create_all()
             stamp(revision='head')
-            tables = sa_inspect(db.engine).get_table_names()
+        else:
+            # Base existante : applique les migrations éventuellement
+            # manquantes (no-op si déjà à la tête).
+            try:
+                upgrade()
+            except Exception:
+                # Ne jamais empêcher le poste de démarrer ; la réparation de
+                # colonnes ci-dessous couvre déjà le cas le plus fréquent.
+                logger.exception(
+                    'Échec des migrations Alembic sur la base locale embarquée.'
+                )
+
+        _repair_missing_columns()
 
         # Rôles/permissions système (idempotent : ne s'exécute que si vide).
         try:
