@@ -1,0 +1,105 @@
+# Blueprint Render — staging MIHAJA ERP PRO (offre gratuite).
+#
+# Usage : Render Dashboard → New → Blueprint → choisir le dépôt (branche V0),
+# Render détecte ce fichier et crée les 4 ressources d'un coup.
+# Guide pas-à-pas en français : docs/ops/DEPLOIEMENT_RENDER.md (à lire avant).
+#
+# Architecture staging (imposée par les cookies JWT SameSite=Strict :
+# le web DOIT rester same-origin) :
+#   erp.sekoliko.com (frontend statique)
+#     |-- /api/*       → réécriture (rewrite) vers le backend
+#     |-- /socket.io/* → réécriture (rewrite) vers le backend
+#   admin.sekoliko.com (super-admin statique, mêmes rewrites)
+#   api.sekoliko.com (backend Flask + Postgres)
+# Les rewrites se configurent dans le Dashboard après déploiement
+# (voir guide) : le navigateur ne voit qu'une seule origine.
+# Les mobiles (Bearer, pas de cookies) attaquent api.sekoliko.com en direct.
+
+services:
+  # ---------- API Flask ----------
+  - type: web
+    name: mihaja-erp-backend
+    runtime: docker
+    dockerContext: ./web
+    dockerfilePath: ./web/backend/Dockerfile
+    plan: free
+    healthCheckPath: /health
+    # Migrations Alembic jouées automatiquement avant chaque déploiement.
+    # En cas d'échec, rejouer à la main via Shell :
+    #   flask --app "app:create_app" db upgrade
+    preDeployCommand: flask --app "app:create_app" db upgrade
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "False"
+      # ATTENTION : Render fournit postgres://... ; SQLAlchemy + psycopg3
+      # exige postgresql+psycopg://... → corriger le schéma à la main
+      # après la création (voir guide §4).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mihaja-erp-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Clé Fernet : generateValue produirait une valeur INVALIDE.
+      # Coller la clé staging du guide (docs/ops/DEPLOIEMENT_RENDER.md §4).
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: JWT_COOKIE_CSRF_PROTECT
+        value: "false"
+      # Mobile (Bearer direct) + futurs domaines ; le web passe en
+      # same-origin via rewrites donc pas de CORS pour lui.
+      - key: CORS_ORIGINS
+        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://erp.sekoliko.com
+      - key: FRONTEND_RESET_URL
+        value: https://erp.sekoliko.com/reset-password
+      - key: PAPI_ENVIRONMENT
+        value: sandbox
+
+  # ---------- Frontend React (statique) ----------
+  - type: web
+    name: mihaja-erp-frontend
+    env: static
+    plan: free
+    buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: web/frontend/build
+    envVars:
+      # Version Node figée (CRA + react-app-rewired validés sur Node 20).
+      - key: NODE_VERSION
+        value: 20.19.0
+      # Render met CI=true par défaut et CRA transforme les warnings
+      # ESLint en erreurs fatales : on désactive pour le staging.
+      - key: CI
+        value: "false"
+
+  # ---------- Super Admin React/Vite (statique) ----------
+  - type: web
+    name: mihaja-erp-super-admin
+    env: static
+    plan: free
+    buildCommand: cd super-admin && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: super-admin/build
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: CI
+        value: "false"
+      # Même origine que le site : l'API passe par les rewrites
+      # /api/* et /socket.io/* configurés après déploiement.
+      - key: VITE_API_URL
+        value: /api/v1
+
+databases:
+  # ---------- Postgres 16 ----------
+  # Offre gratuite limitée (à vérifier le jour J : durée de conservation,
+  # mise en veille) → STAGING UNIQUEMENT. Sauvegarde : guide §8
+  # (pg_dump hebdo). Alternative pérenne gratuite : Aiven (voir guide).
+  - name: mihaja-erp-db
+    databaseName: erp_db
+    user: erp_user
+    plan: free

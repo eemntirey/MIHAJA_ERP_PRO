@@ -30,6 +30,9 @@ jobs:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/erp_test
       SECRET_KEY: ci-test-secret-key-not-for-production
       JWT_SECRET_KEY: ci-test-jwt-secret-key-not-for-production
+      # Clé Fernet de test uniquement (jamais de prod) — requise par le
+      # parcours PAPI/vitrine (chiffrement des secrets de paiement).
+      ENCRYPTION_KEY: _ZrP2v9RwO8mbZQKp00RlHLokCbOCUyydfye5V-sBwY=
       FLASK_ENV: testing
       JWT_COOKIE_CSRF_PROTECT: "false"
 

@@ -32,7 +32,12 @@ def test_login_returns_session_tokens(app):
         )
 
     assert response.status_code == 200
-    assert response.get_json() == auth_result
+    body = response.get_json()
+    # Le endpoint ne répercute que user + tokens (+ offline optionnel),
+    # jamais le bloc 'tenant' brut du service (disponible via /me).
+    assert body['access_token'] == auth_result['access_token']
+    assert body['refresh_token'] == auth_result['refresh_token']
+    assert body['user'] == auth_result['user']
 
 
 def test_login_rejects_incomplete_session_response(app):

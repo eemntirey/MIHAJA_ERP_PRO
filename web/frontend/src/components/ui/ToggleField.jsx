@@ -33,6 +33,11 @@ const ToggleField = ({
   const reactId = useId();
   const fieldId = id || `toggle-${reactId}`;
   const reg = register && name ? register(name, registerOptions) : null;
+  // Compose RHF + handler parent (reg spread après écraserait sinon le onChange parent).
+  const composedOnChange = (e) => {
+    if (onChange) onChange(e);
+    if (reg?.onChange) reg.onChange(e);
+  };
 
   return (
     <Field
@@ -55,10 +60,10 @@ const ToggleField = ({
           disabled={disabled}
           checked={checked}
           defaultChecked={defaultChecked}
-          onChange={onChange}
           aria-invalid={!!error}
           {...(reg || {})}
           {...rest}
+          onChange={reg || onChange ? composedOnChange : undefined}
         />
         <span className="toggle__track" aria-hidden="true">
           <span className="toggle__thumb" />
