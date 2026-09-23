@@ -50,12 +50,16 @@ hasard par Render serait **invalide** (il faut une clé Fernet).
 
 ## 4. Vérifier migrations + créer le SUPER_ADMIN
 
-Les migrations Alembic tournent toutes seules avant chaque déploiement
-(`preDeployCommand`). Contrôle :
+**Free tier** : `preDeployCommand` n'est pas supporté → les migrations
+Alembic se lancent **à la main** via Shell après chaque déploiement :
 
-1. Backend → **Logs** : cherchez `Running upgrade` sans erreur, puis
+1. Backend → **Shell** :
+   ```sh
+   flask --app "app:create_app" db upgrade
+   ```
+   Contrôle ensuite : Logs → `Running upgrade` sans erreur, puis
    `GET /health 200`.
-2. Backend → **Shell** :
+2. Toujours dans le Shell, créer le SUPER_ADMIN :
    ```sh
    $env:SUPERADMIN_PASSWORD = 'UnMotDePasseSolide123!'
    python scripts/create_superadmin.py

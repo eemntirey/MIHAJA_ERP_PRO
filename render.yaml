@@ -24,10 +24,10 @@ services:
     dockerfilePath: ./web/backend/Dockerfile
     plan: free
     healthCheckPath: /health
-    # Migrations Alembic jouées automatiquement avant chaque déploiement.
-    # En cas d'échec, rejouer à la main via Shell :
+    # NOTE (free tier) : preDeployCommand n'est PAS supporté sur l'offre
+    # gratuite → les migrations Alembic se lancent à la main via Shell
+    # après le 1er déploiement (et à chaque upgrade) :
     #   flask --app "app:create_app" db upgrade
-    preDeployCommand: flask --app "app:create_app" db upgrade
     envVars:
       - key: FLASK_ENV
         value: production
