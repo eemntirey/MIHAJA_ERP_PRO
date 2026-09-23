@@ -15,7 +15,7 @@ const SOCKET_URL =
     // backend (ws: true) ; en prod, reverse-proxy same-origin. Un fallback
     // absolu http://localhost:5000 serait bloqué par la CSP de l'app
     // Electron (connect-src 'self') dès que la page est servie autrement.
-    : (typeof window !== 'undefined' ? window.location.origin : PRODUCTION_SOCKET_URL));
+    : PRODUCTION_SOCKET_URL);
 
 let socket = null;
 const listeners = new Map();
