@@ -70,6 +70,12 @@ services:
     env: static
     buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: web/frontend/build
+    # SPA React : toutes les routes applicatives doivent servir index.html
+    # afin que F5 sur /register, /login, /dashboard, etc. ne retourne pas 404.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       # Version Node figée (CRA + react-app-rewired validés sur Node 20).
       - key: NODE_VERSION
