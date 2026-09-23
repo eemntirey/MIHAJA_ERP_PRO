@@ -456,7 +456,10 @@ def create_app():
         # origines statiques (app.config['CORS_ORIGINS']) étaient servies et les
         # patterns LAN/tunnel (ex. Expo web http://192.168.x.y:8081) restaient
         # sans en-tête Access-Control-Allow-Origin.
-        decorators=[cross_origin(\n            origins=_cors_origins_config,\n            supports_credentials=True,\n        )]
+        decorators=[cross_origin(
+            origins=_cors_origins_config,
+            supports_credentials=True,
+        )]
     )
 
     @app.route('/')
