@@ -82,6 +82,70 @@ class ProduitQRCodeResource(Resource):
         
         return {'qr_code': qr_base64, 'data': qr_data}, 200
 
+@ns.route('/<int:produit_id>/image')
+class ProduitImageResource(Resource):
+    @ns.doc('upload_produit_image')
+    @permission_required('product.update')
+    @tenant_required_readonly
+    def post(self, produit_id):
+        """Upload une image pour un produit"""
+        from flask import request, current_app
+        from werkzeug.utils import secure_filename
+        import uuid
+        import os
+
+        produit = ProduitService.get_by_id(produit_id)
+        if not produit:
+            return {'message': 'Produit non trouve'}, 404
+
+        if 'image' not in request.files:
+            return {'message': 'Aucun fichier image envoye'}, 400
+
+        file = request.files['image']
+        if file.filename == '':
+            return {'message': 'Aucun fichier selectionne'}, 400
+
+        allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if ext not in allowed:
+            return {'message': f'Format non supporte. Formats acceptes: {", ".join(allowed)}'}, 400
+
+        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'products')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        filename = f"{uuid.uuid4().hex[:12]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+        file.save(filepath)
+
+        image_url = f"/uploads/products/{filename}"
+        ProduitService.update(produit_id, {'image_url': image_url})
+
+        return {'image_url': image_url, 'message': 'Image uploadée avec succes'}, 200
+
+    @ns.doc('delete_produit_image')
+    @permission_required('product.update')
+    @tenant_required_readonly
+    def delete(self, produit_id):
+        """Supprime l'image d'un produit"""
+        import os
+        from flask import current_app
+
+        produit = ProduitService.get_by_id(produit_id)
+        if not produit:
+            return {'message': 'Produit non trouve'}, 404
+
+        if produit.image_url and produit.image_url.startswith('/uploads/'):
+            filepath = os.path.join(
+                current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+                produit.image_url.lstrip('/uploads/')
+            )
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+        ProduitService.update(produit_id, {'image_url': None})
+        return {'message': 'Image supprimee'}, 200
+
+
 @ns.route('/qr-generate')
 class QRCodeGenerateResource(Resource):
     @ns.doc('generate_qr_code')

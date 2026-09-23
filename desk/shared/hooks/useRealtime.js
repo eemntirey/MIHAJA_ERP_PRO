@@ -1,4 +1,4 @@
-﻿
+
 // shared/hooks/useRealtime.js
 // Hook temps-rÃ©el pour les mises Ã  jour (favoris, colonnes, filtres, notifications).
 // Utilise le polling par dÃ©faut (via /api/v1/desk/events).
@@ -53,7 +53,7 @@ export function useRealtime(options = {}) {
             path: '/socket.io',
             auth: { token },
             transports: ['polling', 'websocket'],
-        upgrade: false,
+        upgrade: true,
           });
 
           socket.on('connect', () => setConnected(true));

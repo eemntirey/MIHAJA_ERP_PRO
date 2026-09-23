@@ -127,8 +127,16 @@ def _check_admin_device(user, device_id=None, tenant=None):
             user_id=user.id, device_id=device_id, statut=StatutDevice.ACTIVE
         ).first()
         if not device:
+            # FIX C-03 (rétabli avec garde-fou) : l'enrôlement automatique ne
+            # vaut QUE pour le tout premier appareil (aucun appareil existant).
+            # Sinon l'admin fraîchement créé ne peut jamais se connecter pour
+            # appeler /admin/devices/register — blocage chicken-and-egg
+            # (régression détectée par test_10_first_device_auto_registered).
+            # Les appareils suivants restent soumis à l'allow-list stricte :
+            # pas d'auto-enrôlement -> "Appareil non autorise" (anti-bypass
+            # C-03 conservé pour le multi-appareils).
             any_device = AdminDevice.query.filter_by(user_id=user.id).first()
-            if not any_device and device_id:
+            if not any_device:
                 device = AdminDevice(
                     user_id=user.id, device_id=device_id, device_name=None,
                     statut=StatutDevice.ACTIVE, last_seen=datetime.utcnow()
@@ -138,7 +146,7 @@ def _check_admin_device(user, device_id=None, tenant=None):
                 db.session.add(user)
                 db.session.commit()
             else:
-                return False, "Appareil non autorise"
+                return False, "Appareil non autorise - demandez l'enregistrement aupres de l'administrateur"
         else:
             device.last_seen = datetime.utcnow()
             db.session.add(device)
@@ -205,6 +213,14 @@ def _login_failed(identifier, reason):
 
 def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
     tenant = None
+
+    # Backend embarque (desktop hors-ligne) : la verification passe par le
+    # cache local lorsque le central est injoignable (cf. local_auth.py).
+    if current_app.config.get('LOCAL_EMBEDDED'):
+        from app.services.local_auth import authenticate_local_device
+        return authenticate_local_device(
+            identifier, password, tenant_slug=tenant_slug, device_id=device_id,
+        )
 
     if tenant_slug:
         tenant = Tenant.query.filter_by(slug=tenant_slug, is_active=True).first()

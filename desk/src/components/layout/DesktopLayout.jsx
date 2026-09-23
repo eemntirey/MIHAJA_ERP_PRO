@@ -134,7 +134,7 @@ const DesktopLayout = ({ darkMode, onToggleDarkMode, onLogout }) => {
       data-theme={darkMode ? 'dark' : undefined}
       data-ai={isAIView ? 'true' : undefined}
     >
-      {IS_ELECTRON && false && <TitleBar />}
+      {IS_ELECTRON && <TitleBar />}
       <DesktopSidebar
         className={sidebarClassName}
         collapsed={collapsed}

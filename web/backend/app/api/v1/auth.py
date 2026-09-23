@@ -48,7 +48,7 @@ class PublicPlans(Resource):
 @api.route('/login')
 class AuthLogin(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         try:
             data = request.get_json(silent=True) or {}
@@ -104,6 +104,10 @@ class AuthLogin(Resource):
         # A1 FIX : les tokens sont envoyés en cookies HttpOnly (XSS-safe).
         # Les tokens restent aussi dans le body pour Electron (secureStore).
         resp = {'user': user_data}
+        # Backend embarqué : signale au frontend que la session a été ouverte
+        # hors-ligne (cache local scrypt), afin d'afficher l'état de synchro.
+        if isinstance(result, dict) and result.get('offline') is not None:
+            resp['offline'] = bool(result['offline'])
         if refresh_token:
             resp['access_token'] = access_token
             resp['refresh_token'] = refresh_token
@@ -177,7 +181,7 @@ class AuthMe(Resource):
 @api.route('/register')
 class AuthRegister(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         data = request.get_json() or {}
 
@@ -222,7 +226,10 @@ class AuthRegister(Resource):
             pays = data.get('pays', 'Madagascar')
             email_contact = data.get('email_contact', email)
             telephone_entreprise = data.get('telephone_entreprise')
-            plan = data.get('plan', 'gratuit')
+            # Règle métier : toute nouvelle entreprise/grossiste démarre toujours
+            # sur le plan gratuit (30 jours inclus). Le passage aux plans payants
+            # (Pro, Entreprise) nécessite un paiement validé via la page Abonnement.
+            plan = 'gratuit'
 
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
@@ -262,6 +269,16 @@ class AuthRegister(Resource):
             if not allowed:
                 return {'message': limit_message}, 403
 
+            # Pré-validation UX : le domaine est soumis à une contrainte
+            # d'unicité en base (ix_tenants_domaine). On contrôle avant
+            # l'insertion pour renvoyer une erreur ciblée au lieu de
+            # laisser échapper l'IntegrityError ; la contrainte reste le
+            # garde-fou en cas d'inscriptions concurrentes.
+            if domaine and Tenant.query.filter_by(domaine=domaine).first():
+                return {
+                    'message': 'Une entreprise existe deja avec ce domaine. Veuillez en choisir un autre.'
+                }, 409
+
             base_slug = nom_entreprise.lower().replace(' ', '-').replace('.', '-')
             slug = base_slug
             counter = 1
@@ -270,6 +287,14 @@ class AuthRegister(Resource):
                 counter += 1
 
             try:
+                from app.security.plans import get_plan_duration_days
+                duree_essai = get_plan_duration_days(plan)
+                now = datetime.utcnow()
+                if duree_essai > 0:
+                    date_fin_essai = now + timedelta(days=duree_essai)
+                else:
+                    date_fin_essai = now + timedelta(days=365 * 99)
+
                 tenant = Tenant(
                     nom=nom_entreprise,
                     slug=slug,
@@ -282,6 +307,8 @@ class AuthRegister(Resource):
                     pays=pays,
                     statut=StatutTenant.EN_ESSAI,
                     plan=plan,
+                    date_debut_essai=now,
+                    date_fin_essai=date_fin_essai,
                 )
                 db.session.add(tenant)
                 db.session.flush()
@@ -581,7 +608,7 @@ class AuthLogout(Resource):
 @api.route('/forgot-password')
 class AuthForgotPassword(Resource):
 
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     def post(self):
         data = request.get_json() or {}
         email = data.get('email')
@@ -670,7 +697,7 @@ class AuthForgotPassword(Resource):
 class AuthVerifyResetToken(Resource):
     """Vérifie la validité d'un token de réinitialisation sans l'utiliser."""
 
-    @rate_limit(10, 300)
+    @rate_limit(60, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')
@@ -705,7 +732,7 @@ class AuthVerifyResetToken(Resource):
 @api.route('/reset-password')
 class AuthResetPassword(Resource):
 
-    @rate_limit(10, 300)
+    @rate_limit(60, 300)
     def post(self):
         data = request.get_json() or {}
         token = data.get('token')

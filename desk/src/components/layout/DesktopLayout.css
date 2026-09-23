@@ -41,6 +41,41 @@
   color-scheme: dark;
 }
 
+/* ==================== Fenêtre sans bord (Electron) ====================
+   La barre de fenêtre custom (TitleBar) est fixe en haut sur 40px
+   (--titlebar-height). On réserve sa hauteur pour que ni la sidebar, ni la
+   topbar collante, ni le contenu ne passent dessous — même logique que
+   .auth-login--electron côté connexion. */
+.main-layout.desktop-layout.electron {
+  box-sizing: border-box;
+  padding-top: var(--titlebar-height, 40px);
+}
+
+.main-layout.desktop-layout.electron .desktop-main,
+.main-layout.desktop-layout.electron .desktop-sidebar {
+  min-height: calc(100vh - var(--titlebar-height, 40px));
+}
+
+/* Zones collantes : elles s'arrêtent sous la barre de fenêtre. */
+.main-layout.desktop-layout.electron .desktop-sidebar {
+  top: var(--titlebar-height, 40px);
+  height: calc(100vh - var(--titlebar-height, 40px));
+}
+
+.main-layout.desktop-layout.electron .desktop-topbar {
+  top: var(--titlebar-height, 40px);
+}
+
+/* Auto-stretch : hauteur pleine calculée sous la barre de fenêtre. */
+.desktop-layout.electron.is-stretched .desktop-main,
+.desktop-layout.electron.is-stretched .desktop-sidebar,
+.desktop-layout.electron.is-stretched .main-content.desktop-content {
+  min-height: calc(100vh - var(--titlebar-height, 40px));
+  height: calc(100vh - var(--titlebar-height, 40px));
+  align-items: stretch;
+  overflow-y: auto;
+}
+
 /* Auto-stretch : dilate le layout vers le bas */
 .main-layout.desktop-layout.is-stretched,
 .desktop-layout.is-stretched .desktop-main,

@@ -12,6 +12,20 @@ from app.security.auth import hash_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 
 app = create_app()
+
+# Mot de passe Super Admin : jamais en clair dans le script (P0 #70 / A3).
+# Charge depuis .env / l'environnement (load_dotenv a ete execute a l'import
+# de `app`) ; exigé pour creer le compte ET tester le login HTTP.
+admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD')
+if not admin_password:
+    print(
+        "ERREUR : DEFAULT_ADMIN_PASSWORD est absent.\n"
+        "  - définir .env (voir .env.example),\n"
+        "  - ou exporter DEFAULT_ADMIN_PASSWORD dans le shell.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
 with app.app_context():
     # Check if super admin user already exists
     existing = Utilisateur.query.filter_by(email='super@x.mg').first()
@@ -22,7 +36,7 @@ with app.app_context():
         super_admin = Utilisateur(
             username='super',
             email='super@x.mg',
-            password_hash=hash_password('Super123!'),
+            password_hash=hash_password(admin_password),
             role=Role.SUPER_ADMIN,
             statut=StatutUtilisateur.ACTIF,
         )
@@ -35,7 +49,7 @@ with app.app_context():
     
     # Test login
     print("\n--- Testing login ---")
-    r = requests.post('http://127.0.0.1:5000/api/v1/auth/login', json={'username': 'super@x.mg', 'password': 'Super123!'}, timeout=10)
+    r = requests.post('http://127.0.0.1:5000/api/v1/auth/login', json={'username': 'super@x.mg', 'password': admin_password}, timeout=10)
     print(f"Login response: status={r.status_code}")
     print(f"Response: {r.text}")
     

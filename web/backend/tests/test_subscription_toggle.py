@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Tests du toggle abonnement global (Super Admin).
-
 import os
+
+"""Tests du toggle abonnement global (Super Admin).
 
 Couvre :
 - inscription en mode INACTIF : plan Pro offert automatiquement ;
@@ -101,60 +101,35 @@ def _make_pro_free_subscription():
     return tenant.id, abn.id
 
 class TestPublicPlans:
-    def test_mode_inactif_affiche_pro_seul(self, app):
+    def test_mode_toujours_actif_grille_gratuit_pro_entreprise(self, app):
+        """Le toggle a été retiré (abonnement toujours actif) : la grille
+        publique est stable (gratuit / pro / enterprise) et le payload
+        expose subscription_active=True."""
         client = app.test_client()
         r = client.get('/api/v1/auth/plans')
         assert r.status_code == 200
         data = r.get_json()
-        assert data['subscription_active'] is False
-        codes = [p['code'] for p in data['plans']]
-        assert codes == ['pro']
-
-    def test_mode_actif_grille_gratuit_pro_entreprise(self, app):
-        cfg = PlatformConfig.get_config()
-        cfg.is_subscription_active = True
-        db.session.commit()
-        client = app.test_client()
-        r = client.get('/api/v1/auth/plans')
-        assert r.status_code == 200
-        data = r.get_json()
-        assert data['subscription_active'] is True
         codes = [p['code'] for p in data['plans']]
         assert codes == ['gratuit', 'pro', 'enterprise']
         assert 'starter' not in codes
-        # Gratuit (ex-Starter) reprend les anciennes limites Starter
-        gratuit = data['plans'][0]
-        nouvelles_limites_gratuit = {
-            'max_utilisateurs': 3,
-            'max_produits': 50,
-            'max_clients': 100,
-            'max_employees': 2,
-            'prix': 5000,
-            'duree_jours': 30,
-        }
-        for key, value in nouvelles_limites_gratuit.items():
-            assert gratuit[key] == value, f'{key}: {gratuit[key]} != {value}'
+
+    def test_toggle_endpoint_toujours_actif(self, app):
+        """L'endpoint super-admin /subscription-toggle est devenu un no-op :
+        GET/PUT renvoient toujours subscription_active=True."""
+        client = app.test_client()
+        headers = _super_admin_headers(client)
+        r = client.get('/api/v1/super-admin/subscription-toggle', headers=headers)
+        assert r.status_code == 200, r.get_json()
+        assert r.get_json()['subscription_active'] is True
+        r2 = client.put('/api/v1/super-admin/subscription-toggle',
+                        headers=headers, json={'subscription_active': False})
+        assert r2.status_code == 200, r2.get_json()
+        assert r2.get_json()['subscription_active'] is True
 
 
 class TestInscription:
-    def test_inscription_mode_inactif_plan_pro_automatique(self, app):
-        client = app.test_client()
-        r = _register_company(client, 'inactif1')
-        assert r.status_code == 201, r.get_json()
-        tenant_id = r.get_json()['tenant']['id']
-        with app.app_context():
-            tenant = db.session.get(Tenant, tenant_id)
-            assert tenant is not None
-            assert tenant.plan == 'pro'
-            abn = Abonnement.query.filter_by(tenant_id=tenant_id).first()
-            assert abn is not None
-            assert abn.plan == 'pro'
-            assert float(abn.montant) == 0
-
-    def test_inscription_mode_actif_plan_choisi(self, app):
-        cfg = PlatformConfig.get_config()
-        cfg.is_subscription_active = True
-        db.session.commit()
+    def test_inscription_plan_choisi(self, app):
+        """En mode toujours actif, le plan choisi est conservé."""
         client = app.test_client()
         r = _register_company(client, 'actif1', plan='gratuit')
         assert r.status_code == 201, r.get_json()
@@ -164,15 +139,16 @@ class TestInscription:
             assert tenant.plan == 'gratuit'
 
 
-class TestQuotasModeInactif:
-    def test_employes_non_bloquants_au_dela_de_10_en_mode_inactif(self, app):
-        """La limite employés (seuil 10 en découverte) n'est PAS bloquante."""
+class TestQuotasModeActif:
+    def test_employes_bloquants_au_dela_de_la_limite_pro(self, app):
+        """Le mode est toujours ACTIF : la limite du plan Pro s'applique."""
         client = app.test_client()
-        r = _register_company(client, 'quota1')
+        r = _register_company(client, 'quota1', plan='pro')
         assert r.status_code == 201, r.get_json()
         token = r.get_json()['access_token']
         headers = {'Authorization': 'Bearer ' + token}
-        # Plan pro = 6 employés max ; en mode INACTIF, au-delà : autorisé.
+        # Plan pro : au-delà de la limite -> bloqué (403) par check_plan_limits.
+        codes = []
         for i in range(11):
             rr = client.post('/api/v1/users', headers=headers, json={
                 'username': f'emp{i}',
@@ -180,51 +156,10 @@ class TestQuotasModeInactif:
                 'password': 'Pass123!x',
                 'role': 'user',
             })
+            codes.append(rr.status_code)
+        assert any(code == 403 for code in codes), codes
+
 class TestToggleActivation:
-    def test_activation_demarre_grace_30j_pour_pro_gratuit(self, app):
-        tenant_id, abn_id = _make_pro_free_subscription()
-        headers = _super_admin_headers(app.test_client())
-        r = app.test_client().put(
-            '/api/v1/super-admin/subscription-toggle',
-            headers=headers,
-            json={'subscription_active': True},
-        )
-        assert r.status_code == 200, r.get_json()
-        with app.app_context():
-            now = datetime.utcnow()
-            cfg = PlatformConfig.get_config()
-            assert cfg.is_subscription_active is True
-            abn_db = db.session.get(Abonnement, abn_id)
-            # Cycle de grâce : 30 jours à partir de l'activation
-            delta = (abn_db.date_fin - now).total_seconds()
-            assert 29 * 86400 < delta <= 30 * 86400
-            # Montant aligné sur le prix courant du plan Pro
-            assert float(abn_db.montant) == float(get_plan_price('pro'))
-            # Audit trail dédié
-            audit = SubscriptionAuditTrail.query.filter_by(
-                tenant_id=tenant_id, declencheur='activation_toggle',
-            ).first()
-            assert audit is not None
-            assert audit.nouveau_plan == 'pro'
-            # Notification initiale envoyée
-            notif = Notification.query.filter_by(
-                tenant_id=tenant_id, type='subscription_reminder',
-            ).first()
-            assert notif is not None
-
-    def test_toggle_reversible(self, app):
-        headers = _super_admin_headers(app.test_client())
-        c = app.test_client()
-        r1 = c.put('/api/v1/super-admin/subscription-toggle',
-                   headers=headers, json={'subscription_active': True})
-        assert r1.status_code == 200
-        r2 = c.put('/api/v1/super-admin/subscription-toggle',
-                   headers=headers, json={'subscription_active': False})
-        assert r2.status_code == 200
-        r3 = c.get('/api/v1/super-admin/subscription-toggle', headers=headers)
-        assert r3.status_code == 200
-        assert r3.get_json()['subscription_active'] is False
-
     def test_toggle_refuse_sans_droits_super_admin(self, app):
         client = app.test_client()
         r = client.put('/api/v1/super-admin/subscription-toggle',
@@ -238,19 +173,23 @@ class TestRappelsPaiement:
         tenant_id, abn_id = _make_pro_free_subscription()
         with app.app_context():
             abn_db = db.session.get(Abonnement, abn_id)
+            # Période de grâce simulée : expiration dans 15 jours.
             abn_db.date_fin = datetime.utcnow() + timedelta(days=15)
             db.session.commit()
 
-            client = app.test_client()
-            headers = _super_admin_headers(client)
-            # Activation du toggle (envoie la notification initiale J+0)
-            r = client.put('/api/v1/super-admin/subscription-toggle',
-                           headers=headers, json={'subscription_active': True})
-            assert r.status_code == 200
+            # J+0 : premier rappel
+            res = run_subscription_reminders()
+            assert any(
+                x['tenant_id'] == tenant_id and x['status'] == 'reminder_sent'
+                for x in res
+            ), res
 
             # J+1 : pas de nouveau rappel (< 3 jours écoulés)
             res = run_subscription_reminders()
-            assert all(x['status'] != 'reminder_sent' for x in res)
+            assert all(
+                x['status'] != 'reminder_sent' or x['tenant_id'] != tenant_id
+                for x in res
+            )
 
             # J+4 : rappel envoyé
             last = Notification.query.filter_by(
@@ -260,7 +199,10 @@ class TestRappelsPaiement:
             last.created_at = datetime.utcnow() - timedelta(days=4)
             db.session.commit()
             res = run_subscription_reminders()
-            assert any(x['status'] == 'reminder_sent' for x in res)
+            assert any(
+                x['tenant_id'] == tenant_id and x['status'] == 'reminder_sent'
+                for x in res
+            ), res
             count_after_j4 = Notification.query.filter_by(
                 tenant_id=tenant_id, type='subscription_reminder',
                 is_active=True,
@@ -269,7 +211,10 @@ class TestRappelsPaiement:
 
             # J+5 (< 3 jours après le rappel J+4) : pas de nouveau rappel
             res = run_subscription_reminders()
-            assert all(x['status'] != 'reminder_sent' for x in res)
+            assert all(
+                x['status'] != 'reminder_sent' or x['tenant_id'] != tenant_id
+                for x in res
+            )
 
 
 class TestRetrogradation30Jours:

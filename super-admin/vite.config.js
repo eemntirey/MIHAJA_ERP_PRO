@@ -4,12 +4,23 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    loader: 'jsx',
+    include: /src[\\/].*\.jsx?$/,
+    exclude: [],
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: { '.js': 'jsx' },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
   },
   server: {
+    host: true,
     port: 3002,
     strictPort: true,
     proxy: {

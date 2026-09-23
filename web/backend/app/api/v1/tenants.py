@@ -1,3 +1,5 @@
+from sqlalchemy.exc import IntegrityError
+
 from flask import request, current_app
 from flask_restx import Namespace, Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -126,6 +128,12 @@ class TenantList(Resource):
             })
 
             db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            current_app.logger.exception(
+                'Conflit d unicite lors de la creation du tenant (plan=%s)', plan
+            )
+            return {'message': 'Une entreprise existe deja avec ce slug ou ce domaine. Verifiez les champs et reessayez.'}, 409
         except Exception as exc:
             db.session.rollback()
             current_app.logger.exception(

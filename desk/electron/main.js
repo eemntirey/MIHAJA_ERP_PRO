@@ -1,12 +1,17 @@
 // desk/electron/main.js
 // Processus principal Electron pour l'application desktop ERP Pro.
 const { app, BrowserWindow, Menu, ipcMain, Notification, dialog, safeStorage } = require('electron');
+const backendHost = require('./backendHost');
 const path = require('path');
 const fs = require('fs');
 
 const isDev = process.env.ELECTRON_DEV === '1' || !app.isPackaged;
 
 const DEV_URL = 'http://localhost:3001';
+
+// Icône de l'application (fenêtre, barre des tâches, notifications).
+// Le PNG vit dans electron/ pour être inclus dans le package final.
+const ICON_PATH = path.join(__dirname, 'icon.png');
 
 let win = null;
 
@@ -180,7 +185,7 @@ function buildMenu() {
   return Menu.buildFromTemplate(template);
 }
 
-function createWindow() {
+function createWindow(port) {
   win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -189,6 +194,7 @@ function createWindow() {
     backgroundColor: '#111111',
     frame: false,
     titleBarStyle: 'hidden',
+    icon: ICON_PATH,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -235,7 +241,7 @@ function createWindow() {
   // === Notifications système ===
   ipcMain.handle('notify', (_event, { title = 'ERP Pro', body = '' } = {}) => {
     if (Notification.isSupported()) {
-      new Notification({ title, body }).show();
+      new Notification({ title, body, icon: ICON_PATH }).show();
       return true;
     }
     return false;
@@ -278,11 +284,15 @@ function createWindow() {
     }
   });
 
+  // Port du backend local embarqué
+  ipcMain.handle('backend:port', () => backendHost.getPort());
+
   if (isDev) {
-    win.loadURL(DEV_URL);
+    const url = port ? `${DEV_URL}/?backendPort=${port}` : DEV_URL;
+    win.loadURL(url);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'build', 'index.html'));
+    win.loadFile(path.join(__dirname, '..', 'build', 'index.html'), port ? { query: { backendPort: String(port) } } : {});
   }
 
   // === Electron Security (OWASP) ===
@@ -290,7 +300,7 @@ function createWindow() {
   // Les liens externes sont ouverts dans le navigateur par défaut.
   const ALLOWED_NAVIGATION_HOSTS = isDev
     ? ['localhost', '127.0.0.1']
-    : ['app.mihaja-erp.local', 'localhost'];
+    : ['app.mihaja-erp.local'];
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     // Ouvrir les liens externes dans le navigateur système
@@ -319,15 +329,27 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(buildMenu());
   registerSecureStoreHandlers();
-  createWindow();
+  let port = null;
+  try {
+    const started = await backendHost.startLocalBackend();
+    port = started.port;
+  } catch (err) {
+    // La fenêtre s'ouvre quand même : écran d'erreur géré côté renderer.
+    dialog.showErrorBox(
+      'Erreur de démarrage',
+      "Impossible de démarrer le serveur local.\n" + String(err));
+  }
+  createWindow(port);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(port);
   });
 });
+
+app.on('before-quit', () => backendHost.stopLocalBackend());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

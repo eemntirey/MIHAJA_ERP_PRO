@@ -2092,3 +2092,59 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* Register Free Plan Card */
+.register-plan-card {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(205, 162, 51, 0.03) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: all 0.2s ease;
+  margin-top: 6px;
+}
+
+.register-plan-card:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, rgba(205, 162, 51, 0.05) 100%);
+}
+
+.register-plan-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.register-plan-card__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #D4AF37;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.register-plan-card__price {
+  font-size: 14px;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.register-plan-card__title {
+  margin: 4px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.register-plan-card__desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5563;
+}

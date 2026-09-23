@@ -42,8 +42,13 @@ const TitleBar = () => {
       if (active) setIsMaximized(!!value);
     });
     const handler = (value) => setIsMaximized(!!value);
-    window.electron.onMaximizeChanged(handler);
-    return () => { active = false; };
+    const unsubscribe = window.electron.onMaximizeChanged(handler);
+    return () => {
+      active = false;
+      // Désabonnement si le preload le fournit (évite l'accumulation de
+      // listeners entre l'écran de connexion et le layout applicatif).
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
   const handleMinimize = () => window.electron.minimize();

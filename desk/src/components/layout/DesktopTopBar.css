@@ -20,16 +20,6 @@
   transition: all 0.3s ease;
 }
 
-.electron .desktop-topbar {
-  cursor: grab;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.electron .desktop-topbar:active {
-  cursor: grabbing;
-}
-
 .desktop-layout[data-theme='dark'] .desktop-topbar {
   background-color: rgba(15, 23, 42, 0.72);
   border-bottom-color: rgba(255, 255, 255, 0.08);

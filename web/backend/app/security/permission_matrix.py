@@ -14,6 +14,7 @@ PERMISSION_DEFINITIONS = {
     "user.view": {"module": "user", "action": "view", "description": "Voir les utilisateurs"},
     "user.create": {"module": "user", "action": "create", "description": "Creer des utilisateurs"},
     "user.update": {"module": "user", "action": "update", "description": "Modifier des utilisateurs"},
+    "user.delete": {"module": "user", "action": "delete", "description": "Supprimer des utilisateurs"},
     "report.view": {"module": "report", "action": "view", "description": "Voir les rapports"},
     "client.view": {"module": "client", "action": "view", "description": "Voir les clients"},
     "client.create": {"module": "client", "action": "create", "description": "Creer des clients"},
@@ -26,6 +27,7 @@ PERMISSION_DEFINITIONS = {
     "payment.create": {"module": "payment", "action": "create", "description": "Creer des paiements"},
     "quote.view": {"module": "quote", "action": "view", "description": "Voir les devis"},
     "quote.create": {"module": "quote", "action": "create", "description": "Creer des devis"},
+    "quote.update": {"module": "quote", "action": "update", "description": "Modifier des devis"},
     "supplier.view": {"module": "supplier", "action": "view", "description": "Voir les fournisseurs"},
     "supplier.create": {"module": "supplier", "action": "create", "description": "Creer des fournisseurs"},
     "supplier.update": {"module": "supplier", "action": "update", "description": "Modifier des fournisseurs"},
@@ -124,32 +126,60 @@ DEFAULT_PERMISSION_LISTS = {
         "profile.view",
         "profile.update",
     ],
+    # Regle metier (source de verite) : l'ADMIN est le compte PROPRIETAIRE du
+    # tenant. Il couvre l'INTEGRALITE des modules souscrits par le tenant et
+    # realise donc le travail de tous les roles metier du tenant (commercial,
+    # stock, comptable, RH, manager, livreur...) : tout le CRUD (create /
+    # update / delete) de chaque module, sans blocage residuel.
+    # Seul le perimetre PLATEFORME reste interdit aux comptes de tenant :
+    # 'super_admin.access' (tenants, abonnements, plans).
+    # Les roles specifiques (ex. 'sales' = Commercial) gardent au contraire un
+    # perimetre restreint a leurs seuls modules.
+    # Regle metier absolue : l'ADMIN est le PROPRIETAIRE du tenant.
+    # Il a un CRUD complet sur TOUS les modules souscrits par son tenant.
+    # Seul super_admin.access lui est interdit (perimetre plateforme).
     "admin": [
         "admin.access",
+        "manager.access",
+        # Clients
         "client.create", "client.update", "client.delete", "client.view",
-        "compte.create", "compte.update", "compte.view",
-        "ecriture.create", "ecriture.update", "ecriture.view",
+        # Comptabilite
+        "compte.create", "compte.update", "compte.delete", "compte.view",
+        "ecriture.create", "ecriture.update", "ecriture.delete", "ecriture.view",
+        "tresorerie.create", "tresorerie.update", "tresorerie.delete", "tresorerie.view",
+        # Factures
         "invoice.create", "invoice.update", "invoice.delete", "invoice.view",
+        # Notifications
         "notification.manage", "notification.update", "notification.view",
+        # Paiements
         "payment.create", "payment.view",
+        # Produits
         "product.create", "product.update", "product.delete", "product.view",
+        # Profil
         "profile.update", "profile.view",
+        # Achats
         "purchase_order.create", "purchase_order.view",
-        "quote.create", "quote.view",
+        # Devis / Documents
+        "quote.create", "quote.update", "quote.delete", "quote.view",
+        # Rapports & dashboard
         "report.view",
+        "dashboard.view",
+        # Ventes
         "sale.create", "sale.update", "sale.view", "sale.delete",
-        "stock.delete", "stock.update", "stock.view",
-        "supplier.create", "supplier.update", "supplier.view",
-        "tresorerie.create", "tresorerie.update", "tresorerie.view",
-        "user.create", "user.update", "user.view",
-        # RH : un admin de tenant gere aussi les ressources humaines.
+        # Stocks
+        "stock.create", "stock.update", "stock.delete", "stock.view",
+        # Fournisseurs
+        "supplier.create", "supplier.update", "supplier.delete", "supplier.view",
+        # Utilisateurs
+        "user.create", "user.update", "user.delete", "user.view",
+        # RH : employes, presences, conges, salaires, primes, stagiaires
         "employe.view", "employe.create", "employe.update", "employe.delete",
         "presence.view", "presence.create", "presence.update", "presence.delete",
         "conge.view", "conge.create", "conge.update", "conge.delete",
         "salaire.view", "salaire.create", "salaire.update", "salaire.delete",
         "prime.view", "prime.create", "prime.update", "prime.delete",
         "stagiaire.view", "stagiaire.create", "stagiaire.update", "stagiaire.delete",
-        # Livraisons : l'admin voit et gere les livraisons.
+        # Livraisons
         "delivery.view", "delivery.update",
     ],
     "manager": [
@@ -162,7 +192,7 @@ DEFAULT_PERMISSION_LISTS = {
         "product.create", "product.update", "product.view",
         "profile.update", "profile.view",
         "purchase_order.create", "purchase_order.view",
-        "quote.create", "quote.view",
+        "quote.create", "quote.update", "quote.view",
         "report.view",
         "sale.create", "sale.update", "sale.view",
         "stock.update", "stock.view",
@@ -177,7 +207,7 @@ DEFAULT_PERMISSION_LISTS = {
         "payment.create", "payment.view",
         "product.view",
         "profile.update", "profile.view",
-        "quote.create", "quote.view",
+        "quote.create", "quote.update", "quote.view",
         "report.view",
         "sale.create", "sale.update", "sale.view",
         "stock.view",

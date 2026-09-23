@@ -591,7 +591,11 @@ class TestPaiementPapiCommandeVitrine:
                 headers=public_headers,
             )
             assert response.status_code == 200
-            assert response.get_json()['paiement']['id'] == paiement_id
+            body = response.get_json()
+            # Contrat minimal volontaire (pas de détail paiement exposé) :
+            # cf. PublicCommandePapiStatus — 'paiement_statut' uniquement.
+            assert body['reference'] == reference
+            assert body['paiement_statut'] == StatutPaiement.EN_ATTENTE.value
 
             webhook_payload = {
                 'paymentReference': external_reference,

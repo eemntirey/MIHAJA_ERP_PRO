@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from decimal import Decimal
 from app import create_app, db
@@ -11,7 +12,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     app = create_app()
     app.config['TESTING'] = True
     with app.app_context():
@@ -79,7 +80,7 @@ class TestTenantModel:
 
 class TestMultiTenancy:
     def test_produit_tenant_isolation(self, app, tenant):
-        # CrÃ©er deux produits pour le mÃªme tenant
+        # CrÃƒÂ©er deux produits pour le mÃƒÂªme tenant
         p1 = Produit(
             nom='Produit 1',
             reference='P001',
@@ -97,11 +98,11 @@ class TestMultiTenancy:
         db.session.add_all([p1, p2])
         db.session.commit()
         
-        # VÃ©rifier l'isolation
+        # VÃƒÂ©rifier l'isolation
         produits = Produit.query.filter_by(tenant_id=tenant.id, is_active=True).all()
         assert len(produits) == 2
         
-        # Un produit d'un autre tenant ne doit pas apparaÃ®tre
+        # Un produit d'un autre tenant ne doit pas apparaÃƒÂ®tre
         autre_tenant = Tenant(nom='Autre', slug='autre', statut=StatutTenant.ACTIF)
         db.session.add(autre_tenant)
         db.session.commit()

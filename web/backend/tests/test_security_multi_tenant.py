@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from datetime import datetime, timedelta
 
@@ -32,7 +33,7 @@ from app.models.utilisateur import Role, StatutUtilisateur, StatutAdmin
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -545,14 +546,14 @@ class TestSecurityMultiTenancy:
 
     def test_secret_key_required(self, monkeypatch):
         monkeypatch.delenv('SECRET_KEY', raising=False)
-        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+        monkeypatch.setenv('DATABASE_URL', test_database_url())
         monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
         with pytest.raises(ValueError, match='SECRET_KEY'):
             create_app()
 
     def test_cors_wildcard_rejected(self, monkeypatch):
         monkeypatch.setenv('CORS_ORIGINS', '*')
-        monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+        monkeypatch.setenv('DATABASE_URL', test_database_url())
         monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
         monkeypatch.setenv('SECRET_KEY', 'test-secret')
         with pytest.raises(ValueError, match='CORS_ORIGINS cannot contain'):
@@ -662,7 +663,7 @@ class TestSecurityMultiTenancy:
         from app.security import tenant as tenant_module
 
         def bad_resolve():
-            raise RuntimeError('header cassÃ©')
+            raise RuntimeError('header cassÃƒÂ©')
 
         monkeypatch.setattr(tenant_module, 'resolve_tenant_from_header', bad_resolve)
 
@@ -670,7 +671,7 @@ class TestSecurityMultiTenancy:
             client = app.test_client()
             client.get('/api/v1/auth/login', json={'username': 'x', 'password': 'y'})
 
-        assert any('Impossible de rÃ©soudre le tenant' in record.getMessage() for record in caplog.records)
+        assert any('Impossible de rÃƒÂ©soudre le tenant' in record.getMessage() for record in caplog.records)
 
     def test_super_admin_readonly_cannot_create_vente(self, app):
         ta, tb, admin_a, admin_b, super_admin = _make_context()

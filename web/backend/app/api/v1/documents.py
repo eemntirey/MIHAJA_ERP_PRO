@@ -3,7 +3,7 @@ from flask import send_file, request, abort
 from app import db
 from app.security.tenant import tenant_required_readonly, get_current_tenant
 from app.security.permissions import permission_required
-from app.services.document_service import ModeleDocumentService, DocumentGenereService
+from app.services.document_service import ModeleDocumentService, DocumentGenereService, resolve_document_context, donnees_pdf_safe
 from app.utils.pdf_generator import generate_document_pdf
 from app.config.settings import Config
 from datetime import datetime
@@ -173,6 +173,18 @@ class GenererDocument(Resource):
             entite_id = data.get('entite_id')
             donnees = data.get('donnees', {}) or {}
 
+            # Génération automatique des données document depuis l'entité
+            # (vente/facture) quand aucun JSON brut n'est fourni : la vente
+            # reste la source de vérité (client, lignes, totaux en MGA).
+            if entite_type in ('vente', 'facture') and entite_id and not donnees:
+                contexte = resolve_document_context({
+                    'entite_type': entite_type,
+                    'entite_id': entite_id,
+                })
+                donnees = contexte['donnees']
+                type_document = type_document or contexte['type_document']
+                reference = reference or contexte['reference']
+
             modele = ModeleDocumentService.get_by_id(modele_id)
             if not modele:
                 modele = ModeleDocumentService.get_defaut_by_type(type_document)
@@ -181,7 +193,12 @@ class GenererDocument(Resource):
 
             html_content = modele.contenu_modele
             for key, value in donnees.items():
-                html_content = html_content.replace('{{' + key + '}}', html.escape(str(value) if value is not None else ''))
+                text = str(value) if value is not None else ''
+                if key == 'lignes':
+                    # Lignes HTML pré-rendues (table du modèle) : pas d'échappement.
+                    html_content = html_content.replace('{{' + key + '}}', text)
+                else:
+                    html_content = html_content.replace('{{' + key + '}}', html.escape(text))
 
             tenant = None
             current_tenant = get_current_tenant()
@@ -206,7 +223,7 @@ class GenererDocument(Resource):
                 filename=filename,
                 type_document=type_document,
                 reference=reference,
-                donnees=donnees,
+                donnees=donnees_pdf_safe(donnees),
                 tenant=tenant,
                 modele=modele_dict,
             )

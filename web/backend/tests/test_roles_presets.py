@@ -146,6 +146,8 @@ class TestRolePresets:
             'prime.view', 'prime.create', 'prime.update', 'prime.delete',
             'stagiaire.view', 'stagiaire.create', 'stagiaire.update', 'stagiaire.delete',
             'profile.view', 'profile.update', 'report.view',
+            # Le RH est notifie des demandes de conge : lecture + marquage lu.
+            'notification.view', 'notification.update',
         ])
         assert codes == expected
 
@@ -156,16 +158,65 @@ class TestRolePresets:
         forbidden = {'client.delete', 'compte.delete', 'ecriture.delete', 'product.delete', 'tresorerie.delete', 'user.delete'}
         assert forbidden.isdisjoint(codes)
 
-    def test_admin_has_limited_delete(self, app):
+    def test_admin_acces_complet_crud_sur_modules_metier(self, app):
+        """Regle metier : le compte TENANT (admin) realise le travail de TOUS
+        les roles metier du tenant sur les modules souscrits.
+
+        Consequence : tout le CRUD (create/update/delete) de chaque module est
+        accorde a l'admin du tenant, sans blocage residuel (les boutons des
+        ecrans concernes sont donc debloques). Seul le perimetre PLATEFORME du
+        super admin reste interdit a un compte de tenant.
+        """
         role = RoleModel.query.filter_by(name='admin').first()
         assert role is not None
         codes = {p.code for p in role.permissions}
-        assert 'client.delete' in codes
-        assert 'product.delete' in codes
-        assert 'compte.delete' not in codes
-        assert 'ecriture.delete' not in codes
-        assert 'tresorerie.delete' not in codes
-        assert 'user.delete' not in codes
+
+        # Suppressions : historiquement bloquees ("limited delete"), elles
+        # doivent desormais aboutir pour l'admin du tenant.
+        for code in [
+            'client.delete', 'product.delete', 'sale.delete', 'stock.delete',
+            'invoice.delete', 'compte.delete', 'ecriture.delete',
+            'tresorerie.delete', 'user.delete',
+        ]:
+            assert code in codes, f"{code} doit etre accorde a l'admin du tenant"
+
+        # Ecritures metier (create/update) de tous les modules souscrits.
+        for code in [
+            'product.create', 'product.update', 'client.create', 'client.update',
+            'sale.create', 'sale.update', 'quote.create', 'quote.update',
+            'invoice.create', 'invoice.update', 'payment.create',
+            'purchase_order.create', 'supplier.create', 'supplier.update',
+            'compte.create', 'compte.update', 'ecriture.create', 'ecriture.update',
+            'tresorerie.create', 'tresorerie.update',
+            'employe.create', 'employe.update', 'employe.delete',
+            'presence.create', 'presence.update', 'conge.create', 'conge.update',
+            'salaire.create', 'prime.create', 'stagiaire.create',
+            'delivery.update', 'notification.manage', 'dashboard.view',
+        ]:
+            assert code in codes, f"{code} doit etre accorde a l'admin du tenant"
+
+        # Perimetre plateforme : jamais accorde a un compte de tenant.
+        assert 'super_admin.access' not in codes
+
+    def test_admin_couvre_tous_les_roles_metier_du_tenant(self, app):
+        """L'admin du tenant peut faire le travail de tous les roles metier
+        (commercial, stock, comptable, RH, manager, livreur, ...) : sa liste de
+        permissions couvre l'union de celles des autres roles du tenant.
+
+        Seul 'super_admin.access' (plateforme) reste hors de son perimetre.
+        """
+        admin_perms = set(ROLE_PERMISSIONS['admin'])
+        plateforme_uniquement = {'super_admin.access'}
+        manquantes = set()
+        for role_name, perms in ROLE_PERMISSIONS.items():
+            if role_name in ('admin', 'super_admin'):
+                continue
+            manquantes |= {p for p in perms if p not in plateforme_uniquement} - admin_perms
+        assert not manquantes, (
+            "l'admin du tenant doit pouvoir faire le travail de tous les roles "
+            f"metier du tenant ; permissions manquantes : {sorted(manquantes)}"
+        )
+        assert 'super_admin.access' not in admin_perms
 
     def test_presets_endpoint_returns_presets(self, app, client):
         tenant = _make_tenant('tenant-preset')

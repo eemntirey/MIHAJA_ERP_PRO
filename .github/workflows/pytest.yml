@@ -1,0 +1,56 @@
+name: Backend Tests (pytest)
+
+on:
+  push:
+    branches: [V0, main, master]
+  pull_request:
+    branches: [V0, main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: erp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/erp_test
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      JWT_SECRET_KEY: ci-test-jwt-secret-key-not-for-production
+      # Clé Fernet de test uniquement (jamais de prod) — requise par le
+      # parcours PAPI/vitrine (chiffrement des secrets de paiement).
+      ENCRYPTION_KEY: _ZrP2v9RwO8mbZQKp00RlHLokCbOCUyydfye5V-sBwY=
+      FLASK_ENV: testing
+      JWT_COOKIE_CSRF_PROTECT: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: web/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r ../requirements.txt
+        working-directory: web/backend
+
+      - name: Run pytest
+        run: pytest tests/ -x --tb=short -q
+        working-directory: web/backend
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/erp_test

@@ -354,8 +354,15 @@ const DataTable = ({
   );
 
   // Chargement de la configuration persistée (largeurs + colonnes masquées).
+  // justLoadedRef : marque la fin d'un chargement pour que l'effet de
+  // sauvegarde ci-dessous enregistre la signature chargée comme baseline
+  // SANS déclencher de POST (sinon : 1 POST inutile par montage de table,
+  // x2 en StrictMode, sur toutes les tables de la page).
+  const justLoadedRef = useRef(false);
+  const lastSavedRef = useRef(null);
   useEffect(() => {
     if (!module) {
+      justLoadedRef.current = true;
       setConfigLoaded(true);
       return undefined;
     }
@@ -374,7 +381,10 @@ const DataTable = ({
         /* préférences non critiques */
       })
       .then(() => {
-        if (!cancelled) setConfigLoaded(true);
+        if (!cancelled) {
+          justLoadedRef.current = true;
+          setConfigLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -384,7 +394,15 @@ const DataTable = ({
   // Sauvegarde (debounce) des préférences de colonnes.
   useEffect(() => {
     if (!module || !configLoaded) return undefined;
+    const signature = JSON.stringify([widths, hiddenKeys]);
+    if (justLoadedRef.current) {
+      justLoadedRef.current = false;
+      lastSavedRef.current = signature;
+      return undefined;
+    }
+    if (signature === lastSavedRef.current) return undefined;
     const timer = setTimeout(() => {
+      lastSavedRef.current = signature;
       columnConfigService.save(module, { widths, hidden: hiddenKeys }).catch(() => {});
     }, CONFIG_SAVE_DEBOUNCE);
     return () => clearTimeout(timer);

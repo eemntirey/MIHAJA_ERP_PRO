@@ -22,7 +22,7 @@ import re
 import secrets
 from datetime import datetime, timedelta
 
-os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:55432/erp_test')
 os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret')
 

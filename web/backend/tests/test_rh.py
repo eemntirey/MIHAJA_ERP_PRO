@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from app import create_app, db
 from app.models.tenant import Tenant, StatutTenant
@@ -11,7 +12,7 @@ from datetime import datetime, timedelta
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()
@@ -76,7 +77,7 @@ def test_create_stagiaire(app):
         'matricule': 'STG-001',
         'nom': 'Dupont',
         'prenom': 'Jean',
-        'etablissement': 'UniversitÃ© A',
+        'etablissement': 'UniversitÃƒÂ© A',
         'formation': 'Informatique',
         'type_contrat': 'stage_initiation',
         'date_debut': '2026-01-01',

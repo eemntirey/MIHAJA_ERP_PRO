@@ -89,12 +89,13 @@ const ProductDetail = () => {
       <div className="card product-detail-grid">
         <div>
           <div style={{
+            position: 'relative',
             width: '100%', height: '0', paddingTop: '60%', background: 'var(--color-background)',
             borderRadius: '0', border: '1px solid var(--color-border)', display: 'grid', placeItems: 'center',
-            color: 'var(--color-text-secondary)', fontSize: '13px',
+            color: 'var(--color-text-secondary)', fontSize: '13px', overflow: 'hidden',
           }}>
-            {product.image || product.photo ? (
-              <img src={product.image || product.photo} alt={product.nom} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            {product.image_url || product.image || product.photo ? (
+              <img src={product.image_url || product.image || product.photo} alt={product.nom} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
             ) : (
               'Visuel produit'
             )}

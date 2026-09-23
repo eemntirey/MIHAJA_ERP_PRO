@@ -1,13 +1,14 @@
-"""Tests de conformitÃ© pour l'employee_key â€” ClÃ© privÃ©e du Tenant.
+﻿from tests._db_utils import test_database_url
+"""Tests de conformitÃƒÂ© pour l'employee_key Ã¢â‚¬â€ ClÃƒÂ© privÃƒÂ©e du Tenant.
 
-VÃ©rifie :
-- Â§1  : Tenant A peut crÃ©er sa clÃ© employÃ©
-- Â§2  : Tenant A peut consulter sa clÃ©
-- Â§3  : Tenant B ne peut pas consulter la clÃ© de Tenant A
-- Â§4  : Super Admin ne voit pas l'employee_key dans la liste des Tenants
-- Â§5  : Super Admin ne voit pas l'employee_key dans la liste des utilisateurs
-- Â§6  : L'API Super Admin ne peut pas rÃ©cupÃ©rer la clÃ© directement
-- Â§7  : Recherche globale admin_key = aucune rÃ©fÃ©rence mÃ©tier active
+VÃƒÂ©rifie :
+- Ã‚Â§1  : Tenant A peut crÃƒÂ©er sa clÃƒÂ© employÃƒÂ©
+- Ã‚Â§2  : Tenant A peut consulter sa clÃƒÂ©
+- Ã‚Â§3  : Tenant B ne peut pas consulter la clÃƒÂ© de Tenant A
+- Ã‚Â§4  : Super Admin ne voit pas l'employee_key dans la liste des Tenants
+- Ã‚Â§5  : Super Admin ne voit pas l'employee_key dans la liste des utilisateurs
+- Ã‚Â§6  : L'API Super Admin ne peut pas rÃƒÂ©cupÃƒÂ©rer la clÃƒÂ© directement
+- Ã‚Â§7  : Recherche globale admin_key = aucune rÃƒÂ©fÃƒÂ©rence mÃƒÂ©tier active
 """
 import pytest
 from datetime import datetime, timedelta
@@ -21,7 +22,7 @@ from app.security.auth import hash_password
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch, tmp_path):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     application = create_app()
@@ -74,18 +75,18 @@ def _make_super_admin():
 
 
 # ---------------------------------------------------------------------------
-# Â§1 : Tenant A peut crÃ©er sa clÃ© employÃ©
+# Ã‚Â§1 : Tenant A peut crÃƒÂ©er sa clÃƒÂ© employÃƒÂ©
 # ---------------------------------------------------------------------------
 class TestEmployeeKeyCreation:
 
     def test_tenant_can_create_employee_key(self, app):
-        """Test 1: Tenant A crÃ©e sa clÃ© employÃ© -> succÃ¨s."""
+        """Test 1: Tenant A crÃƒÂ©e sa clÃƒÂ© employÃƒÂ© -> succÃƒÂ¨s."""
         client = app.test_client()
         r = _register_company(client, 'Entreprise A', 'a@a.mg')
         assert r.status_code == 201, r.get_json()
         h = _auth(client, 'a@a.mg')
 
-        # CrÃ©er l'employee_key
+        # CrÃƒÂ©er l'employee_key
         r = client.post('/api/v1/tenants/me/employee-key', headers=h)
         assert r.status_code == 200, r.get_json()
         data = r.get_json()
@@ -94,39 +95,39 @@ class TestEmployeeKeyCreation:
         assert len(data['employee_key']) > 0
 
     def test_tenant_can_regenerate_employee_key(self, app):
-        """Test 1b: Tenant A peut rÃ©gÃ©nÃ©rer sa clÃ© employÃ©."""
+        """Test 1b: Tenant A peut rÃƒÂ©gÃƒÂ©nÃƒÂ©rer sa clÃƒÂ© employÃƒÂ©."""
         client = app.test_client()
         r = _register_company(client, 'Entreprise B', 'b@b.mg')
         assert r.status_code == 201, r.get_json()
         h = _auth(client, 'b@b.mg')
 
-        # PremiÃ¨re crÃ©ation
+        # PremiÃƒÂ¨re crÃƒÂ©ation
         r1 = client.post('/api/v1/tenants/me/employee-key', headers=h)
         assert r1.status_code == 200
         key1 = r1.get_json()['employee_key']
 
-        # RÃ©gÃ©nÃ©ration
+        # RÃƒÂ©gÃƒÂ©nÃƒÂ©ration
         r2 = client.post('/api/v1/tenants/me/employee-key', headers=h)
         assert r2.status_code == 200
         key2 = r2.get_json()['employee_key']
 
-        # Les clÃ©s doivent Ãªtre diffÃ©rentes
+        # Les clÃƒÂ©s doivent ÃƒÂªtre diffÃƒÂ©rentes
         assert key1 != key2
 
 
 # ---------------------------------------------------------------------------
-# Â§2 : Tenant A peut consulter sa clÃ©
+# Ã‚Â§2 : Tenant A peut consulter sa clÃƒÂ©
 # ---------------------------------------------------------------------------
 class TestEmployeeKeyConsultation:
 
     def test_tenant_can_see_employee_key_status(self, app):
-        """Test 2: Tenant A consulte sa clÃ© -> autorisÃ©."""
+        """Test 2: Tenant A consulte sa clÃƒÂ© -> autorisÃƒÂ©."""
         client = app.test_client()
         r = _register_company(client, 'Entreprise C', 'c@c.mg')
         assert r.status_code == 201, r.get_json()
         h = _auth(client, 'c@c.mg')
 
-        # CrÃ©er l'employee_key
+        # CrÃƒÂ©er l'employee_key
         client.post('/api/v1/tenants/me/employee-key', headers=h)
 
         # Consulter le statut
@@ -137,13 +138,13 @@ class TestEmployeeKeyConsultation:
         assert data.get('status') == 'active'
 
     def test_non_principal_admin_cannot_access_employee_key(self, app):
-        """Test 2b: Un employÃ© non admin principal ne peut pas accÃ©der Ã  la clÃ©."""
+        """Test 2b: Un employÃƒÂ© non admin principal ne peut pas accÃƒÂ©der ÃƒÂ  la clÃƒÂ©."""
         client = app.test_client()
         r = _register_company(client, 'Entreprise D', 'd@d.mg', 'enterprise')
         assert r.status_code == 201, r.get_json()
         h = _auth(client, 'd@d.mg')
 
-        # CrÃ©er un employÃ© normal
+        # CrÃƒÂ©er un employÃƒÂ© normal
         ru = client.post('/api/v1/users', headers=h, json={
             'username': 'employe_d',
             'email': 'employe_d@x.mg',
@@ -153,42 +154,42 @@ class TestEmployeeKeyConsultation:
         })
         assert ru.status_code == 201
 
-        # L'employÃ© tente d'accÃ©der Ã  l'employee_key
+        # L'employÃƒÂ© tente d'accÃƒÂ©der ÃƒÂ  l'employee_key
         emp_h = _auth(client, 'employe_d@x.mg', 'Employe123')
         r = client.get('/api/v1/tenants/me/employee-key', headers=emp_h)
         assert r.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# Â§3 : Tenant B ne peut pas consulter la clÃ© de Tenant A
+# Ã‚Â§3 : Tenant B ne peut pas consulter la clÃƒÂ© de Tenant A
 # ---------------------------------------------------------------------------
 class TestEmployeeKeyIsolation:
 
     def test_tenant_b_cannot_see_tenant_a_key(self, app):
-        """Test 3: Tenant B tente de consulter la clÃ© de Tenant A -> accÃ¨s refusÃ©."""
+        """Test 3: Tenant B tente de consulter la clÃƒÂ© de Tenant A -> accÃƒÂ¨s refusÃƒÂ©."""
         client = app.test_client()
 
-        # CrÃ©er Tenant A avec sa clÃ©
+        # CrÃƒÂ©er Tenant A avec sa clÃƒÂ©
         ra = _register_company(client, 'Tenant A', 'ta@a.mg')
         assert ra.status_code == 201
         ha = _auth(client, 'ta@a.mg')
         client.post('/api/v1/tenants/me/employee-key', headers=ha)
 
-        # CrÃ©er Tenant B
+        # CrÃƒÂ©er Tenant B
         rb = _register_company(client, 'Tenant B', 'tb@b.mg')
         assert rb.status_code == 201
         hb = _auth(client, 'tb@b.mg')
 
-        # Tenant B tente d'accÃ©der Ã  la clÃ© de A (via l'API de A)
-        # L'API /tenants/me renvoie le tenant de l'utilisateur authentifiÃ©
-        # Donc Tenant B ne peut voir que sa propre clÃ© (qui n'existe pas encore)
+        # Tenant B tente d'accÃƒÂ©der ÃƒÂ  la clÃƒÂ© de A (via l'API de A)
+        # L'API /tenants/me renvoie le tenant de l'utilisateur authentifiÃƒÂ©
+        # Donc Tenant B ne peut voir que sa propre clÃƒÂ© (qui n'existe pas encore)
         r = client.get('/api/v1/tenants/me/employee-key', headers=hb)
         assert r.status_code == 404
         assert r.get_json().get('message') == 'Aucune cle employe generee'
 
 
 # ---------------------------------------------------------------------------
-# Â§4 : Super Admin ne voit pas l'employee_key dans la liste des Tenants
+# Ã‚Â§4 : Super Admin ne voit pas l'employee_key dans la liste des Tenants
 # ---------------------------------------------------------------------------
 class TestSuperAdminTenantList:
 
@@ -197,7 +198,7 @@ class TestSuperAdminTenantList:
         client = app.test_client()
         _make_super_admin()
 
-        # CrÃ©er un Tenant avec sa clÃ©
+        # CrÃƒÂ©er un Tenant avec sa clÃƒÂ©
         r = _register_company(client, 'Tenant X', 'tx@x.mg')
         assert r.status_code == 201
         h = _auth(client, 'tx@x.mg')
@@ -211,14 +212,14 @@ class TestSuperAdminTenantList:
         assert r.status_code == 200, r.get_json()
         data = r.get_json()
 
-        # VÃ©rifier que l'employee_key n'est pas exposÃ©e
+        # VÃƒÂ©rifier que l'employee_key n'est pas exposÃƒÂ©e
         for tenant in data.get('tenants', []):
             assert 'employee_key' not in tenant
             assert 'employee_key_hash' not in tenant
 
 
 # ---------------------------------------------------------------------------
-# Â§5 : Super Admin ne voit pas l'employee_key dans la liste des utilisateurs
+# Ã‚Â§5 : Super Admin ne voit pas l'employee_key dans la liste des utilisateurs
 # ---------------------------------------------------------------------------
 class TestSuperAdminUserList:
 
@@ -227,7 +228,7 @@ class TestSuperAdminUserList:
         client = app.test_client()
         _make_super_admin()
 
-        # CrÃ©er un Tenant avec sa clÃ©
+        # CrÃƒÂ©er un Tenant avec sa clÃƒÂ©
         r = _register_company(client, 'Tenant Y', 'ty@y.mg')
         assert r.status_code == 201
 
@@ -239,29 +240,29 @@ class TestSuperAdminUserList:
         assert r.status_code == 200, r.get_json()
         data = r.get_json()
 
-        # VÃ©rifier que l'employee_key n'est pas exposÃ©e
+        # VÃƒÂ©rifier que l'employee_key n'est pas exposÃƒÂ©e
         for user in data.get('users', []):
             assert 'employee_key' not in user
             assert 'employee_key_hash' not in user
 
 
 # ---------------------------------------------------------------------------
-# Â§6 : L'API Super Admin ne peut pas rÃ©cupÃ©rer la clÃ© directement
+# Ã‚Â§6 : L'API Super Admin ne peut pas rÃƒÂ©cupÃƒÂ©rer la clÃƒÂ© directement
 # ---------------------------------------------------------------------------
 class TestSuperAdminDirectAccess:
 
     def test_super_admin_cannot_get_employee_key_directly(self, app):
-        """Test 6: L'API Super Admin tente de rÃ©cupÃ©rer directement la clÃ© -> refus."""
+        """Test 6: L'API Super Admin tente de rÃƒÂ©cupÃƒÂ©rer directement la clÃƒÂ© -> refus."""
         client = app.test_client()
         _make_super_admin()
 
-        # CrÃ©er un Tenant avec sa clÃ©
+        # CrÃƒÂ©er un Tenant avec sa clÃƒÂ©
         r = _register_company(client, 'Tenant Z', 'tz@z.mg')
         assert r.status_code == 201
         h = _auth(client, 'tz@z.mg')
         client.post('/api/v1/tenants/me/employee-key', headers=h)
 
-        # RÃ©cupÃ©rer l'ID du tenant
+        # RÃƒÂ©cupÃƒÂ©rer l'ID du tenant
         with app.app_context():
             tenant = Tenant.query.filter_by(slug='tenant-z').first()
             tenant_id = tenant.id
@@ -269,7 +270,7 @@ class TestSuperAdminDirectAccess:
         # Super Admin se connecte
         sh = _auth(client, 'super@x.mg', 'Super123!')
 
-        # Super Admin tente d'accÃ©der Ã  la clÃ© du tenant
+        # Super Admin tente d'accÃƒÂ©der ÃƒÂ  la clÃƒÂ© du tenant
         # L'endpoint /api/v1/tenants/<id> ne doit pas exposer l'employee_key
         r = client.get(f'/api/v1/tenants/{tenant_id}', headers=sh)
         assert r.status_code == 200, r.get_json()
@@ -279,19 +280,19 @@ class TestSuperAdminDirectAccess:
 
 
 # ---------------------------------------------------------------------------
-# Â§7 : Recherche globale admin_key = aucune rÃ©fÃ©rence mÃ©tier active
+# Ã‚Â§7 : Recherche globale admin_key = aucune rÃƒÂ©fÃƒÂ©rence mÃƒÂ©tier active
 # ---------------------------------------------------------------------------
 class TestGlobalAdminKeySearch:
 
     def test_no_active_admin_key_in_code(self, app):
-        """Test 7: VÃ©rifier que le code ne contient pas de rÃ©fÃ©rences actives Ã  admin_key."""
+        """Test 7: VÃƒÂ©rifier que le code ne contient pas de rÃƒÂ©fÃƒÂ©rences actives ÃƒÂ  admin_key."""
         import os
         import re
 
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
         backend_dir = os.path.join(repo_root, 'web', 'backend', 'app')
 
-        # Patterns Ã  rechercher (rÃ©fÃ©rences fonctionnelles, pas les assertions de sÃ©curitÃ©)
+        # Patterns ÃƒÂ  rechercher (rÃƒÂ©fÃƒÂ©rences fonctionnelles, pas les assertions de sÃƒÂ©curitÃƒÂ©)
         functional_patterns = [
             r"admin_key_hash\s*=",  # Assignation
             r"admin_key_status\s*=",  # Assignation
@@ -316,23 +317,23 @@ class TestGlobalAdminKeySearch:
                         if re.search(pattern, content):
                             violations.append((filepath, pattern))
 
-        assert violations == [], f"RÃ©fÃ©rences fonctionnelles Ã  admin_key trouvÃ©es: {violations}"
+        assert violations == [], f"RÃƒÂ©fÃƒÂ©rences fonctionnelles ÃƒÂ  admin_key trouvÃƒÂ©es: {violations}"
 
     def test_no_admin_key_in_api_responses(self, app):
-        """Test 7b: VÃ©rifier que les rÃ©ponses API ne contiennent pas d'admin_key."""
+        """Test 7b: VÃƒÂ©rifier que les rÃƒÂ©ponses API ne contiennent pas d'admin_key."""
         client = app.test_client()
         _make_super_admin()
 
-        # CrÃ©er un Tenant
+        # CrÃƒÂ©er un Tenant
         r = _register_company(client, 'Tenant Audit', 'audit@a.mg')
         assert r.status_code == 201
 
-        # VÃ©rifier la rÃ©ponse d'inscription
+        # VÃƒÂ©rifier la rÃƒÂ©ponse d'inscription
         data = r.get_json()
         assert 'admin_key' not in data
         assert 'admin_key_hash' not in data
 
-        # VÃ©rifier /me
+        # VÃƒÂ©rifier /me
         h = _auth(client, 'audit@a.mg')
         me = client.get('/api/v1/auth/me', headers=h).get_json()
         assert 'admin_key' not in me
@@ -340,7 +341,7 @@ class TestGlobalAdminKeySearch:
         assert 'admin_key' not in me.get('tenant', {})
         assert 'admin_key_hash' not in me.get('tenant', {})
 
-        # VÃ©rifier la liste Super Admin
+        # VÃƒÂ©rifier la liste Super Admin
         sh = _auth(client, 'super@x.mg', 'Super123!')
         tenants = client.get('/api/v1/super-admin/tenants', headers=sh).get_json()
         for tenant in tenants.get('tenants', []):

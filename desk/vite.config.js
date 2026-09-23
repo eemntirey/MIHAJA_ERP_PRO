@@ -7,6 +7,16 @@ const deskSharedDir = path.resolve(__dirname, 'shared');
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    // Convention CRA conservée : le JSX vit dans des fichiers .js.
+    // Sans cette option, esbuild refuse le JSX dans .js (« The JSX syntax
+    // extension is not currently enabled »). Même approche que super-admin.
+    // Le pattern couvre aussi le dossier racine ../shared (alias @shared),
+    // en dehors de desk/src — sinon SyncContext.jsx & co. ne passent pas.
+    loader: 'jsx',
+    include: /(src|shared)[\\/].*\.[jt]sx?$/,
+    exclude: [],
+  },
   resolve: {
     alias: {
       '@shared': sharedDir,
@@ -53,5 +63,8 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
+    esbuildOptions: {
+      loader: { '.js': 'jsx' },
+    },
   },
 });

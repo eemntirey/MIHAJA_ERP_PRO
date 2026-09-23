@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import pytest
 from datetime import datetime, timedelta
 
@@ -13,7 +14,7 @@ from app.models.admin_device import AdminDevice, StatutDevice
 
 @pytest.fixture(autouse=True)
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret')
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     app = create_app()

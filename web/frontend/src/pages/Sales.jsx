@@ -111,7 +111,8 @@ const calculateTotals = (items) => {
   return { totalHt, totalTva, totalTtc };
 };
 
-const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
+// Export nommé pour les tests de non-régression (B1).
+export const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
   const [pendingConfirm, setPendingConfirm] = useState({ open: false, venteId: null });
   const defaultValues = {
     client_id: null,
@@ -186,6 +187,8 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
   };
 
   const handleProduitChange = (index, produitId) => {
+    const pid = produitId === '' ? '' : Number(produitId);
+    setValue(`lignes.${index}.produit_id`, pid, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     const product = products.find(p => p.id === Number(produitId));
     const clientType = clients.find(c => c.id === Number(watch('client_id')))?.type;
     setValue(`lignes.${index}.prix_unitaire`, product ? getPrixAuto(product, watch('type_vente'), clientType) : 0, { shouldValidate: true });
@@ -291,7 +294,14 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
             </div>
             <div className="form-group">
               <label>Type de vente</label>
-              <select {...register('type_vente')} onChange={(e) => handleTypeVenteChange(e.target.value)}>
+              <select
+                {...register('type_vente')}
+                onChange={(e) => {
+                  // Ne pas écraser l'onChange de register : réordonner les deux
+                  register('type_vente').onChange(e);
+                  handleTypeVenteChange(e.target.value);
+                }}
+              >
                 <option value="detail">Détail (prix public)</option>
                 <option value="gros">Gros (prix grossiste)</option>
               </select>
@@ -319,7 +329,12 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                       <td>
                         <select
                           {...register(`lignes.${index}.produit_id`)}
-                          onChange={(e) => handleProduitChange(index, e.target.value)}
+                          onChange={(e) => {
+                            // Fix B1 : register.onChange doit s'exécuter aussi,
+                            // sinon produit_id n'est jamais capturé par le form.
+                            register(`lignes.${index}.produit_id`).onChange(e);
+                            handleProduitChange(index, e.target.value);
+                          }}
                           required
                         >
                           <option value="">Produit</option>

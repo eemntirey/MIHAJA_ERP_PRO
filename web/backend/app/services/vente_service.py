@@ -123,7 +123,7 @@ def create_with_lignes(data):
         if tenant_id:
             client_query = client_query.filter_by(tenant_id=tenant_id)
         client = client_query.first()
-    client_type = client.type.value if client and client.type else 'particulier'
+    client_type = getattr(client.type, 'value', client.type) if client and client.type else 'particulier'
 
     type_vente = data.get('type_vente')
     if not type_vente:

@@ -54,6 +54,16 @@ class DemanderAbonnement(Resource):
 
         data['tenant_id'] = tenant_id
         try:
+            # Annuler les éventuelles demandes précédentes restées en attente
+            anciennes_demandes = Abonnement.query.filter(
+                Abonnement.tenant_id == tenant_id,
+                Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+                Abonnement.is_active == True,
+            ).all()
+            for anc in anciennes_demandes:
+                anc.statut = StatutAbonnement.ANNULE
+            db.session.flush()
+
             abonnement, paiement = AbonnementService.create_abonnement(data)
             response = {
                 'abonnement': abonnement.to_dict(),
@@ -90,8 +100,16 @@ class MonAbonnement(Resource):
             current_app.logger.exception(
                 "Lecture du tenant %s impossible (donnees invalides)", tenant_id
             )
-            tenant = None
-        abonnement = AbonnementService.get_active_by_tenant(tenant_id)
+        # Priorité à une demande en attente de règlement (ex: passage au plan Pro/Entreprise)
+        abonnement = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+            Abonnement.is_active == True,
+        ).order_by(Abonnement.created_at.desc()).first()
+
+        if not abonnement:
+            abonnement = AbonnementService.get_active_by_tenant(tenant_id)
+
         can_renew = _is_principal_admin(utilisateur, tenant)
         is_free_plan = (abonnement.plan == 'gratuit') if abonnement else False
 
@@ -219,7 +237,12 @@ class PayerAbonnement(Resource):
                 return {'message': 'Abonnement non trouve'}, 404
             return self._effectuer_paiement(abonnement)
 
-        abonnement = db.session.get(Abonnement, id)
+        # Même correctif que /renouveler : charger sans filtre tenant puis
+        # appliquer les contrôles explicites (401/403) au lieu d'un 404
+        # trompeur produit par le filtre tenant global.
+        abonnement = Abonnement.query.execution_options(
+            _skip_tenant_filter=True
+        ).filter_by(id=id).first()
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 
@@ -254,6 +277,14 @@ class PayerAbonnement(Resource):
 
         abonnement.statut = StatutAbonnement.ACTIF
         abonnement.save()
+
+        tenant = db.session.get(Tenant, abonnement.tenant_id)
+        if tenant:
+            tenant.statut = StatutTenant.ACTIF
+            tenant.is_active = True
+            tenant.plan = abonnement.plan
+            tenant.date_abonnement = datetime.utcnow()
+            db.session.commit()
 
         try:
             broadcast_to_tenant(abonnement.tenant_id, 'subscription:updated', abonnement.to_dict())
@@ -296,7 +327,17 @@ class RenouvelerAbonnement(Resource):
                 'paiement': paiement.to_dict()
             }, 200
 
-        abonnement = db.session.get(Abonnement, id)
+        # FIX : le filtre tenant global (security/tenant.py, do_orm_execute)
+        # réécrit db.session.get(Abonnement, id) en WHERE tenant_id = courant.
+        # Un admin du tenant A qui vise un abonnement du tenant B obtenait
+        # 404 "Abonnement non trouve" (fuite d'info évitée certes, mais le
+        # message ne correspond pas au modèle d'accès : le test d'architecture
+        # attend 403). On charge SANS filtre tenant, puis on applique le
+        # contrôle d'accès explicite tenant_id + admin principal ci-dessous,
+        # qui reste la source de vérité (401/403/404 dans cet ordre).
+        abonnement = Abonnement.query.execution_options(
+            _skip_tenant_filter=True
+        ).filter_by(id=id).first()
         if not abonnement:
             return {'message': 'Abonnement non trouve'}, 404
 

@@ -8,8 +8,22 @@ import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
-const API_BASE_URL =
-    import.meta.env.VITE_API_URL || '/api/v1';
+// Backend local embarqué (desktop hors-ligne) : Electron injecte le port
+// dynamique du backend Flask local dans l'URL chargée (`?backendPort=<n>`,
+// cf. desk/electron/backendHost.js). Le port est lu de manière SYNCHRONE au
+// premier rendu : aucune course avec le premier appel API.
+//
+// Sans ce port, on conserve EXACTEMENT le comportement précédent
+// (VITE_API_URL ou proxy relatif) : le web et le desk connecté au central ne
+// changent pas.
+const backendPort = (typeof window !== 'undefined'
+    && window.location
+    && new URLSearchParams(window.location.search).get('backendPort'))
+    || null;
+
+const API_BASE_URL = backendPort
+    ? `http://127.0.0.1:${backendPort}/api/v1`
+    : (import.meta.env.VITE_API_URL || '/api/v1');
 
 const api = axios.create({
     baseURL: API_BASE_URL,

@@ -8,8 +8,17 @@
 import axios from 'axios';
 import { tokenStore } from '../storage/tokenStore';
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || '/api/v1';
+// Backend local embarqué (desktop hors-ligne) : même résolution que
+// services/api.js — le port du backend Flask local est fourni par Electron
+// (`?backendPort=<n>`). Sans port, comportement inchangé (proxy relatif).
+const backendPort = (typeof window !== 'undefined'
+    && window.location
+    && new URLSearchParams(window.location.search).get('backendPort'))
+    || null;
+
+export const API_BASE_URL = backendPort
+    ? `http://127.0.0.1:${backendPort}/api/v1`
+    : (import.meta.env.VITE_API_URL || '/api/v1');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

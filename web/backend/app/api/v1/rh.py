@@ -29,6 +29,7 @@ class EmployeList(Resource):
         employes, total = EmployeService.get_all()
         return {'employes': [e.to_dict() for e in employes], 'total': total}, 200
 
+    @permission_required('employe.create')
     @tenant_required_readonly
     @require_module(_MODULE_RH)
     @check_plan_limits('employes')

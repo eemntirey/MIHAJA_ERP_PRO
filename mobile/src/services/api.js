@@ -7,7 +7,7 @@
 // - déconnexion propagée via setUnauthorizedHandler (pas de window en RN)
 
 import axios from 'axios';
-import { API_BASE_URL } from '../config/env';
+import { API_BASE_URL, API_FALLBACK_URL, API_DEV_SERVER_HOST } from '../config/env';
 import { session } from '../storage/session';
 
 export const api = axios.create({
@@ -17,6 +17,11 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// URL effectivement utilisée (elle peut basculer sur API_FALLBACK_URL, voir
+// l'intercepteur de réponse) — utilisée aussi pour le rafraîchissement du JWT.
+let effectiveBaseUrl = API_BASE_URL;
+export const getEffectiveApiBaseUrl = () => effectiveBaseUrl;
 
 // Callback déclenché quand la session doit être purgée (refresh impossible).
 let unauthorizedHandler = null;
@@ -63,8 +68,34 @@ api.interceptors.response.use(
 
     // Pas de réponse du serveur (réseau, timeout, URL invalide...)
     if (!error.response) {
+      // Repli automatique une seule fois : sur un appareil physique,
+      // 10.0.2.2 (alias émulateur Android venant de mobile/.env) est
+      // injoignable ; on retente via l'hôte du serveur de dev Expo, c'est-à-dire
+      // l'IP LAN que le téléphone vient déjà de joindre pour charger le bundle.
+      if (
+        API_FALLBACK_URL &&
+        originalRequest &&
+        !originalRequest._networkFallbackRetried &&
+        error.code !== 'ERR_CANCELED'
+      ) {
+        originalRequest._networkFallbackRetried = true;
+        effectiveBaseUrl = API_FALLBACK_URL;
+        api.defaults.baseURL = API_FALLBACK_URL;
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn(
+            `[api] ${API_BASE_URL} injoignable — bascule sur ${API_FALLBACK_URL} ` +
+              `(hôte du serveur de dev : ${API_DEV_SERVER_HOST || 'inconnu'})`
+          );
+        }
+        return api.request({ ...originalRequest, baseURL: API_FALLBACK_URL });
+      }
+
+      const tried = API_FALLBACK_URL
+        ? `${effectiveBaseUrl} ni ${API_FALLBACK_URL}`
+        : effectiveBaseUrl;
       error.friendlyMessage =
-        'Impossible de joindre le serveur. Vérifiez que le backend est démarré et que EXPO_PUBLIC_API_URL pointe vers la bonne adresse.';
+        `Impossible de joindre le serveur (${tried}). ` +
+        'Vérifiez que le backend est démarré et que EXPO_PUBLIC_API_URL pointe vers la bonne adresse.';
       return Promise.reject(error);
     }
 
@@ -107,7 +138,7 @@ api.interceptors.response.use(
 
       try {
         const refreshResponse = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
+          `${effectiveBaseUrl}/auth/refresh`,
           null,
           {
             timeout: 20000,

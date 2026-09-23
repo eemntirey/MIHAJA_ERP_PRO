@@ -18,8 +18,9 @@ RUN groupadd --system app && useradd --system --gid app --create-home --home-dir
 COPY backend/app ./app
 COPY backend/migrations ./migrations
 COPY backend/scripts ./scripts
-COPY backend/instance ./instance
-COPY backend/uploads ./uploads
+# instance/ et uploads/ sont gitignorés : créer les dossiers à vide
+# (sinon COPY échoue si le dossier n'existe pas dans le build context)
+RUN mkdir -p ./instance ./uploads
 COPY backend/run.py backend/run_socket.py ./
 
 RUN chown -R app:app /app
@@ -27,4 +28,10 @@ USER app
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+# CMD production (B1) : gunicorn worker 'gthread' — 1 worker obligatoire tant
+# que SocketIO n'utilise pas message_queue=redis (événements intra-process).
+# simple-websocket (requirements) assure l'upgrade WebSocket en mode threading.
+# Dev : conserver `python run.py` (Werkzeug threaded) hors production.
+CMD ["gunicorn", "--workers", "1", "--threads", "8", "--worker-class", "gthread", \
+     "--bind", "0.0.0.0:5000", "--timeout", "120", "--access-logfile", "-", \
+     "app:create_app()"]

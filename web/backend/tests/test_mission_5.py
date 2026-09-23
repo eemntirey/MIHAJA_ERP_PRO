@@ -1,3 +1,4 @@
+﻿from tests._db_utils import test_database_url
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -24,7 +25,7 @@ from app.security.auth import hash_password, create_access_token_for_user
 
 @pytest.fixture
 def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://postgres:<REDACTED_DB_PASSWORD>@localhost:55432/erp_test')
+    monkeypatch.setenv('DATABASE_URL', test_database_url())
     monkeypatch.setenv('JWT_SECRET_KEY', 'test-secret-key')
     monkeypatch.setenv('PAPI_API_URL', 'https://test.papi.mg/dashboard/api/payment-links')
     monkeypatch.setenv('PAPI_API_KEY', 'test-api-key')
@@ -167,7 +168,7 @@ class TestWorkflowVenteComplet:
             stock_prod1_before = float(product1.quantite_stock)
             stock_prod2_before = float(product2.quantite_stock)
 
-        # CrÃ©er commande vente
+        # CrÃƒÂ©er commande vente
         response = app.test_client().post(
             '/api/v1/ventes/',
             json={
@@ -200,7 +201,7 @@ class TestWorkflowVenteComplet:
         assert response.status_code == 200
         assert response.get_json()['statut'] == 'confirmee'
 
-        # GÃ©nÃ©rer bon de livraison
+        # GÃƒÂ©nÃƒÂ©rer bon de livraison
         response = app.test_client().post(
             '/api/v1/livraisons/',
             json={
@@ -216,12 +217,12 @@ class TestWorkflowVenteComplet:
 
         response = app.test_client().post(
             f'/api/v1/livraisons/{livraison_id}/statut',
-            json={'statut': 'livree', 'commentaire': 'LivrÃ©e Ã  Antananarivo'},
+            json={'statut': 'livree', 'commentaire': 'LivrÃƒÂ©e ÃƒÂ  Antananarivo'},
             headers=auth_headers,
         )
         assert response.status_code == 201
 
-        # Facturer Ã  crÃ©dit 15j
+        # Facturer ÃƒÂ  crÃƒÂ©dit 15j
         response = app.test_client().post(
             f'/api/v1/factures/from-vente/{vente_id}',
             json={'reference': f'FAC-{vente["reference"]}', 'statut': 'non_payee'},
@@ -314,7 +315,7 @@ class TestWorkflowAchatComplet:
         commande = response.get_json()
         commande_id = commande['id']
 
-        # RÃ©ceptionner en dÃ©pÃ´t
+        # RÃƒÂ©ceptionner en dÃƒÂ©pÃƒÂ´t
         response = app.test_client().post(
             '/api/v1/receptions/',
             json={
@@ -357,7 +358,7 @@ class TestWorkflowAchatComplet:
         commande_updated = response.get_json()
         assert commande_updated['statut'] == 'recue'
 
-        # Effectuer un rÃ¨glement partiel
+        # Effectuer un rÃƒÂ¨glement partiel
         response = app.test_client().post(
             '/api/v1/paiements/',
             json={
@@ -442,7 +443,7 @@ class TestInterfaceFormulaires:
             created_clients = []
             for city, cp in cities:
                 # ``clients.code`` est une colonne String(20) : on tronque le
-                # nom de ville (le code postal garde l'unicité).
+                # nom de ville (le code postal garde l'unicitÃ©).
                 c = Client(
                     code=f'CLI-{cp}-{city[:6]}',
                     nom=f'Test {city}',
@@ -463,8 +464,8 @@ class TestInterfaceFormulaires:
             for c in created_clients:
                 assert c.ville_facturation in [city for city, _ in cities]
 
-        # UnitÃ©s produit
-        units = ['piece', 'sac', 'carton', 'kg', 'litres', 'unitÃ©']
+        # UnitÃƒÂ©s produit
+        units = ['piece', 'sac', 'carton', 'kg', 'litres', 'unitÃƒÂ©']
         with app.app_context():
             for u in units:
                 p = Produit(

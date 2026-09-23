@@ -6,6 +6,17 @@ const sharedDir = path.resolve(__dirname, '../../shared');
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    loader: 'jsx',
+    include: /src[\\/].*\.jsx?$/,
+    exclude: [],
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: { '.js': 'jsx' },
+    },
+    include: ['react', 'react-dom'],
+  },
   resolve: {
     alias: {
       '@shared': sharedDir,
@@ -50,9 +61,5 @@ export default defineConfig({
     outDir: 'build',
     sourcemap: false,
   },
-  // Vite pré-bundle les dépendances automatiquement — pas besoin du trick
-  // react/react-dom alias du config-overrides.js CRA.
-  optimizeDeps: {
-    include: ['react', 'react-dom'],
-  },
+
 });

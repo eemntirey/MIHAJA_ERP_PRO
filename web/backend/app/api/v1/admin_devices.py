@@ -42,7 +42,7 @@ def _log_audit(action_type, description, tenant_id=None, metadata=None):
 class RegisterDevice(Resource):
     # Audit P2-3 : bornure stricte — un attaquant qui possède un JWT admin
     # ne peut pas flood l'enrôlement d'appareils.
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     @jwt_required()
     def post(self):
         user = _get_current_user()
@@ -209,7 +209,7 @@ class DeviceResource(Resource):
 
 @ns.route('/change')
 class ChangeDevice(Resource):
-    @rate_limit(5, 300)
+    @rate_limit(30, 300)
     @jwt_required()
     def post(self):
         user = _get_current_user()

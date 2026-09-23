@@ -9,6 +9,26 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models.role_permission import RoleModel, Permission
 from app.models.utilisateur import Role
 
+
+def missing_permission_codes():
+    """Codes de permissions de la matrice absents de la table `permissions`.
+
+    Source unique : `PERMISSION_DEFINITIONS` + `ROLE_PERMISSIONS`. Sert a la
+    CONVERGENCE d'une base existante : `seed_roles()` ne s'execute d'origine que
+    sur des tables vides, donc un nouveau code ajoute a la matrice (ex.
+    `user.delete`, `quote.update`) ne creait jamais sa ligne `permissions` ;
+    les presets et les roles personnalises ne pouvaient alors pas le proposer.
+    """
+    from app import db
+    from app.security.permission_matrix import ROLE_PERMISSIONS, PERMISSION_DEFINITIONS
+
+    expected = set(PERMISSION_DEFINITIONS)
+    for perms in ROLE_PERMISSIONS.values():
+        expected.update(code for code in perms if code != '*')
+
+    existing = {code for (code,) in db.session.query(Permission.code).all()}
+    return sorted(expected - existing)
+
 def seed_roles(app=None):
     from app import db
     from app.security.permission_matrix import ROLE_PERMISSIONS, PERMISSION_DEFINITIONS

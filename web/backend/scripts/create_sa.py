@@ -18,6 +18,19 @@ from app import create_app, db
 from app.security.auth import hash_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 
+# Mot de passe Super Admin : jamais en clair dans le script (P0 #70 / A3).
+# Charge depuis .env / l'environnement (load_dotenv ci-dessus) ; SystemExit
+# si absent pour interdire tout defaut de production.
+admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD')
+if not admin_password:
+    print(
+        "ERREUR : DEFAULT_ADMIN_PASSWORD est absent.\n"
+        "  - définir .env (voir .env.example),\n"
+        "  - ou exporter DEFAULT_ADMIN_PASSWORD dans le shell.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
 app = create_app()
 with app.app_context():
     # Check existing users
@@ -28,7 +41,7 @@ with app.app_context():
         super_admin = Utilisateur(
             username='super',
             email='super@x.mg',
-            password_hash=hash_password('Super123!'),
+            password_hash=hash_password(admin_password),
             role=Role.SUPER_ADMIN,
             statut=StatutUtilisateur.ACTIF,
         )

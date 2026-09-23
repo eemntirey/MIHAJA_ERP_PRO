@@ -9,16 +9,120 @@ from flask_jwt_extended import JWTManager
 
 
 import os
+import uuid
 from dotenv import load_dotenv
 import logging
 
 load_dotenv()
+
+# Variables injectées par le processus parent (Electron lance le backend
+# embarqué avec FLASK_ENV/LOCAL_DB_PATH/REPLICATION_URL/REPLICATION_DEVICE_ID)
+# ou par l'environnement de test (TEST_DATABASE_URL, FLASK_ENV=testing) : elles
+# doivent PRIMER sur .env/.env.local. Sans ce garde-fou, `.env.local` (chargé
+# avec override=True) imposerait la configuration du poste de développement et
+# le central comme la suite de tests utiliseraient la base du backend embarqué.
+_PROCESS_ENV_KEYS = (
+    'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
+    'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
+    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY',
+)
+_process_env_snapshot = {
+    key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
+}
+
+load_dotenv('.env.local', override=True)
+
+os.environ.update(_process_env_snapshot)
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 
 logger = logging.getLogger(__name__)
+
+# Tables minimales attendues : leur absence signifie que les migrations n'ont
+# jamais ete jouees sur la base cible (cf. incident 2026-09-17 : base Postgres
+# `erp_db` creee mais vide -> traceback psycopg UndefinedTable de 60 lignes au
+# demarrage, puis 500 sur /api/v1/auth/login).
+REQUIRED_TABLES = ('tenants', 'utilisateurs', 'roles', 'permissions')
+
+# Endpoints publics qui ne doivent JAMAIS heriter du tenant porte par un JWT
+# residuel. /auth/register cree un NOUVEAU tenant : si le filtre global
+# (app/security/tenant.py) s'applique avec l'ancien tenant du navigateur, le
+# rafraichissement de l'utilisateur tout juste cree ne trouve aucune ligne
+# (WHERE id = ... AND tenant_id = <ancien>) -> ObjectDeletedError -> 500.
+# Meme logique pour /auth/login (recherche du compte par email/username) et
+# /auth/refresh (le tenant vient uniquement du refresh token).
+PUBLIC_PATH_PREFIXES = (
+    '/api/v1/auth/plans',
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/forgot-password',
+    '/api/v1/auth/verify-reset-token',
+    '/api/v1/auth/reset-password',
+    '/api/v1/public',
+    '/public',
+)
+
+# Rappel des commandes de correction, affiche uniquement si le schema manque.
+_SCHEMA_FIX_HELP = (
+    "  Commandes de correction (depuis web/backend) :\n"
+    "    python scripts/create_superadmin.py --create-tables   "
+    "# cree les tables + le super-admin\n"
+    "    python scripts/seed_roles.py                          "
+    "# roles et permissions systeme\n"
+    "    python -m flask --app 'app:create_app' db stamp head  "
+    "# marque les migrations comme appliquees\n"
+    "  Alternatives :\n"
+    "    - dev SQLite : DATABASE_URL=sqlite:///./erp.db "
+    "(base web/backend/instance/erp.db)\n"
+    "    - conteneur  : powershell -File setup_postgresql.ps1 "
+    "(Postgres erp-pg, port 55432)"
+)
+
+
+def _inspect_database_schema():
+    """Retourne (tables_manquantes, erreur) sans jamais lever d'exception.
+
+    ``tables_manquantes`` vaut ``None`` quand l'inspection a echoue
+    (base injoignable, droits insuffisants, ...).
+    """
+    from sqlalchemy import inspect
+
+    try:
+        existing = set(inspect(db.engine).get_table_names())
+    except Exception as exc:
+        return None, exc
+    return [name for name in REQUIRED_TABLES if name not in existing], None
+
+
+def _log_database_schema_problem(missing, error):
+    """Journalise un diagnostic actionnable quand le schema de la base manque.
+
+    Remplace la traceback SQLAlchemy par un message en francais. Le mot de
+    passe eventuel de l'URL est masque : aucun secret ne doit apparaitre en log.
+    """
+    try:
+        target = db.engine.url.render_as_string(hide_password=True)
+    except Exception:
+        target = os.getenv('DATABASE_URL', '<inconnue>')
+
+    if error is not None:
+        logger.error(
+            "Base de donnees injoignable (%s) : %s. "
+            "Verifiez DATABASE_URL et que le serveur de base est demarre : "
+            "l'application demarre mais toute requete metier echouera.",
+            target, error,
+        )
+        return
+
+    logger.error(
+        "Schema de base incomplet pour %s : table(s) manquante(s) : %s. "
+        "Les migrations n'ont pas ete jouees sur cette base, donc "
+        "l'authentification et les modules metier renverront une erreur 500.\n%s",
+        target, ', '.join(missing), _SCHEMA_FIX_HELP,
+    )
 
 
 def create_app():
@@ -39,8 +143,35 @@ def create_app():
             'Production environment requires PostgreSQL DATABASE_URL; SQLite is not allowed.'
         )
 
+    # Backend embarque dans Electron (desktop hors-ligne) : SQLite local
+    # OBLIGATOIRE + URL du serveur central pour la replication. Ce mode est
+    # reserve au poste de travail ; le serveur central reste en PostgreSQL.
+    _is_local_embedded = os.getenv('FLASK_ENV', '').lower() == 'local-embedded'
+    if _is_local_embedded:
+        from app.config.settings import LocalEmbeddedConfig
+        # Config dédiée au poste de travail : SQLite local + URL du central.
+        # `validate()` leve une ValueError explicite si l'un des deux manque
+        # (mêmes messages que ceux attendus par le poste desktop).
+        LocalEmbeddedConfig.validate()
+        local_db_path = os.getenv('LOCAL_DB_PATH')
+        database_url = LocalEmbeddedConfig.SQLALCHEMY_DATABASE_URI
+        replication_url = LocalEmbeddedConfig.REPLICATION_URL
+
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Mode embarque : conserve la trace du mode et les parametres de
+    # replication dans la config de l'app (lus par app/services/replication).
+    app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', '').lower()
+    app.config['LOCAL_EMBEDDED'] = _is_local_embedded
+    if _is_local_embedded:
+        app.config['REPLICATION_URL'] = replication_url
+        app.config['REPLICATION_DEVICE_ID'] = (
+            os.getenv('REPLICATION_DEVICE_ID') or str(uuid.uuid4())
+        )
+        app.config['LOCAL_DB_PATH'] = local_db_path
+        app.config['ENABLE_SOCKETIO'] = False
+
 
     jwt_secret = os.getenv('JWT_SECRET_KEY')
     if not jwt_secret:
@@ -49,6 +180,9 @@ def create_app():
     app.config['JWT_ALGORITHM'] = 'HS256'
 
     _is_prod = os.getenv('FLASK_ENV', '').lower() == 'production'
+
+    if _is_prod and not os.getenv('DATABASE_URL'):
+        raise ValueError('DATABASE_URL requis en production (pas de fallback autorisé)')
 
     # A1 FIX : web utilise des cookies HttpOnly (XSS-safe), Electron continue
     # avec les headers Authorization (secureStore chiffré côté desktop).
@@ -63,7 +197,8 @@ def create_app():
     app.config['JWT_COOKIE_SECURE'] = _is_prod
     app.config['JWT_COOKIE_HTTPONLY'] = True
     app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # CSRF couvert par SameSite + CORS allow-list
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
+    app.config['JWT_CSRF_IN_COOKIES'] = True
 
     from datetime import timedelta
 
@@ -84,18 +219,50 @@ def create_app():
     app.config['PROPAGATE_EXCEPTIONS'] = True
     app.url_map.strict_slashes = False
 
+    # Réglages d'entretien de la réplication (cf.
+    # app/services/replication/maintenance.py). Valeurs surchargeables par
+    # l'environnement du poste, sans redéploiement.
+    try:
+        app.config['SYNC_OUTBOX_RETENTION_DAYS'] = int(
+            os.getenv('SYNC_OUTBOX_RETENTION_DAYS', 30)
+        )
+    except ValueError:
+        app.config['SYNC_OUTBOX_RETENTION_DAYS'] = 30
+    try:
+        app.config['SYNC_CLOCK_DRIFT_TOLERANCE_S'] = int(
+            os.getenv('SYNC_CLOCK_DRIFT_TOLERANCE_S', 300)
+        )
+    except ValueError:
+        app.config['SYNC_CLOCK_DRIFT_TOLERANCE_S'] = 300
+
     db.init_app(app)
     migrate.init_app(app, db)
+
+    # Enregistrement du listener outbox uniquement en mode local-embedded :
+    # seules les écritures dans la base SQLite locale sont capturées (un test
+    # peut héberger un central et un poste dans le même processus).
+    if _is_local_embedded:
+        from app.services.replication.outbox import register_outbox_listeners
+        register_outbox_listeners(
+            db, local_db_path=app.config.get('LOCAL_DB_PATH'),
+        )
 
     from app.security.tenant import register_tenant_filter_event
     with app.app_context():
         register_tenant_filter_event()
 
+    # Dev par défaut : web (:3000), desk/Electron (:3001), super-admin (:3002)
+    # et Expo web de l'app mobile (:8081 — sinon « Impossible de joindre le
+    # serveur » dans le navigateur, faute d'en-tête Access-Control-Allow-Origin).
     CORS_ORIGINS = [
         origin.strip()
         for origin in os.getenv(
             'CORS_ORIGINS',
-            '' if _is_prod else 'http://localhost:3000,http://127.0.0.1:3000,https://bj470sl0-3000.inc1.devtunnels.ms'
+            '' if _is_prod
+            else 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,'
+                 'http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,'
+                 'http://localhost:8081,http://127.0.0.1:8081,'
+                 'https://bj470sl0-3000.inc1.devtunnels.ms'
         ).split(',')
         if origin.strip()
     ]
@@ -107,8 +274,8 @@ def create_app():
         _DYNAMIC_CORS_PATTERNS = [
         r'^https://[a-z0-9-]+-3000\.inc1\.devtunnels\.ms$',
         r'^https://[a-z0-9-]+\.inc1\.devtunnels\.ms$',
-        r'^http://192\.168\.\d{1,3}\.\d{1,3}:300[01]$',
-        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:300[01]$',
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}:(?:300[012]|8081)$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}:(?:300[012]|8081)$',
     ]
     import re as _re
     _dynamic_extra = []
@@ -123,7 +290,14 @@ def create_app():
         pass
     _origin_env_hint = os.getenv('FRONTEND_URL', '').strip()
     if _origin_env_hint and _origin_env_hint not in CORS_ORIGINS:
-        _dynamic_extra.append(_origin_env_hint)
+        # Valide FRONTEND_URL pour éviter injection d'origine malveillante
+        import re as _re2
+        if _is_prod_cors and not _re2.match(r'^https://[a-z0-9.-]+(?::\d+)?$', _origin_env_hint):
+            logger.warning('FRONTEND_URL ignoré (format invalide en prod): %s', _origin_env_hint)
+        elif _origin_env_hint.startswith('https://') or _origin_env_hint.startswith('http://'):
+            _dynamic_extra.append(_origin_env_hint)
+        else:
+            logger.warning('FRONTEND_URL ignoré (schéma invalide): %s', _origin_env_hint)
     CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
 
     # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
@@ -155,7 +329,7 @@ def create_app():
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allow_headers=[
             'Content-Type', 'Authorization', 'X-Requested-With', 'Accept',
-            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key',
+            'X-Tenant-Slug', 'X-Tenant-Domaine', 'Idempotency-Key', 'X-CSRF-TOKEN',
         ],
         expose_headers=['X-Request-Id'],
         supports_credentials=True,
@@ -210,10 +384,25 @@ def create_app():
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(e):
-        return {
+        resp = e.get_response()
+        if resp is None:
+            return {
+                'message': e.description or e.name,
+                'code': e.code,
+            }, e.code or 500
+        # Réponse Werkzeug conservée (code 415/404/405... correct) : on y
+        # injecte juste le message JSON. Avant, renvoyer un tuple (dict,
+        # code) depuis ce handler faisait repasser la requête dans le
+        # dispatch Flask puis flask_restx Api.error_router, qui relançait
+        # la HTTPException -> 500 générique au lieu du vrai code HTTP
+        # (audit: POST /clients sans Content-Type JSON renvoyait 500
+        # "Erreur interne" au lieu de 415).
+        resp.set_data(__import__('json').dumps({
             'message': e.description or e.name,
             'code': e.code,
-        }, e.code or 500
+        }))
+        resp.headers['Content-Type'] = 'application/json'
+        return resp, e.code or 500
 
     @app.errorhandler(Exception)
     def handle_unexpected_exception(e):
@@ -252,7 +441,14 @@ def create_app():
         title='ERP Commercial API',
         version='1.0',
         doc='/docs/' if os.getenv('FLASK_ENV', '').lower() != 'production' else False,
-        decorators=[cross_origin()]
+        # Même liste d'origines que le CORS global (statiques + patterns dev
+        # compilés) : flask-restx applique ce décorateur à toutes les ressources
+        # et il pose _FLASK_CORS_EVALUATED, ce qui fait sauter le after_request
+        # de flask-cors. Sans le passage explicite des origines ici, seules les
+        # origines statiques (app.config['CORS_ORIGINS']) étaient servies et les
+        # patterns LAN/tunnel (ex. Expo web http://192.168.x.y:8081) restaient
+        # sans en-tête Access-Control-Allow-Origin.
+        decorators=[cross_origin(origins=_cors_origins_config)]
     )
 
     @app.route('/')
@@ -347,6 +543,14 @@ def create_app():
     from app.api.v1.super_admin import ns as super_admin_ns
     from app.api.v1.tenant_papi import ns as tenant_papi_ns
     from app.api.v1.admin_devices import ns as admin_devices_ns
+    from app.api.v1.replication import ns as replication_ns
+    # Etat et conflits de replication du POSTE (backend embarque). Enregistres
+    # ici sans condition, comme `replication_ns` : sur le serveur central ces
+    # tables ne sont jamais alimentees (elles sont locales au poste), mais
+    # l'enregistrement systematique evite un 404 cote poste et garde les deux
+    # moities de la fonctionnalite testables avec un seul `create_app()`.
+    from app.api.v1.local_sync import ns as local_sync_ns
+    from app.api.v1.sync_conflicts import ns as sync_conflicts_ns
     from app.api.v1.entrepots import ns as entrepots_ns
     from app.api.v1.desk import desk_bp
 
@@ -414,16 +618,34 @@ def create_app():
     api.add_namespace(papi_ns, path='/api/v1/papi')
     api.add_namespace(tenant_papi_ns, path='/api/v1')
     api.add_namespace(notifications_ns, path='/api/v1/notifications')
+    api.add_namespace(replication_ns, path='/api/v1/sync/replicate')
+    # Cote POSTE : /api/v1/sync/local-status (badge d'etat, cf. SyncStatus.jsx)
+    # et /api/v1/sync/conflicts (+ /<id>/resolve). Sans ces deux lignes, le
+    # badge reste sur « Serveur local injoignable » et l'ecran de conflits
+    # renvoie 404 : le moteur de replication fonctionne mais n'est pas pilotable.
+    # NB : le `path` explicite REMPLACE le nom du namespace dans l'URL
+    # (flask-restx) — il doit donc contenir le prefixe complet attendu par le
+    # client (`/api/v1/sync/...`), pas seulement `/api/v1`.
+    api.add_namespace(local_sync_ns, path='/api/v1/sync')
+    api.add_namespace(sync_conflicts_ns, path='/api/v1/sync/conflicts')
     api.add_namespace(entrepots_ns, path='/api/v1/entrepots')
 
     app.register_blueprint(desk_bp)
+
+    # Servir les fichiers uploades (images produits, etc.)
+    from flask import send_from_directory
+
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads')
+        return send_from_directory(upload_dir, filename)
 
     from app.realtime.socket_server import init_socketio
     app.socketio = init_socketio(app)
 
     @app.before_request
     def before_request():
-        from flask import g
+        from flask import g, request
         from app.security.tenant import resolve_tenant_from_header
 
         # g.current_tenant_id doit être remis à zéro comme les deux autres :
@@ -438,6 +660,13 @@ def create_app():
         g.current_limits = None
         g.current_modules = None
 
+        # Les routes publiques ne sont jamais rattachées à un tenant : on
+        # n'y résout ni JWT ni header, sinon un JWT residuel (ancienne
+        # session du navigateur) fausse la creation d'un nouveau tenant.
+        # Les queries y restent donc non filtrées (g.current_tenant = None).
+        if request.path.startswith(PUBLIC_PATH_PREFIXES):
+            return
+
         try:
             from flask_jwt_extended import verify_jwt_in_request, get_jwt
             verify_jwt_in_request(optional=True)
@@ -449,6 +678,13 @@ def create_app():
                     tenant = db.session.get(Tenant, tenant_id)
                     if tenant:
                         g.current_tenant = tenant
+                        # INDISPENSABLE : get_current_tenant_id() est utilisé
+                        # pour l'INSERT (desk.py, etc.). Sans cette ligne, les
+                        # écritures partaient avec tenant_id = NULL pendant que
+                        # le listener SQLAlchemy filtrait les SELECT sur
+                        # tenant.id — d'où ObjectDeletedError au refresh
+                        # post-commit et doublons à chaque sauvegarde desk.
+                        g.current_tenant_id = tenant.id
                         return
         except Exception:
             pass
@@ -457,6 +693,7 @@ def create_app():
             tenant = resolve_tenant_from_header()
             if tenant:
                 g.current_tenant = tenant
+                g.current_tenant_id = tenant.id
         except Exception:
             logger.warning(
                 "Impossible de résoudre le tenant depuis les headers HTTP",
@@ -468,15 +705,36 @@ def create_app():
     # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
     # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
     # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
+    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
     try:
         with app.app_context():
-            from app.models.role_permission import RoleModel, Permission
-            roles_empty = db.session.query(RoleModel.id).first() is None
-            perms_empty = db.session.query(Permission.id).first() is None
-            if roles_empty or perms_empty:
-                from scripts.seed_roles import seed_roles
-                seed_roles(app)
-                logger.info("Auto-seed rôles/permissions effectué (base vide).")
+            missing_tables, inspection_error = _inspect_database_schema()
+            if inspection_error is not None or missing_tables:
+                _log_database_schema_problem(missing_tables, inspection_error)
+            else:
+                from app.models.role_permission import RoleModel, Permission
+                roles_empty = db.session.query(RoleModel.id).first() is None
+                perms_empty = db.session.query(Permission.id).first() is None
+                if roles_empty or perms_empty:
+                    from scripts.seed_roles import seed_roles
+                    seed_roles(app)
+                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                else:
+                    # Convergence : la matrice peut gagner de nouveaux codes
+                    # (ex. `user.delete`) sans que la table `permissions` soit
+                    # vide. On complète alors UNIQUEMENT les lignes manquantes
+                    # (idempotent, aucune donnée existante n'est supprimée) afin
+                    # que presets et rôles personnalisés exposent bien le CRUD
+                    # complet des modules souscrits par le tenant.
+                    from scripts.seed_roles import missing_permission_codes, seed_roles
+                    missing_codes = missing_permission_codes()
+                    if missing_codes:
+                        seed_roles(app)
+                        logger.info(
+                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
+                            len(missing_codes), ", ".join(missing_codes[:10]),
+                        )
     except Exception:
         logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 

@@ -18,6 +18,8 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "react-app-rewired": "^2.2.1"

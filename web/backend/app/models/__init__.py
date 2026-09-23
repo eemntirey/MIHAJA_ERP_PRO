@@ -39,6 +39,13 @@ from app.models.payment_event import PaymentEvent
 from app.models.notification import Notification
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
+from app.models.sync_replica import (
+    SyncOutbox,
+    SyncCursor,
+    SyncConflict,
+    SyncAppliedKey,
+    SyncState,
+)
 from app.models.role_permission import RoleModel, Permission
 from app.models.subscription_audit import SubscriptionAuditTrail
 from app.models.platform_config import PlatformConfig

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DarkModeToggle from '../../components/layout/DarkModeToggle';
+import TitleBar from '../../components/layout/TitleBar';
 import AuthLeftPanel from './AuthLeftPanel';
 import './Auth.css';
 
@@ -81,9 +82,10 @@ const Login = ({ darkMode, onToggleDarkMode }) => {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="auth-login"
+      className={`auth-login${IS_ELECTRON ? ' auth-login--electron' : ''}`}
       data-theme={darkMode ? 'dark' : undefined}
     >
+      {IS_ELECTRON && <TitleBar />}
       <main className="auth-login__layout">
         <section
           className="auth-login__context"

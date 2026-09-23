@@ -1,9 +1,14 @@
 // src/storage/session.js
 // Stockage de session mobile :
 // - jetons (access/refresh) → expo-secure-store (stockage chiffré natif)
+//   et fallback window.localStorage sur le web (Expo web, port 8081) :
+//   expo-secure-store n'a aucune implémentation web (ExpoSecureStore.web.js
+//   est vide) → sans fallback, les jetons étaient perdus et toute requête
+//   authentifiée finissait en 401.
 // - données non sensibles (user, tenant) → AsyncStorage (JSON)
 // Équivalent mobile de shared/storage/tokenStore.js (web/desktop).
 
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,6 +19,10 @@ const KEYS = {
   user: 'erp.auth.user',
   tenant: 'erp.auth.tenant',
 };
+
+// Sur le web, on utilise localStorage (le module natif est absent).
+const HAS_WEB_STORAGE =
+  Platform.OS === 'web' && typeof window !== 'undefined' && !!window.localStorage;
 
 const readJSON = async (key) => {
   try {
@@ -36,19 +45,53 @@ const writeJSON = async (key, value) => {
   }
 };
 
-const deleteSecure = (key) => SecureStore.deleteItemAsync(key).catch(() => {});
+// Helpers de stockage chiffré (natifs) avec repli localStorage sur le web.
+const readSecure = (key) => {
+  if (HAS_WEB_STORAGE) {
+    try {
+      return Promise.resolve(window.localStorage.getItem(key));
+    } catch {
+      return Promise.resolve(null);
+    }
+  }
+  return SecureStore.getItemAsync(key).catch(() => null);
+};
+
+const writeSecure = (key, value) => {
+  if (HAS_WEB_STORAGE) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // stockage indisponible : on ignore silencieusement
+    }
+    return Promise.resolve();
+  }
+  return SecureStore.setItemAsync(key, value).catch(() => {});
+};
+
+const deleteSecure = (key) => {
+  if (HAS_WEB_STORAGE) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // stockage indisponible : on ignore silencieusement
+    }
+    return Promise.resolve();
+  }
+  return SecureStore.deleteItemAsync(key).catch(() => {});
+};
 
 export const session = {
-  // ---- Jetons (chiffrés) ----
-  getAccessToken: () => SecureStore.getItemAsync(KEYS.access).catch(() => null),
+  // ---- Jetons (chiffrés en natif, localStorage sur le web) ----
+  getAccessToken: () => readSecure(KEYS.access),
   setAccessToken: (token) => {
     if (!token) return deleteSecure(KEYS.access);
-    return SecureStore.setItemAsync(KEYS.access, token).catch(() => {});
+    return writeSecure(KEYS.access, token);
   },
-  getRefreshToken: () => SecureStore.getItemAsync(KEYS.refresh).catch(() => null),
+  getRefreshToken: () => readSecure(KEYS.refresh),
   setRefreshToken: (token) => {
     if (!token) return deleteSecure(KEYS.refresh);
-    return SecureStore.setItemAsync(KEYS.refresh, token).catch(() => {});
+    return writeSecure(KEYS.refresh, token);
   },
   setTokens: async ({ access_token, refresh_token }) => {
     await session.setAccessToken(access_token);
@@ -72,10 +115,10 @@ export const session = {
 
   // ---- Identifiant d'appareil (traçabilité / audit backend) ----
   getDeviceId: async () => {
-    let id = await SecureStore.getItemAsync(KEYS.deviceId).catch(() => null);
+    let id = await readSecure(KEYS.deviceId);
     if (!id) {
       id = `mob-${Math.random().toString(36).slice(2, 12)}-${Date.now().toString(36)}`;
-      await SecureStore.setItemAsync(KEYS.deviceId, id).catch(() => {});
+      await writeSecure(KEYS.deviceId, id);
     }
     return id;
   },

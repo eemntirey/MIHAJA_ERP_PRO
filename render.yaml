@@ -1,0 +1,100 @@
+# Blueprint Render — staging MIHAJA ERP PRO (offre gratuite).
+#
+# Usage : Render Dashboard → New → Blueprint → choisir le dépôt (branche V0),
+# Render détecte ce fichier et crée les 4 ressources d'un coup.
+# Guide pas-à-pas en français : docs/ops/DEPLOIEMENT_RENDER.md (à lire avant).
+#
+# Architecture staging (imposée par les cookies JWT SameSite=Strict :
+# le web DOIT rester same-origin) :
+#   erp.sekoliko.com (frontend statique)
+#     |-- /api/*       → réécriture (rewrite) vers le backend
+#     |-- /socket.io/* → réécriture (rewrite) vers le backend
+#   admin.sekoliko.com (super-admin statique, mêmes rewrites)
+#   api.sekoliko.com (backend Flask + Postgres)
+# Les rewrites se configurent dans le Dashboard après déploiement
+# (voir guide) : le navigateur ne voit qu'une seule origine.
+# Les mobiles (Bearer, pas de cookies) attaquent api.sekoliko.com en direct.
+
+services:
+  # ---------- API Flask ----------
+  - type: web
+    name: mihaja-erp-backend
+    runtime: docker
+    dockerContext: ./web
+    dockerfilePath: ./web/backend/Dockerfile
+    plan: free
+    healthCheckPath: /health
+    # NOTE (free tier) : preDeployCommand n'est PAS supporté sur l'offre
+    # gratuite → les migrations Alembic se lancent à la main via Shell
+    # après le 1er déploiement (et à chaque upgrade) :
+    #   flask --app "app:create_app" db upgrade
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "False"
+      # ATTENTION : la base free tier mihaja-erp-db existe DÉJÀ dans le
+      # workspace (1 seul Postgres free autorisé). On ne la recrée plus
+      # ici → coller la connection string existante à la main après le
+      # 1er sync (Dashboard → mihaja-erp-db → Connections), puis
+      # corriger postgres:// → postgresql+psycopg:// (guide §4).
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Clé Fernet : generateValue produirait une valeur INVALIDE.
+      # Coller la clé staging du guide (docs/ops/DEPLOIEMENT_RENDER.md §4).
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: JWT_COOKIE_CSRF_PROTECT
+        value: "false"
+      # Mobile (Bearer direct) + futurs domaines ; le web passe en
+      # same-origin via rewrites donc pas de CORS pour lui.
+      - key: CORS_ORIGINS
+        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://erp.sekoliko.com
+      - key: FRONTEND_RESET_URL
+        value: https://erp.sekoliko.com/reset-password
+      - key: PAPI_ENVIRONMENT
+        value: sandbox
+
+  # ---------- Frontend React (statique) ----------
+  # NB : ne pas déclarer `plan: free` sur un service statique
+  # (Render : "no such plan free for service type web") — le free
+  # est le défaut des static sites.
+  - type: web
+    name: mihaja-erp-frontend
+    env: static
+    buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: web/frontend/build
+    envVars:
+      # Version Node figée (CRA + react-app-rewired validés sur Node 20).
+      - key: NODE_VERSION
+        value: 20.19.0
+      # Render met CI=true par défaut et CRA transforme les warnings
+      # ESLint en erreurs fatales : on désactive pour le staging.
+      - key: CI
+        value: "false"
+
+  # ---------- Super Admin React/Vite (statique) ----------
+  - type: web
+    name: mihaja-erp-super-admin
+    env: static
+    buildCommand: cd super-admin && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: super-admin/build
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: CI
+        value: "false"
+      # Même origine que le site : l'API passe par les rewrites
+      # /api/* et /socket.io/* configurés après déploiement.
+      - key: VITE_API_URL
+        value: /api/v1
+
+# NOTE : pas de section `databases:` — mihaja-erp-db est déjà active
+# (free tier : 1 seul Postgres). La recréer fait échouer le sync avec
+# "cannot have more than one active free tier database".

@@ -33,8 +33,12 @@ const SelectField = ({
   const fieldId = id || `select-${reactId}`;
 
   const reg = register && name ? register(name, registerOptions) : null;
-  const selectValue = reg ? undefined : value;
-  const selectOnChange = reg ? undefined : onChange;
+  // Compose RHF + handler parent : sans ceci le onChange parent est ignoré
+  // quand register est présent (cas client_id dans Sales.jsx).
+  const composedOnChange = (e) => {
+    if (reg?.onChange) reg.onChange(e);
+    if (onChange) onChange(e);
+  };
 
   return (
     <Field
@@ -53,10 +57,10 @@ const SelectField = ({
           disabled={disabled}
           required={required}
           aria-invalid={!!error}
-          value={selectValue}
-          onChange={selectOnChange}
+          value={reg ? undefined : value}
           {...(reg || {})}
           {...rest}
+          onChange={reg || onChange ? composedOnChange : undefined}
         >
           {placeholder !== undefined && (
             <option value="" disabled={required}>{placeholder}</option>
