@@ -18,7 +18,7 @@
 services:
   # ---------- API Flask ----------
   - type: web
-    name: mihaja-erp-backend
+    name: mihaja-erp-pro
     runtime: docker
     dockerContext: ./web
     dockerfilePath: ./web/backend/Dockerfile
@@ -50,10 +50,12 @@ services:
         sync: false
       - key: JWT_COOKIE_CSRF_PROTECT
         value: "false"
+      - key: REDIS_URL
+        sync: false
       # Mobile (Bearer direct) + futurs domaines ; le web passe en
       # same-origin via rewrites donc pas de CORS pour lui.
       - key: CORS_ORIGINS
-        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend.onrender.com
+        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend-796e.onrender.com
       - key: FRONTEND_URL
         value: https://erp.sekoliko.com
       - key: FRONTEND_RESET_URL
@@ -84,6 +86,10 @@ services:
       # ESLint en erreurs fatales : on désactive pour le staging.
       - key: CI
         value: "false"
+      - key: VITE_API_URL
+        value: https://mihaja-erp-pro.onrender.com/api/v1
+      - key: VITE_PUBLIC_API_URL
+        value: https://mihaja-erp-pro.onrender.com/api/v1
 
   # ---------- Super Admin React/Vite (statique) ----------
   - type: web
