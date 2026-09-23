@@ -204,7 +204,11 @@ def create_app():
     app.config['JWT_REFRESH_COOKIE'] = 'refresh_token_cookie'
     app.config['JWT_COOKIE_SECURE'] = _is_prod
     app.config['JWT_COOKIE_HTTPONLY'] = True
-    # Le frontend web et l'API sont sur des origines différentes (ex.\n    # erp.sekoliko.com -> mihaja-erp-pro.onrender.com). Les cookies JWT\n    # doivent donc être autorisés sur les requêtes XHR/fetch cross-site.\n    # En production, None est obligatoire pour cette topologie et Secure est\n    # déjà activé ci-dessus. En développement, Lax reste le comportement sûr\n    # par défaut. Une valeur explicite peut être fournie par l'environnement.\n    jwt_cookie_samesite = os.getenv(\n        'JWT_COOKIE_SAMESITE',\n        'None' if _is_prod else 'Lax',\n    ).strip().capitalize()\n    if jwt_cookie_samesite not in ('Strict', 'Lax', 'None'):\n        raise ValueError(\n            "JWT_COOKIE_SAMESITE doit être Strict, Lax ou None."\n        )\n    app.config['JWT_COOKIE_SAMESITE'] = jwt_cookie_samesite\n    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
+    # Le frontend web et l'API sont sur des origines différentes (ex.\n    # erp.sekoliko.com -> mihaja-erp-pro.onrender.com). Les cookies JWT\n    # doivent donc être autorisés sur les requêtes XHR/fetch cross-site.\n    # En production, None est obligatoire pour cette topologie et Secure est\n    # déjà activé ci-dessus. En développement, Lax reste le comportement sûr\n    # par défaut. Une valeur explicite peut être fournie par l'environnement.\n    jwt_cookie_samesite = os.getenv(\n        'JWT_COOKIE_SAMESITE',\n        'None' if _is_prod else 'Lax',\n    ).strip().capitalize()\n    if jwt_cookie_samesite not in ('Strict', 'Lax', 'None'):\n        raise ValueError(\n            "JWT_COOKIE_SAMESITE doit être Strict, Lax ou None."\n        )\n    app.config['JWT_COOKIE_SAMESITE'] = jwt_cookie_samesite
+    # Explicite les chemins afin que les cookies JWT soient disponibles sur
+    # tous les endpoints API, notamment /api/v1/auth/refresh.
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
+    app.config['JWT_REFRESH_COOKIE_PATH'] = '/'\n    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
     app.config['JWT_CSRF_IN_COOKIES'] = True
 
     from datetime import timedelta
