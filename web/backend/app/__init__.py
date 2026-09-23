@@ -67,17 +67,16 @@ PUBLIC_PATH_PREFIXES = (
 
 # Rappel des commandes de correction, affiche uniquement si le schema manque.
 _SCHEMA_FIX_HELP = (
-    "  Commandes de correction (depuis web/backend) :\n"
-    "    python scripts/create_superadmin.py --create-tables   "
-    "# cree les tables + le super-admin\n"
-    "    python scripts/seed_roles.py                          "
-    "# roles et permissions systeme\n"
-    "    python -m flask --app 'app:create_app' db stamp head  "
-    "# marque les migrations comme appliquees\n"
-    "  Alternatives :\n"
-    "    - dev SQLite : DATABASE_URL=sqlite:///./erp.db "
+    "  Commande de correction (depuis web/backend, base PostgreSQL neuve) :\n"
+    "    python scripts/bootstrap_production.py                 "
+    "# initialise schema + migrations + roles + Super Admin\n"
+    "  Variables requises : DATABASE_URL + SUPERADMIN_PASSWORD.\n"
+    "  Le bootstrap refuse toute base partiellement initialisee et ne supprime "
+    "aucune donnee.\n"
+    "  Ne pas utiliser 'db stamp head' seul : stamp n'exécute aucune migration.\n"
+    "  Dev SQLite : DATABASE_URL=sqlite:///./erp.db "
     "(base web/backend/instance/erp.db)\n"
-    "    - conteneur  : powershell -File setup_postgresql.ps1 "
+    "  Conteneur local : powershell -File setup_postgresql.ps1 "
     "(Postgres erp-pg, port 55432)"
 )
 
