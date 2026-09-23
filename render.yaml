@@ -62,10 +62,12 @@ services:
         value: sandbox
 
   # ---------- Frontend React (statique) ----------
+  # NB : ne pas déclarer `plan: free` sur un service statique
+  # (Render : "no such plan free for service type web") — le free
+  # est le défaut des static sites.
   - type: web
     name: mihaja-erp-frontend
     env: static
-    plan: free
     buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: web/frontend/build
     envVars:
@@ -81,7 +83,6 @@ services:
   - type: web
     name: mihaja-erp-super-admin
     env: static
-    plan: free
     buildCommand: cd super-admin && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: super-admin/build
     envVars:
