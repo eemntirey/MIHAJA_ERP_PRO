@@ -58,7 +58,15 @@ from app.utils.malagasy_data import VILLES_MADAGAS, tel_madag
 
 app = create_app()
 
-PASSWORD = os.getenv("SEED_MADA_PASSWORD", "Test1234!")
+# Mot de passe des comptes de démonstration : jamais en clair dans le
+# script (P0 #70 / A3) — variable d'environnement obligatoire.
+PASSWORD = os.getenv("SEED_MADA_PASSWORD")
+if not PASSWORD:
+    raise SystemExit(
+        "ERREUR : SEED_MADA_PASSWORD est absent.\n"
+        "  - définir .env (voir .env.example),\n"
+        "  - ou exporter SEED_MADA_PASSWORD dans le shell."
+    )
 TAUX_TVA = Decimal("10.00")
 
 DEPOT_PRINCIPAL = "Dépôt principal - Zone industrielle Andraisoro, Antananarivo"

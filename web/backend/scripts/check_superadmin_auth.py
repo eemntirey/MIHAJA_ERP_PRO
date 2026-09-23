@@ -18,6 +18,20 @@ from app import create_app
 from app.security.auth import hash_password
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 
+# Mots de passe : jamais en clair dans le script (P0 #70 / A3).
+# DEFAULT_ADMIN_PASSWORD : super admin (creation + login).
+# SEED_MADA_PASSWORD : test de repli admin Mada (optionnel, ignoré si absent).
+admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD')
+if not admin_password:
+    print(
+        "ERREUR : DEFAULT_ADMIN_PASSWORD est absent.\n"
+        "  - définir .env (voir .env.example),\n"
+        "  - ou exporter DEFAULT_ADMIN_PASSWORD dans le shell.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+mada_password = os.environ.get('SEED_MADA_PASSWORD')
+
 # Configuration pour tester
 backend_url = "http://127.0.0.1:5000"
 
@@ -95,7 +109,7 @@ with app.app_context():
         super_admin = Utilisateur(
             username='super',
             email='super@x.mg',
-            password_hash=hash_password('Super123!'),
+            password_hash=hash_password(admin_password),
             role=Role.SUPER_ADMIN,
             statut=StatutUtilisateur.ACTIF,
         )
@@ -110,8 +124,8 @@ print("\n" + "=" * 60)
 print("Test 3: Authentification Super Admin")
 print("=" * 60)
 
-# Essayer de se connecter avec les identifiants connus
-success = test_login('super@x.mg', 'Super123!', 'Super Admin connu depuis les tests')
+# Essayer de se connecter avec les identifiants fournis par l'environnement
+success = test_login('super@x.mg', admin_password, 'Super Admin (DEFAULT_ADMIN_PASSWORD)')
 
 if not success:
     print("\n" + "=" * 60)
@@ -119,15 +133,18 @@ if not success:
     print("=" * 60)
     
     # Depuis les tests, il y a un tenant 'mada' avec admin 'mada'
-    success2 = test_login('mada', 'Test1234!', 'Admin principal Mada Distribution')
+    if mada_password:
+        success2 = test_login('mada', mada_password, 'Admin principal Mada Distribution')
+    else:
+        print("○ Test 4 ignoré : SEED_MADA_PASSWORD absent (variable d'environnement).")
 
 print("\n" + "=" * 60)
 print("Résumé")
 print("=" * 60)
 print(f"✓ Backend: {backend_url}")
-print("✓ Identifiants connus depuis les tests:")
-print("  - super@x.mg / Super123! (Super Admin)")
-print("  - mada / Test1234! (Admin principal Mada Distribution)")
+print("✓ Identifiants fournis par l'environnement (jamais en clair) :")
+print("  - super@x.mg (Super Admin) → DEFAULT_ADMIN_PASSWORD")
+print("  - mada (Admin principal Mada Distribution) → SEED_MADA_PASSWORD")
 print("\n🔍 Si aucun des tests ci-dessus ne réussit:")
 print("   1. Assurez-vous que le backend Flask est en cours d'exécution sur le port 5000")
 print("   2. Vérifiez que la base de données PostgreSQL contient les tables nécessaires")
