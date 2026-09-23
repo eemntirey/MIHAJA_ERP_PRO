@@ -660,3 +660,18 @@ _*.txt
 _*.log
 install.log
 build.log
+
+# ============================================================
+# 28. ARTIFACTS DEBUG / SCRIPTS PONCTUELS (ajout 2026-09-23)
+# ============================================================
+
+# Bases SQLite locales (toute extension du depot)
+*.db
+*.sqlite3
+
+# Scripts de diagnostic ponctuels (jamais versionnes)
+inspect_db.py
+_tmp_*
+
+# Fragments temporaires IA / fichiers sans extension
+tmp6v20*
