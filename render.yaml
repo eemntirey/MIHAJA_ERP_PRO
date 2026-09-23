@@ -33,13 +33,13 @@ services:
         value: production
       - key: FLASK_DEBUG
         value: "False"
-      # ATTENTION : Render fournit postgres://... ; SQLAlchemy + psycopg3
-      # exige postgresql+psycopg://... → corriger le schéma à la main
-      # après la création (voir guide §4).
+      # ATTENTION : la base free tier mihaja-erp-db existe DÉJÀ dans le
+      # workspace (1 seul Postgres free autorisé). On ne la recrée plus
+      # ici → coller la connection string existante à la main après le
+      # 1er sync (Dashboard → mihaja-erp-db → Connections), puis
+      # corriger postgres:// → postgresql+psycopg:// (guide §4).
       - key: DATABASE_URL
-        fromDatabase:
-          name: mihaja-erp-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -95,12 +95,6 @@ services:
       - key: VITE_API_URL
         value: /api/v1
 
-databases:
-  # ---------- Postgres 16 ----------
-  # Offre gratuite limitée (à vérifier le jour J : durée de conservation,
-  # mise en veille) → STAGING UNIQUEMENT. Sauvegarde : guide §8
-  # (pg_dump hebdo). Alternative pérenne gratuite : Aiven (voir guide).
-  - name: mihaja-erp-db
-    databaseName: erp_db
-    user: erp_user
-    plan: free
+# NOTE : pas de section `databases:` — mihaja-erp-db est déjà active
+# (free tier : 1 seul Postgres). La recréer fait échouer le sync avec
+# "cannot have more than one active free tier database".
