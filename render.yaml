@@ -69,7 +69,7 @@ services:
   # est le défaut des static sites.
   - type: web
     name: mihaja-erp-frontend
-    env: static
+    runtime: static
     buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: web/frontend/build
     # SPA React : toutes les routes applicatives doivent servir index.html
