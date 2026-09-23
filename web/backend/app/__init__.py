@@ -354,6 +354,18 @@ def create_app():
         max_age=3600,
     )
 
+    @app.after_request
+    def _ensure_credentialed_cors(response):
+        origin = request.headers.get('Origin')
+        if origin and origin in CORS_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            vary = response.headers.get('Vary')
+            if vary and 'Origin' not in [v.strip() for v in vary.split(',')]:
+                response.headers['Vary'] = vary + ', Origin'
+            elif not vary:
+                response.headers['Vary'] = 'Origin'
+        return response
     jwt.init_app(app)
 
     # --- JWT Blocklist (révocation réelle) ---
