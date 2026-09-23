@@ -13,9 +13,11 @@ const backendPort = (typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('backendPort'))
     || null;
 
+const PRODUCTION_API_BASE_URL = 'https://mihaja-erp-pro.onrender.com/api/v1';
+
 const RAW_API_BASE_URL = backendPort
     ? `http://127.0.0.1:${backendPort}/api/v1`
-    : (import.meta.env.VITE_API_URL || '/api/v1');
+    : (import.meta.env.VITE_API_URL || PRODUCTION_API_BASE_URL);
 
 const resolveAbsoluteApiUrl = (raw) => {
     if (!raw) return raw;
@@ -239,7 +241,7 @@ api.interceptors.request.use(
 // ======================================================
 
 const RAW_PUBLIC_API_URL =
-    import.meta.env.VITE_PUBLIC_API_URL || '';
+    import.meta.env.VITE_PUBLIC_API_URL || PRODUCTION_API_BASE_URL;
 
 export const publicApi = axios.create({
     baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
