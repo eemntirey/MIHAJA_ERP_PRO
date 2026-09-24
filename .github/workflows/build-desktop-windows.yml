@@ -1,0 +1,65 @@
+name: Build Desktop Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: desk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desk/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package Windows installer
+        run: npm run release
+
+      - name: Verify installer
+        shell: pwsh
+        run: |
+          $exes = Get-ChildItem -Path dist -Filter *.exe -File
+          if (-not $exes) {
+            Write-Error "Aucun fichier .exe n'a été généré dans desk/dist"
+          }
+          $exes | Select-Object FullName, Length
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mihaja-erp-pro-windows
+          path: desk/dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path dist -Filter *.exe -File | Select-Object -ExpandProperty FullName
+          if (-not $files) {
+            Write-Error "Aucun installateur .exe à publier."
+          }
+          gh release create "$env:GITHUB_REF_NAME" $files --generate-notes --title "MIHAJA ERP PRO Desktop $env:GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
