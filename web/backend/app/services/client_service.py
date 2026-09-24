@@ -2,7 +2,7 @@ from app.models.client import Client
 from app.services.base_service import BaseService
 from app.security.tenant import get_current_tenant_id
 from app import db
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, case
 from typing import Optional, Dict, Any, List, Tuple
 
 class ClientService(BaseService):
@@ -78,6 +78,41 @@ class ClientService(BaseService):
         return paginated.items, paginated.total
     
     @classmethod
+    def get_list_stats(cls, client_ids: List[int]) -> Dict[int, Dict[str, float]]:
+        """Calcule les statistiques affichées par la liste clients en une requête."""
+        if not client_ids:
+            return {}
+
+        from app.models.vente import Vente
+
+        query = db.session.query(
+            Vente.client_id,
+            func.count(Vente.id).label('nombre_commandes'),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Vente.statut == 'payee', Vente.total_ttc),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label('total_achats'),
+        ).filter(
+            Vente.is_active == True,
+            Vente.client_id.in_(client_ids),
+        )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.filter(Vente.tenant_id == tenant_id)
+
+        return {
+            row.client_id: {
+                'total_achats': float(row.total_achats or 0),
+                'total_commandes': int(row.nombre_commandes or 0),
+            }
+            for row in query.group_by(Vente.client_id).all()
+        }
+
     def create(cls, data: Dict[str, Any]) -> Client:
         """Crée un nouveau client"""
         if 'code' not in data or not data['code']:
