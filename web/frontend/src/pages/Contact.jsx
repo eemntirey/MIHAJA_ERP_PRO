@@ -1,7 +1,16 @@
 // src/pages/Contact.jsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import Seo from '../components/Seo';
 import '../styles/landing.css';
+
+const CONTACT_SEO_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: 'Contact | MIHAJA ERP PRO',
+  url: 'https://erp.sekoliko.com/contact',
+  description: 'Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS.',
+};
 
 const Contact = () => {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
@@ -23,7 +32,14 @@ const Contact = () => {
   };
 
   return (
-    <div className="landing-contact">
+    <>
+      <Seo
+        title="Contact | MIHAJA ERP PRO"
+        description="Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS."
+        canonical="https://erp.sekoliko.com/contact"
+        structuredData={CONTACT_SEO_DATA}
+      />
+      <div className="landing-contact">
       <div className="landing-container">
         <div className="landing-section-header">
           <h2 className="landing-section-title" id="contact-titre">Contact</h2>
@@ -78,7 +94,8 @@ const Contact = () => {
           </form>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
