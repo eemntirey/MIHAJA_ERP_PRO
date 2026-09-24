@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { authService, clientService, dashboardService, productService, saleService, subscriptionService } from '../services/api';
+import { authService, dashboardService } from '../services/api';
 import {
   buildChartGeometry,
   buildPreviousPeriodTotal,
@@ -421,7 +421,7 @@ const PriorityPanel = ({ priorities }) => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, setUser, logout, hasRole } = useAuth();
+  const { user, setUser, logout, subscription, subscriptionLoading, hasRole } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const isSuperAdmin = hasRole('SUPER_ADMIN');
   const [dashboardState, setDashboardState] = useState(createEmptyDashboardState);
@@ -438,55 +438,44 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
 
-      const [
-        dashboardResponse,
-        productsResponse,
-        clientsResponse,
-        recentSalesResponse,
-        allSalesResponse,
-        topProductsResponse,
-        alertsResponse,
-      ] = await Promise.all([
-        dashboardService.getStats().catch(() => ({ data: {} })),
-        productService.getAll({ limit: 1 }).catch(() => ({ data: {} })),
-        clientService.getAll({ limit: 1 }).catch(() => ({ data: {} })),
-        saleService.getAll({ limit: 10 }).catch(() => ({ data: { ventes: [] } })),
-        saleService.getAll({ limit: 100 }).catch(() => ({ data: { ventes: [] } })),
-        dashboardService.getTopProducts().catch(() => ({ data: {} })),
-        dashboardService.getAlerts().catch(() => ({ data: null })),
-      ]);
+      const response = await dashboardService.getOverview();
+      const data = response.data?.overview || {};
 
-      const dashboardData = dashboardResponse.data?.stats || {};
-      const recentSales = recentSalesResponse.data?.ventes || [];
-      const allSales = allSalesResponse.data?.ventes || recentSales;
-      const evolution = buildSalesEvolution(allSales);
-      const previousPeriodTotal = buildPreviousPeriodTotal(allSales);
-      const receivables = normalizeReceivables(dashboardData);
+      const evolution = (Array.isArray(data.evolution) ? data.evolution : []).map((day) => ({
+        dateKey: day.date,
+        label: day.date,
+        total: toNumber(day.total),
+        count: 0,
+      }));
+
       const stats = {
-        products: toNumber(productsResponse.data?.total ?? dashboardData.total_produits),
-        clients: toNumber(clientsResponse.data?.total ?? dashboardData.clients_actifs),
-        salesToday: toNumber(dashboardData.ventes_aujourdhui),
-        revenue: toNumber(dashboardData.ca_mois),
-        stockAlerts: toNumber(dashboardData.alertes_stock),
-        criticalStockAlerts: normalizeCriticalStockAlerts(alertsResponse.data),
-        todayRevenue: getTodayTotal(allSales),
-        receivablesCount: receivables.count,
-        receivablesTotal: receivables.total,
+        products: toNumber(data.total_produits),
+        clients: toNumber(data.clients_actifs),
+        salesToday: toNumber(data.ventes_aujourdhui),
+        revenue: toNumber(data.ca_mois),
+        stockAlerts: toNumber(data.alertes_stock),
+        criticalStockAlerts: toNumber(data.alertes_stock_critiques),
+        todayRevenue: data.ca_aujourdhui === null ? null : toNumber(data.ca_aujourdhui),
+        receivablesCount: toNumber(data.receivables_count),
+        receivablesTotal: toNumber(data.receivables_total),
       };
-      const recentActivity = normalizeRecentActivity(recentSales);
+
+      const recentActivity = normalizeRecentActivity(data.recent_sales || []);
       const priorities = buildPriorities({
         criticalStockAlerts: stats.criticalStockAlerts,
         stockAlerts: stats.stockAlerts,
         receivablesCount: stats.receivablesCount,
         todaySales: stats.salesToday,
-        hasSalesData: allSales.length > 0,
+        hasSalesData: Boolean(data.current_period_has_sales),
       });
 
       setDashboardState({
         stats,
         evolution,
-        previousPeriodTotal,
-        topProducts: normalizeTopProducts(topProductsResponse.data),
+        previousPeriodTotal: data.previous_period_total === null
+          ? null
+          : toNumber(data.previous_period_total),
+        topProducts: normalizeTopProducts({ top_products: data.top_products || [] }),
         recentActivity,
         priorities,
       });
@@ -501,29 +490,7 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  const fetchSubscription = useCallback(async () => {
-    if (!user) return;
 
-    try {
-      setSubscriptionLoading(true);
-      const response = await subscriptionService.getMonAbonnement();
-      const sub = response.data?.abonnement || response.data || null;
-      setSubscription(sub);
-    } catch (err) {
-      console.error('Error fetching subscription:', err);
-      setSubscription(null);
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchSubscription();
-  }, [fetchSubscription]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
 
   const chartGeometry = useMemo(
     () => buildChartGeometry(dashboardState.evolution),
