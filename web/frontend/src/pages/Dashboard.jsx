@@ -10,6 +10,7 @@ import {
   buildSparklinePath,
   formatCurrency,
   formatCurrencyExact,
+  formatDateLabel,
   formatDateRange,
   formatMonthYear,
   formatNumber,
