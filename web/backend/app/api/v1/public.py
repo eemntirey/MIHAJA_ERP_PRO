@@ -158,10 +158,11 @@ class PublicSitemap(Resource):
         active_tenant_ids = _get_active_tenant_ids()
         today = datetime.utcnow().date()
 
+        public_site_url = (getenv('PUBLIC_SITE_URL') or getenv('FRONTEND_URL') or 'http://localhost:3000').rstrip('/')
         static_urls = [
-            ('https://erp.sekoliko.com/', 'weekly', '1.0'),
-            ('https://erp.sekoliko.com/catalogue', 'daily', '0.9'),
-            ('https://erp.sekoliko.com/contact', 'monthly', '0.6'),
+            (f'{public_site_url}/', 'weekly', '1.0'),
+            (f'{public_site_url}/catalogue', 'daily', '0.9'),
+            (f'{public_site_url}/contact', 'monthly', '0.6'),
         ]
 
         lines = [
@@ -197,7 +198,7 @@ class PublicSitemap(Resource):
                 lastmod = updated_at.date().isoformat() if updated_at else today.isoformat()
                 lines.extend([
                     '  <url>',
-                    f'    <loc>https://erp.sekoliko.com/produits/{int(product_id)}</loc>',
+                    f'    <loc>{xml_escape(public_site_url)}/produits/{int(product_id)}</loc>',
                     f'    <lastmod>{lastmod}</lastmod>',
                     '    <changefreq>weekly</changefreq>',
                     '    <priority>0.7</priority>',
