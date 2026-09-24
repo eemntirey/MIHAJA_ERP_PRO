@@ -47,15 +47,9 @@ class VenteList(Resource):
             except (TypeError, ValueError):
                 return {'message': 'Format de date invalide (AAAA-MM-JJ).'}, 400
         try:
-            ventes = get_sales_summary()
-            if debut is not None or fin is not None:
-                borne_fin = fin + timedelta(days=1) if fin is not None else None
-                ventes = [
-                    v for v in ventes
-                    if v.date is not None
-                    and (debut is None or v.date >= debut)
-                    and (borne_fin is None or v.date < borne_fin)
-                ]
+            borne_fin = fin + timedelta(days=1) if fin is not None else None
+            limit_arg = request.args.get('limit')
+            ventes = get_sales_summary(debut=debut, fin=borne_fin, limit=limit_arg)
             result = []
             for v in ventes:
                 d = v.to_dict()
