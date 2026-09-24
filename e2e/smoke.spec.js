@@ -161,7 +161,7 @@ test('le build React rend les routes principales sans erreur runtime', async ({ 
   await mockApi(page);
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toContainText('MIHAJA ERP PRO');
+  await expect(page.locator('body')).toContainText('ERP Pro');
 
   await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#login-email')).toBeVisible();
