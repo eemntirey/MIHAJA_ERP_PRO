@@ -340,6 +340,7 @@ const Home = () => {
            ) : (
             <>
               <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
+              <a href="#telechargements" className="public-nav-link">Télécharger</a>
               <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
               <Link to="/register" className="public-nav-link btn-nav-register">S'inscrire</Link>
             </>
@@ -609,7 +610,7 @@ const Home = () => {
               <div className="vit-downloads__grid">
                 <a
                   className="vit-download-card"
-                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/latest"
+                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Télécharger MIHAJA ERP PRO pour Windows"
