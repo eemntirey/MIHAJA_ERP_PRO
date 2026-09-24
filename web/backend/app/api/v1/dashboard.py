@@ -1,5 +1,5 @@
 from flask_restx import Namespace, Resource
-from app.services.dashboard_service import get_dashboard_data
+from app.services.dashboard_service import get_dashboard_data, get_dashboard_overview_data
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
 
@@ -17,6 +17,16 @@ class Dashboard(Resource):
             'message': 'Donnees du tableau de bord',
             'stats': data,
         }, 200
+
+@api.route('/overview')
+class DashboardOverview(Resource):
+    @api.doc('get_dashboard_overview')
+    @permission_required('report.view')
+    @tenant_required_readonly
+    def get(self):
+        """Récupère la vue compacte du dashboard web."""
+        return {'overview': get_dashboard_overview_data()}, 200
+
 
 @api.route('/sales-stats')
 class SalesStats(Resource):
