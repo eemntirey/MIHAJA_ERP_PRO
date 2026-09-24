@@ -14,13 +14,13 @@ const HOME_SEO_DATA = {
     {
       '@type': 'Organization',
       name: 'MIHAJA ERP PRO',
-      url: 'https://erp.sekoliko.com/',
+      url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/',
       description: 'ERP SaaS pour les entreprises à Madagascar.',
     },
     {
       '@type': 'WebSite',
       name: 'MIHAJA ERP PRO',
-      url: 'https://erp.sekoliko.com/',
+      url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/',
       inLanguage: 'fr',
     },
   ],
@@ -230,7 +230,7 @@ const Home = () => {
       <Seo
         title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
         description="MIHAJA ERP PRO est un ERP SaaS pour gérer stocks, ventes, achats, factures, clients et livraisons pour les entreprises à Madagascar."
-        canonical="https://erp.sekoliko.com/"
+        canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/"
         structuredData={HOME_SEO_DATA}
       />
       <div className="home-page">
