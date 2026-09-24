@@ -3,7 +3,7 @@ import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuth, AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
 import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
