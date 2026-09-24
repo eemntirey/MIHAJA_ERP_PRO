@@ -85,7 +85,7 @@ const ProductDetail = () => {
       : undefined,
     offers: {
       '@type': 'Offer',
-      url: `https://erp.sekoliko.com/produits/${id}`,
+      url: `https://mihaja-erp-frontend-796e-qdh1.onrender.com/produits/${id}`,
       priceCurrency: 'MGA',
       price: price.toFixed(2),
       availability: stock > 0
@@ -99,7 +99,7 @@ const ProductDetail = () => {
       <Seo
         title={`${product.nom} | MIHAJA ERP PRO`}
         description={productDescription.slice(0, 160)}
-        canonical={`https://erp.sekoliko.com/produits/${id}`}
+        canonical={`https://mihaja-erp-frontend-796e-qdh1.onrender.com/produits/${id}`}
         type="product"
         image={productImage}
         structuredData={productStructuredData}
