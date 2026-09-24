@@ -324,7 +324,7 @@ def get_dashboard_overview_data():
             LigneVente.produit_id,
             Produit.nom,
             func.sum(LigneVente.quantite).label('total_quantite'),
-            func.sum(LigneVente.total_ht).label('total_ca'),
+            func.sum(LigneVente.total_ttc).label('total_ttc'),
         ).join(
             Produit, Produit.id == LigneVente.produit_id
         ).join(
@@ -343,12 +343,12 @@ def get_dashboard_overview_data():
                 'produit_id': row[0],
                 'nom': row[1],
                 'total_quantite': float(row[2] or 0),
-                'total_ca': float(row[3] or 0),
+                'total_ttc': float(row[3] or 0),
             }
             for row in top_products_query.group_by(
                 LigneVente.produit_id, Produit.nom
             ).order_by(
-                func.sum(LigneVente.quantite).desc()
+                func.sum(LigneVente.total_ttc).desc()
             ).limit(5).all()
         ]
 
