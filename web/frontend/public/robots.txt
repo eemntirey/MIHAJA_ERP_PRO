@@ -31,4 +31,4 @@ Disallow: /cart
 Disallow: /checkout
 Disallow: /mes-commandes
 
-Sitemap: https://erp.sekoliko.com/sitemap.xml
+Sitemap: https://mihaja-erp-frontend-796e-qdh1.onrender.com/sitemap.xml
