@@ -90,6 +90,7 @@ const ProductDetail = () => {
         ? 'https://schema.org/OutOfStock'
         : 'https://schema.org/InStock',
       },
+      },
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
