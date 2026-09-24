@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
+import Seo from '../components/Seo';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
@@ -67,9 +68,43 @@ const ProductDetail = () => {
   const price = Number(product.prix_vente_ht || product.prix || 0);
   const stock = Number(product.quantite_stock ?? product.stock ?? 0);
   const maxQty = Math.min(stock, 99);
+  const productDescription =
+    product.description_longue ||
+    product.description_courte ||
+    `Découvrez ${product.nom} sur MIHAJA ERP PRO.`;
+  const productImage = product.image_url || product.image || product.photo || undefined;
+  const productStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.nom,
+    description: productDescription,
+    sku: product.reference || undefined,
+    image: productImage,
+    brand: product.marque
+      ? { '@type': 'Brand', name: product.marque }
+      : undefined,
+    offers: {
+      '@type': 'Offer',
+      url: `https://erp.sekoliko.com/produits/${id}`,
+      priceCurrency: 'MGA',
+      price: price.toFixed(2),
+      availability: stock > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+    },
+  };
 
   return (
-    <div className="page-container">
+    <>
+      <Seo
+        title={`${product.nom} | MIHAJA ERP PRO`}
+        description={productDescription.slice(0, 160)}
+        canonical={`https://erp.sekoliko.com/produits/${id}`}
+        type="product"
+        image={productImage}
+        structuredData={productStructuredData}
+      />
+      <div className="page-container">
       <div className="page-header">
         <div>
           <h1>{product.nom}</h1>
@@ -170,7 +205,8 @@ const ProductDetail = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
