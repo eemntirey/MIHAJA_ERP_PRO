@@ -123,15 +123,7 @@ const Home = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return (
-    <>
-      <Seo
-        title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
-        description="Logiciel ERP SaaS pour gérer stocks, ventes, achats, clients, factures et livraisons. Découvrez MIHAJA ERP PRO."
-        canonical="https://erp.sekoliko.com/"
-        structuredData={seoData}
-      />
-) => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchProducts = async () => {
@@ -232,7 +224,14 @@ const Home = () => {
   }, [products, searchQuery]);
 
   return (
-    <div className="home-page">
+    <>
+      <Seo
+        title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
+        description="Logiciel ERP SaaS pour gérer stocks, ventes, achats, clients, factures et livraisons. Découvrez MIHAJA ERP PRO."
+        canonical="https://erp.sekoliko.com/"
+        structuredData={seoData}
+      />
+      <div className="home-page">
       {/* ── Header ── */}
       <header className="public-header">
         <Link to="/" className="brand">
