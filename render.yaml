@@ -60,6 +60,8 @@ services:
         value: None
       - key: FRONTEND_URL
         value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
+      - key: PUBLIC_SITE_URL
+        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
       - key: FRONTEND_RESET_URL
         value: https://mihaja-erp-frontend-796e-qdh1.onrender.com/reset-password
       - key: PAPI_ENVIRONMENT
