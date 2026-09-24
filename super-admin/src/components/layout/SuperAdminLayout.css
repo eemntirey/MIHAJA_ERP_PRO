@@ -84,7 +84,7 @@
 .sa-logout-btn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
-  border-color: var(--color-text-dim);
+  border-color: #cbd5e1;
 }
 
 .sa-main {
@@ -216,7 +216,7 @@
 }
 
 .sa-text-muted {
-  color: #94a3b8;
+  color: #cbd5e1;
   margin-bottom: 2rem;
 }
 
