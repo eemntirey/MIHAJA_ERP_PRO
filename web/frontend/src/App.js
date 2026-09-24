@@ -8,6 +8,7 @@ import { SyncProvider } from '../../../shared/contexts/SyncContext';
 import { authStorage } from '../../../shared/storage/authStorage';
 import { canAccessRoute } from '@shared/utils/navPermissions';
 import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
+import Seo from './components/Seo';
 
 // Composants d'authentification
 const Login = lazy(() => import('./components/auth/Login'));
@@ -175,7 +176,16 @@ const ProtectedRoute = ({ children }) => {
     }
   }
 
-  return children;
+  return (
+    <>
+      <Seo
+        title="MIHAJA ERP PRO — Espace de gestion"
+        description="Espace privé de gestion MIHAJA ERP PRO."
+        noindex
+      />
+      {children}
+    </>
+  );
 };
 
 // Modale « limite de plan » — libellés traduits via i18n (design inchangé).
