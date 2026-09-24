@@ -208,7 +208,8 @@ def create_app():
     # Explicite les chemins afin que les cookies JWT soient disponibles sur
     # tous les endpoints API, notamment /api/v1/auth/refresh.
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
-    app.config['JWT_REFRESH_COOKIE_PATH'] = '/'\n    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
+    app.config['JWT_REFRESH_COOKIE_PATH'] = '/'
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
     app.config['JWT_CSRF_IN_COOKIES'] = True
 
     from datetime import timedelta
