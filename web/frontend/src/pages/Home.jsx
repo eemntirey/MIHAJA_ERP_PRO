@@ -6,6 +6,7 @@ import { publicCatalogueService, authService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
+import Seo from '../components/Seo';
 
 const getNotifKind = (notif) => {
   const text = `${notif?.message || notif || ''}`.toLowerCase();
@@ -76,6 +77,22 @@ const TESTIMONIALS = [
 ];
 
 const Home = () => {
+  const seoData = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'MIHAJA ERP PRO',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: 'https://erp.sekoliko.com/',
+    description: 'ERP SaaS pour gérer stocks, ventes, achats, clients, factures et livraisons pour les entreprises à Madagascar.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'MGA',
+      url: 'https://erp.sekoliko.com/register/company',
+    },
+  };
+
   const { user, isAuthenticated, setUser, logout } = useAuth();
   const { addItem, totalItems } = useCart();
   const [products, setProducts] = useState([]);
@@ -106,7 +123,15 @@ const Home = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return (
+    <>
+      <Seo
+        title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
+        description="Logiciel ERP SaaS pour gérer stocks, ventes, achats, clients, factures et livraisons. Découvrez MIHAJA ERP PRO."
+        canonical="https://erp.sekoliko.com/"
+        structuredData={seoData}
+      />
+) => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchProducts = async () => {
@@ -752,6 +777,7 @@ const Home = () => {
         </footer>
       )}
     </div>
+    </>
   );
 };
 
