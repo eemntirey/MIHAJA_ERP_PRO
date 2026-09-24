@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -11,13 +11,13 @@ import { canAccessRoute } from '@shared/utils/navPermissions';
 import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
 
 // Composants d'authentification
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import RegisterUser from './components/auth/RegisterUser';
-import RegisterCompany from './components/auth/RegisterCompany';
-import ForgotPassword from './components/auth/ForgotPassword';
-import ResetPassword from './components/auth/ResetPassword';
-import FirstChangePassword from './components/auth/FirstChangePassword';
+const Login = lazy(() => import('./components/auth/Login'));
+const Register = lazy(() => import('./components/auth/Register'));
+const RegisterUser = lazy(() => import('./components/auth/RegisterUser'));
+const RegisterCompany = lazy(() => import('./components/auth/RegisterCompany'));
+const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
+const FirstChangePassword = lazy(() => import('./components/auth/FirstChangePassword'));
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
@@ -28,38 +28,38 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { LanguageProvider, useTranslation } from './i18n';
 
 // Pages
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import Clients from './pages/Clients';
-import Sales from './pages/Sales';
-import Inventory from './pages/Inventory';
-import Suppliers from './pages/Suppliers';
-import Invoices from './pages/Invoices';
-import Payments from './pages/Payments';
-import AI from './pages/AI';
-import Documentation from './pages/Documentation';
-import Checkout from './pages/Checkout';
-import OrderTracking from './pages/OrderTracking';
-import SuperAdmin from './pages/SuperAdmin';
-import SuperAdminProfile from './pages/SuperAdminProfile';
-import Profile from './pages/Profile';
-import Cart from './pages/Cart';
-import ProductDetail from './pages/ProductDetail';
-import Subscription from './pages/Subscription';
-import PaymentSettings from './pages/PaymentSettings';
-import Catalogue from './pages/Catalogue';
-import Suivi from './pages/Suivi';
-import Contact from './pages/Contact';
-import UserOrders from './pages/UserOrders';
-import Delivery from './pages/Delivery';
-import HR from './pages/HR';
-import Accounting from './pages/Accounting';
-import Documents from './pages/Documents';
-import Purchases from './pages/Purchases';
-import Users from './pages/Users';
-import Roles from './pages/Roles';
-import Permissions from './pages/Permissions';
+const Home = lazy(() => import('./pages/Home'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Products = lazy(() => import('./pages/Products'));
+const Clients = lazy(() => import('./pages/Clients'));
+const Sales = lazy(() => import('./pages/Sales'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Suppliers = lazy(() => import('./pages/Suppliers'));
+const Invoices = lazy(() => import('./pages/Invoices'));
+const Payments = lazy(() => import('./pages/Payments'));
+const AI = lazy(() => import('./pages/AI'));
+const Documentation = lazy(() => import('./pages/Documentation'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderTracking = lazy(() => import('./pages/OrderTracking'));
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
+const SuperAdminProfile = lazy(() => import('./pages/SuperAdminProfile'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Cart = lazy(() => import('./pages/Cart'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Subscription = lazy(() => import('./pages/Subscription'));
+const PaymentSettings = lazy(() => import('./pages/PaymentSettings'));
+const Catalogue = lazy(() => import('./pages/Catalogue'));
+const Suivi = lazy(() => import('./pages/Suivi'));
+const Contact = lazy(() => import('./pages/Contact'));
+const UserOrders = lazy(() => import('./pages/UserOrders'));
+const Delivery = lazy(() => import('./pages/Delivery'));
+const HR = lazy(() => import('./pages/HR'));
+const Accounting = lazy(() => import('./pages/Accounting'));
+const Documents = lazy(() => import('./pages/Documents'));
+const Purchases = lazy(() => import('./pages/Purchases'));
+const Users = lazy(() => import('./pages/Users'));
+const Roles = lazy(() => import('./pages/Roles'));
+const Permissions = lazy(() => import('./pages/Permissions'));
 
 // Composant de protection utilisant AuthContext.
 // PATH_MODULE_MAP, PATH_PERMISSION_MAP, ADMIN_PATHS et la logique
@@ -232,7 +232,8 @@ function App() {
           <CartProvider>
             <BrowserRouter>
               <div className="app">
-              <Routes>
+              <Suspense fallback={<div className="page-loading" role="status" aria-live="polite">Chargement…</div>}>
+                <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -287,7 +288,8 @@ function App() {
                 <Route path="/mes-commandes" element={<UserOrders />} />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+                </Routes>
+              </Suspense>
               <ToastContainer
                 position="top-right"
                 autoClose={5000}
