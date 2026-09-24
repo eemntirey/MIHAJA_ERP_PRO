@@ -79,6 +79,9 @@ services:
     # L'ordre compte : les règles spécifiques AVANT le catch-all /*
     routes:
       - type: rewrite
+        source: /sitemap.xml
+        destination: https://mihaja-erp-pro.onrender.com/api/v1/public/sitemap.xml
+      - type: rewrite
         source: /api/*
         destination: https://mihaja-erp-pro.onrender.com/api/*
       - type: rewrite
