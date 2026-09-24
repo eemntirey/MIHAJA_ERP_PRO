@@ -1537,3 +1537,125 @@
   resize: vertical;
   min-height: 120px;
 }
+
+
+/* ======================================================
+   DOWNLOADS
+   ====================================================== */
+
+.vit-downloads {
+  padding: 72px 24px;
+  background: var(--landing-white);
+}
+
+.vit-downloads__grid {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.vit-download-card {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--landing-radius);
+  background: var(--landing-white);
+  color: var(--landing-ink);
+  text-decoration: none;
+  box-shadow: var(--landing-shadow);
+  transition: transform var(--landing-transition), box-shadow var(--landing-transition), border-color var(--landing-transition);
+}
+
+.vit-download-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--landing-shadow-hover);
+  border-color: rgba(198, 162, 43, 0.45);
+}
+
+.vit-download-card:focus-visible {
+  outline: 2px solid var(--landing-gold);
+  outline-offset: 3px;
+}
+
+.vit-download-card__icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--landing-gold-light);
+  color: var(--landing-gold-dark);
+  font-size: 24px;
+}
+
+.vit-download-card__content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vit-download-card__content strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.vit-download-card__content span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--landing-ink-muted);
+}
+
+.vit-download-card > .ti-arrow-down {
+  flex: 0 0 auto;
+  font-size: 18px;
+  color: var(--landing-gold-dark);
+}
+
+.vit-download-card--disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  box-shadow: none;
+}
+
+.vit-download-card--disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.vit-download-card__status {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: var(--landing-bg);
+  color: var(--landing-ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .vit-downloads__grid {
+    grid-template-columns: 1fr;
+    max-width: 680px;
+  }
+}
+
+@media (max-width: 640px) {
+  .vit-downloads {
+    padding: 56px 16px;
+  }
+
+  .vit-download-card {
+    min-height: 96px;
+    padding: 14px;
+  }
+}
