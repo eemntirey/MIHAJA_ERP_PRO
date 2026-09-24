@@ -1,4 +1,5 @@
-from flask import request, current_app, g
+from xml.sax.saxutils import escape as xml_escape
+from flask import request, current_app, g, Response
 from flask_restx import Namespace, Resource
 from app.models.produit import Produit
 from app.models.tenant import Tenant
@@ -148,6 +149,65 @@ def _infer_tenant_from_items(items):
         return db.session.get(Tenant, produit.tenant_id)
     except Exception:
         return None
+
+
+@ns_public.route('/sitemap.xml')
+class PublicSitemap(Resource):
+    def get(self):
+        """Sitemap dynamique des pages publiques indexables."""
+        active_tenant_ids = _get_active_tenant_ids()
+        today = datetime.utcnow().date()
+
+        static_urls = [
+            ('https://erp.sekoliko.com/', 'weekly', '1.0'),
+            ('https://erp.sekoliko.com/catalogue', 'daily', '0.9'),
+            ('https://erp.sekoliko.com/contact', 'monthly', '0.6'),
+        ]
+
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ]
+        for loc, changefreq, priority in static_urls:
+            lines.extend([
+                '  <url>',
+                f'    <loc>{xml_escape(loc)}</loc>',
+                f'    <lastmod>{today.isoformat()}</lastmod>',
+                f'    <changefreq>{changefreq}</changefreq>',
+                f'    <priority>{priority}</priority>',
+                '  </url>',
+            ])
+
+        if active_tenant_ids:
+            products = db.session.query(
+                Produit.id,
+                Produit.updated_at,
+            ).filter(
+                Produit.tenant_id.in_(active_tenant_ids),
+                Produit.is_active == True,
+                Produit.published == True,
+                Produit.quantite_stock > 0,
+                Produit.quantite_stock > func.coalesce(Produit.seuil_alerte, 0),
+            ).order_by(
+                Produit.updated_at.desc().nullslast(),
+                Produit.id.desc(),
+            ).limit(45000).all()
+
+            for product_id, updated_at in products:
+                lastmod = updated_at.date().isoformat() if updated_at else today.isoformat()
+                lines.extend([
+                    '  <url>',
+                    f'    <loc>https://erp.sekoliko.com/produits/{int(product_id)}</loc>',
+                    f'    <lastmod>{lastmod}</lastmod>',
+                    '    <changefreq>weekly</changefreq>',
+                    '    <priority>0.7</priority>',
+                    '  </url>',
+                ])
+
+        lines.append('</urlset>')
+        response = Response('\n'.join(lines), mimetype='application/xml')
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response, 200
 
 
 @ns_public.route('/produits')
