@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -481,7 +481,9 @@ const Dashboard = () => {
     }
   }, [user]);
 
-
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const chartGeometry = useMemo(
     () => buildChartGeometry(dashboardState.evolution),
@@ -570,7 +572,7 @@ const Dashboard = () => {
               <div className="dashboard-subscription-widget__details">
                 <div>
                   <p className="dashboard-subscription-widget__label">Date de fin</p>
-                  <p className="dashboard-subscription-widget__value">{formatDate(subscription.date_fin)}</p>
+                  <p className="dashboard-subscription-widget__value">{formatDateLabel(subscription.date_fin)}</p>
                 </div>
                 {subscription.montant && (
                   <div>
