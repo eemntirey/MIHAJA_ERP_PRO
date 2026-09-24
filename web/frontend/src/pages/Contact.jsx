@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import '../styles/landing.css';
+import Seo from '../components/Seo';
 
 const Contact = () => {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
@@ -23,6 +24,12 @@ const Contact = () => {
   };
 
   return (
+    <>
+      <Seo
+        title="Contact | MIHAJA ERP PRO"
+        description="Contactez l'équipe MIHAJA ERP PRO pour toute question sur notre ERP SaaS et la gestion d'entreprise."
+        canonical="https://erp.sekoliko.com/contact"
+      />
     <div className="landing-contact">
       <div className="landing-container">
         <div className="landing-section-header">
@@ -79,6 +86,7 @@ const Contact = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
