@@ -443,7 +443,7 @@ const Dashboard = () => {
 
       const evolution = (Array.isArray(data.evolution) ? data.evolution : []).map((day) => ({
         dateKey: day.date,
-        label: day.date,
+        label: formatChartDateLabel(day.date),
         total: toNumber(day.total),
         count: 0,
       }));
@@ -508,47 +508,6 @@ const Dashboard = () => {
   const periodLabel = formatDateRange(periodStart, periodEnd);
   const periodCaption = formatMonthYear(periodEnd);
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('mg-MG');
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameForm, setNameForm] = useState({ prenom: '', nom: '' });
-
-  const handleStartEditName = () => {
-    setNameForm({
-      prenom: user?.prenom || '',
-      nom: user?.nom || '',
-    });
-    setIsEditingName(true);
-  };
-
-  const handleUpdateNameField = (field, value) => {
-    setNameForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSaveName = async () => {
-    try {
-      const response = await authService.updateMe({
-        prenom: nameForm.prenom,
-        nom: nameForm.nom,
-      });
-      const updatedUser = response.data?.user || response.data;
-      setUser((prev) => ({ ...(prev || {}), ...updatedUser }));
-      setIsEditingName(false);
-      toast.success('Profil mis à jour');
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      const msg = err.response?.data?.message || 'Échec de la mise à jour';
-      toast.error(msg);
-    }
-  };
 
   const handleExport = () => {
     if (!hasLoaded) return;
