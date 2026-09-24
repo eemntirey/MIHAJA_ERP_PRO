@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { authService, dashboardService } from '../services/api';
+import { dashboardService } from '../services/api';
 import {
   buildChartGeometry,
   buildPriorities,
