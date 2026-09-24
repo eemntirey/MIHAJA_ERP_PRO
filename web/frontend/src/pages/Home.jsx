@@ -241,6 +241,7 @@ const Home = () => {
           <span className="brand-name">ERP Pro</span>
         </Link>
         <nav className="public-nav">
+          <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
           {isAuthenticated ? (
             <>
               {isUser && (
@@ -810,6 +811,7 @@ const Home = () => {
                 </div>
                 <div className="vit-footer__col">
                   <h4>Ressources</h4>
+                  <Link to="/telechargements">Télécharger les applications</Link>
                   <Link to="/documentation">Documentation</Link>
                   <a href="mailto:support@mihaja.mg">Support technique</a>
                   <a href="tel:+261340000000">Contact commercial</a>

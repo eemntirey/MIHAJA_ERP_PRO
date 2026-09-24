@@ -79,6 +79,7 @@ const Invoices = lazyWithRecovery(() => import('./pages/Invoices'), 'Invoices');
 const Payments = lazyWithRecovery(() => import('./pages/Payments'), 'Payments');
 const AI = lazyWithRecovery(() => import('./pages/AI'), 'AI');
 const Documentation = lazyWithRecovery(() => import('./pages/Documentation'), 'Documentation');
+const Downloads = lazyWithRecovery(() => import('./pages/Downloads'), 'Downloads');
 const Checkout = lazyWithRecovery(() => import('./pages/Checkout'), 'Checkout');
 const OrderTracking = lazyWithRecovery(() => import('./pages/OrderTracking'), 'OrderTracking');
 const SuperAdmin = lazyWithRecovery(() => import('./pages/SuperAdmin'), 'SuperAdmin');
@@ -276,6 +277,7 @@ function App() {
               <Suspense fallback={<div className="page-loading" role="status" aria-live="polite">Chargement…</div>}>
                 <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/telechargements" element={<Downloads />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/register/simple" element={<RegisterUser />} />
