@@ -366,6 +366,9 @@ input:focus, select:focus, textarea:focus {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-text-dim);
 }
 
