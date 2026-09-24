@@ -2,6 +2,7 @@ from flask import current_app
 from datetime import datetime
 from decimal import Decimal
 from app import db
+from sqlalchemy.orm import joinedload
 from app.models.vente import Vente
 from app.models.ligne_vente import LigneVente
 from app.models.produit import Produit
@@ -51,11 +52,26 @@ def _ajout_prix_automatique(value):
         return False
 
 
-def get_sales_summary():
+def get_sales_summary(debut=None, fin=None, limit=None):
+    """Liste les ventes avec filtres SQL et relations préchargées."""
     tenant_id = get_current_tenant_id()
-    query = Vente.query.filter_by(is_active=True)
+    query = Vente.query.options(
+        joinedload(Vente.client),
+        joinedload(Vente.commercial),
+    ).filter_by(is_active=True)
     if tenant_id:
         query = query.filter_by(tenant_id=tenant_id)
+    if debut is not None:
+        query = query.filter(Vente.date >= debut)
+    if fin is not None:
+        query = query.filter(Vente.date < fin)
+    query = query.order_by(Vente.created_at.desc())
+    if limit is not None:
+        try:
+            safe_limit = min(max(int(limit), 1), 500)
+            query = query.limit(safe_limit)
+        except (TypeError, ValueError):
+            pass
     return query.all()
 
 
