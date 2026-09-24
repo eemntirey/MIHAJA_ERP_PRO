@@ -593,6 +593,61 @@ const Home = () => {
               </div>
             </section>
 
+            {/* ── Downloads ── */}
+            <section className="vit-downloads" id="telechargements">
+              <div className="vit-section-header">
+                <span className="vit-section-tag">
+                  <i className="ti ti-download" aria-hidden="true" />
+                  Applications
+                </span>
+                <h2 className="vit-section-title">Téléchargez MIHAJA ERP PRO</h2>
+                <p className="vit-section-subtitle">
+                  Utilisez MIHAJA ERP PRO sur votre ordinateur dès maintenant.
+                </p>
+              </div>
+
+              <div className="vit-downloads__grid">
+                <a
+                  className="vit-download-card"
+                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/latest"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Télécharger MIHAJA ERP PRO pour Windows"
+                >
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-windows" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>Windows — Desktop</strong>
+                    <span>Installer MIHAJA ERP PRO pour Windows</span>
+                  </span>
+                  <i className="ti ti-arrow-down" aria-hidden="true" />
+                </a>
+
+                <div className="vit-download-card vit-download-card--disabled" aria-disabled="true">
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-android" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>Android</strong>
+                    <span>Bientôt disponible sur Google Play</span>
+                  </span>
+                  <span className="vit-download-card__status">Bientôt</span>
+                </div>
+
+                <div className="vit-download-card vit-download-card--disabled" aria-disabled="true">
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-apple" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>iPhone / iPad</strong>
+                    <span>Bientôt disponible sur l’App Store</span>
+                  </span>
+                  <span className="vit-download-card__status">Bientôt</span>
+                </div>
+              </div>
+            </section>
+
             {/* ── Final CTA ── */}
             <section className="vit-final-cta">
               <div className="vit-final-cta__inner">
