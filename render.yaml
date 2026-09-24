@@ -99,6 +99,10 @@ services:
       # les rewrites ci-dessus relayent vers le backend Flask.
       - key: VITE_API_URL
         value: /api/v1
+      # Socket.IO doit joindre directement le backend : le rewrite d'un
+      # static site Render ne garantit pas la persistance du polling Socket.IO.
+      - key: VITE_SOCKET_URL
+        value: https://mihaja-erp-pro.onrender.com
       - key: VITE_PUBLIC_API_URL
         value: /api/v1
 
