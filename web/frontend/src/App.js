@@ -142,7 +142,16 @@ const ProtectedRoute = ({ children }) => {
 
   const isSuperAdmin = role === 'super_admin';
   if (isSuperAdmin) {
-    return children;
+    return (
+      <>
+        <Seo
+          title="MIHAJA ERP PRO — Administration"
+          description="Espace privé d'administration MIHAJA ERP PRO."
+          noindex
+        />
+        {children}
+      </>
+    );
   }
 
   const isSubscriptionPage = location.pathname === '/subscription';
