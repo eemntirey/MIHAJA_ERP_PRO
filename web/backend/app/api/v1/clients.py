@@ -61,7 +61,15 @@ class ClientListResource(Resource):
         """Liste tous les clients"""
         try:
             clients, total = ClientService.get_all()
-            return {'clients': [c.to_dict() for c in clients], 'total': total}, 200
+            stats_by_client = ClientService.get_list_stats([client.id for client in clients])
+            payload = []
+            for client in clients:
+                item = client.to_dict(include_stats=False)
+                stats = stats_by_client.get(client.id, {})
+                item['total_achats'] = stats.get('total_achats', 0.0)
+                item['total_commandes'] = stats.get('total_commandes', 0)
+                payload.append(item)
+            return {'clients': payload, 'total': total}, 200
         except Exception:
             current_app.logger.exception('Erreur lors de la liste des clients')
             return {'clients': [], 'total': 0}, 500
