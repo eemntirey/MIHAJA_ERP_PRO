@@ -7,7 +7,7 @@ from app.models.ligne_vente import LigneVente
 from app.models.facture import Facture
 from app.models.paiement import Paiement
 from app import db
-from sqlalchemy import func
+from sqlalchemy import func, case
 from datetime import datetime, time, timedelta
 from sqlalchemy.exc import OperationalError
 
