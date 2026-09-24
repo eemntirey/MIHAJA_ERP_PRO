@@ -875,6 +875,7 @@ export const entrepotService = {
 // ======================================================
 
 export const dashboardService = {
+  getOverview: () => api.get('/dashboard/overview'),
   getStats: () => api.get('/dashboard'),
   getSalesStats: () => api.get('/dashboard/sales-stats'),
   getTopProducts: () => api.get('/dashboard/top-products'),
