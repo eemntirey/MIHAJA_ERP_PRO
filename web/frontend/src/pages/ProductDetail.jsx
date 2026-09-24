@@ -71,7 +71,9 @@ const ProductDetail = () => {
   const productCanonical = `https://erp.sekoliko.com/produits/${encodeURIComponent(id)}`;
   const productStructuredData = {
     '@context': 'https://schema.org',
-    '@type': 'Product',
+    '@graph': [
+      {
+        '@type': 'Product',
     name: product.nom,
     description: productDescription,
     sku: product.reference || undefined,
@@ -87,7 +89,31 @@ const ProductDetail = () => {
       availability: String(product.statut || '').toLowerCase() === 'en_rupture'
         ? 'https://schema.org/OutOfStock'
         : 'https://schema.org/InStock',
-    },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Accueil',
+            item: 'https://erp.sekoliko.com/',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Catalogue',
+            item: 'https://erp.sekoliko.com/catalogue',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: product.nom,
+            item: productCanonical,
+          },
+        ],
+      },
+    ],
   };
   const stock = Number(product.quantite_stock ?? product.stock ?? 0);
   const maxQty = Math.min(stock, 99);
