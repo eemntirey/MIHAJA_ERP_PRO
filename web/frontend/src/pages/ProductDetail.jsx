@@ -6,7 +6,6 @@ import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
-import Seo from '../components/Seo';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -66,68 +65,11 @@ const ProductDetail = () => {
   }
 
   const price = Number(product.prix_vente_ht || product.prix || 0);
-  const productDescription = product.description_longue || product.description_courte ||
-    `Découvrez ${product.nom} sur le catalogue MIHAJA ERP PRO.`;
-  const productCanonical = `https://erp.sekoliko.com/produits/${encodeURIComponent(id)}`;
-  const productStructuredData = {
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Product',
-    name: product.nom,
-    description: productDescription,
-    sku: product.reference || undefined,
-    mpn: product.code_barre || undefined,
-    category: product.categorie || undefined,
-    image: product.image_url ? [product.image_url] : undefined,
-    brand: product.marque ? { '@type': 'Brand', name: product.marque } : undefined,
-    offers: {
-      '@type': 'Offer',
-      url: productCanonical,
-      priceCurrency: 'MGA',
-      price: price.toFixed(2),
-      availability: String(product.statut || '').toLowerCase() === 'en_rupture'
-        ? 'https://schema.org/OutOfStock'
-        : 'https://schema.org/InStock',
-      },
-      },
-      {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          {
-            '@type': 'ListItem',
-            position: 1,
-            name: 'Accueil',
-            item: 'https://erp.sekoliko.com/',
-          },
-          {
-            '@type': 'ListItem',
-            position: 2,
-            name: 'Catalogue',
-            item: 'https://erp.sekoliko.com/catalogue',
-          },
-          {
-            '@type': 'ListItem',
-            position: 3,
-            name: product.nom,
-            item: productCanonical,
-          },
-        ],
-      },
-    ],
-  };
   const stock = Number(product.quantite_stock ?? product.stock ?? 0);
   const maxQty = Math.min(stock, 99);
 
   return (
     <div className="page-container">
-      <Seo
-        title={`${product.nom} | MIHAJA ERP PRO`}
-        description={productDescription.slice(0, 160)}
-        canonical={productCanonical}
-        type="product"
-        structuredData={productStructuredData}
-      />
       <div className="page-header">
         <div>
           <h1>{product.nom}</h1>
