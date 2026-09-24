@@ -13,7 +13,7 @@ const backendPort = (typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('backendPort'))
     || null;
 
-const PRODUCTION_API_BASE_URL = 'https://mihaja-erp-pro.onrender.com/api/v1';
+const PRODUCTION_API_BASE_URL = 'https://api.sekoliko.com/api/v1';
 
 const RAW_API_BASE_URL = backendPort
     ? `http://127.0.0.1:${backendPort}/api/v1`
