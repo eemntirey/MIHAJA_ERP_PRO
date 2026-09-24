@@ -333,6 +333,7 @@ def get_dashboard_overview_data():
             LigneVente.is_active == True,
             Produit.is_active == True,
             Vente.is_active == True,
+            Vente.created_at >= debut_mois,
         )
         if tenant_id:
             top_products_query = top_products_query.filter(Vente.tenant_id == tenant_id)
