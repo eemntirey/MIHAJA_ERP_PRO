@@ -10,13 +10,52 @@ import { canAccessRoute } from '@shared/utils/navPermissions';
 import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
 
 // Composants d'authentification
-const Login = lazy(() => import('./components/auth/Login'));
-const Register = lazy(() => import('./components/auth/Register'));
-const RegisterUser = lazy(() => import('./components/auth/RegisterUser'));
-const RegisterCompany = lazy(() => import('./components/auth/RegisterCompany'));
-const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
-const FirstChangePassword = lazy(() => import('./components/auth/FirstChangePassword'));
+const lazyWithRecovery = (loader, name) =>
+  lazy(() => loader().catch((error) => {
+    const key = `erp.lazy-recovery.${name}`;
+    try {
+      const lastAttempt = Number(sessionStorage.getItem(key) || 0);
+      if (!lastAttempt || Date.now() - lastAttempt > 30000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        window.location.reload();
+      }
+    } catch {}
+    throw error;
+  }));
+
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '620px' }}>
+          <h1>Erreur de chargement de l’application</h1>
+          <p style={{ marginTop: '12px' }}>Une page ou une ressource JavaScript n’a pas pu être chargée.</p>
+          <button type="button" onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 16px', cursor: 'pointer' }}>
+            Recharger
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+const Login = lazyWithRecovery(() => import('./components/auth/Login'), 'Login');
+const Register = lazyWithRecovery(() => import('./components/auth/Register'), 'Register');
+const RegisterUser = lazyWithRecovery(() => import('./components/auth/RegisterUser'), 'RegisterUser');
+const RegisterCompany = lazyWithRecovery(() => import('./components/auth/RegisterCompany'), 'RegisterCompany');
+const ForgotPassword = lazyWithRecovery(() => import('./components/auth/ForgotPassword'), 'ForgotPassword');
+const ResetPassword = lazyWithRecovery(() => import('./components/auth/ResetPassword'), 'ResetPassword');
+const FirstChangePassword = lazyWithRecovery(() => import('./components/auth/FirstChangePassword'), 'FirstChangePassword');
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
@@ -27,38 +66,38 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { LanguageProvider, useTranslation } from './i18n';
 
 // Pages
-const Home = lazy(() => import('./pages/Home'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Products = lazy(() => import('./pages/Products'));
-const Clients = lazy(() => import('./pages/Clients'));
-const Sales = lazy(() => import('./pages/Sales'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Suppliers = lazy(() => import('./pages/Suppliers'));
-const Invoices = lazy(() => import('./pages/Invoices'));
-const Payments = lazy(() => import('./pages/Payments'));
-const AI = lazy(() => import('./pages/AI'));
-const Documentation = lazy(() => import('./pages/Documentation'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const OrderTracking = lazy(() => import('./pages/OrderTracking'));
-const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
-const SuperAdminProfile = lazy(() => import('./pages/SuperAdminProfile'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Cart = lazy(() => import('./pages/Cart'));
-const ProductDetail = lazy(() => import('./pages/ProductDetail'));
-const Subscription = lazy(() => import('./pages/Subscription'));
-const PaymentSettings = lazy(() => import('./pages/PaymentSettings'));
-const Catalogue = lazy(() => import('./pages/Catalogue'));
-const Suivi = lazy(() => import('./pages/Suivi'));
-const Contact = lazy(() => import('./pages/Contact'));
-const UserOrders = lazy(() => import('./pages/UserOrders'));
-const Delivery = lazy(() => import('./pages/Delivery'));
-const HR = lazy(() => import('./pages/HR'));
-const Accounting = lazy(() => import('./pages/Accounting'));
-const Documents = lazy(() => import('./pages/Documents'));
-const Purchases = lazy(() => import('./pages/Purchases'));
-const Users = lazy(() => import('./pages/Users'));
-const Roles = lazy(() => import('./pages/Roles'));
-const Permissions = lazy(() => import('./pages/Permissions'));
+const Home = lazyWithRecovery(() => import('./pages/Home'), 'Home');
+const Dashboard = lazyWithRecovery(() => import('./pages/Dashboard'), 'Dashboard');
+const Products = lazyWithRecovery(() => import('./pages/Products'), 'Products');
+const Clients = lazyWithRecovery(() => import('./pages/Clients'), 'Clients');
+const Sales = lazyWithRecovery(() => import('./pages/Sales'), 'Sales');
+const Inventory = lazyWithRecovery(() => import('./pages/Inventory'), 'Inventory');
+const Suppliers = lazyWithRecovery(() => import('./pages/Suppliers'), 'Suppliers');
+const Invoices = lazyWithRecovery(() => import('./pages/Invoices'), 'Invoices');
+const Payments = lazyWithRecovery(() => import('./pages/Payments'), 'Payments');
+const AI = lazyWithRecovery(() => import('./pages/AI'), 'AI');
+const Documentation = lazyWithRecovery(() => import('./pages/Documentation'), 'Documentation');
+const Checkout = lazyWithRecovery(() => import('./pages/Checkout'), 'Checkout');
+const OrderTracking = lazyWithRecovery(() => import('./pages/OrderTracking'), 'OrderTracking');
+const SuperAdmin = lazyWithRecovery(() => import('./pages/SuperAdmin'), 'SuperAdmin');
+const SuperAdminProfile = lazyWithRecovery(() => import('./pages/SuperAdminProfile'), 'SuperAdminProfile');
+const Profile = lazyWithRecovery(() => import('./pages/Profile'), 'Profile');
+const Cart = lazyWithRecovery(() => import('./pages/Cart'), 'Cart');
+const ProductDetail = lazyWithRecovery(() => import('./pages/ProductDetail'), 'ProductDetail');
+const Subscription = lazyWithRecovery(() => import('./pages/Subscription'), 'Subscription');
+const PaymentSettings = lazyWithRecovery(() => import('./pages/PaymentSettings'), 'PaymentSettings');
+const Catalogue = lazyWithRecovery(() => import('./pages/Catalogue'), 'Catalogue');
+const Suivi = lazyWithRecovery(() => import('./pages/Suivi'), 'Suivi');
+const Contact = lazyWithRecovery(() => import('./pages/Contact'), 'Contact');
+const UserOrders = lazyWithRecovery(() => import('./pages/UserOrders'), 'UserOrders');
+const Delivery = lazyWithRecovery(() => import('./pages/Delivery'), 'Delivery');
+const HR = lazyWithRecovery(() => import('./pages/HR'), 'HR');
+const Accounting = lazyWithRecovery(() => import('./pages/Accounting'), 'Accounting');
+const Documents = lazyWithRecovery(() => import('./pages/Documents'), 'Documents');
+const Purchases = lazyWithRecovery(() => import('./pages/Purchases'), 'Purchases');
+const Users = lazyWithRecovery(() => import('./pages/Users'), 'Users');
+const Roles = lazyWithRecovery(() => import('./pages/Roles'), 'Roles');
+const Permissions = lazyWithRecovery(() => import('./pages/Permissions'), 'Permissions');
 
 // Composant de protection utilisant AuthContext.
 // PATH_MODULE_MAP, PATH_PERMISSION_MAP, ADMIN_PATHS et la logique
@@ -231,6 +270,7 @@ function App() {
           <CartProvider>
             <BrowserRouter>
               <div className="app">
+              <AppErrorBoundary>
               <Suspense fallback={<div className="page-loading" role="status" aria-live="polite">Chargement…</div>}>
                 <Routes>
                 <Route path="/" element={<Home />} />
@@ -289,6 +329,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>
+              </AppErrorBoundary>
               <ToastContainer
                 position="top-right"
                 autoClose={5000}
