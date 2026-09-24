@@ -87,3 +87,34 @@
   font-size: 12px;
   color: var(--color-text-dim);
 }
+
+@media (max-width: 480px) {
+  .sa-login-page {
+    min-height: 100dvh;
+    padding: 14px;
+    align-items: flex-start;
+  }
+
+  .sa-login-card {
+    margin-top: 8vh;
+    padding: 24px 18px;
+    max-width: 100%;
+  }
+
+  .sa-login-header h1 {
+    font-size: 28px;
+  }
+
+  .sa-login-form input:not([type="checkbox"]) {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .sa-login-btn {
+    min-height: 48px;
+  }
+
+  .sa-login-footer {
+    line-height: 1.5;
+  }
+}
