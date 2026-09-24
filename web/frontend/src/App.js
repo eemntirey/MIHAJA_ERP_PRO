@@ -17,7 +17,9 @@ const lazyWithRecovery = (loader, name) =>
       const lastAttempt = Number(sessionStorage.getItem(key) || 0);
       if (!lastAttempt || Date.now() - lastAttempt > 30000) {
         sessionStorage.setItem(key, String(Date.now()));
-        window.location.reload();
+        const url = new URL(window.location.href);
+        url.searchParams.set('_erp_reload', String(Date.now()));
+        window.location.replace(url.toString());
       }
     } catch {}
     throw error;
