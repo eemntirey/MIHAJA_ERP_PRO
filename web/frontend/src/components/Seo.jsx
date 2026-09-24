@@ -68,9 +68,15 @@ export const Seo = ({
     upsertMeta('name', 'twitter:title', title);
     upsertMeta('name', 'twitter:description', description);
 
+    const ogImage = document.head.querySelector('meta[property="og:image"]');
+    const twitterImage = document.head.querySelector('meta[name="twitter:image"]');
+
     if (image) {
       upsertMeta('property', 'og:image', image);
       upsertMeta('name', 'twitter:image', image);
+    } else {
+      ogImage?.remove();
+      twitterImage?.remove();
     }
 
     upsertLink('canonical', canonicalUrl);
