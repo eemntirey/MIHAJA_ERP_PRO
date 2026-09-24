@@ -5,7 +5,26 @@ import { toast } from 'react-toastify';
 import { publicCatalogueService, authService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import Seo from '../components/Seo';
 import './Pages.css';
+
+const HOME_SEO_DATA = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      name: 'MIHAJA ERP PRO',
+      url: 'https://erp.sekoliko.com/',
+      description: 'ERP SaaS pour les entreprises à Madagascar.',
+    },
+    {
+      '@type': 'WebSite',
+      name: 'MIHAJA ERP PRO',
+      url: 'https://erp.sekoliko.com/',
+      inLanguage: 'fr',
+    },
+  ],
+};
 
 const getNotifKind = (notif) => {
   const text = `${notif?.message || notif || ''}`.toLowerCase();
@@ -207,7 +226,14 @@ const Home = () => {
   }, [products, searchQuery]);
 
   return (
-    <div className="home-page">
+    <>
+      <Seo
+        title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
+        description="MIHAJA ERP PRO est un ERP SaaS pour gérer stocks, ventes, achats, factures, clients et livraisons pour les entreprises à Madagascar."
+        canonical="https://erp.sekoliko.com/"
+        structuredData={HOME_SEO_DATA}
+      />
+      <div className="home-page">
       {/* ── Header ── */}
       <header className="public-header">
         <Link to="/" className="brand">
@@ -751,7 +777,8 @@ const Home = () => {
           </div>
         </footer>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
