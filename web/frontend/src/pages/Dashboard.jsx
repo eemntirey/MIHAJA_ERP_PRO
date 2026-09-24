@@ -6,9 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { authService, dashboardService } from '../services/api';
 import {
   buildChartGeometry,
-  buildPreviousPeriodTotal,
   buildPriorities,
-  buildSalesEvolution,
   buildSparklinePath,
   formatCurrency,
   formatCurrencyExact,
@@ -17,10 +15,7 @@ import {
   formatNumber,
   formatPercentageChange,
   formatTrendLabel,
-  getSaleDate,
-  getTodayTotal,
-  normalizeCriticalStockAlerts,
-  normalizeReceivables,
+  formatChartDateLabel,
   normalizeRecentActivity,
   normalizeTopProducts,
   serializeDashboardCsv,
@@ -420,16 +415,12 @@ const PriorityPanel = ({ priorities }) => {
 };
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const { user, setUser, logout, subscription, subscriptionLoading, hasRole } = useAuth();
+  const { user, subscription, subscriptionLoading } = useAuth();
   const shouldReduceMotion = useReducedMotion();
-  const isSuperAdmin = hasRole('SUPER_ADMIN');
   const [dashboardState, setDashboardState] = useState(createEmptyDashboardState);
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
-  const [subscription, setSubscription] = useState(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
