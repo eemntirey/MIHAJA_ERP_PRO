@@ -2148,3 +2148,82 @@
   line-height: 1.5;
   color: #4b5563;
 }
+/* Compact screens: show the form immediately instead of the marketing panel. */
+@media (max-width: 900px) {
+  .auth-login {
+    min-height: 100dvh;
+  }
+
+  .auth-login__layout {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  .auth-login__context {
+    display: none;
+  }
+
+  .auth-login__form-panel {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+    overflow-y: auto;
+  }
+
+  .auth-login__form-container {
+    width: min(100%, 470px);
+    margin: 0 auto;
+  }
+
+  .auth-login__form-header {
+    margin-bottom: 28px;
+  }
+
+  .auth-login__form-intro {
+    margin-bottom: 28px;
+  }
+
+  .auth-login__form-intro h2 {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+}
+
+@media (max-width: 560px) {
+  .auth-login__form-header {
+    gap: 8px;
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+  }
+
+  .auth-login__form-intro {
+    margin-bottom: 24px;
+  }
+
+  .auth-login__form {
+    gap: 16px;
+  }
+
+  .auth-login__input-wrap {
+    min-height: 52px;
+  }
+
+  .auth-login__input-wrap input {
+    height: 50px;
+    min-height: 50px;
+    font-size: 16px;
+  }
+
+  .auth-login__social-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-login__register-prompt,
+  .auth-login__security {
+    margin-top: 22px;
+  }
+}
