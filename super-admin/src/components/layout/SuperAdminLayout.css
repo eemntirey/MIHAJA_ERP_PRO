@@ -28,7 +28,7 @@
 
 .sa-sidebar-subtitle {
   font-size: 11px;
-  color: var(--color-text-dim);
+  color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 600;
@@ -47,7 +47,7 @@
   align-items: center;
   padding: 10px 14px;
   border-radius: var(--radius);
-  color: var(--color-text-muted);
+  color: #cbd5e1;
   font-weight: 500;
   font-size: 14px;
   transition: background 0.15s, color 0.15s;
