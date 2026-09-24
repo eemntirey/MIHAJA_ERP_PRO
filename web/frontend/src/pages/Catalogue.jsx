@@ -14,6 +14,7 @@ const Catalogue = () => {
     <div className="landing-root">
       <Catalog />
     </div>
+    </>
   );
 };
 
