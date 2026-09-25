@@ -12,6 +12,7 @@ import './AIConversation.css';
 // ======================================================
 
 const SUGGESTIONS = [
+  { icon: 'ti-checklist', text: 'Que dois-je faire aujourd’hui ?' },
   { icon: 'ti-package', text: 'Quel est l\'état du stock ?' },
   { icon: 'ti-chart-line', text: 'Quel est notre chiffre d\'affaires ?' },
   { icon: 'ti-sparkles', text: 'Quelles sont les prévisions de ventes ?' },
@@ -21,6 +22,7 @@ const SUGGESTIONS = [
 ];
 
 const FOLLOW_UP_PROMPTS = [
+  { icon: 'ti-checklist', text: 'Priorités du moment' },
   { icon: 'ti-package', text: 'État du stock' },
   { icon: 'ti-chart-line', text: 'Chiffre d\'affaires' },
   { icon: 'ti-sparkles', text: 'Prévisions de ventes' },
