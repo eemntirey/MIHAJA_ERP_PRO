@@ -69,8 +69,9 @@ class PaiementResource(Resource):
         """Met a jour un paiement"""
         from app.models.paiement import Paiement
         from app.security.tenant import tenant_filtered_get
-        from app.services.paiement_service import _normalize_payment_data
         from flask import request
+        from app.services.paiement_service import update as update_payment
+
         paiement = tenant_filtered_get(Paiement, id)
         if not paiement:
             return {'message': 'Paiement non trouve'}, 404
@@ -78,22 +79,15 @@ class PaiementResource(Resource):
         if not data:
             return {'message': 'Donnees requises'}, 400
         try:
-            normalized = _normalize_payment_data(data)
-            PROTECTED = {'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id', 'is_active'}
-            for key, value in normalized.items():
-                if key in PROTECTED:
-                    continue
-                if hasattr(paiement, key):
-                    setattr(paiement, key, value)
-            db.session.commit()
-            # Reclalculer le statut de la facture associée en fonction du cumul payé
-            if paiement.facture_id:
-                from app.services.paiement_service import _recompute_facture_status
-                _recompute_facture_status(paiement.facture_id)
+            paiement = update_payment(id, data)
             return paiement.to_dict(), 200
-        except Exception as e:
+        except ValueError as e:
             db.session.rollback()
             return {'message': str(e)}, 400
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Erreur mise a jour paiement')
+            return {'message': 'Erreur lors de la mise a jour du paiement'}, 400
 
     @permission_required('payment.create')
     @tenant_required_readonly
