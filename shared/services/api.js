@@ -367,6 +367,9 @@ export const publicCatalogueService = {
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
 
+    sendContactMessage: (data) =>
+        publicApi.post('/public/contact', data),
+
     createCommandePapiPayment: (ref, data) =>
         publicApi.post(`/public/commandes/${ref}/papi-payment`, data),
 
