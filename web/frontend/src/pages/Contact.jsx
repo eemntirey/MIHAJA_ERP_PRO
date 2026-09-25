@@ -1,6 +1,8 @@
 // src/pages/Contact.jsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
+import { publicCatalogueService } from '../services/api';
 import Seo from '../components/Seo';
 import '../styles/landing.css';
 
@@ -8,7 +10,7 @@ const CONTACT_SEO_DATA = {
   '@context': 'https://schema.org',
   '@type': 'ContactPage',
   name: 'Contact | MIHAJA ERP PRO',
-  url: 'https://erp.sekoliko.com/contact',
+  url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/contact',
   description: 'Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS.',
 };
 
@@ -21,14 +23,29 @@ const Contact = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSending(true);
-    setTimeout(() => {
+    if (sending) return;
+
+    const name = form.name.trim();
+    const email = form.email.trim();
+    const message = form.message.trim();
+    if (!name || !email || !message) {
+      toast.error('Veuillez remplir tous les champs.');
+      return;
+    }
+
+    try {
+      setSending(true);
+      await publicCatalogueService.sendContactMessage({ name, email, message });
       toast.success('Message envoyé avec succès');
       setForm({ name: '', email: '', message: '' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Impossible d’envoyer votre message pour le moment.';
+      toast.error(msg);
+    } finally {
       setSending(false);
-    }, 800);
+    }
   };
 
   return (
@@ -36,11 +53,22 @@ const Contact = () => {
       <Seo
         title="Contact | MIHAJA ERP PRO"
         description="Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS."
-        canonical="https://erp.sekoliko.com/contact"
+        canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/contact"
         structuredData={CONTACT_SEO_DATA}
       />
       <div className="landing-contact">
       <div className="landing-container">
+        <header className="landing-public-page-header">
+          <Link to="/" className="brand" aria-label="MIHAJA ERP PRO accueil">
+            <span className="brand-icon">EP</span>
+            <span className="brand-name">ERP Pro</span>
+          </Link>
+          <nav aria-label="Navigation principale">
+            <Link to="/" className="public-nav-link">Accueil</Link>
+            <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
+            <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
+          </nav>
+        </header>
         <div className="landing-section-header">
           <h2 className="landing-section-title" id="contact-titre">Contact</h2>
           <p className="landing-section-subtitle">
@@ -71,7 +99,7 @@ const Contact = () => {
                   type="email"
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="jean@hotel.fr"
+                  placeholder="jean@exemple.mg"
                   required
                 />
               </div>
