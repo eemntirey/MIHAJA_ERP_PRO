@@ -1787,3 +1787,199 @@
 .landing-product-card{border:1px solid rgba(11,12,13,.09);border-radius:18px;background:#fff;box-shadow:0 12px 40px rgba(11,12,13,.06);overflow:hidden;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.landing-product-card:hover{transform:translateY(-4px);border-color:rgba(200,168,78,.45);box-shadow:0 22px 55px rgba(11,12,13,.11)}.landing-product-visual{background:#f2efe7}.landing-product-badge{background:#f4eedc;color:#7c641e;border:1px solid rgba(200,168,78,.25)}.landing-product-price{color:#0b0c0d;font-weight:900}.landing-product-seller{color:#858982}.landing-catalog-cta{padding-top:32px}
 .landing-badge.success{background:#edf4ee;color:#356b42}.landing-badge.warning{background:#f8f0dc;color:#80621c}.landing-badge.info{background:#f0f1ef;color:#454a46}.landing-badge.danger{background:#faece9;color:#8c3d31}
 @media(max-width:700px){.landing-section{padding-block:54px}.landing-section-title{font-size:clamp(30px,9vw,42px)}.landing-tracking-form{grid-template-columns:1fr!important}.landing-tracking-btn{min-height:48px}}
+
+/* ======================================================
+   CATALOGUE PUBLIC — FINITION SENIOR / PREMIUM
+   Cartes lisibles, hiérarchie forte, sans effet futuriste.
+   ====================================================== */
+.landing-catalog-grid {
+  align-items: stretch;
+  gap: 22px;
+}
+
+.landing-product-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100%;
+  padding: 10px !important;
+  background: #fff !important;
+  border: 1px solid rgba(11, 12, 13, 0.10) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 30px rgba(11, 12, 13, 0.055) !important;
+  overflow: hidden;
+  transition:
+    transform 220ms cubic-bezier(.22, 1, .36, 1),
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+
+.landing-product-card:hover {
+  transform: translateY(-6px) !important;
+  border-color: rgba(200, 168, 78, 0.48) !important;
+  box-shadow: 0 22px 55px rgba(11, 12, 13, 0.12) !important;
+}
+
+.landing-product-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 14px !important;
+  background: #f1efe8 !important;
+  border: 1px solid rgba(11, 12, 13, 0.045) !important;
+}
+
+.landing-product-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 12, 13, 0) 55%,
+    rgba(11, 12, 13, 0.08) 100%
+  );
+}
+
+.landing-product-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 420ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.landing-product-card:hover .landing-product-visual img {
+  transform: scale(1.035);
+}
+
+.landing-product-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px 8px 8px !important;
+}
+
+.landing-product-header {
+  min-height: 24px;
+  margin-bottom: 10px;
+}
+
+.landing-product-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 5px 9px !important;
+  border: 1px solid rgba(200, 168, 78, 0.28) !important;
+  border-radius: 999px !important;
+  background: #f7f2e2 !important;
+  color: #765f1d !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .055em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.landing-product-name {
+  margin: 0 !important;
+  min-height: 42px;
+  color: #111315 !important;
+  font-family: var(--landing-font) !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1.32 !important;
+  letter-spacing: -.025em;
+  -webkit-line-clamp: 2;
+}
+
+.landing-product-meta {
+  align-items: flex-end;
+  margin-top: 18px !important;
+  padding-top: 14px;
+  border-top: 1px solid rgba(11, 12, 13, 0.075);
+}
+
+.landing-product-price {
+  color: #8b6d1b !important;
+  font-family: var(--landing-font) !important;
+  font-size: 18px !important;
+  font-weight: 900 !important;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+}
+
+.landing-product-seller {
+  max-width: 42%;
+  color: #777b76 !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.landing-product-actions {
+  margin-top: auto !important;
+  padding-top: 18px;
+}
+
+.landing-product-actions .landing-btn {
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.landing-btn-fut {
+  background: #0b0c0d !important;
+  border: 1px solid #0b0c0d !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(11, 12, 13, 0.12);
+}
+
+.landing-btn-fut:hover {
+  background: #282a2b !important;
+  border-color: #282a2b !important;
+  box-shadow: 0 12px 24px rgba(11, 12, 13, 0.18) !important;
+}
+
+.landing-catalog-cta {
+  margin-top: 34px !important;
+}
+
+@media (max-width: 959px) {
+  .landing-catalog-grid {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 639px) {
+  .landing-product-card {
+    padding: 8px !important;
+    border-radius: 18px !important;
+  }
+
+  .landing-product-body {
+    padding: 16px 8px 8px !important;
+  }
+
+  .landing-product-name {
+    font-size: 15px !important;
+  }
+
+  .landing-product-price {
+    font-size: 17px !important;
+  }
+}
