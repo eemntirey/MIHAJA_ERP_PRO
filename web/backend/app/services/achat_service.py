@@ -3,6 +3,8 @@ from decimal import Decimal
 from app import db
 from app.models.commande_achat import CommandeAchat, ReceptionAchat
 from app.models.ligne_achat import LigneAchat
+from app.models.produit import Produit
+from app.models.stock import MouvementStock
 from app.security.tenant import get_current_tenant_id
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -161,12 +163,102 @@ class ReceptionAchatService:
     @classmethod
     def create(cls, data):
         tenant_id = get_current_tenant_id()
-        if tenant_id is not None and hasattr(cls.model, 'tenant_id'):
-            data['tenant_id'] = tenant_id
+        if not tenant_id:
+            raise ValueError("tenant_id est obligatoire pour cette ressource")
+
+        data = dict(data or {})
+        commande_id = data.get('commande_achat_id')
+        if not commande_id:
+            raise ValueError("commande_achat_id est requis")
+
+        commande = CommandeAchat.query.filter_by(
+            id=commande_id, tenant_id=tenant_id, is_active=True
+        ).first()
+        if not commande:
+            raise ValueError("Commande d'achat introuvable")
+
+        lines = LigneAchat.query.filter_by(
+            commande_achat_id=commande.id,
+            tenant_id=tenant_id,
+            is_active=True,
+        ).all()
+        produit_id = data.pop('produit_id', None)
+        if produit_id is not None:
+            try:
+                produit_id = int(produit_id)
+            except (TypeError, ValueError):
+                raise ValueError("produit_id doit être un entier")
+            line = next((row for row in lines if row.produit_id == produit_id), None)
+            if not line:
+                raise ValueError("Le produit ne fait pas partie de la commande")
+        elif len(lines) == 1:
+            line = lines[0]
+            produit_id = line.produit_id
+        elif len(lines) > 1:
+            raise ValueError(
+                "Cette commande contient plusieurs produits : produit_id est requis pour la réception"
+            )
+        else:
+            raise ValueError("La commande ne contient aucune ligne de produit")
+
+        try:
+            quantite_recue = Decimal(str(data.get('quantite_recue')))
+        except (TypeError, ValueError):
+            raise ValueError("quantite_recue invalide")
+        if quantite_recue <= 0:
+            raise ValueError("La quantité reçue doit être supérieure à 0")
+
+        quantite_commandee = Decimal(str(line.quantite or 0))
+        existing_received = db.session.query(
+            db.func.coalesce(db.func.sum(cls.model.quantite_recue), 0)
+        ).filter(
+            cls.model.commande_achat_id == commande.id,
+            cls.model.produit_id == produit_id,
+            cls.model.is_active.is_(True),
+            cls.model.tenant_id == tenant_id,
+        ).scalar() or 0
+        remaining = quantite_commandee - Decimal(str(existing_received))
+        if quantite_recue > remaining:
+            raise ValueError(
+                f"Quantité reçue trop élevée : reste {remaining}"
+            )
+
+        produit = Produit.query.filter_by(
+            id=produit_id, tenant_id=tenant_id, is_active=True
+        ).with_for_update().first()
+        if not produit:
+            raise ValueError("Produit introuvable")
+
+        stock_avant = Decimal(str(produit.quantite_stock or 0))
+        produit.quantite_stock = stock_avant + quantite_recue
+        db.session.add(MouvementStock(
+            produit_id=produit.id,
+            type_mouvement='entree',
+            quantite=quantite_recue,
+            stock_avant=stock_avant,
+            stock_apres=produit.quantite_stock,
+            raison=f'Réception achat {data.get("reference") or commande.reference}',
+            reference=data.get('reference') or commande.reference,
+            tenant_id=tenant_id,
+        ))
+
+        data['tenant_id'] = tenant_id
+        data['produit_id'] = produit_id
+        data['quantite_recue'] = quantite_recue
+        data['quantite_commandee'] = quantite_commandee
+        data['ecart'] = quantite_recue - quantite_commandee
         if not data.get('reference'):
             data['reference'] = _gen_reference('REC')
+
         instance = cls.model(**data)
         db.session.add(instance)
+
+        total_received = Decimal(str(existing_received)) + quantite_recue
+        if total_received >= quantite_commandee:
+            commande.statut = 'recue'
+        else:
+            commande.statut = 'partiellement_recue'
+
         try:
             db.session.commit()
         except IntegrityError as e:
