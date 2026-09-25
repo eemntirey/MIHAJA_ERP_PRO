@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import './Pages.css';
 
-const RELEASES_URL = 'https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/latest/download';
+const DESKTOP_DOWNLOAD_URL = 'https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe';
 
 const DOWNLOADS = [
   {
@@ -11,15 +11,17 @@ const DOWNLOADS = [
     title: 'ERP Pro Desktop',
     platform: 'Windows 10 ou versions ultérieures',
     description: 'Installez la version de bureau pour une utilisation intensive sur votre ordinateur.',
-    href: `${RELEASES_URL}/ERP-Pro-Desktop-Setup.exe`,
+    href: DESKTOP_DOWNLOAD_URL,
+    available: true,
   },
   {
     id: 'mobile',
     icon: 'ti ti-device-mobile',
     title: 'ERP Pro Mobile',
     platform: 'Android',
-    description: 'Installez l’application Android pour consulter vos données et travailler en déplacement.',
-    href: `${RELEASES_URL}/ERP-Pro-Mobile.apk`,
+    description: 'L’application mobile Android sera publiée dès que le package de production sera disponible.',
+    href: null,
+    available: false,
   },
 ];
 
@@ -33,6 +35,7 @@ const Downloads = () => (
       <nav className="public-nav" aria-label="Navigation principale">
         <Link to="/" className="public-nav-link">Accueil</Link>
         <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
+        <Link to="/contact" className="public-nav-link">Contact</Link>
         <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
       </nav>
     </header>
@@ -42,8 +45,8 @@ const Downloads = () => (
         <span className="downloads-hero__tag">Applications officielles</span>
         <h1>Choisissez votre application</h1>
         <p>
-          Téléchargez ERP Pro sur ordinateur ou sur Android. Chaque bouton ouvre
-          directement le fichier d’installation publié pour la dernière version.
+          Téléchargez ERP Pro sur ordinateur. Les versions mobiles seront proposées
+          ici dès leur publication officielle.
         </p>
       </div>
 
@@ -60,10 +63,17 @@ const Downloads = () => (
               </div>
             </div>
             <p className="downloads-card__description">{download.description}</p>
-            <a className="downloads-card__button" href={download.href}>
-              <i className="ti ti-download" aria-hidden="true" />
-              Télécharger {download.title}
-            </a>
+            {download.available ? (
+              <a className="downloads-card__button" href={download.href} download>
+                <i className="ti ti-download" aria-hidden="true" />
+                Télécharger {download.title}
+              </a>
+            ) : (
+              <span className="downloads-card__button downloads-card__button--disabled" aria-disabled="true">
+                <i className="ti ti-clock" aria-hidden="true" />
+                Bientôt disponible
+              </span>
+            )}
           </article>
         ))}
       </section>
