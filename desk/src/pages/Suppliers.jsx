@@ -282,8 +282,7 @@ const Suppliers = () => {
                     name="code" 
                     value={formData.code}
                     onChange={handleChange}
-                    required
-                    placeholder="Code fournisseur"
+                    placeholder="Généré automatiquement si laissé vide"
                   />
                 </div>
                 <div className="form-group">
