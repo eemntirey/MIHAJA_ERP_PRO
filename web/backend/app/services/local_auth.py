@@ -214,7 +214,7 @@ def authenticate_local_device(identifier, password, tenant_slug=None,
         token = body['access_token']
         me = _proxy_me(token) or {}
         user_data = me.get('user') or body.get('user') or {}
-        tenant_data = me.get('tenant')
+        tenant_data = me.get('tenant') or body.get('tenant')
 
         _db.session.info[SUPPRESS_OUTBOX_KEY] = True
         try:
