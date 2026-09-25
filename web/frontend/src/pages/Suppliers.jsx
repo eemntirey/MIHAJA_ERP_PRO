@@ -276,14 +276,13 @@ const Suppliers = () => {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Code fournisseur *</label>
+                  <label>Code fournisseur</label>
                   <input 
                     type="text" 
                     name="code" 
                     value={formData.code}
                     onChange={handleChange}
-                    required
-                    placeholder="Code fournisseur"
+                    placeholder="Généré automatiquement si laissé vide"
                   />
                 </div>
                 <div className="form-group">
