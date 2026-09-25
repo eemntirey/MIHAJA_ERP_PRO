@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test:startup": "node --test electron/startup.test.js",
     "electron": "node electron/run.js",
     "electron:dev": "concurrently -k -n WEB,ELECTRON \"vite\" \"wait-on http://localhost:3001 && node electron/run.js\"",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "release": "vite build && electron-builder",
+    "release": "npm run build:backend && npm run test:startup && vite build && electron-builder",
     "build:backend": "powershell -ExecutionPolicy Bypass -File electron/backend/build_backend.ps1",
     "dist:offline": "npm run build && npm run build:backend && electron-builder"
   },

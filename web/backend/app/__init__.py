@@ -278,6 +278,8 @@ def create_app():
         ).split(',')
         if origin.strip()
     ]
+    if _is_local_embedded:
+        CORS_ORIGINS.append('null')
 
     # I4 FIX : allow-list stricte en production (patterns LAN/tunnels = DEV only).
     _is_prod_cors = _is_prod

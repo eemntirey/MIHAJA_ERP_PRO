@@ -2,10 +2,54 @@
 # Bootstrap de la base locale + login hors-ligne du backend embarque.
 # Commentaires et messages en francais.
 import os
+import subprocess
+import sys
 
 import pytest
 
 from app.services.local_bootstrap import ensure_local_db_ready
+
+
+def test_bootstrap_uses_migrations_from_pyinstaller_bundle(monkeypatch, tmp_path):
+    from app.services.local_bootstrap import _migrations_directory
+
+    monkeypatch.setattr(sys, '_MEIPASS', str(tmp_path), raising=False)
+
+    assert _migrations_directory() == str(tmp_path / 'migrations')
+
+
+def test_local_embedded_allows_file_renderer_preflight(tmp_path):
+    env = os.environ.copy()
+    env.update({
+        'FLASK_ENV': 'local-embedded',
+        'LOCAL_DB_PATH': str(tmp_path / 'erp-local.db'),
+        'REPLICATION_URL': 'https://central.test',
+        'SECRET_KEY': 'test-secret',
+        'JWT_SECRET_KEY': 'test-jwt-secret',
+    })
+    script = """
+from app import create_app
+app = create_app()
+response = app.test_client().options(
+    '/api/v1/auth/login',
+    headers={
+        'Origin': 'null',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization,content-type',
+    },
+)
+assert response.headers.get('Access-Control-Allow-Origin') == 'null'
+"""
+
+    result = subprocess.run(
+        [sys.executable, '-c', script],
+        cwd=os.getcwd(),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_bootstrap_creates_tables_and_roles(local_app):

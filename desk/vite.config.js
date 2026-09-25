@@ -6,6 +6,7 @@ const sharedDir = path.resolve(__dirname, '../shared');
 const deskSharedDir = path.resolve(__dirname, 'shared');
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   esbuild: {
     // Convention CRA conservée : le JSX vit dans des fichiers .js.

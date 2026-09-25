@@ -82,6 +82,19 @@ async function resolvePython(backendRoot) {
   return resolvedPython;
 }
 
+function buildBackendEnv({ cfg, dbDir, port, processEnv = process.env }) {
+  return {
+    ...processEnv,
+    FLASK_ENV: 'local-embedded',
+    LOCAL_DB_PATH: path.join(dbDir, 'erp-local.db'),
+    LOCAL_API_PORT: String(port),
+    // Le central est distinct du backend Flask local. Ne jamais utiliser 127.0.0.1 ici.
+    REPLICATION_URL: cfg.replicationUrl || processEnv.REPLICATION_URL || 'https://mihaja-erp-pro.onrender.com',
+    SECRET_KEY: cfg.secretKey || 'local-embedded-secret-a-remplacer',
+    JWT_SECRET_KEY: cfg.jwtSecretKey || 'local-embedded-jwt-a-remplacer',
+  };
+}
+
 async function startLocalBackend() {
   // Déjà démarré : ne pas lancer un second processus.
   if (backendProc) {
@@ -98,15 +111,7 @@ async function startLocalBackend() {
     ? path.join(__dirname, '..', '..', 'web', 'backend')
     : path.join(process.resourcesPath, 'backend');
 
-  const env = {
-    ...process.env,
-    FLASK_ENV: 'local-embedded',
-    LOCAL_DB_PATH: path.join(dbDir, 'erp-local.db'),
-    LOCAL_API_PORT: String(port),
-    // Le central est distinct du backend Flask local. Ne jamais utiliser 127.0.0.1 ici.\n    REPLICATION_URL: cfg.replicationUrl || process.env.REPLICATION_URL || 'https://mihaja-erp-pro.onrender.com',
-    SECRET_KEY: cfg.secretKey || 'local-embedded-secret-a-remplacer',
-    JWT_SECRET_KEY: cfg.jwtSecretKey || 'local-embedded-jwt-a-remplacer',
-  };
+  const env = buildBackendEnv({ cfg, dbDir, port });
   if (!cfg.secretKey || !cfg.jwtSecretKey) {
     console.warn(
       '[backend-local] SECRET_KEY ou JWT_SECRET_KEY non configuré : '
@@ -212,4 +217,4 @@ function getPort() {
   return currentPort;
 }
 
-module.exports = { startLocalBackend, stopLocalBackend, getPort };
+module.exports = { buildBackendEnv, startLocalBackend, stopLocalBackend, getPort };

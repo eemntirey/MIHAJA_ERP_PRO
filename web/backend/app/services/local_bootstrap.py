@@ -6,7 +6,9 @@
 import datetime
 import enum
 import logging
+import os
 import re
+import sys
 from decimal import Decimal
 
 from sqlalchemy import inspect as sa_inspect
@@ -19,6 +21,11 @@ _REQUIRED_TABLES = (
     'produits', 'clients', 'ventes', 'factures', 'sync_outbox',
     'sync_cursors', 'sync_conflicts', 'sync_state', 'sync_local_mappings',
 )
+
+
+def _migrations_directory():
+    bundle_root = getattr(sys, '_MEIPASS', None)
+    return os.path.join(bundle_root, 'migrations') if bundle_root else None
 
 
 def _import_models():
@@ -177,6 +184,7 @@ def ensure_local_db_ready(app):
         from app import db
         from flask_migrate import stamp, upgrade
 
+        migrations_directory = _migrations_directory()
         _import_models()
         tables = sa_inspect(db.engine).get_table_names()
 
@@ -191,12 +199,12 @@ def ensure_local_db_ready(app):
             logger.warning(
                 'Base locale embarquée inexistante : création du schéma.'
             )
-            stamp(revision='head')
+            stamp(revision='head', directory=migrations_directory)
         else:
             # Base existante : applique les migrations éventuellement
             # manquantes (no-op si déjà à la tête).
             try:
-                upgrade()
+                upgrade(directory=migrations_directory)
             except Exception:
                 # Ne jamais empêcher le poste de démarrer ; la réparation de
                 # colonnes ci-dessous couvre déjà le cas le plus fréquent.

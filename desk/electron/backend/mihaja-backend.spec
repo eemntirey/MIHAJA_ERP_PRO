@@ -56,6 +56,8 @@ hiddenimports = [
     'sqlalchemy.dialects.sqlite',
     'alembic',
     'flask_migrate',
+    'logging.config',
+    'engineio.async_drivers.threading',
     # Petit serveur WSGI de développement utilisé par run_local.py.
     'werkzeug.serving',
 ]
