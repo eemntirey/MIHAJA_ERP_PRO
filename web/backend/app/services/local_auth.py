@@ -221,17 +221,23 @@ def authenticate_local_device(identifier, password, tenant_slug=None,
             tenant = _mirror_tenant(tenant_data)
             user = _mirror_user(user_data, tenant, password)
             current_app.extensions['repl_token'] = token
-            SyncState.set_service_token(token)
+            local_access_token, local_refresh_token = _issue_local_tokens(user, tenant)
+            SyncState.set_service_token(token, body.get('refresh_token'))
             if tenant is not None:
                 current_app.config['LOCAL_TENANT_ID'] = tenant.id
                 ensure_local_cursors(tenant.id)
             _db.session.commit()
+            try:
+                from app.services.replication.pull import pull_changes
+                pull_changes(current_app._get_current_object())
+            except Exception as exc:
+                logger.warning('Premiere synchronisation centrale impossible : %s', exc)
         finally:
             _db.session.info.pop(SUPPRESS_OUTBOX_KEY, None)
 
         return {
-            'access_token': token,
-            'refresh_token': body.get('refresh_token'),
+            'access_token': local_access_token,
+            'refresh_token': local_refresh_token,
             'user': user.to_dict(),
             'tenant': tenant.to_dict() if tenant else None,
             'must_change_password': bool(user.must_change_password),
