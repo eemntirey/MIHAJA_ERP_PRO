@@ -39,6 +39,20 @@ class CommandeAchat(BaseTenantModel):
             data['statut'] = self.statut.value
         if self.fournisseur:
             data['fournisseur_nom'] = self.fournisseur.nom_complet
+        # Expose the actual purchase lines so the UI can edit/review a
+        # purchase without asking the user to manipulate JSON.
+        data['lignes'] = [
+            {
+                'produit_id': ligne.produit_id,
+                'produit_nom': ligne.produit.nom if ligne.produit else None,
+                'unite': ligne.produit.unite if ligne.produit else None,
+                'quantite': float(ligne.quantite or 0),
+                'prix_unitaire_ht': float(ligne.prix_unitaire_ht or 0),
+                'taux_tva': float(ligne.taux_tva or 0),
+                'total_ht': float(ligne.total_ht or 0),
+            }
+            for ligne in self.lignes_achat.filter_by(is_active=True).all()
+        ]
         return data
 
     def __repr__(self):
