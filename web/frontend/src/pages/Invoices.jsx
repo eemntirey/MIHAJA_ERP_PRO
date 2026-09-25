@@ -153,7 +153,14 @@ const Invoices = () => {
     setSubmitting(true);
     try {
       const reference = `FAC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-      await factureService.create({ ...formData, reference });
+      await factureService.create({
+        vente_id: Number(formData.vente_id),
+        client_id: formData.client_id || null,
+        total_ttc: Number(formData.total_ttc) || 0,
+        date_echeance: formData.date_echeance || null,
+        statut: 'en_attente',
+        reference,
+      });
       toast.success('Facture créée avec succès');
       fetchInvoices();
       closeModal();
@@ -595,57 +602,37 @@ const Invoices = () => {
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-grid">
-                <div className="form-group">
+                <div className="form-group full-width">
                   <label>Vente associée *</label>
-                  <select 
-                    name="vente_id" 
-                    value={formData.vente_id}
-                    onChange={handleSaleChange}
-                    required
-                  >
+                  <select name="vente_id" value={formData.vente_id} onChange={handleSaleChange} required>
                     <option value="">Sélectionnez une vente</option>
                     {sales.map(sale => (
                       <option key={sale.id} value={sale.id}>
-                        Vente #{sale.id} - {sale.client_nom || sale.client?.nom || 'Client'} - {formatCurrency(sale.total_ttc)}
+                        {sale.reference || 'Vente #' + sale.id} — {sale.client_nom || sale.client?.nom || 'Client'} — {formatCurrency(sale.total_ttc)}
                       </option>
                     ))}
                   </select>
+                  <small className="text-muted">Le client, le montant et l’état initial sont repris automatiquement de la vente.</small>
                 </div>
-                  <div className="form-group">
-                    <label>Montant total (Ar)</label>
-                    <input 
-                      type="number" 
-                      name="total_ttc" 
-                      value={formData.total_ttc}
-                      onChange={handleChange}
-                      step="0.01"
-                      min="0"
-                      readOnly
-                    />
-                  </div>
+                {formData.vente_id && (
+                  <>
+                    <div className="form-group">
+                      <label>Client</label>
+                      <input value={clients.find((c) => c.id === Number(formData.client_id))?.nom_complet
+                        || clients.find((c) => c.id === Number(formData.client_id))?.nom
+                        || clients.find((c) => c.id === Number(formData.client_id))?.raison_sociale
+                        || 'Client'} readOnly />
+                    </div>
+                    <div className="form-group">
+                      <label>Montant total</label>
+                      <input value={formatCurrency(formData.total_ttc)} readOnly />
+                    </div>
+                  </>
+                )}
                 <div className="form-group">
                   <label>Date d'échéance</label>
-                  <input 
-                    type="date" 
-                    name="date_echeance" 
-                    value={formData.date_echeance}
-                    onChange={handleChange}
-                  />
+                  <input type="date" name="date_echeance" value={formData.date_echeance} onChange={handleChange} />
                 </div>
-                <div className="form-group">
-                  <label>Statut</label>
-                  <select 
-                    name="statut" 
-                    value={formData.statut}
-                    onChange={handleChange}
-                  >
-                    <option value="en_attente">En attente</option>
-                    <option value="payee">Payée</option>
-                    <option value="partielle">Partielle</option>
-                    <option value="annulee">Annulée</option>
-                  </select>
-                </div>
-              </div>
               <div className="modal-footer">
                 <button type="button" onClick={closeModal} className="btn-secondary">
                   Annuler
