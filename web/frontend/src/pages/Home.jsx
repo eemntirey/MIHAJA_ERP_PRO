@@ -604,7 +604,7 @@ const Home = () => {
               <div className="vit-downloads__grid">
                 <a
                   className="vit-download-card"
-                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe"
+                  href="/download/desktop"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Télécharger MIHAJA ERP PRO pour Windows"
