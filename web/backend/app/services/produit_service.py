@@ -35,12 +35,26 @@ class ProduitService(BaseService):
         produit = cls.get_by_id(id)
         if not produit:
             return None
-        if type_mouvement == 'entree':
+
+        type_value = type_mouvement.value if hasattr(type_mouvement, 'value') else str(type_mouvement)
+        if type_value == 'entree':
             produit.ajouter_stock(quantite, raison, utilisateur_id)
-        elif type_mouvement == 'sortie':
+        elif type_value == 'sortie':
             produit.retirer_stock(quantite, raison, utilisateur_id)
+        elif type_value == 'retour':
+            # Un retour remet une quantité dans le stock : ce n'est pas
+            # une valeur absolue de stock.
+            produit.ajouter_stock(quantite, raison or 'Retour', utilisateur_id)
+        elif type_value in ('inventaire', 'ajustement'):
+            cls._set_stock_absolu(produit, quantite, type_value, raison, utilisateur_id)
+        elif type_value == 'transfert':
+            raise ValueError(
+                "Un transfert doit préciser un stock source et un stock destination"
+            )
         else:
-            cls._set_stock_absolu(produit, quantite, type_mouvement, raison, utilisateur_id)
+            raise ValueError(
+                f"Type de mouvement invalide: {type_value}"
+            )
         return produit
 
     @classmethod
