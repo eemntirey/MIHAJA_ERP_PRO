@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - V0
-    paths:
-      - ".github/workflows/build-desktop-windows.yml"
     tags:
       - "desktop-v*"
 
@@ -56,7 +54,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release
+      - name: Publish rolling direct download
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path dist -Filter *.exe -File | Select-Object -ExpandProperty FullName
+          if (-not $files) {
+            Write-Error "Aucun installateur .exe à publier."
+          }
+
+          gh release view "desktop-latest" --repo "$env:GITHUB_REPOSITORY" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload "desktop-latest" $files --repo "$env:GITHUB_REPOSITORY" --clobber
+          } else {
+            gh release create "desktop-latest" $files --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "MIHAJA ERP PRO Desktop — téléchargement direct"
+          }
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish versioned Release
         if: startsWith(github.ref, 'refs/tags/desktop-v')
         shell: pwsh
         run: |
@@ -64,6 +79,6 @@ jobs:
           if (-not $files) {
             Write-Error "Aucun installateur .exe à publier."
           }
-          gh release create "$env:GITHUB_REF_NAME" $files --generate-notes --title "MIHAJA ERP PRO Desktop $env:GITHUB_REF_NAME"
+          gh release create "$env:GITHUB_REF_NAME" $files --repo "$env:GITHUB_REPOSITORY" --generate-notes --title "MIHAJA ERP PRO Desktop $env:GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ github.token }}
