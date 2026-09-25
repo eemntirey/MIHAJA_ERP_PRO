@@ -8,7 +8,7 @@ import { clientService } from '../services/api';
 import { CLIENT_TYPES, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 
 const clientSchema = yup.object().shape({
-  code: yup.string().required('Code client requis'),
+  code: yup.string().nullable().default(''),
   type: yup.string().required('Type de client requis'),
   nom: yup.string().required('Nom requis'),
   prenom: yup.string().nullable().default(''),
@@ -81,11 +81,11 @@ const ClientModal = ({ client, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
           <div className="form-grid">
             <div className="form-group">
-              <label>Code client *</label>
+              <label>Code client</label>
               <input
                 type="text"
                 {...register('code')}
-                placeholder="Code client"
+                placeholder="Généré automatiquement si laissé vide"
               />
               {errors.code && <span className="field-error">{errors.code.message}</span>}
             </div>
