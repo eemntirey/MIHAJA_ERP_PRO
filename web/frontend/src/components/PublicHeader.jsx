@@ -5,8 +5,8 @@ import '../pages/Pages.css';
 const PublicHeader = ({ compact = false }) => (
   <header className={`public-header public-page-header${compact ? ' public-header--compact' : ''}`}>
     <Link to="/" className="brand" aria-label="MIHAJA ERP PRO accueil">
-      <span className="brand-icon">EP</span>
-      <span className="brand-name">ERP Pro</span>
+      <span className="brand-icon" aria-hidden="true">M</span>
+      <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
     </Link>
     <nav className="public-nav" aria-label="Navigation principale">
       <Link to="/" className="public-nav-link">Accueil</Link>
