@@ -654,7 +654,18 @@ const closeDevisModal = () => {
   const handleCreateBl = async (e) => {
     e.preventDefault();
     try {
-      const data = { ...blForm, vente_id: blForm.vente_id ? Number(blForm.vente_id) : null, client_id: Number(blForm.client_id), livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null, vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null };
+      const clientId = blForm.client_id ? Number(blForm.client_id) : null;
+      if (!blForm.vente_id || !clientId) {
+        toast.error('Sélectionnez une vente liée à un client.');
+        return;
+      }
+      const data = {
+        ...blForm,
+        vente_id: Number(blForm.vente_id),
+        client_id: clientId,
+        livreur_id: blForm.livreur_id ? Number(blForm.livreur_id) : null,
+        vehicule_id: blForm.vehicule_id ? Number(blForm.vehicule_id) : null,
+      };
       await bonLivraisonService.create(data);
       toast.success('Bon de livraison créé');
       setBlForm({ vente_id: '', client_id: null, livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
@@ -947,17 +958,35 @@ const closeDevisModal = () => {
           <form onSubmit={handleCreateBl} className="form-grid">
             <div className="form-group">
               <label>Vente *</label>
-              <select value={blForm.vente_id} onChange={e => setBlForm({...blForm, vente_id: e.target.value})} required>
+              <select
+                value={blForm.vente_id}
+                onChange={e => {
+                  const venteId = e.target.value;
+                  const sale = sales.find((item) => item.id === Number(venteId));
+                  const clientId = sale?.client_id || sale?.client?.id || '';
+                  const client = clients.find((item) => item.id === Number(clientId));
+                  setBlForm((prev) => ({
+                    ...prev,
+                    vente_id: venteId,
+                    client_id: clientId,
+                    adresse_livraison: client?.adresse_livraison || client?.adresse_facturation || prev.adresse_livraison,
+                  }));
+                }}
+                required
+              >
                 <option value="">Sélectionner une vente</option>
-                {sales.map(s => <option key={s.id} value={s.id}>{s.reference}</option>)}
+                {sales.map(s => <option key={s.id} value={s.id}>{s.reference} — {s.client_nom || 'Client passager'}</option>)}
               </select>
+              <small className="text-muted">Le client et l’adresse sont repris automatiquement de la vente.</small>
             </div>
             <div className="form-group">
-              <label>Client *</label>
-              <select value={blForm.client_id} onChange={e => setBlForm({...blForm, client_id: e.target.value})} required>
-                <option value="">Client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-              </select>
+              <label>Client</label>
+              <input
+                value={clients.find((client) => client.id === Number(blForm.client_id))?.nom_complet
+                  || clients.find((client) => client.id === Number(blForm.client_id))?.nom
+                  || (blForm.client_id ? 'Client sélectionné' : 'Sélectionnez une vente')}
+                readOnly
+              />
             </div>
             <div className="form-group">
               <label>Adresse de livraison</label>
@@ -968,12 +997,9 @@ const closeDevisModal = () => {
               <input type="date" value={blForm.date_livraison_prevue} onChange={e => setBlForm({...blForm, date_livraison_prevue: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Statut</label>
-              <select value={blForm.statut} onChange={e => setBlForm({...blForm, statut: e.target.value})}>
-                <option value="prepare">Préparé</option>
-                <option value="expedie">Expédié</option>
-                <option value="livre">Livré</option>
-              </select>
+              <label>État</label>
+              <input value="Préparé" readOnly />
+              <small className="text-muted">L’état évolue au fil du traitement de la livraison.</small>
             </div>
             <div className="form-group">
               <label>Remarque</label>
