@@ -158,10 +158,25 @@ def _fetch_changes(base, cursor):
     )
     status_code = getattr(response, 'status_code', 200)
     if status_code in (401, 403):
-        return False, None, (
-            'Session de réplication refusée par le serveur central '
-            f'({status_code}) : reconnectez-vous en ligne.'
-        )
+        if refresh_service_token():
+            try:
+                response = requests.get(
+                    f'{base}/api/v1/sync/replicate/pull',
+                    params={
+                        'since_revision': cursor.last_pulled_revision,
+                        'entities': cursor.entity,
+                    },
+                    headers=auth_headers(),
+                    timeout=REPLICATION_TIMEOUT,
+                )
+                status_code = getattr(response, 'status_code', 200)
+            except Exception as exc:
+                return False, None, str(exc)[:500]
+        if status_code in (401, 403):
+            return False, None, (
+                'Session de réplication refusée par le serveur central '
+                f'({status_code}) : reconnectez-vous en ligne.'
+            )
     if not getattr(response, 'ok', status_code < 400):
         return False, None, (
             f'Le serveur central a répondu {status_code} à la synchronisation.'
