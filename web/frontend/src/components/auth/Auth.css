@@ -2424,3 +2424,78 @@
     line-height:1.55;
   }
 }
+
+
+/* =========================================================
+   REGISTER — TEXT VISIBILITY / CONTRAST GUARANTEE
+   ========================================================= */
+.register-choice-grid{min-width:0}
+.register-choice-card{
+  color:#151719;
+  background:#fff;
+}
+.register-choice-card h3{
+  color:#0b0c0d !important;
+  font-weight:800;
+  line-height:1.25;
+}
+.register-choice-card p{
+  color:#505550 !important;
+  font-size:13px;
+  line-height:1.65;
+}
+.register-choice-card__icon{
+  color:#806a20 !important;
+}
+.register-choice-card__cta{
+  color:#705a18 !important;
+  font-weight:800;
+}
+.auth-login__form-panel,
+.auth-login__form-container{
+  color:#151719;
+}
+.auth-login__form-intro h2{
+  color:#0b0c0d !important;
+}
+.auth-login__form-intro > p:last-child{
+  color:#5f645f !important;
+}
+.auth-login__form-header{
+  color:#606560 !important;
+}
+.auth-login__back-link{
+  color:#705a18 !important;
+  font-weight:750;
+}
+.auth-login__register-prompt{
+  color:#5f645f !important;
+}
+.auth-login__register-prompt a{
+  color:#705a18 !important;
+  font-weight:800;
+}
+.register-choice-card:focus-visible{
+  outline:3px solid rgba(200,168,78,.35);
+  outline-offset:3px;
+}
+@media(max-width:760px){
+  .register-choice-grid{grid-template-columns:1fr}
+  .register-choice-card{padding:20px}
+  .register-choice-card p{font-size:14px;line-height:1.6}
+}
+@media(max-width:560px){
+  .auth-login__form-intro h2{font-size:30px !important}
+  .auth-login__form-intro > p:last-child{font-size:14px !important}
+  .auth-login__form-header{flex-wrap:wrap}
+  .auth-login__back-link{font-size:11px}
+}
+@media(prefers-color-scheme:dark){
+  .register-choice-card{background:#fff;color:#151719}
+  .register-choice-card h3{color:#0b0c0d !important}
+  .register-choice-card p{color:#505550 !important}
+  .auth-login__form-panel{background:#f7f5ef}
+  .auth-login__form-intro h2{color:#0b0c0d !important}
+  .auth-login__form-intro > p:last-child{color:#5f645f !important}
+  .auth-login__register-prompt{color:#5f645f !important}
+}
