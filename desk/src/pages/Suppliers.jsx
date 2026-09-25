@@ -276,7 +276,7 @@ const Suppliers = () => {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Code fournisseur *</label>
+                  <label>Code fournisseur</label>
                   <input 
                     type="text" 
                     name="code" 
