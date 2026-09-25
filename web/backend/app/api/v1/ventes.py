@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from datetime import datetime, timedelta
+from decimal import Decimal
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
 from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats, update as update_vente
