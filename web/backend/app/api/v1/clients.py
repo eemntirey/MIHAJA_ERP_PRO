@@ -10,7 +10,7 @@ from app import db
 ns = Namespace('clients', description='Gestion des clients')
 
 client_model = ns.model('Client', {
-    'code': fields.String(required=True, description='Code client unique'),
+    'code': fields.String(required=False, description='Code client unique (généré automatiquement si absent)'),
     'raison_sociale': fields.String(description='Raison sociale'),
     'nom': fields.String(description='Nom'),
     'prenom': fields.String(description='Prénom'),
