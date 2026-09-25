@@ -246,29 +246,34 @@ def get_dashboard_overview_data():
         total_produits = int(products_query.scalar() or 0)
         clients_actifs = int(clients_query.scalar() or 0)
 
-        month_query = db.session.query(
-            func.coalesce(func.sum(Vente.total_ttc), 0),
+        ca_query = db.session.query(
+            func.coalesce(func.sum(Vente.total_ttc), 0)
+        ).filter(
+            Vente.is_active == True,
+            Vente.created_at >= debut_mois,
+        )
+        marge_query = db.session.query(
             func.coalesce(
                 func.sum(
                     LigneVente.total_ht
                     - (LigneVente.quantite * Produit.prix_achat_ht)
                 ),
                 0,
-            ),
-        ).outerjoin(
-            LigneVente, LigneVente.vente_id == Vente.id
-        ).outerjoin(
+            )
+        ).join(
+            Vente, Vente.id == LigneVente.vente_id
+        ).join(
             Produit, Produit.id == LigneVente.produit_id
         ).filter(
+            LigneVente.is_active == True,
             Vente.is_active == True,
             Vente.created_at >= debut_mois,
-            LigneVente.is_active == True,
         )
         if tenant_id:
-            month_query = month_query.filter(Vente.tenant_id == tenant_id)
-        ca_mois, benefice_mois = month_query.one()
-        ca_mois = float(ca_mois or 0)
-        benefice_mois = float(benefice_mois or 0)
+            ca_query = ca_query.filter(Vente.tenant_id == tenant_id)
+            marge_query = marge_query.filter(Vente.tenant_id == tenant_id)
+        ca_mois = float(ca_query.scalar() or 0)
+        benefice_mois = float(marge_query.scalar() or 0)
 
         today_query = db.session.query(
             func.count(Vente.id),
