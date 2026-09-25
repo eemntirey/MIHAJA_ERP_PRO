@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import './Pages.css';
+import PublicHeader from '../components/PublicHeader';
 
 const STATUT_META = {
   en_attente: { label: 'En attente', kind: 'info', icon: 'ti-bell' },
