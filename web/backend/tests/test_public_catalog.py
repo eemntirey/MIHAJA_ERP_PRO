@@ -461,8 +461,13 @@ def test_public_contact_validates_and_sends_email(app, monkeypatch):
         raising=False,
     )
 
-    def fake_send_email(subject, html_body, recipient):
-        calls.update(subject=subject, html_body=html_body, recipient=recipient)
+    def fake_send_email(subject, html_body, recipient, **kwargs):
+        calls.setdefault('emails', []).append({
+            'subject': subject,
+            'html_body': html_body,
+            'recipient': recipient,
+            **kwargs,
+        })
         return {'success': True, 'delivered': True}
 
     monkeypatch.setattr('app.api.v1.public.send_email', fake_send_email)
@@ -475,9 +480,12 @@ def test_public_contact_validates_and_sends_email(app, monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json()['message'] == 'Message envoyé avec succès.'
-    assert calls['recipient'] == 'support@test.mg'
-    assert 'Jean Rakoto' in calls['html_body']
-    assert 'jean@example.mg' in calls['html_body']
+    assert calls['emails'][0]['recipient'] == 'support@test.mg'
+    assert calls['emails'][0]['reply_to'] == 'jean@example.mg'
+    assert 'Jean Rakoto' in calls['emails'][0]['html_body']
+    assert 'jean@example.mg' in calls['emails'][0]['html_body']
+    assert len(calls['emails']) == 2
+    assert calls['emails'][1]['recipient'] == 'jean@example.mg'
 
 
 def test_public_contact_rejects_invalid_input(app):
