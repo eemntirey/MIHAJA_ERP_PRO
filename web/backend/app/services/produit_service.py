@@ -108,12 +108,16 @@ class ProduitService(BaseService):
     def get_statistiques(cls):
         query = cls.model.query.filter_by(is_active=True)
         query = cls._get_tenant_filter(query)
-        produits = query.all()
-        total_produits = len(produits)
-        total_stock = sum(float(p.quantite_stock) for p in produits)
-        valeur_stock = sum(float(p.valeur_stock) for p in produits)
+        from sqlalchemy import func
+        stats = query.with_entities(
+            func.count(cls.model.id),
+            func.coalesce(func.sum(cls.model.quantite_stock), 0),
+            func.coalesce(
+                func.sum(cls.model.quantite_stock * cls.model.prix_achat_ht), 0
+            ),
+        ).one()
         return {
-            'total_produits': total_produits,
-            'total_stock': total_stock,
-            'valeur_stock': valeur_stock,
+            'total_produits': int(stats[0] or 0),
+            'total_stock': float(stats[1] or 0),
+            'valeur_stock': float(stats[2] or 0),
         }
