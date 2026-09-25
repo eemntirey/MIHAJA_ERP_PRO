@@ -57,6 +57,7 @@ const ProductDetail = () => {
   if (!product) {
     return (
       <div className="page-container">
+        <PublicHeader />
         <div className="alert error">
           <p>Produit introuvable</p>
           <Link to="/" className="btn-primary">Retour au catalogue</Link>
