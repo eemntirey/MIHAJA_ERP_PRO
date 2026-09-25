@@ -1,4 +1,5 @@
 from flask_restx import Namespace, Resource
+from flask import current_app
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
 from app.services.paiement_service import process_payment
