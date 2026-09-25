@@ -215,16 +215,6 @@ def main():
                     )
                     script = ScriptDirectory.from_config(config)
 
-                    if current_revision not in {rev.revision for rev in script.walk_revisions(current_revision, base="base")}:
-                        fail(
-                            "revision Alembic inconnue ou hors chaine V0; "
-                            f"actuel={current_revision}, attendu={expected_head}. "
-                            "Aucune modification effectuee."
-                        )
-
-                    if not script.get_revision(expected_head):
-                        fail(f"head Alembic introuvable: {expected_head}")
-
                     current_node = script.get_revision(current_revision)
                     head_node = script.get_revision(expected_head)
                     if current_node is None or head_node is None:
