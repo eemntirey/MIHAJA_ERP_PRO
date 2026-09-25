@@ -5226,3 +5226,183 @@
     width: 100%;
   }
 }
+
+
+/* ======================================================
+   MIHAJA PUBLIC DESIGN SYSTEM — V0
+   Premium, sober, responsive public experience.
+   ====================================================== */
+:root {
+  --mihaja-black: #0b0c0d;
+  --mihaja-ink: #151719;
+  --mihaja-gold: #c8a84e;
+  --mihaja-gold-light: #ead9a0;
+  --mihaja-cream: #f7f5ef;
+  --mihaja-white: #ffffff;
+  --mihaja-muted: #70746f;
+  --mihaja-border: rgba(11,12,13,.09);
+  --mihaja-shadow: 0 18px 55px rgba(11,12,13,.09);
+}
+
+/* Shared public header */
+.public-header.public-page-header,
+.home-page > .public-header {
+  min-height: 72px;
+  padding: 0 clamp(20px, 4vw, 56px);
+  background: rgba(255,255,255,.94);
+  border-bottom: 1px solid var(--mihaja-border);
+  box-shadow: 0 4px 24px rgba(0,0,0,.035);
+  backdrop-filter: blur(18px);
+}
+
+.public-header .brand {
+  gap: 11px;
+  color: var(--mihaja-ink);
+  text-decoration: none;
+}
+
+.public-header .brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--mihaja-black);
+  color: var(--mihaja-gold-light);
+  border: 1px solid rgba(200,168,78,.45);
+  font-family: var(--font-heading);
+  font-weight: 900;
+  letter-spacing: -.04em;
+  box-shadow: 0 7px 20px rgba(11,12,13,.14);
+}
+
+.public-header .brand-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  letter-spacing: .03em;
+  font-size: 13px;
+}
+.public-header .brand-name strong { font-size: 15px; letter-spacing: -.01em; }
+.public-header .brand-name small { margin-top: 4px; font-size: 8px; letter-spacing: .22em; color: #8b8d88; }
+
+.public-nav { gap: 4px; }
+.public-nav-link {
+  position: relative;
+  border-radius: 9px;
+  padding: 9px 12px;
+  color: #555a55;
+  font-size: 13px;
+  font-weight: 650;
+  transition: color .18s ease, background .18s ease, transform .18s ease;
+}
+.public-nav-link:hover { color: var(--mihaja-ink); background: #f5f3ed; transform: translateY(-1px); }
+.public-nav-link.btn-nav-login { border: 1px solid var(--mihaja-border); background: #fff; }
+.public-nav-link.btn-nav-register { background: var(--mihaja-black); color: #fff; }
+.public-nav-link.btn-nav-register:hover { background: #252729; color: #fff; }
+
+/* Home hero: stronger visual hierarchy */
+.home-page { background: var(--mihaja-cream); min-height: 100vh; }
+.home-page .vit-hero {
+  position: relative;
+  min-height: 610px;
+  display: grid;
+  align-items: center;
+  padding: clamp(80px, 11vw, 132px) 24px 100px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(200,168,78,.18), transparent 28%),
+    radial-gradient(circle at 15% 85%, rgba(255,255,255,.07), transparent 28%),
+    linear-gradient(135deg, #090a0b 0%, #151719 58%, #22221d 100%);
+  color: #fff;
+}
+.home-page .vit-hero__bg { position:absolute; inset:0; pointer-events:none; opacity:.9; }
+.home-page .vit-hero__orb { border:1px solid rgba(234,217,160,.16); background:rgba(200,168,78,.035); filter:blur(.2px); }
+.home-page .vit-hero__orb--1 { width:460px; height:460px; right:-150px; top:-180px; border-radius:50%; }
+.home-page .vit-hero__orb--2 { width:300px; height:300px; left:-160px; bottom:-190px; border-radius:50%; }
+.home-page .vit-hero__inner { position:relative; z-index:1; max-width:1040px; width:100%; margin:0 auto; }
+.home-page .vit-hero__badge { border-color:rgba(234,217,160,.28); background:rgba(255,255,255,.055); color:#ead9a0; }
+.home-page .vit-hero__title { max-width:820px; font-size:clamp(42px,6vw,74px); line-height:.98; letter-spacing:-.055em; }
+.home-page .vit-hero__title-accent { color:#e4c86f; }
+.home-page .vit-hero__subtitle { max-width:680px; color:rgba(255,255,255,.68); font-size:17px; line-height:1.75; }
+.home-page .vit-btn--primary { background:var(--mihaja-gold); border-color:var(--mihaja-gold); color:#101112; box-shadow:0 12px 30px rgba(200,168,78,.22); }
+.home-page .vit-btn--primary:hover { background:#dfc06b; }
+.home-page .vit-btn--outline { border-color:rgba(255,255,255,.22); color:#fff; background:rgba(255,255,255,.045); }
+.home-page .vit-hero__note { color:rgba(255,255,255,.48); }
+
+/* Public catalogue */
+.landing-root, .landing-contact, .downloads-page { background:var(--mihaja-cream); min-height:100vh; }
+.landing-section, .vit-catalogue { background:transparent; }
+.landing-section-title, .vit-section-title { color:var(--mihaja-ink); letter-spacing:-.035em; }
+.landing-section-subtitle, .vit-section-subtitle { color:#777b76; }
+.landing-product-card {
+  background:#fff !important;
+  border:1px solid var(--mihaja-border) !important;
+  border-radius:18px !important;
+  box-shadow:0 7px 28px rgba(0,0,0,.045);
+}
+.landing-product-card::before { display:none; }
+.landing-product-card:hover { border-color:rgba(200,168,78,.42) !important; box-shadow:var(--mihaja-shadow); transform:translateY(-4px); }
+.landing-product-visual { background:#f1efe8 !important; border:0 !important; border-radius:13px !important; }
+.landing-product-name { color:var(--mihaja-ink) !important; font-size:14px !important; }
+.landing-product-badge { background:#f5f1e2 !important; color:#806a29 !important; border-color:#e7dbb5 !important; }
+.landing-product-price { color:#9b7a20 !important; }
+.landing-btn-fut { background:#111 !important; border-color:#111 !important; color:#fff !important; }
+.landing-btn-fut:hover { background:#282a2b !important; }
+
+/* Product detail */
+.public-product-page { background:var(--mihaja-cream); min-height:100vh; padding-bottom:70px; }
+.public-product-page .page-header { background:transparent; border:0; }
+.public-product-detail { background:#fff !important; border:1px solid var(--mihaja-border) !important; border-radius:22px !important; box-shadow:var(--mihaja-shadow); padding:clamp(18px,3vw,34px); }
+.public-product-visual { min-height:470px; background:#f4f2eb !important; border:0 !important; border-radius:18px !important; }
+.public-product-price { color:#a07d24 !important; font-size:36px; }
+.public-product-category { background:#f4efdf !important; color:#806a29 !important; }
+.public-product-description { color:#666b66; font-size:15px; }
+.public-product-stock i { color:#68785b !important; }
+.public-product-buy .btn-primary { min-height:48px; padding:0 22px; border-radius:11px; }
+
+/* Cart / checkout */
+.page-container:has(.cart-table), .page-container:has(.checkout-layout) { background:var(--mihaja-cream); min-height:100vh; padding-bottom:70px; }
+.cart-table-wrap, .page-container:has(.cart-table) > .card:not(.page-header) { border:1px solid var(--mihaja-border); border-radius:18px; box-shadow:var(--mihaja-shadow); background:#fff; }
+.cart-table thead th { background:#faf9f5; color:#777; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+.cart-table tbody tr:hover { background:#fcfbf7; }
+
+/* Downloads */
+.downloads-page { background:var(--mihaja-cream); }
+.downloads-main { max-width:1120px; margin:0 auto; padding:92px 24px 110px; }
+.downloads-hero { max-width:760px; margin:0 auto 54px; text-align:center; }
+.downloads-hero__tag { display:inline-flex; padding:7px 12px; border-radius:999px; background:#f0ead8; color:#806a29; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+.downloads-hero h1 { margin:18px 0 14px; color:var(--mihaja-ink); font-size:clamp(34px,5vw,56px); letter-spacing:-.045em; }
+.downloads-hero p { color:#777; font-size:16px; line-height:1.7; }
+.downloads-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; }
+.downloads-card { min-height:280px; padding:30px; border:1px solid var(--mihaja-border); border-radius:22px; background:#fff; box-shadow:var(--mihaja-shadow); }
+.downloads-card--desktop { background:linear-gradient(145deg,#fff 0%,#fbf8ee 100%); }
+.downloads-card__icon { background:#f1ebd9 !important; color:#8b7025 !important; border-radius:15px !important; }
+.downloads-card__heading h2 { color:var(--mihaja-ink); }
+.downloads-card__description { color:#70746f; line-height:1.7; }
+.downloads-card__button { background:var(--mihaja-black) !important; border:1px solid var(--mihaja-black); border-radius:11px; }
+.downloads-card__button:hover { background:#292b2c !important; box-shadow:0 10px 24px rgba(0,0,0,.14); }
+.downloads-card__button--disabled { background:#efeee9 !important; color:#8a8b86 !important; border-color:#e3e1da; }
+
+/* Contact */
+.landing-contact { padding-bottom:90px; }
+.landing-contact .landing-container { max-width:980px; }
+.landing-contact-card { max-width:860px; margin:0 auto; padding:clamp(24px,5vw,44px); border:1px solid var(--mihaja-border); box-shadow:var(--mihaja-shadow); border-radius:22px; }
+.landing-contact-form { gap:20px; }
+.landing-form-group input, .landing-form-group textarea { min-height:48px; border-color:#deddd7; border-radius:11px; background:#fcfbf8; }
+.landing-form-group input:focus, .landing-form-group textarea:focus { border-color:var(--mihaja-gold); box-shadow:0 0 0 4px rgba(200,168,78,.11); }
+.landing-btn-primary { background:var(--mihaja-black) !important; border-color:var(--mihaja-black) !important; color:#fff !important; border-radius:11px !important; }
+.landing-btn-primary:hover { background:#2a2b2d !important; }
+
+@media (max-width: 760px) {
+  .public-header.public-page-header, .home-page > .public-header { min-height:64px; padding:10px 14px; }
+  .public-header .brand-name strong { font-size:13px; }
+  .public-nav { overflow-x:auto; flex-wrap:nowrap; max-width:100%; scrollbar-width:none; }
+  .public-nav::-webkit-scrollbar { display:none; }
+  .public-nav-link { white-space:nowrap; padding:8px 9px; font-size:11px; }
+  .home-page .vit-hero { min-height:560px; padding:70px 20px 90px; }
+  .home-page .vit-hero__title { font-size:42px; }
+  .home-page .vit-hero__subtitle { font-size:15px; }
+  .downloads-grid { grid-template-columns:1fr; }
+  .public-product-visual { min-height:300px; }
+}
