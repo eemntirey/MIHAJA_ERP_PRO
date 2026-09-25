@@ -79,6 +79,7 @@ const saleLineSchema = yup.object().shape({
   quantite: yup.number().required('Quantité requise').min(1, 'Quantité minimum 1'),
   prix_unitaire: yup.number().required('Prix requis').min(0, 'Prix invalide'),
   taux_tva: yup.number().min(0).default(20),
+  remise: yup.number().min(0).max(100).default(0),
 });
 
 const saleSchema = yup.object().shape({
@@ -96,18 +97,30 @@ const saleSchema = yup.object().shape({
   lignes: yup.array().of(saleLineSchema).min(1, 'Au moins une ligne requise'),
 });
 
-const calculateLineTotal = (quantite, prix_unitaire, taux_tva) => {
+const calculateLineTotal = (quantite, prix_unitaire, taux_tva, remise = 0) => {
   const q = Number(quantite) || 0;
   const p = Number(prix_unitaire) || 0;
   const t = Number(taux_tva) || 0;
-  return q * p * (1 + t / 100);
+  const r = Math.min(Math.max(Number(remise) || 0, 0), 100);
+  const ht = q * p * (1 - r / 100);
+  return ht * (1 + t / 100);
 };
 
 const calculateTotals = (items) => {
-  const totalHt = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0), 0);
-  const totalTva = items.reduce((sum, item) => sum + (Number(item.quantite) || 0) * (Number(item.prix_unitaire) || 0) * ((Number(item.taux_tva) || 0) / 100), 0);
-  const totalTtc = totalHt + totalTva;
-  return { totalHt, totalTva, totalTtc };
+  const totalHt = items.reduce((sum, item) => {
+    const q = Number(item.quantite) || 0;
+    const p = Number(item.prix_unitaire) || 0;
+    const r = Math.min(Math.max(Number(item.remise) || 0, 0), 100);
+    return sum + q * p * (1 - r / 100);
+  }, 0);
+  const totalTva = items.reduce((sum, item) => {
+    const q = Number(item.quantite) || 0;
+    const p = Number(item.prix_unitaire) || 0;
+    const t = Number(item.taux_tva) || 0;
+    const r = Math.min(Math.max(Number(item.remise) || 0, 0), 100);
+    return sum + q * p * (1 - r / 100) * (t / 100);
+  }, 0);
+  return { totalHt, totalTva, totalTtc: totalHt + totalTva };
 };
 
 const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, initialData = null }) => {
@@ -136,6 +149,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
       quantite: l.quantite || 1,
       prix_unitaire: l.prix_unitaire || 0,
       taux_tva: l.taux_tva || 20,
+      remise: l.remise || 0,
     })) || [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
   } : defaultValues;
 
