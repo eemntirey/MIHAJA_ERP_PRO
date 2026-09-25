@@ -197,16 +197,78 @@ def main():
                     ).all()
                 ]
 
-                if version_rows != [expected_head]:
+                if len(version_rows) != 1:
                     fail(
-                        "revision Alembic inattendue; "
-                        f"attendu={expected_head}, actuel={version_rows}. "
-                        "Aucune modification effectuee."
+                        "alembic_version invalide; une seule revision est attendue: "
+                        + repr(version_rows)
                     )
 
+                current_revision = version_rows[0]
+                if current_revision != expected_head:
+                    from alembic.script import ScriptDirectory
+                    from flask_migrate import upgrade
+                    from alembic.config import Config
+
+                    config = Config(str(_BACKEND_ROOT / "migrations" / "alembic.ini"))
+                    config.set_main_option(
+                        "script_location", str(_BACKEND_ROOT / "migrations")
+                    )
+                    script = ScriptDirectory.from_config(config)
+
+                    if current_revision not in {rev.revision for rev in script.walk_revisions(current_revision, base="base")}:
+                        fail(
+                            "revision Alembic inconnue ou hors chaine V0; "
+                            f"actuel={current_revision}, attendu={expected_head}. "
+                            "Aucune modification effectuee."
+                        )
+
+                    if not script.get_revision(expected_head):
+                        fail(f"head Alembic introuvable: {expected_head}")
+
+                    current_node = script.get_revision(current_revision)
+                    head_node = script.get_revision(expected_head)
+                    if current_node is None or head_node is None:
+                        fail(
+                            f"revision Alembic introuvable; actuel={current_revision}, "
+                            f"attendu={expected_head}"
+                        )
+
+                    # On n'auto-upgrade que si la revision actuelle est un
+                    # ancêtre direct/indirect du head courant. Aucun downgrade,
+                    # reset, stamp forcé ou réparation destructive.
+                    ancestors = set()
+                    cursor = head_node
+                    while cursor is not None:
+                        ancestors.add(cursor.revision)
+                        cursor = script.get_revision(cursor.down_revision) if cursor.down_revision else None
+
+                    if current_revision not in ancestors:
+                        fail(
+                            "revision Alembic non alignée avec le head V0; "
+                            f"actuel={current_revision}, attendu={expected_head}. "
+                            "Aucune modification effectuee."
+                        )
+
+                    print(
+                        f"Migration Alembic automatique: {current_revision} -> {expected_head}"
+                    )
+                    upgrade(directory=str(_BACKEND_ROOT / "migrations"), revision=expected_head)
+
+                    version_rows = [
+                        row[0]
+                        for row in db.session.execute(
+                            text("SELECT version_num FROM alembic_version")
+                        ).all()
+                    ]
+                    if version_rows != [expected_head]:
+                        fail(
+                            "verification Alembic apres migration echouee: "
+                            + repr(version_rows)
+                        )
+
                 print(
-                    "OK: base deja initialisee et coherente; "
-                    "aucune creation ni reinitialisation effectuee."
+                    "OK: base initialisee et coherente; "
+                    "aucun reset ni recreation de donnees."
                 )
             finally:
                 lock_conn.execute(
