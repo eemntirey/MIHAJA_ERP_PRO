@@ -5406,3 +5406,17 @@
   .downloads-grid { grid-template-columns:1fr; }
   .public-product-visual { min-height:300px; }
 }
+
+/* MIHAJA PUBLIC SYSTEM */
+.public-page-header,.public-header.public-page-header{width:min(1180px,calc(100% - 40px));min-height:76px;margin:18px auto 0;padding:0 18px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:20;border:1px solid rgba(11,12,13,.10);border-radius:18px;background:rgba(255,255,255,.88);box-shadow:0 14px 45px rgba(11,12,13,.08);backdrop-filter:blur(18px)}
+.public-page-header .brand,.public-header .brand{display:inline-flex;align-items:center;gap:11px;color:#0b0c0d;text-decoration:none;flex-shrink:0}
+.public-page-header .brand-icon,.public-header .brand-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#0b0c0d;color:#ead9a0;border:1px solid #c8a84e;font-weight:900;letter-spacing:-.06em}
+.public-page-header .brand-name,.public-header .brand-name{display:flex;flex-direction:column;line-height:1;letter-spacing:-.03em}
+.public-page-header .brand-name strong,.public-header .brand-name strong{font-size:15px}.public-page-header .brand-name small,.public-header .brand-name small{margin-top:4px;color:#70746f;font-size:8px;font-weight:800;letter-spacing:.18em}
+.public-nav{display:flex;align-items:center;gap:5px}.public-nav-link{color:#4f534f;text-decoration:none;padding:10px 12px;border-radius:9px;font-size:13px;font-weight:700;transition:.18s ease}.public-nav-link:hover{color:#0b0c0d;background:#f3f0e8}
+.public-nav-link.btn-nav-login{margin-left:6px;color:#fff;background:#0b0c0d;border:1px solid #0b0c0d;padding-inline:16px}.public-nav-link.btn-nav-login:hover{color:#0b0c0d;background:#c8a84e;border-color:#c8a84e}
+.public-page-header a:focus-visible,.public-nav-link:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(200,168,78,.35);outline-offset:2px}
+.landing-root,.landing-contact,.downloads-page{min-height:100vh;background:radial-gradient(circle at 8% 0%,rgba(200,168,78,.10),transparent 30%),linear-gradient(180deg,#fbfaf6 0%,#f5f3ed 100%)}
+.landing-legal-page{padding-bottom:80px}.landing-legal-card{max-width:900px;margin:30px auto 0;padding:clamp(26px,5vw,52px);background:rgba(255,255,255,.94);border:1px solid rgba(11,12,13,.09);border-radius:22px;box-shadow:0 22px 70px rgba(11,12,13,.08)}.landing-legal-card section+section{margin-top:34px;padding-top:30px;border-top:1px solid rgba(11,12,13,.08)}.landing-legal-card h2{margin:0 0 10px;color:#0b0c0d;font-size:18px;letter-spacing:-.025em}.landing-legal-card p{margin:0;color:#626762;font-size:14px;line-height:1.8}.landing-legal-card a{color:#8c7020;font-weight:700}
+.downloads-page .public-page-header{margin-bottom:26px}.downloads-footer{width:min(1180px,calc(100% - 40px));margin:40px auto 0;padding:22px 0 34px;border-top:1px solid rgba(11,12,13,.09);color:#777b76;font-size:12px}
+@media(max-width:760px){.public-page-header,.public-header.public-page-header{width:calc(100% - 24px);min-height:68px;margin-top:12px;padding:0 12px;border-radius:14px}.public-nav{overflow-x:auto;scrollbar-width:none}.public-nav::-webkit-scrollbar{display:none}.public-nav-link{white-space:nowrap;padding:9px 8px;font-size:12px}.public-nav-link.btn-nav-login{padding-inline:12px}.public-page-header .brand-name{display:none}.landing-legal-card{margin-top:20px;border-radius:16px;padding:24px 20px}}
