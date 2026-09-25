@@ -211,10 +211,8 @@ class SyncState(db.Model):
     last_push_at = db.Column(db.DateTime, nullable=True)
     last_pull_at = db.Column(db.DateTime, nullable=True)
     last_error = db.Column(db.Text, nullable=True)
-    # Jeton JWT du central servant à authentifier le push/pull. Renseigné au
-    # login en ligne (proxy vers le central) ; vide = poste jamais connecté
-    # ou session expirée (il faut se reconnecter en ligne).
-    service_token = db.Column(db.Text, nullable=True)\n    service_refresh_token = db.Column(db.Text, nullable=True)
+    service_token = db.Column(db.Text, nullable=True)
+    service_refresh_token = db.Column(db.Text, nullable=True)
 
     @classmethod
     def get_or_create(cls):
@@ -226,9 +224,11 @@ class SyncState(db.Model):
         return state
 
     @classmethod
-    def set_service_token(cls, token):
+    def set_service_token(cls, token, refresh_token=None):
         state = cls.get_or_create()
         state.service_token = token
+        if refresh_token is not None:
+            state.service_refresh_token = refresh_token
         db.session.commit()
         return state
 
@@ -237,3 +237,7 @@ class SyncState(db.Model):
         state = cls.get_or_create()
         return state.service_token
 
+    @classmethod
+    def get_service_refresh_token(cls):
+        state = cls.get_or_create()
+        return state.service_refresh_token
