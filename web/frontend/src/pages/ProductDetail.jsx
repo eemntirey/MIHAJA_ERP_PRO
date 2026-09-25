@@ -4,7 +4,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
 import Seo from '../components/Seo';
-import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
 import PublicHeader from '../components/PublicHeader';
@@ -12,7 +11,6 @@ import PublicHeader from '../components/PublicHeader';
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
   const { addItem } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +66,7 @@ const ProductDetail = () => {
   }
 
   const price = Number(product.prix_vente_ht || product.prix || 0);
+  const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
   const stock = Number(product.quantite_stock ?? product.stock ?? 0);
   const maxQty = Math.min(stock, 99);
   const productDescription =
@@ -89,7 +88,7 @@ const ProductDetail = () => {
       '@type': 'Offer',
       url: `https://mihaja-erp-frontend-796e-qdh1.onrender.com/produits/${id}`,
       priceCurrency: 'MGA',
-      price: price.toFixed(2),
+      price: price,
       availability: stock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
@@ -107,7 +106,8 @@ const ProductDetail = () => {
         structuredData={productStructuredData}
       />
       <div className="page-container">
-      <div className="page-header">
+        <PublicHeader />
+        <div className="page-header">
         <div>
           <h1>{product.nom}</h1>
           {product.tenant_nom && (
@@ -117,9 +117,10 @@ const ProductDetail = () => {
           )}
         </div>
         {canBuy && (
-          <Link to="/cart" className="btn-secondary">
-            Mon panier
-          </Link>
+          <div className="header-actions">
+            <Link to="/catalogue" className="btn-secondary">Catalogue</Link>
+            <Link to="/cart" className="btn-primary">Mon panier</Link>
+          </div>
         )}
       </div>
 
@@ -145,7 +146,7 @@ const ProductDetail = () => {
               {product.categorie || 'Général'}
             </div>
             <div className="product-card__price" style={{ fontSize: '26px', marginTop: '6px' }}>
-              {price.toFixed(2)} Ar
+              {formatMGA(price)} Ar
             </div>
             <p className="text-muted" style={{ fontSize: '12px', marginTop: '8px' }}>
               Stock disponible : {stock} unité{stock > 1 ? 's' : ''}
