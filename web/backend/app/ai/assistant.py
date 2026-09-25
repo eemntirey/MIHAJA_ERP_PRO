@@ -74,7 +74,10 @@ def ask_assistant(tenant_id=None, prompt="", conversation=None):
     context_block = _build_context_block(tid)
 
     # Réponse interne forte pour les requêtes métier classiques
-    internal_answer = _answer_internal(tid, prompt_lower)
+    try:
+        internal_answer = _answer_internal(tid, prompt_lower)
+    except AIPermissionError as exc:
+        return str(exc)
     if internal_answer:
         if external_ai.is_configured():
             enriched = _enrich_with_external_ai(
