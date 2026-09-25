@@ -2234,3 +2234,193 @@
 .register-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.register-choice-card{text-align:left;padding:24px;border:1px solid rgba(11,12,13,.10);border-radius:15px;background:#fff;box-shadow:0 10px 30px rgba(11,12,13,.06)}.register-choice-card:hover{border-color:rgba(200,168,78,.55);box-shadow:0 16px 40px rgba(11,12,13,.10)}.register-choice-card__icon{color:#8b711f;font-size:24px}.register-choice-card__cta{color:#8b711f;font-weight:800}.register-plan-card{border:1px solid rgba(200,168,78,.28);background:#fbf7e9;border-radius:12px}
 .auth-login__brand-mark{color:#ead9a0;border-color:#c8a84e;background:#0b0c0d}.auth-login__context{background:#0b0c0d}.auth-login__submit{background:#c8a84e;border-color:#c8a84e;color:#0b0c0d}.auth-login__submit:hover:not(:disabled){background:#ead9a0;border-color:#ead9a0}.auth-login__form-panel{background:#f7f5ef}
 @media(max-width:760px){.register-choice-grid{grid-template-columns:1fr}.auth-login__context-content{padding-top:48px;padding-bottom:44px}.auth-login__feature-grid{gap:14px}.auth-login__form-panel{padding:32px 20px}}
+
+
+/* =========================================================
+   MIHAJA LOGIN — TEXT VISIBILITY / CONTRAST GUARANTEE
+   Keep the login readable regardless of OS/browser dark mode.
+   ========================================================= */
+.auth-login,
+.auth-login__form-panel,
+.auth-login__form-container{
+  color:#151719;
+}
+.auth-login__form-panel{
+  background:#f7f5ef;
+}
+.auth-login__form-header{
+  color:#70746f;
+  border-bottom:1px solid rgba(11,12,13,.10);
+}
+.auth-login__back-link,
+.auth-login__inline-link,
+.auth-login__register-prompt a{
+  color:#806a20;
+  font-weight:700;
+}
+.auth-login__back-link:hover,
+.auth-login__inline-link:hover,
+.auth-login__register-prompt a:hover{
+  color:#5f4e17;
+}
+.auth-login__form-intro h2{
+  color:#0b0c0d;
+}
+.auth-login__form-intro > p:last-child{
+  color:#5f645f;
+}
+.auth-login__eyebrow--light{
+  color:#806a20;
+}
+.auth-login__field > label,
+.auth-login__field-label-row > label{
+  color:#242624;
+  font-weight:750;
+}
+.auth-login__input-wrap{
+  background:#fff;
+  border-color:rgba(11,12,13,.16);
+}
+.auth-login__input-wrap > i{
+  color:#70746f;
+}
+.auth-login__input-wrap input{
+  color:#151719;
+  background:transparent;
+  -webkit-text-fill-color:#151719;
+}
+.auth-login__input-wrap input::placeholder{
+  color:#858983;
+  opacity:1;
+}
+.auth-login__password-toggle{
+  color:#60655f;
+}
+.auth-login__password-toggle:hover,
+.auth-login__password-toggle:focus-visible{
+  background:#f1efe8;
+  color:#151719;
+}
+.auth-login__remember{
+  color:#5f645f;
+}
+.auth-login__remember input{
+  accent-color:#c8a84e;
+}
+.auth-login__submit{
+  color:#0b0c0d;
+  background:#c8a84e;
+  border-color:#c8a84e;
+}
+.auth-login__divider{
+  color:#858983;
+}
+.auth-login__divider span:not(:nth-child(2)){
+  background:rgba(11,12,13,.12);
+}
+.auth-login__social-button{
+  background:#fff;
+  color:#343734;
+  border-color:rgba(11,12,13,.14);
+}
+.auth-login__social-button:hover{
+  background:#faf9f5;
+  border-color:rgba(200,168,78,.55);
+  color:#151719;
+}
+.auth-login__register-prompt{
+  color:#666b66;
+}
+.auth-login__security{
+  color:#858983;
+}
+.auth-login__error{
+  color:#b42318;
+  font-weight:650;
+}
+.auth-login__input-wrap:has(input[aria-invalid='true']){
+  border-color:#b42318;
+  box-shadow:0 0 0 3px rgba(180,35,24,.08);
+}
+
+/* Left panel: every textual element stays high-contrast. */
+.auth-login__context{
+  background:#0b0c0d;
+  color:#fff;
+}
+.auth-login__brand{
+  color:#fff;
+}
+.auth-login__brand-name{
+  color:#fff;
+}
+.auth-login__brand-meta{
+  color:rgba(255,255,255,.68);
+}
+.auth-login__eyebrow{
+  color:#ead9a0;
+}
+.auth-login__context-content h1{
+  color:#fff;
+}
+.auth-login__context-copy{
+  color:rgba(255,255,255,.76);
+}
+.auth-login__feature strong{
+  color:#fff;
+}
+.auth-login__feature span{
+  color:rgba(255,255,255,.68);
+}
+.auth-login__context-footer{
+  color:rgba(255,255,255,.68);
+  border-top-color:rgba(255,255,255,.14);
+}
+.auth-login__watermark{
+  color:rgba(255,255,255,.10);
+}
+.auth-login__status{
+  color:rgba(255,255,255,.72);
+}
+.auth-login__status > span{
+  background:#c8a84e;
+  box-shadow:0 0 0 4px rgba(200,168,78,.12);
+}
+
+/* Prevent text clipping on smaller screens. */
+.auth-login__form-panel{
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.auth-login__form-container{
+  min-width:0;
+}
+.auth-login__form-intro h2,
+.auth-login__form-intro p,
+.auth-login__register-prompt,
+.auth-login__security{
+  overflow-wrap:anywhere;
+}
+.auth-login__social-button,
+.auth-login__submit{
+  min-height:48px;
+}
+@media(max-width:900px){
+  .auth-login__form-panel{
+    min-height:100dvh;
+  }
+}
+@media(max-width:560px){
+  .auth-login__form-header span,
+  .auth-login__back-link{
+    font-size:11px;
+  }
+  .auth-login__form-intro h2{
+    font-size:32px;
+    line-height:1.08;
+  }
+  .auth-login__form-intro > p:last-child{
+    font-size:14px;
+    line-height:1.55;
+  }
+}
