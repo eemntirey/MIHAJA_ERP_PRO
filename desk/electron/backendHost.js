@@ -103,7 +103,7 @@ async function startLocalBackend() {
     FLASK_ENV: 'local-embedded',
     LOCAL_DB_PATH: path.join(dbDir, 'erp-local.db'),
     LOCAL_API_PORT: String(port),
-    REPLICATION_URL: cfg.replicationUrl || process.env.REPLICATION_URL || 'http://127.0.0.1:5000',
+    // Le central est distinct du backend Flask local. Ne jamais utiliser 127.0.0.1 ici.\n    REPLICATION_URL: cfg.replicationUrl || process.env.REPLICATION_URL || 'https://mihaja-erp-pro.onrender.com',
     SECRET_KEY: cfg.secretKey || 'local-embedded-secret-a-remplacer',
     JWT_SECRET_KEY: cfg.jwtSecretKey || 'local-embedded-jwt-a-remplacer',
   };
