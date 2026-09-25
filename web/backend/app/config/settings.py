@@ -49,6 +49,7 @@ class Config:
     MAIL_ENABLED = os.getenv('MAIL_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
     MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME or 'no-reply@mihaja-erp.local')
     MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
+    MAIL_CONTACT_RECIPIENT = os.getenv('MAIL_CONTACT_RECIPIENT') or MAIL_USERNAME
     MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '30'))
 
     # Securite / reset
