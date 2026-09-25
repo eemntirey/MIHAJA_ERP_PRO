@@ -7,6 +7,7 @@ import Seo from '../components/Seo';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
+import PublicHeader from '../components/PublicHeader';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -46,6 +47,7 @@ const ProductDetail = () => {
   if (loading) {
     return (
       <div className="page-container">
+        <PublicHeader />
         <div className="loading-screen">
           <div className="spinner-large"></div>
           <p>Chargement du produit...</p>
