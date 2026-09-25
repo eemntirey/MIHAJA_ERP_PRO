@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Seo from '../components/Seo';
+import PublicHeader from '../components/PublicHeader';
 import './Pages.css';
 
 const DESKTOP_DOWNLOAD_URL = 'https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe';
@@ -26,19 +27,14 @@ const DOWNLOADS = [
 ];
 
 const Downloads = () => (
-  <div className="downloads-page">
-    <header className="public-header">
-      <Link to="/" className="brand" aria-label="ERP Pro accueil">
-        <span className="brand-icon">EP</span>
-        <span className="brand-name">ERP Pro</span>
-      </Link>
-      <nav className="public-nav" aria-label="Navigation principale">
-        <Link to="/" className="public-nav-link">Accueil</Link>
-        <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
-        <Link to="/contact" className="public-nav-link">Contact</Link>
-        <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
-      </nav>
-    </header>
+  <>
+    <Seo
+      title="Télécharger MIHAJA ERP PRO | Desktop et Mobile"
+      description="Téléchargez les applications officielles MIHAJA ERP PRO pour ordinateur et mobile."
+      canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/telechargements"
+    />
+    <div className="downloads-page">
+      <PublicHeader />
 
     <main className="downloads-main">
       <div className="downloads-hero">
