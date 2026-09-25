@@ -123,8 +123,18 @@ const Home = () => {
         setEditingName(false);
       }
     };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowUserCartouche(false);
+        setEditingName(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const fetchProducts = async () => {
@@ -250,78 +260,134 @@ const Home = () => {
                     type="button"
                     className="user-cartouche-trigger"
                     onClick={openUserMenu}
-                    aria-haspopup="true"
+                    aria-haspopup="menu"
                     aria-expanded={showUserCartouche}
+                    aria-controls="mihaja-user-menu"
                   >
                     <span className="user-cartouche-avatar" aria-hidden="true">
-                      {(user?.prenom?.[0] || 'U').toUpperCase()}
+                      {(user?.prenom?.[0] || user?.nom?.[0] || 'U').toUpperCase()}
                     </span>
-                    <span className="user-cartouche-greeting">
-                      Bienvenue, {user?.prenom || 'Utilisateur'}
+                    <span className="user-cartouche-trigger-copy">
+                      <span className="user-cartouche-trigger-name">
+                        {user?.prenom || user?.nom || 'Mon compte'}
+                      </span>
+                      <span className="user-cartouche-trigger-label">Compte client</span>
                     </span>
-                    <span className="user-cartouche-chevron" aria-hidden="true">
-                      ▾
-                    </span>
+                    <i
+                      className={`ti ti-chevron-down user-cartouche-chevron${showUserCartouche ? ' is-open' : ''}`}
+                      aria-hidden="true"
+                    />
                   </button>
 
                   {showUserCartouche && (
-                    <div className="user-cartouche">
+                    <div id="mihaja-user-menu" className="user-cartouche" role="menu" aria-label="Menu du compte client">
                       <div className="user-cartouche-header">
                         <div className="user-cartouche-avatar-large" aria-hidden="true">
-                          {(user?.prenom?.[0] || 'U').toUpperCase()}
+                          {(user?.prenom?.[0] || user?.nom?.[0] || 'U').toUpperCase()}
                         </div>
                         <div className="user-cartouche-meta">
                           {editingName ? (
-                            <div className="user-cartouche-edit-form">
-                              <input
-                                type="text"
-                                value={nameForm.prenom}
-                                onChange={(e) => setNameForm((prev) => ({ ...prev, prenom: e.target.value }))}
-                                placeholder="Prénom"
-                                className="user-cartouche-input"
-                              />
-                              <input
-                                type="text"
-                                value={nameForm.nom}
-                                onChange={(e) => setNameForm((prev) => ({ ...prev, nom: e.target.value }))}
-                                placeholder="Nom"
-                                className="user-cartouche-input"
-                              />
-                              <button
-                                type="button"
-                                className="user-cartouche-save"
-                                onClick={saveName}
-                              >
-                                Enregistrer
-                              </button>
-                            </div>
+                            <>
+                              <span className="user-cartouche-section-label">Modifier le profil</span>
+                              <div className="user-cartouche-edit-form">
+                                <label>
+                                  <span>Prénom</span>
+                                  <input
+                                    type="text"
+                                    value={nameForm.prenom}
+                                    onChange={(e) => setNameForm((prev) => ({ ...prev, prenom: e.target.value }))}
+                                    placeholder="Votre prénom"
+                                    className="user-cartouche-input"
+                                    autoFocus
+                                  />
+                                </label>
+                                <label>
+                                  <span>Nom</span>
+                                  <input
+                                    type="text"
+                                    value={nameForm.nom}
+                                    onChange={(e) => setNameForm((prev) => ({ ...prev, nom: e.target.value }))}
+                                    placeholder="Votre nom"
+                                    className="user-cartouche-input"
+                                  />
+                                </label>
+                                <div className="user-cartouche-edit-actions">
+                                  <button type="button" className="user-cartouche-cancel" onClick={() => setEditingName(false)}>
+                                    Annuler
+                                  </button>
+                                  <button type="button" className="user-cartouche-save" onClick={saveName}>
+                                    <i className="ti ti-check" aria-hidden="true" />
+                                    Enregistrer
+                                  </button>
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <>
-                              <strong>{user?.prenom} {user?.nom}</strong>
-                              <span>{user?.email}</span>
-                              <button
-                                type="button"
-                                className="user-cartouche-edit"
-                                onClick={startEditName}
-                              >
-                                Modifier mon nom
-                              </button>
+                              <span className="user-cartouche-section-label">Compte client</span>
+                              <strong>{user?.prenom || ''} {user?.nom || ''}</strong>
+                              <span className="user-cartouche-email">{user?.email || 'Adresse e-mail non renseignée'}</span>
+                              <span className="user-cartouche-status">
+                                <i className="ti ti-circle-check-filled" aria-hidden="true" />
+                                Compte actif
+                              </span>
                             </>
                           )}
                         </div>
                       </div>
-                      <div className="user-cartouche-footer">
-                        <Link to="/mes-commandes" className="user-cartouche-orders">
-                          Mes commandes
-                        </Link>
-                        <button
-                          type="button"
-                          className="user-cartouche-logout"
-                          onClick={handleLogout}
-                        >
-                          Se déconnecter
-                        </button>
-                      </div>
+
+                      {!editingName && (
+                        <>
+                          <div className="user-cartouche-body">
+                            <Link to="/profile" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-user" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mon profil</strong>
+                                <small>Gérer mes informations</small>
+                              </span>
+                              <i className="ti ti-chevron-right" aria-hidden="true" />
+                            </Link>
+
+                            <Link to="/mes-commandes" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-package" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mes commandes</strong>
+                                <small>Consulter mes achats et suivis</small>
+                              </span>
+                              {notifications.length > 0 && (
+                                <b className="user-cartouche-count">{notifications.length}</b>
+                              )}
+                            </Link>
+
+                            <Link to="/cart" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-shopping-cart" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mon panier</strong>
+                                <small>Voir les articles sélectionnés</small>
+                              </span>
+                              {totalItems > 0 && (
+                                <b className="user-cartouche-count">{totalItems}</b>
+                              )}
+                            </Link>
+
+                            <button type="button" className="user-cartouche-item" role="menuitem" onClick={startEditName}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-edit" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Modifier mon nom</strong>
+                                <small>Mettre à jour mon identité</small>
+                              </span>
+                              <i className="ti ti-chevron-right" aria-hidden="true" />
+                            </button>
+                          </div>
+
+                          <div className="user-cartouche-footer">
+                            <button type="button" className="user-cartouche-logout" role="menuitem" onClick={handleLogout}>
+                              <i className="ti ti-logout-2" aria-hidden="true" />
+                              <span>Se déconnecter</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
