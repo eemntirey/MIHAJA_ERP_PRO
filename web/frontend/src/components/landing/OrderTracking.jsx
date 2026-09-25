@@ -51,6 +51,8 @@ const OrderTracking = () => {
     return 'landing-badge info';
   };
 
+  const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+
   const activeStep = getActiveStep();
 
   return (
@@ -128,7 +130,7 @@ const OrderTracking = () => {
                     </div>
                     <div className="landing-order-card__date">
                       {tracking.created_at
-                        ? `Commandée le ${new Date(tracking.created_at).toLocaleDateString('mg-MG')}`
+                        ? `Commandée le ${new Date(tracking.created_at).toLocaleDateString('fr-FR')}`
                         : ''}
                     </div>
                   </div>
@@ -150,7 +152,7 @@ const OrderTracking = () => {
                           </div>
                           <div className="landing-order-item__meta">
                             <span>x{item.quantite || 1}</span>
-                            <span>{Number(item.prix_unitaire || item.prix || 0).toFixed(2)} Ar</span>
+                            <span>{formatMGA(item.prix_unitaire || item.prix || 0)} Ar</span>
                           </div>
                         </div>
                       ))}
@@ -160,7 +162,7 @@ const OrderTracking = () => {
 
                 <div className="landing-order-card__footer">
                   <div className="landing-order-total">
-                    Total: {Number(tracking.montant_total || tracking.total || 0).toFixed(2)} Ar
+                    Total: {formatMGA(tracking.montant_total || tracking.total || 0)} Ar
                   </div>
                 </div>
               </div>
