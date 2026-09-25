@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
 import './Pages.css';
+import PublicHeader from '../components/PublicHeader';
 
 const OrderTracking = () => {
   const { ref } = useParams();
@@ -41,6 +42,8 @@ const OrderTracking = () => {
     }
   };
 
+  const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+
   const getStatusBadge = (status) => {
     const map = {
       'EN_ATTENTE': 'warning',
@@ -49,7 +52,7 @@ const OrderTracking = () => {
       'LIVREE': 'success',
       'ANNULEE': 'danger',
     };
-    return map[status] || 'info';
+    return map[String(status || '').toUpperCase()] || 'info';
   };
 
   const qrData = `${window.location.origin}/order-tracking/${ref}`;
@@ -77,7 +80,8 @@ const OrderTracking = () => {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container public-tracking-page">
+      <PublicHeader />
       <div className="public-card" style={{ marginBottom: '18px' }}>
         <div className="public-card__header">
           <div>
@@ -118,7 +122,7 @@ const OrderTracking = () => {
               <div className="stat-content">
                 <p className="stat-label">Montant total</p>
                 <p className="stat-value" style={{ fontSize: '16px' }}>
-                  {Number(tracking.total_ttc || tracking.total_ht || 0).toFixed(2)} Ar
+                  {formatMGA(tracking.total_ttc || tracking.total_ht || 0)} Ar
                 </p>
               </div>
             </div>
@@ -126,7 +130,7 @@ const OrderTracking = () => {
               <div className="stat-content">
                 <p className="stat-label">Date</p>
                 <p className="stat-value" style={{ fontSize: '16px' }}>
-                  {tracking.created_at ? new Date(tracking.created_at).toLocaleDateString('mg-MG') : '-'}
+                  {tracking.created_at ? new Date(tracking.created_at).toLocaleDateString('fr-FR') : '-'}
                 </p>
               </div>
             </div>
@@ -187,8 +191,8 @@ const OrderTracking = () => {
                       <tr key={idx}>
                         <td>{item.produit_nom || item.nom || `Produit #${item.produit_id}`}</td>
                         <td>{item.quantite || 1}</td>
-                        <td>{Number(item.prix_unitaire || item.prix || 0).toFixed(2)} Ar</td>
-                        <td>{Number(item.total || ((item.prix_unitaire || item.prix || 0) * (item.quantite || 1))).toFixed(2)} Ar</td>
+                        <td>{formatMGA(item.prix_unitaire || item.prix || 0)} Ar</td>
+                        <td>{formatMGA(item.total || ((item.prix_unitaire || item.prix || 0) * (item.quantite || 1)))} Ar</td>
                       </tr>
                     ))}
                   </tbody>
