@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import '../pages/Pages.css';
 
 const PublicHeader = ({ compact = false }) => (
   <header className={`public-header public-page-header${compact ? ' public-header--compact' : ''}`}>
