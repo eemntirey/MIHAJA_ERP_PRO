@@ -80,6 +80,8 @@ const Payments = lazyWithRecovery(() => import('./pages/Payments'), 'Payments');
 const AI = lazyWithRecovery(() => import('./pages/AI'), 'AI');
 const Documentation = lazyWithRecovery(() => import('./pages/Documentation'), 'Documentation');
 const Downloads = lazyWithRecovery(() => import('./pages/Downloads'), 'Downloads');
+const Terms = lazyWithRecovery(() => import('./pages/Terms'), 'Terms');
+const Privacy = lazyWithRecovery(() => import('./pages/Privacy'), 'Privacy');
 const Checkout = lazyWithRecovery(() => import('./pages/Checkout'), 'Checkout');
 const OrderTracking = lazyWithRecovery(() => import('./pages/OrderTracking'), 'OrderTracking');
 const SuperAdmin = lazyWithRecovery(() => import('./pages/SuperAdmin'), 'SuperAdmin');
@@ -278,6 +280,8 @@ function App() {
                 <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/telechargements" element={<Downloads />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/register/simple" element={<RegisterUser />} />
