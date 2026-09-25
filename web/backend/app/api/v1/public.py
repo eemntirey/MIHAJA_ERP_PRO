@@ -157,44 +157,67 @@ class PublicContact(Resource):
     def post(self):
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
-            return {'message': 'Corps JSON invalide'}, 400
+            return {'message': 'Corps JSON invalide.'}, 400
+
+        if str(data.get('website') or '').strip():
+            return {'message': 'Message refusé.'}, 400
 
         name = str(data.get('name') or '').strip()
         email = str(data.get('email') or '').strip()
+        subject_input = str(data.get('subject') or '').strip()
         message = str(data.get('message') or '').strip()
 
         if not name or not email or not message:
             return {'message': 'Nom, email et message sont requis.'}, 400
-        if len(name) > 120 or len(email) > 254 or len(message) > 5000:
+        if len(name) > 120 or len(email) > 254 or len(subject_input) > 160 or len(message) > 5000:
             return {'message': 'Un ou plusieurs champs dépassent la longueur autorisée.'}, 400
 
-        import re
-        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        parsed_name, parsed_email = parseaddr(email)
+        if parsed_name or parsed_email != email or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
             return {'message': 'Adresse email invalide.'}, 400
 
-        recipient = getattr(Config, 'MAIL_CONTACT_RECIPIENT', None) or getattr(Config, 'MAIL_USERNAME', None)
+        recipient = getattr(Config, 'MAIL_CONTACT_RECIPIENT', None)
         if not recipient:
-            current_app.logger.error('Contact public impossible : destinataire SMTP non configuré')
+            current_app.logger.error('Contact public impossible : MAIL_CONTACT_RECIPIENT non configuré')
             return {'message': 'Le service de contact est momentanément indisponible.'}, 503
 
         safe_name = name.replace('\r', ' ').replace('\n', ' ')
-        subject = f'Nouveau message de contact — {safe_name}'
-        import html as html_lib
+        safe_subject = subject_input.replace('\r', ' ').replace('\n', ' ')
+        subject = f"Contact MIHAJA ERP — {safe_subject or safe_name}"
+        now = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
+
         html_body = (
-            '<div style="font-family:Arial,Helvetica,sans-serif;color:#111111">'
-            '<h2 style="color:#111111">Nouveau message depuis MIHAJA ERP PRO</h2>'
+            '<div style="font-family:Arial,Helvetica,sans-serif;color:#111">'
+            '<h2>Nouveau message depuis MIHAJA ERP PRO</h2>'
             f'<p><strong>Nom :</strong> {html_lib.escape(name)}</p>'
             f'<p><strong>Email :</strong> {html_lib.escape(email)}</p>'
+            f'<p><strong>Sujet :</strong> {html_lib.escape(safe_subject or "Demande générale")}</p>'
+            f'<p><strong>Date :</strong> {html_lib.escape(now)}</p>'
             '<p><strong>Message :</strong></p>'
-            '<div style="white-space:pre-wrap;border-left:3px solid #d4af37;padding-left:12px">'
+            '<div style="white-space:pre-wrap;border-left:3px solid #d4af37;padding:10px 14px;background:#fafafa">'
             f'{html_lib.escape(message)}</div>'
+            '<p style="margin-top:22px;color:#777;font-size:12px">Message envoyé depuis le formulaire public MIHAJA ERP PRO.</p>'
             '</div>'
         )
 
-        result = send_email(subject, html_body, recipient)
+        result = send_email(subject, html_body, recipient, reply_to=email)
         if not result.get('delivered'):
-            current_app.logger.error('Envoi contact non livré : %s', result.get('message'))
+            current_app.logger.error('Envoi contact non livré : %s', result.get('message', 'erreur SMTP'))
             return {'message': 'Impossible d’envoyer le message pour le moment. Réessayez plus tard.'}, 503
+
+        acknowledgement = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;color:#111">'
+            '<h2>Nous avons bien reçu votre message</h2>'
+            f'<p>Bonjour {html_lib.escape(name)},</p>'
+            '<p>Merci d’avoir contacté MIHAJA ERP PRO. Votre demande a bien été transmise à notre équipe.</p>'
+            f'<p><strong>Sujet :</strong> {html_lib.escape(safe_subject or "Demande générale")}</p>'
+            '<p>Nous reviendrons vers vous à l’adresse email utilisée pour ce message.</p>'
+            '<p style="color:#777;font-size:12px">Ceci est un accusé de réception automatique.</p>'
+            '</div>'
+        )
+        ack = send_email('Confirmation de réception — MIHAJA ERP PRO', acknowledgement, email)
+        if not ack.get('delivered'):
+            current_app.logger.warning('Accusé de réception non envoyé au contact : %s', ack.get('message', 'erreur SMTP'))
 
         return {'message': 'Message envoyé avec succès.'}, 200
 
