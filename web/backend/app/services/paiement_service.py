@@ -175,15 +175,44 @@ def update(id, data):
     if not paiement:
         return None
     normalized = _normalize_payment_data(data)
+    facture_id = paiement.facture_id
+    if facture_id and 'montant' in normalized:
+        tenant_id = get_current_tenant_id()
+        facture_query = Facture.query.filter_by(id=facture_id, is_active=True)
+        if tenant_id is not None:
+            facture_query = facture_query.filter_by(tenant_id=tenant_id)
+        facture = facture_query.with_for_update().first()
+        if not facture:
+            raise ValueError("Facture introuvable")
+
+        nouveau_montant = float(normalized.get('montant') or 0)
+        if nouveau_montant <= 0:
+            raise ValueError("Le montant doit être supérieur à 0")
+
+        deja_paye = db.session.query(
+            db.func.coalesce(db.func.sum(Paiement.montant), 0)
+        ).filter(
+            Paiement.facture_id == facture_id,
+            Paiement.tenant_id == facture.tenant_id,
+            Paiement.is_active.is_(True),
+            Paiement.id != paiement.id,
+        ).scalar() or 0
+        if float(deja_paye) + nouveau_montant > float(facture.total_ttc or 0) + 0.01:
+            raise ValueError(
+                f"Montant trop élevé : déjà payé {float(deja_paye):.2f} "
+                f"sur {float(facture.total_ttc or 0):.2f}"
+            )
+
     PROTECTED = {'id', 'tenant_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_active'}
     for key, value in normalized.items():
         if key in PROTECTED:
             continue
         if hasattr(paiement, key):
             setattr(paiement, key, value)
-    db.session.commit()
+
     if paiement.facture_id:
-        _recompute_facture_status(paiement.facture_id)
+        _recompute_facture_status(paiement.facture_id, commit=False)
+    db.session.commit()
     return paiement
 
 
