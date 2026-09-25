@@ -48,6 +48,8 @@ services:
       # Coller la clé staging du guide (docs/ops/DEPLOIEMENT_RENDER.md §4).
       - key: ENCRYPTION_KEY
         sync: false
+      - key: MAIL_CONTACT_RECIPIENT
+        sync: false
       - key: JWT_COOKIE_CSRF_PROTECT
         value: "false"
       - key: REDIS_URL
