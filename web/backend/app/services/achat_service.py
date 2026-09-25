@@ -98,10 +98,12 @@ class CommandeAchatService:
             total_ttc = 0
             for ligne in lignes_data:
                 ligne['commande_achat_id'] = id
+                ligne['tenant_id'] = instance.tenant_id
                 ligne_obj = LigneAchat(**ligne)
                 db.session.add(ligne_obj)
-                total_ht += float(ligne_obj.total_ht or 0)
-                total_ttc += float(ligne_obj.total_ht or 0) * (1 + float(ligne.get('taux_tva', 20)) / 100)
+                taux_tva = Decimal(str(ligne.get('taux_tva', 20) or 0))
+                total_ht += Decimal(str(ligne_obj.total_ht or 0))
+                total_ttc += Decimal(str(ligne_obj.total_ht or 0)) * (Decimal('1') + taux_tva / Decimal('100'))
             instance.total_ht = total_ht
             instance.total_ttc = total_ttc
         try:
