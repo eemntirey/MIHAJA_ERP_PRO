@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from datetime import datetime, timedelta
 from app.security.tenant import tenant_required_readonly
 from app.security.permissions import permission_required
-from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats
+from app.services.vente_service import get_sales_summary, create_with_lignes, get_stats, update as update_vente
 from flask import request, current_app
 from app import db
 
@@ -131,33 +131,16 @@ class VenteResource(Resource):
     @tenant_required_readonly
     def put(self, id):
         """Met a jour une vente"""
-        from app.models.vente import Vente
-        from app.security.tenant import tenant_filtered_get
         from flask import request
-        vente = tenant_filtered_get(Vente, id)
-        if not vente:
-            return {'message': 'Vente non trouvee'}, 404
-        data = request.get_json()
+        data = request.get_json() or {}
         try:
-            if 'date' in data and isinstance(data['date'], str):
-                from datetime import datetime
-                raw_date = data['date']
-                try:
-                    data['date'] = datetime.strptime(raw_date, '%Y-%m-%d')
-                except ValueError:
-                    try:
-                        data['date'] = datetime.fromisoformat(raw_date)
-                    except ValueError:
-                        return {'message': 'Format de date invalide (attendu YYYY-MM-DD)'}, 400
-            PROTECTED = {'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'tenant_id', 'is_active'}
-            for key, value in data.items():
-                if key in PROTECTED:
-                    continue
-                if hasattr(vente, key):
-                    setattr(vente, key, value)
-            from app import db
-            db.session.commit()
+            vente = update_vente(id, data)
+            if not vente:
+                return {'message': 'Vente non trouvee'}, 404
             return vente.to_dict(), 200
+        except ValueError as e:
+            db.session.rollback()
+            return {'message': str(e)}, 400
         except Exception:
             db.session.rollback()
             current_app.logger.exception('Erreur lors de la mise a jour de la vente')
