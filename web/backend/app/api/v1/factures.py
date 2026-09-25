@@ -19,11 +19,23 @@ class FactureList(Resource):
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
         factures = query.all()
+        facture_ids = [f.id for f in factures]
+        paiements_by_facture = {}
+        if facture_ids:
+            from app.models.paiement import Paiement
+            payment_query = Paiement.query.filter(
+                Paiement.facture_id.in_(facture_ids),
+                Paiement.is_active.is_(True),
+            )
+            if tenant_id:
+                payment_query = payment_query.filter(Paiement.tenant_id == tenant_id)
+            for paiement in payment_query.all():
+                paiements_by_facture.setdefault(paiement.facture_id, []).append(paiement.to_dict())
+
         result = []
         for f in factures:
             d = f.to_dict()
-            paiements = [p.to_dict() for p in f.paiements.filter_by(is_active=True).all()]
-            d['paiements'] = paiements
+            d['paiements'] = paiements_by_facture.get(f.id, [])
             result.append(d)
         return {'factures': result}, 200
 
