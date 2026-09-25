@@ -214,7 +214,7 @@ class SyncState(db.Model):
     # Jeton JWT du central servant à authentifier le push/pull. Renseigné au
     # login en ligne (proxy vers le central) ; vide = poste jamais connecté
     # ou session expirée (il faut se reconnecter en ligne).
-    service_token = db.Column(db.Text, nullable=True)
+    service_token = db.Column(db.Text, nullable=True)\n    service_refresh_token = db.Column(db.Text, nullable=True)
 
     @classmethod
     def get_or_create(cls):
