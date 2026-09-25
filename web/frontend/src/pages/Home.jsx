@@ -236,8 +236,8 @@ const Home = () => {
       {/* ── Header ── */}
       <header className="public-header">
         <Link to="/" className="brand">
-          <span className="brand-icon">EP</span>
-          <span className="brand-name">ERP Pro</span>
+          <span className="brand-icon" aria-hidden="true">M</span>
+          <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
         </Link>
         <nav className="public-nav">
           <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
