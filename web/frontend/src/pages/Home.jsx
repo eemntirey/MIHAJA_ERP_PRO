@@ -339,14 +339,14 @@ const Home = () => {
                       {!editingName && (
                         <>
                           <div className="user-cartouche-body">
-                            <Link to="/profile" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                            <button type="button" className="user-cartouche-item" role="menuitem" onClick={startEditName}>
                               <span className="user-cartouche-item-icon"><i className="ti ti-user" aria-hidden="true" /></span>
                               <span>
-                                <strong>Mon profil</strong>
-                                <small>Gérer mes informations</small>
+                                <strong>Mes informations</strong>
+                                <small>Modifier mon nom et mes coordonnées</small>
                               </span>
                               <i className="ti ti-chevron-right" aria-hidden="true" />
-                            </Link>
+                            </button>
 
                             <Link to="/mes-commandes" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
                               <span className="user-cartouche-item-icon"><i className="ti ti-package" aria-hidden="true" /></span>
