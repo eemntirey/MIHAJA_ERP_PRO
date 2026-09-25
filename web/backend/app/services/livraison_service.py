@@ -406,17 +406,22 @@ class LivraisonService:
         query = Livraison.query.filter_by(is_active=True)
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
-        livraisons = query.all()
-        count = len(livraisons)
-        by_statut = {}
-        for l in livraisons:
-            s = l.statut or 'en_attente'
-            by_statut.setdefault(s, {'count': 0})
-            by_statut[s]['count'] += 1
+        from sqlalchemy import func
+        total = query.with_entities(func.count(Livraison.id)).scalar() or 0
+        rows = query.with_entities(
+            Livraison.statut,
+            func.count(Livraison.id),
+        ).group_by(Livraison.statut).all()
+        active_count = query.filter(
+            Livraison.statut.in_(('en_attente', 'chargee', 'en_cours', 'en_route'))
+        ).with_entities(func.count(Livraison.id)).scalar() or 0
         return {
-            'total': count,
-            'by_statut': by_statut,
-            'active_count': sum(1 for l in livraisons if l.statut in ('en_attente', 'chargee', 'en_cours', 'en_route')),
+            'total': int(total),
+            'by_statut': {
+                (statut or 'en_attente'): {'count': int(count)}
+                for statut, count in rows
+            },
+            'active_count': int(active_count),
         }
 
     @classmethod
