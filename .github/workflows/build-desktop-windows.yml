@@ -7,6 +7,9 @@ on:
       - V0
     tags:
       - "desktop-v*"
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -55,6 +58,7 @@ jobs:
           retention-days: 30
 
       - name: Publish rolling direct download
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $files = Get-ChildItem -Path dist -Filter *.exe -File | Select-Object -ExpandProperty FullName
