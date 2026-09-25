@@ -109,14 +109,15 @@ const Home = () => {
   const userMenuRef = useRef(null);
 
   const isUser = user?.role === 'USER' || user?.role === 'user';
-  const role = (user?.role || '').toLowerCase();
-
   useEffect(() => {
     fetchProducts();
+  }, []);
+
+  useEffect(() => {
     if (isUser && isAuthenticated) {
       fetchNotifications();
     }
-  }, []);
+  }, [isUser, isAuthenticated]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -242,6 +243,7 @@ const Home = () => {
           <span className="brand-name">ERP Pro</span>
         </Link>
         <nav className="public-nav">
+          <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
           <a href="#telechargements" className="public-nav-link">Téléchargements</a>
           {isAuthenticated ? (
             <>
