@@ -655,7 +655,31 @@ const Home = () => {
               </div>
             </section>
 
-            {/* ── Downloads ── */}
+            {/* ── Final CTA ── */}
+            <section className="vit-final-cta">
+              <div className="vit-final-cta__inner">
+                <h2>Prêt à moderniser votre entreprise ?</h2>
+                <p>Rejoignez des centaines d'entreprises qui font déjà confiance à ERP Pro.</p>
+                <div className="vit-final-cta__actions">
+                  <Link to="/register/company" className="vit-btn vit-btn--primary vit-btn--lg">
+                    <i className="ti ti-rocket" aria-hidden="true" />
+                    Démarrer maintenant
+                  </Link>
+                  <Link to="/contact" className="vit-btn vit-btn--glass vit-btn--lg">
+                    <i className="ti ti-mail" aria-hidden="true" />
+                    Nous contacter
+                  </Link>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+
+
+        {isAuthenticated && (
+          <>
+            {/* ── Downloads pour client connecté ── */}
             <section className="vit-downloads" id="telechargements">
               <div className="vit-section-header">
                 <span className="vit-section-tag">
@@ -710,23 +734,6 @@ const Home = () => {
               </div>
             </section>
 
-            {/* ── Final CTA ── */}
-            <section className="vit-final-cta">
-              <div className="vit-final-cta__inner">
-                <h2>Prêt à moderniser votre entreprise ?</h2>
-                <p>Rejoignez des centaines d'entreprises qui font déjà confiance à ERP Pro.</p>
-                <div className="vit-final-cta__actions">
-                  <Link to="/register/company" className="vit-btn vit-btn--primary vit-btn--lg">
-                    <i className="ti ti-rocket" aria-hidden="true" />
-                    Démarrer maintenant
-                  </Link>
-                  <Link to="/contact" className="vit-btn vit-btn--glass vit-btn--lg">
-                    <i className="ti ti-mail" aria-hidden="true" />
-                    Nous contacter
-                  </Link>
-                </div>
-              </div>
-            </section>
           </>
         )}
 
