@@ -43,7 +43,12 @@
   "build": {
     "appId": "com.erppro.desk",
     "productName": "ERP Pro Desktop",
-    "extraResources": [{ "from": "electron/backend/dist", "to": "backend" }],
+    "extraResources": [
+      {
+        "from": "electron/backend/dist",
+        "to": "backend"
+      }
+    ],
     "files": [
       "build/**/*",
       "electron/**/*"
@@ -54,7 +59,8 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "artifactName": "MIHAJA-ERP-PRO-Setup.exe"
     },
     "mac": {
       "target": "dmg",
