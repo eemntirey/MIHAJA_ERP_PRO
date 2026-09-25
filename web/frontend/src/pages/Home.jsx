@@ -47,7 +47,7 @@ const FEATURES = [
   {
     icon: 'ti ti-users',
     title: 'Gestion clientèle',
-    desc: 'Base de données centralisée de vos clients, historique des achats et programmess de fidélité.',
+    desc: 'Base de données centralisée de vos clients, historique des achats et programmes de fidélité.',
   },
   {
     icon: 'ti ti-chart-bar',
@@ -101,6 +101,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [trackingRef, setTrackingRef] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserCartouche, setShowUserCartouche] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -172,11 +173,11 @@ const Home = () => {
     }
   };
 
-  const handleSearch = (e) => {
+  const handleTrackOrder = (e) => {
     e.preventDefault();
-    const ref = (searchQuery || '').trim();
+    const ref = (trackingRef || '').trim();
     if (!ref) {
-      toast.warn('Saisissez une référence de commande ou un nom de produit.');
+      toast.warn('Saisissez une référence de commande.');
       return;
     }
     fetchNotifications(ref);
@@ -408,14 +409,15 @@ const Home = () => {
               )}
             </div>
 
-            <form onSubmit={handleSearch} className="orders-track">
+            <form onSubmit={handleTrackOrder} className="orders-track">
               <div className="orders-track__field">
                 <i className="ti ti-search orders-track__icon" aria-hidden="true" />
                 <input
                   type="text"
-                  placeholder="Rechercher un produit par nom ou vendeur..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Suivre une commande par référence..."
+                  value={trackingRef}
+                  onChange={(e) => setTrackingRef(e.target.value)}
+                  aria-label="Référence de commande"
                 />
               </div>
               <button type="submit" className="btn-primary orders-track__btn">
@@ -698,7 +700,28 @@ const Home = () => {
           )}
 
           {!loading && !error && (
-            <div className="home-products-grid">
+            <>
+              <div className="vit-catalogue-search" role="search">
+                <i className="ti ti-search" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher un produit ou un vendeur..."
+                  aria-label="Rechercher dans le catalogue"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="vit-catalogue-search__clear"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Effacer la recherche"
+                  >
+                    <i className="ti ti-x" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <div className="home-products-grid">
               {products.length === 0 ? (
                 <div className="card full-width vit-catalogue-empty">
                   <i className="ti ti-package-off vit-catalogue-empty__icon" aria-hidden="true" />
@@ -751,15 +774,15 @@ const Home = () => {
                           className="vit-btn vit-btn--outline vit-btn--sm"
                         >
                           <i className="ti ti-eye" aria-hidden="true" />
-                          Details
+                          Détails
                         </Link>
-                        {(isUser || isAuthenticated) && (
+                        {isUser && (
                           <button
                             type="button"
                             className="vit-btn vit-btn--primary vit-btn--sm"
                             onClick={() => {
                               addItem(product, 1);
-                              toast.success(`${product.nom} ajoute au panier`);
+                              toast.success(`${product.nom} ajouté au panier`);
                             }}
                           >
                             <i className="ti ti-shopping-cart-plus" aria-hidden="true" />
@@ -781,6 +804,7 @@ const Home = () => {
                 ))
               )}
             </div>
+            </>
           )}
         </section>
       </main>
@@ -819,8 +843,8 @@ const Home = () => {
                 <div className="vit-footer__col">
                   <h4>Entreprise</h4>
                   <Link to="/contact">Contactez-nous</Link>
-                  <a href="#">Mentions légales</a>
-                  <a href="#">Politique de confidentialité</a>
+                  <Link to="/terms">Mentions légales</Link>
+                  <Link to="/privacy">Politique de confidentialité</Link>
                 </div>
               </div>
             </div>
