@@ -55,6 +55,38 @@ def auth_headers():
     return headers
 
 
+def refresh_service_token():
+    """Renouvelle le token central et fait tourner le refresh token."""
+    import requests
+    base = remote_base_url()
+    if not base:
+        return False
+    try:
+        refresh_token = SyncState.get_service_refresh_token()
+    except Exception:
+        refresh_token = None
+    if not refresh_token:
+        return False
+    try:
+        response = requests.post(
+            f'{base}/api/v1/auth/refresh',
+            headers={'Authorization': f'Bearer {refresh_token}'},
+            timeout=REPLICATION_TIMEOUT,
+        )
+        if not response.ok:
+            return False
+        body = response.json() or {}
+        new_access = body.get('access_token')
+        new_refresh = body.get('refresh_token')
+        if not new_access:
+            return False
+        SyncState.set_service_token(new_access, new_refresh or refresh_token)
+        current_app.extensions['repl_token'] = new_access
+        return True
+    except Exception:
+        return False
+
+
 def record_online_state(online=None, error=None, push_done=False,
                         pull_done=False):
     """Met à jour l'état de réplication exposé par /sync/local-status."""
