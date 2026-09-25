@@ -64,7 +64,7 @@ def _normalize_payment_data(data):
     return normalized
 
 
-def _recompute_facture_status(facture_id):
+def _recompute_facture_status(facture_id, commit=True):
     """Recalcule le statut d'une facture en fonction du cumul des paiements actifs."""
     if not facture_id:
         return
@@ -90,7 +90,8 @@ def _recompute_facture_status(facture_id):
     # (fini Vente.en_attente alors que Facture est payee).
     from app.services.facturation_service import _sync_vente_status
     _sync_vente_status(facture)
-    db.session.commit()
+    if commit:
+        db.session.commit()
 
 
 def process_payment(data):
@@ -139,7 +140,8 @@ def process_payment(data):
     db.session.commit()
 
     if facture_id:
-        _recompute_facture_status(facture_id)
+        _recompute_facture_status(facture_id, commit=False)
+    db.session.commit()
 
     return paiement
 
