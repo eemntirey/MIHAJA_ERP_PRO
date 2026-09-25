@@ -331,6 +331,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                     <th>Quantité *</th>
                     <th>Prix HT *</th>
                     <th>TVA %</th>
+                    <th>Remise %</th>
                     <th>Total TTC</th>
                     <th>Action</th>
                   </tr>
@@ -378,10 +379,20 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                         />
                       </td>
                       <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          {...register(`lignes.${index}.remise`, { valueAsNumber: true })}
+                        />
+                      </td>
+                      <td>
                         {watchedLines[index] && formatCurrency(calculateLineTotal(
                           watchedLines[index].quantite,
                           watchedLines[index].prix_unitaire,
-                          watchedLines[index].taux_tva
+                          watchedLines[index].taux_tva,
+                          watchedLines[index].remise
                         ))}
                       </td>
                       <td>
@@ -399,7 +410,7 @@ const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = false, init
                 </tbody>
               </table>
             </div>
-            <button type="button" className="btn-secondary" onClick={() => append({ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 })}>
+            <button type="button" className="btn-secondary" onClick={() => append({ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20, remise: 0 })}>
               + Ajouter ligne
             </button>
           </div>
