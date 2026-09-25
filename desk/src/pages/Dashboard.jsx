@@ -3,12 +3,10 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { authService, clientService, dashboardService, productService, saleService, subscriptionService } from '../services/api';
+import { authService, dashboardService, subscriptionService } from '../services/api';
 import {
   buildChartGeometry,
-  buildPreviousPeriodTotal,
   buildPriorities,
-  buildSalesEvolution,
   buildSparklinePath,
   formatCurrency,
   formatCurrencyExact,
@@ -18,9 +16,6 @@ import {
   formatPercentageChange,
   formatTrendLabel,
   getSaleDate,
-  getTodayTotal,
-  normalizeCriticalStockAlerts,
-  normalizeReceivables,
   normalizeRecentActivity,
   normalizeTopProducts,
   serializeDashboardCsv,
@@ -438,55 +433,42 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
 
-      const [
-        dashboardResponse,
-        productsResponse,
-        clientsResponse,
-        recentSalesResponse,
-        allSalesResponse,
-        topProductsResponse,
-        alertsResponse,
-      ] = await Promise.all([
-        dashboardService.getStats().catch(() => ({ data: {} })),
-        productService.getAll({ limit: 1 }).catch(() => ({ data: {} })),
-        clientService.getAll({ limit: 1 }).catch(() => ({ data: {} })),
-        saleService.getAll({ limit: 10 }).catch(() => ({ data: { ventes: [] } })),
-        saleService.getAll({ limit: 100 }).catch(() => ({ data: { ventes: [] } })),
-        dashboardService.getTopProducts().catch(() => ({ data: {} })),
-        dashboardService.getAlerts().catch(() => ({ data: null })),
-      ]);
+      const response = await dashboardService.getOverview().catch(() => ({ data: {} }));
+      const dashboardData = response.data?.overview || {};
+      const recentSales = dashboardData.recent_sales || [];
+      const evolution = (dashboardData.evolution || []).map((day) => ({
+        dateKey: day.date,
+        label: new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'short' }),
+        total: toNumber(day.total),
+        count: 0,
+      }));
 
-      const dashboardData = dashboardResponse.data?.stats || {};
-      const recentSales = recentSalesResponse.data?.ventes || [];
-      const allSales = allSalesResponse.data?.ventes || recentSales;
-      const evolution = buildSalesEvolution(allSales);
-      const previousPeriodTotal = buildPreviousPeriodTotal(allSales);
-      const receivables = normalizeReceivables(dashboardData);
       const stats = {
-        products: toNumber(productsResponse.data?.total ?? dashboardData.total_produits),
-        clients: toNumber(clientsResponse.data?.total ?? dashboardData.clients_actifs),
+        products: toNumber(dashboardData.total_produits),
+        clients: toNumber(dashboardData.clients_actifs),
         salesToday: toNumber(dashboardData.ventes_aujourdhui),
         revenue: toNumber(dashboardData.ca_mois),
         stockAlerts: toNumber(dashboardData.alertes_stock),
-        criticalStockAlerts: normalizeCriticalStockAlerts(alertsResponse.data),
-        todayRevenue: getTodayTotal(allSales),
-        receivablesCount: receivables.count,
-        receivablesTotal: receivables.total,
+        criticalStockAlerts: toNumber(dashboardData.alertes_stock_critiques),
+        todayRevenue: dashboardData.ca_aujourdhui == null ? null : toNumber(dashboardData.ca_aujourdhui),
+        receivablesCount: toNumber(dashboardData.receivables_count),
+        receivablesTotal: toNumber(dashboardData.receivables_total),
       };
+
       const recentActivity = normalizeRecentActivity(recentSales);
       const priorities = buildPriorities({
         criticalStockAlerts: stats.criticalStockAlerts,
         stockAlerts: stats.stockAlerts,
         receivablesCount: stats.receivablesCount,
         todaySales: stats.salesToday,
-        hasSalesData: allSales.length > 0,
+        hasSalesData: recentSales.length > 0,
       });
 
       setDashboardState({
         stats,
         evolution,
-        previousPeriodTotal,
-        topProducts: normalizeTopProducts(topProductsResponse.data),
+        previousPeriodTotal: dashboardData.previous_period_total == null ? null : toNumber(dashboardData.previous_period_total),
+        topProducts: normalizeTopProducts(dashboardData),
         recentActivity,
         priorities,
       });
