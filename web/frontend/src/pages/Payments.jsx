@@ -98,8 +98,8 @@ const Payments = () => {
       toast.error('Veuillez sélectionner une facture');
       return;
     }
-    if (!formData.client_id) {
-      toast.error('Le client associé à la facture est requis');
+    if (!formData.facture_id || !formData.client_id) {
+      toast.error('Sélectionnez d’abord une facture.');
       return;
     }
     if (formData.montant <= 0) {
@@ -289,14 +289,14 @@ const Payments = () => {
 
                 <div className="form-group">
                   <label>Client associé</label>
-                  <select name="client_id" value={formData.client_id} onChange={handleChange} required>
-                    <option value="">Sélectionnez un client</option>
-                    {clients.map(client => (
-                      <option key={client.id} value={client.id}>
-                        {client.nom || client.raison_sociale || `Client #${client.id}`}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    value={clients.find((client) => client.id === Number(formData.client_id))?.nom_complet
+                      || clients.find((client) => client.id === Number(formData.client_id))?.nom
+                      || clients.find((client) => client.id === Number(formData.client_id))?.raison_sociale
+                      || (formData.client_id ? 'Client #' + formData.client_id : 'Sélectionnez d’abord une facture')}
+                    readOnly
+                  />
+                  <small className="text-muted">Le client est repris automatiquement depuis la facture.</small>
                 </div>
 
                 <div className="form-group">
