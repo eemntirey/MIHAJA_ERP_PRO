@@ -5391,3 +5391,16 @@
     animation: none;
   }
 }
+
+
+/* HERO — contraste du titre principal */
+.home-page .vit-hero__title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.18);
+}
+
+.home-page .vit-hero__title-accent {
+  color: #e4c86f !important;
+  -webkit-text-fill-color: #e4c86f;
+}
