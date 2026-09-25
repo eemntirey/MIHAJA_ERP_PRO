@@ -130,6 +130,10 @@ class CommandeAchatService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
+        if ReceptionAchat.query.filter_by(
+            commande_achat_id=id, tenant_id=instance.tenant_id, is_active=True
+        ).count():
+            raise ValueError("Impossible de supprimer une commande ayant des réceptions")
         instance.delete()
         try:
             db.session.commit()
