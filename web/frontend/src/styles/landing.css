@@ -1659,3 +1659,105 @@
     padding: 14px;
   }
 }
+
+
+/* ======================================================
+   CATALOGUE SEARCH
+   ====================================================== */
+
+.vit-catalogue-search {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 24px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: var(--landing-radius-sm);
+  background: var(--landing-white);
+  box-shadow: var(--landing-shadow);
+}
+
+.vit-catalogue-search > i {
+  color: var(--landing-gold-dark);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.vit-catalogue-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--landing-ink);
+  font: inherit;
+}
+
+.vit-catalogue-search input::placeholder {
+  color: var(--landing-ink-muted);
+}
+
+.vit-catalogue-search__clear {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--landing-ink-muted);
+  cursor: pointer;
+}
+
+.vit-catalogue-search__clear:hover {
+  background: var(--landing-bg);
+  color: var(--landing-ink);
+}
+
+/* ======================================================
+   PAGES LÉGALES
+   ====================================================== */
+
+.landing-legal-page {
+  padding-top: 64px;
+  padding-bottom: 80px;
+}
+
+.landing-legal-card {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px);
+  background: var(--landing-white);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--landing-radius);
+  box-shadow: var(--landing-shadow);
+}
+
+.landing-legal-card section + section {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.landing-legal-card h2 {
+  margin: 0 0 10px;
+  font-family: var(--landing-font);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--landing-ink);
+}
+
+.landing-legal-card p {
+  margin: 0;
+  color: var(--landing-ink-soft);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.landing-legal-card a {
+  color: var(--landing-gold-dark);
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
