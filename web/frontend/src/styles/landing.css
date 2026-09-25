@@ -1761,3 +1761,22 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
+
+/* MIHAJA public visual override — keep catalogue aligned with main brand */
+.landing-root, .landing-section { background:#f7f5ef !important; color:#151719; }
+.landing-product-card { background:#fff !important; border:1px solid rgba(11,12,13,.09) !important; border-radius:18px !important; box-shadow:0 7px 28px rgba(0,0,0,.045) !important; }
+.landing-product-card::before { display:none !important; }
+.landing-product-card:hover { border-color:rgba(200,168,78,.42) !important; box-shadow:0 18px 55px rgba(11,12,13,.09) !important; transform:translateY(-4px); }
+.landing-product-visual { background:#f1efe8 !important; border:0 !important; border-radius:13px !important; }
+.landing-product-name { color:#151719 !important; font-size:14px !important; }
+.landing-product-badge { background:#f5f1e2 !important; color:#806a29 !important; border-color:#e7dbb5 !important; }
+.landing-product-price { color:#9b7a20 !important; }
+.landing-btn-fut { background:#111 !important; border-color:#111 !important; color:#fff !important; }
+.landing-btn-fut:hover { background:#282a2b !important; }
+.landing-catalog-error { background:#fff !important; border:1px solid rgba(11,12,13,.09); }
+.landing-section-title { color:#151719 !important; letter-spacing:-.035em; }
+.landing-section-subtitle { color:#777b76 !important; }
+@media (max-width:760px) {
+ .landing-product-card { min-width:0; }
+ .landing-catalog-grid { grid-template-columns:1fr !important; }
+}
