@@ -78,7 +78,8 @@ const Downloads = () => (
     <footer className="downloads-footer">
       ERP Pro — MIHAJA. Applications destinées aux utilisateurs autorisés.
     </footer>
-  </div>
+    </div>
+  </>
 );
 
 export default Downloads;
