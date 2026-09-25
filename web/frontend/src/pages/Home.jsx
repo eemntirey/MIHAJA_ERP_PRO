@@ -42,7 +42,7 @@ const FEATURES = [
   {
     icon: 'ti ti-receipt',
     title: 'Facturation rapide',
-    desc: 'Génération automatique de factures, devis et bons de commande conformes à la réglementation malgache.',
+    desc: 'Génération de factures, devis et bons de commande adaptés aux besoins des entreprises à Madagascar.',
   },
   {
     icon: 'ti ti-users',
@@ -67,30 +67,27 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: '500+', label: 'Entreprises actives' },
-  { value: '10 000+', label: 'Produits gérés' },
-  { value: '99.9%', label: 'Disponibilité' },
-  { value: '24/7', label: 'Support technique' },
+  { value: 'Multi-tenant', label: 'Espaces d’entreprise isolés' },
+  { value: 'MGA', label: 'Devise adaptée au marché local' },
+  { value: 'Web', label: 'Application accessible sur navigateur' },
+  { value: 'Desktop', label: 'Application Windows disponible' },
 ];
 
-const TESTIMONIALS = [
+const VALUE_POINTS = [
   {
-    name: 'Rakoto Jean',
-    role: 'Directeur, Teknisyo SARL',
-    text: 'ERP Pro a transformé notre gestion des stocks. Nous avons réduit les pertes de 40% en seulement 3 mois.',
-    avatar: 'RJ',
+    icon: 'ti ti-shield-check',
+    title: 'Données séparées',
+    desc: 'Chaque entreprise travaille dans son espace tenant, avec une séparation des données côté plateforme.',
   },
   {
-    name: 'Rasoa Hélène',
-    role: 'Gérante, Boutique Tolagnaro',
-    text: 'La facturation est devenue un jeu d\'enfant. Je recommande vivement cette solution pour toute PME à Madagascar.',
-    avatar: 'RH',
+    icon: 'ti ti-layout-dashboard',
+    title: 'Pilotage centralisé',
+    desc: 'Stocks, ventes, achats, clients, factures et livraisons sont réunis dans un même ERP.',
   },
   {
-    name: 'Andry Rabe',
-    role: 'Chef comptable, MadaImport',
-    text: 'Le tableau de bord nous donne une visibilité instantanée sur notre activité. Un outil indispensable.',
-    avatar: 'AR',
+    icon: 'ti ti-devices',
+    title: 'Accès multiplateforme',
+    desc: 'La plateforme est accessible sur le Web et dispose d’une application Desktop pour Windows.',
   },
 ];
 
@@ -385,7 +382,7 @@ const Home = () => {
               </div>
               <p className="vit-hero__note">
                 <i className="ti ti-shield-check" aria-hidden="true" />
-                Essai gratuit 14 jours — Aucune carte bancaire requise
+                Essai gratuit — Aucune carte bancaire requise
               </p>
             </div>
           </section>
@@ -569,29 +566,23 @@ const Home = () => {
               </div>
             </section>
 
-            {/* ── Testimonials ── */}
-            <section className="vit-testimonials">
+            {/* ── Why MIHAJA ── */}
+            <section className="vit-features">
               <div className="vit-section-header">
-                <span className="vit-section-tag">Témoignages</span>
-                <h2 className="vit-section-title">Ils nous font confiance</h2>
+                <span className="vit-section-tag">Pourquoi MIHAJA ERP PRO</span>
+                <h2 className="vit-section-title">Une base solide pour votre gestion</h2>
                 <p className="vit-section-subtitle">
-                  Découvrez ce que nos clients disent de leur expérience avec ERP Pro.
+                  Une plateforme pensée pour centraliser les opérations quotidiennes sans multiplier les outils.
                 </p>
               </div>
-              <div className="vit-testimonials__grid">
-                {TESTIMONIALS.map((t) => (
-                  <div className="vit-testimonial-card" key={t.name}>
-                    <div className="vit-testimonial-card__quote">
-                      <i className="ti ti-quote" aria-hidden="true" />
+              <div className="vit-features__grid">
+                {VALUE_POINTS.map((point) => (
+                  <div className="vit-feature-card" key={point.title}>
+                    <div className="vit-feature-card__icon">
+                      <i className={point.icon} aria-hidden="true" />
                     </div>
-                    <p className="vit-testimonial-card__text">{t.text}</p>
-                    <div className="vit-testimonial-card__author">
-                      <div className="vit-testimonial-card__avatar">{t.avatar}</div>
-                      <div>
-                        <strong className="vit-testimonial-card__name">{t.name}</strong>
-                        <span className="vit-testimonial-card__role">{t.role}</span>
-                      </div>
-                    </div>
+                    <h3 className="vit-feature-card__title">{point.title}</h3>
+                    <p className="vit-feature-card__desc">{point.desc}</p>
                   </div>
                 ))}
               </div>
