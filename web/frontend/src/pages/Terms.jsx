@@ -13,7 +13,7 @@ const Terms = () => (
       description="Conditions d’utilisation du service MIHAJA ERP PRO."
       canonical={`${SITE_URL}/terms`}
     />
-    <div className="landing-root"><PublicHeader />\n\n      <main className="landing-container landing-legal-page">
+    <div className="landing-root">\n      <PublicHeader />\n\n      <main className="landing-container landing-legal-page">
         <div className="landing-section-header">
           <span className="vit-section-tag">Informations légales</span>
           <h1 className="landing-section-title">Conditions d’utilisation</h1>
