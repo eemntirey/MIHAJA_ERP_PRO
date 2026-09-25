@@ -654,6 +654,7 @@ export const stockService = {
 
 export const dashboardService = {
   getStats: () => api.get('/dashboard'),
+  getOverview: () => api.get('/dashboard/overview'),
   getSalesStats: () => api.get('/dashboard/sales-stats'),
   getTopProducts: () => api.get('/dashboard/top-products'),
   getTopClients: () => api.get('/dashboard/top-clients'),
