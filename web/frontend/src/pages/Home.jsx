@@ -343,8 +343,6 @@ const Home = () => {
              </>
            ) : (
             <>
-              <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
-              <a href="#telechargements" className="public-nav-link">Télécharger</a>
               <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
               <Link to="/register" className="public-nav-link btn-nav-register">S'inscrire</Link>
             </>
