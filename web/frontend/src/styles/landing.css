@@ -1662,57 +1662,109 @@
 
 
 /* ======================================================
-   CATALOGUE SEARCH
+   CATALOGUE SEARCH — FINITION PREMIUM MIHAJA
    ====================================================== */
 
 .vit-catalogue-search {
   width: 100%;
   max-width: 720px;
-  margin: 0 auto 24px;
   min-height: 48px;
+  margin: 0 auto 24px;
+
   display: flex;
   align-items: center;
   gap: 10px;
+
   padding: 0 14px;
-  border: 1px solid rgba(0, 0, 0, 0.10);
-  border-radius: var(--landing-radius-sm);
-  background: var(--landing-white);
-  box-shadow: var(--landing-shadow);
+  box-sizing: border-box;
+
+  background: #f7f5ef;
+  border: 1px solid rgba(11, 12, 13, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(11, 12, 13, 0.05);
+
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.vit-catalogue-search:focus-within {
+  background: #fff;
+  border-color: #c8a84e;
+  box-shadow: 0 0 0 3px rgba(200, 168, 78, 0.14);
 }
 
 .vit-catalogue-search > i {
-  color: var(--landing-gold-dark);
-  font-size: 18px;
   flex: 0 0 auto;
+  color: #8b6d1b;
+  font-size: 18px;
 }
 
-.vit-catalogue-search input {
+.vit-catalogue-search input[type="search"] {
+  appearance: none;
+  -webkit-appearance: none;
+
   min-width: 0;
   flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--landing-ink);
-  font: inherit;
+  width: 100%;
+  height: 46px;
+
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+
+  padding: 0;
+  margin: 0;
+
+  color: #151719;
+  font-family: var(--landing-font-body);
+  font-size: 16px;
+  line-height: 1.4;
 }
 
-.vit-catalogue-search input::placeholder {
-  color: var(--landing-ink-muted);
+.vit-catalogue-search input[type="search"]::placeholder {
+  color: #777b76;
+}
+
+.vit-catalogue-search input[type="search"]::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .vit-catalogue-search__clear {
   width: 32px;
   height: 32px;
+  flex: 0 0 32px;
+
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--landing-ink-muted);
+  color: #777b76;
   cursor: pointer;
 }
 
 .vit-catalogue-search__clear:hover {
-  background: var(--landing-bg);
-  color: var(--landing-ink);
+  background: #f1efe8;
+  color: #151719;
+}
+
+.vit-catalogue-search__clear:focus-visible {
+  outline: 2px solid #c8a84e;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .vit-catalogue-search {
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 9px;
+  }
+
+  .vit-catalogue-search input[type="search"] {
+    height: 42px;
+    font-size: 16px;
+  }
 }
 
 /* ======================================================
