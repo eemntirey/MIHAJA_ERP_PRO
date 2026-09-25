@@ -48,7 +48,7 @@ class ReceptionAchat(BaseTenantModel):
     __tablename__ = 'receptions_achat'
 
     commande_achat_id = db.Column(db.Integer, db.ForeignKey('commandes_achat.id'), nullable=False, index=True)
-    produit_id = db.Column(db.Integer, db.ForeignKey('produits.id'), nullable=False, index=True)
+    produit_id = db.Column(db.Integer, db.ForeignKey('produits.id'), nullable=True, index=True)
     reference = db.Column(db.String(50), unique=True, nullable=False, index=True)
     date_reception = db.Column(db.DateTime, default=db.func.now())
     receptionne_par_id = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'), index=True)
