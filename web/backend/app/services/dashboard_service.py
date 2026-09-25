@@ -69,12 +69,26 @@ def get_dashboard_data():
             ventes_aujourdhui_query = ventes_aujourdhui_query.filter_by(tenant_id=tenant_id)
         ventes_aujourdhui = ventes_aujourdhui_query.count()
 
-        benefice_mois = db.session.query(func.sum(Vente.total_ttc - Vente.total_ht)).filter(
+        # Marge brute : ventes HT réellement facturées - coût d'achat HT des quantités vendues.
+        benefice_mois = db.session.query(
+            func.coalesce(
+                func.sum(
+                    LigneVente.total_ht
+                    - (LigneVente.quantite * Produit.prix_achat_ht)
+                ),
+                0,
+            )
+        ).join(
+            Vente, Vente.id == LigneVente.vente_id
+        ).join(
+            Produit, Produit.id == LigneVente.produit_id
+        ).filter(
+            LigneVente.is_active == True,
             Vente.is_active == True,
-            Vente.created_at >= debut_mois
+            Vente.created_at >= debut_mois,
         )
         if tenant_id:
-            benefice_mois = benefice_mois.filter_by(tenant_id=tenant_id)
+            benefice_mois = benefice_mois.filter(Vente.tenant_id == tenant_id)
         benefice_mois = float(benefice_mois.scalar() or 0)
 
         top_produits_query = db.session.query(
@@ -234,10 +248,21 @@ def get_dashboard_overview_data():
 
         month_query = db.session.query(
             func.coalesce(func.sum(Vente.total_ttc), 0),
-            func.coalesce(func.sum(Vente.total_ttc - Vente.total_ht), 0),
+            func.coalesce(
+                func.sum(
+                    LigneVente.total_ht
+                    - (LigneVente.quantite * Produit.prix_achat_ht)
+                ),
+                0,
+            ),
+        ).outerjoin(
+            LigneVente, LigneVente.vente_id == Vente.id
+        ).outerjoin(
+            Produit, Produit.id == LigneVente.produit_id
         ).filter(
             Vente.is_active == True,
             Vente.created_at >= debut_mois,
+            LigneVente.is_active == True,
         )
         if tenant_id:
             month_query = month_query.filter(Vente.tenant_id == tenant_id)
