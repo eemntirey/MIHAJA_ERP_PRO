@@ -13,7 +13,7 @@ const Privacy = () => (
       description="Politique de confidentialité et principes de protection des données de MIHAJA ERP PRO."
       canonical={`${SITE_URL}/privacy`}
     />
-    <div className="landing-root"><PublicHeader />\n\n      <main className="landing-container landing-legal-page">
+    <div className="landing-root">\n      <PublicHeader />\n\n      <main className="landing-container landing-legal-page">
         <div className="landing-section-header">
           <span className="vit-section-tag">Informations légales</span>
           <h1 className="landing-section-title">Politique de confidentialité</h1>
