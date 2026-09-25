@@ -43,6 +43,41 @@ def _resolve_prix_unitaire(produit, prix_field, repli):
     return Decimal('0')
 
 
+def _prepare_sale_line(ligne, tenant_id, prix_field, repli):
+    """Normalise une ligne de vente et calcule ses montants en Decimal."""
+    produit_id = ligne.get('produit_id')
+    produit = None
+    if produit_id:
+        query = Produit.query.filter_by(id=produit_id)
+        if tenant_id:
+            query = query.filter_by(tenant_id=tenant_id)
+        produit = query.first()
+        if not produit:
+            raise ValueError(f"Produit id={produit_id} introuvable")
+    quantite = Decimal(str(ligne.get('quantite', 0)))
+    if quantite <= 0:
+        raise ValueError("La quantité doit être supérieure à 0")
+    prix_unitaire = ligne.get('prix_unitaire')
+    if _ajout_prix_automatique(prix_unitaire):
+        prix_unitaire = _resolve_prix_unitaire(produit, prix_field, repli)
+    prix_unitaire = Decimal(str(prix_unitaire))
+    if prix_unitaire < 0:
+        raise ValueError("Le prix unitaire ne peut pas être négatif")
+    taux_tva = Decimal(str(ligne.get('taux_tva', 20)))
+    remise = Decimal(str(ligne.get('remise', 0)))
+    if taux_tva < 0:
+        raise ValueError("Le taux de TVA ne peut pas être négatif")
+    if remise < 0 or remise > 100:
+        raise ValueError("La remise doit être comprise entre 0 et 100 %")
+    base_ht = quantite * prix_unitaire * (Decimal('1') - remise / Decimal('100'))
+    total_ttc = base_ht * (Decimal('1') + taux_tva / Decimal('100'))
+    return {
+        'produit_id': produit_id, 'quantite': quantite,
+        'prix_unitaire': prix_unitaire, 'taux_tva': taux_tva,
+        'remise': remise, 'total_ht': base_ht, 'total_ttc': total_ttc,
+    }
+
+
 def _ajout_prix_automatique(value):
     if value is None or value == '':
         return True
@@ -84,17 +119,125 @@ def get_by_id(id):
 
 
 def update(id, data):
+    data = dict(data or {})
     sale = get_by_id(id)
     if not sale:
         return None
-    if 'date' in data and isinstance(data['date'], str):
-        data['date'] = datetime.strptime(data['date'], '%Y-%m-%d')
-    for key, value in data.items():
-        if hasattr(sale, key) and key not in ('id', 'tenant_id', 'created_at'):
-            setattr(sale, key, value)
-    db.session.commit()
-    return sale
 
+    if 'date' in data and isinstance(data['date'], str):
+        raw_date = data['date']
+        try:
+            data['date'] = datetime.strptime(raw_date, '%Y-%m-%d')
+        except ValueError:
+            try:
+                data['date'] = datetime.fromisoformat(raw_date)
+            except ValueError:
+                raise ValueError("Format de date invalide (attendu YYYY-MM-DD)")
+
+    tenant_id = sale.tenant_id or get_current_tenant_id()
+    active_invoice = sale.factures.filter_by(is_active=True).first()
+
+    for key in ('total_ht','total_ttc','lignes_vente','tenant_id','id','created_at',
+                'updated_at','created_by','updated_by','is_active'):
+        data.pop(key, None)
+
+    lignes_presentes = 'lignes' in data
+    lignes_data = data.pop('lignes', None)
+
+    if active_invoice and lignes_presentes:
+        raise ValueError("Impossible de modifier les lignes d'une vente déjà facturée")
+    if active_invoice and any(k in data for k in ('client_id', 'type_vente')):
+        raise ValueError("Impossible de modifier le client ou le type d'une vente déjà facturée")
+
+    if lignes_presentes:
+        if not isinstance(lignes_data, list) or not lignes_data:
+            raise ValueError("Au moins une ligne de vente est requise")
+
+        client_id = data.get('client_id', sale.client_id)
+        client_query = Client.query.filter_by(id=client_id)
+        if tenant_id:
+            client_query = client_query.filter_by(tenant_id=tenant_id)
+        client = client_query.first()
+        if not client:
+            raise ValueError("Client introuvable")
+
+        client_type = getattr(client.type, 'value', client.type) if client.type else 'particulier'
+        type_vente = data.get('type_vente', sale.type_vente or derive_type_vente(client_type))
+        if type_vente not in TYPE_VENTE_VALIDES:
+            raise ValueError("type_vente invalide. Attendu: gros ou detail")
+        prix_field = _prix_field_effectif(type_vente, client_type)
+        repli = _REPLI_GROS if type_vente == 'gros' else ('prix_vente_ht',)
+        prepared = [_prepare_sale_line(row, tenant_id, prix_field, repli) for row in lignes_data]
+
+        old_rows = LigneVente.query.filter_by(
+            vente_id=sale.id, tenant_id=tenant_id, is_active=True
+        ).all()
+        old_by_product = {}
+        for row in old_rows:
+            old_by_product[row.produit_id] = (
+                old_by_product.get(row.produit_id, Decimal('0'))
+                + Decimal(str(row.quantite or 0))
+            )
+        new_by_product = {}
+        for row in prepared:
+            if row['produit_id']:
+                new_by_product[row['produit_id']] = (
+                    new_by_product.get(row['produit_id'], Decimal('0')) + row['quantite']
+                )
+
+        product_ids = sorted(set(old_by_product) | set(new_by_product))
+        if product_ids:
+            product_query = Produit.query.filter(Produit.id.in_(product_ids))
+            if tenant_id:
+                product_query = product_query.filter_by(tenant_id=tenant_id)
+            products = {p.id: p for p in product_query.with_for_update().all()}
+            for produit_id in product_ids:
+                produit = products.get(produit_id)
+                if not produit:
+                    raise ValueError(f"Produit id={produit_id} introuvable")
+                delta = new_by_product.get(produit_id, Decimal('0')) - old_by_product.get(produit_id, Decimal('0'))
+                if delta == 0:
+                    continue
+                stock_avant = Decimal(str(produit.quantite_stock or 0))
+                if delta > 0:
+                    if stock_avant < delta:
+                        raise ValueError(f"Stock insuffisant pour {produit.nom}. Disponible: {stock_avant}")
+                    produit.quantite_stock = stock_avant - delta
+                    mouvement_type, mouvement_qty = 'sortie', delta
+                else:
+                    mouvement_qty = -delta
+                    produit.quantite_stock = stock_avant + mouvement_qty
+                    mouvement_type = 'entree'
+                db.session.add(MouvementStock(
+                    produit_id=produit.id, type_mouvement=mouvement_type,
+                    quantite=mouvement_qty, stock_avant=stock_avant,
+                    stock_apres=produit.quantite_stock,
+                    raison=f'Modification vente {sale.reference}',
+                    reference=sale.reference, tenant_id=tenant_id,
+                ))
+
+        for row in old_rows:
+            row.is_active = False
+
+        sale.client_id = client_id
+        sale.type_vente = type_vente
+        sale.total_ht = sum((row['total_ht'] for row in prepared), Decimal('0'))
+        sale.total_ttc = sum((row['total_ttc'] for row in prepared), Decimal('0'))
+
+        for row in prepared:
+            db.session.add(LigneVente(
+                vente_id=sale.id, tenant_id=tenant_id, produit_id=row['produit_id'],
+                quantite=row['quantite'], prix_unitaire_ht=row['prix_unitaire'],
+                taux_tva=row['taux_tva'], remise=row['remise'],
+            ))
+
+    for key, value in data.items():
+        if hasattr(sale, key):
+            setattr(sale, key, value)
+
+    db.session.commit()
+    db.session.refresh(sale)
+    return sale
 
 def delete(id):
     sale = get_by_id(id)
@@ -160,84 +303,42 @@ def create_with_lignes(data):
             except ValueError:
                 raise ValueError("Format de date invalide (attendu YYYY-MM-DD)")
 
-    total_ht = 0
-    total_ttc = 0
-    stock_errors = []
-    for ligne in lignes_data:
-        quantite = Decimal(str(ligne.get('quantite', 0)))
-        prix_unitaire = ligne.get('prix_unitaire')
-        if _ajout_prix_automatique(prix_unitaire):
-            produit_reference = None
-            produit_id = ligne.get('produit_id')
-            if produit_id:
-                produit_query = Produit.query.filter_by(id=produit_id)
-                if tenant_id:
-                    produit_query = produit_query.filter_by(tenant_id=tenant_id)
-                produit_reference = produit_query.first()
-            ligne['prix_unitaire'] = prix_unitaire = (
-                float(_resolve_prix_unitaire(produit_reference, prix_field, repli))
-                if produit_reference else 0
-            )
-        prix_unitaire = Decimal(str(prix_unitaire))
-        taux_tva = Decimal(str(ligne.get('taux_tva', 20)))
-        remise = Decimal(str(ligne.get('remise', 0)))
-        base_ht = quantite * prix_unitaire * (1 - remise / 100)
-        total_ht += base_ht
-        total_ttc += base_ht * (1 + taux_tva / 100)
-
-    data['total_ht'] = total_ht
-    data['total_ttc'] = total_ttc
-    facture_auto = data.pop('facture_auto', None) or data.pop('confirmer_facture', None)
-    sale = Vente(**data)
-    db.session.add(sale)
-    db.session.flush()
-    for ligne in lignes_data:
-        produit_id = ligne.get('produit_id')
-        quantite = ligne.get('quantite')
+    total_ht = Decimal('0')
+    total_ttc = Decimal('0')
+    prepared_lines = []
+    for prepared in prepared_lines:
+        produit_id = prepared['produit_id']
+        quantite = prepared['quantite']
         mapped_ligne = {
-            'vente_id': sale.id,
-            'tenant_id': sale.tenant_id,
-            'produit_id': produit_id,
-            'quantite': quantite,
-            'prix_unitaire_ht': ligne.get('prix_unitaire'),
-            'taux_tva': ligne.get('taux_tva'),
+            'vente_id': sale.id, 'tenant_id': sale.tenant_id,
+            'produit_id': produit_id, 'quantite': quantite,
+            'prix_unitaire_ht': prepared['prix_unitaire'],
+            'taux_tva': prepared['taux_tva'],
+            'remise': prepared['remise'],
         }
-        ligne_vente = LigneVente(**mapped_ligne)
-        db.session.add(ligne_vente)
-        if produit_id and quantite is not None:
-            qty = float(quantite)
-            if qty > 0:
-                tenant_id = sale.tenant_id
-                # Verrouillage optimiste de la ligne produit pour eviter les
-                # races conditions (deux ventes concurrentes decrémentant
-                # le stock en parallele). Sur SQLite (mode dev/test),
-                # with_for_update est ignore : on compense par un SELECT
-                # immediat et le check de stock dans la meme transaction.
-                produit_query = Produit.query.filter_by(id=produit_id)
-                if tenant_id:
-                    produit_query = produit_query.filter_by(tenant_id=tenant_id)
-                produit = produit_query.with_for_update().first()
-                if produit:
-                    try:
-                        qty_decimal = Decimal(str(qty))
-                        if produit.quantite_stock < qty_decimal:
-                            raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
-                        stock_avant = Decimal(str(produit.quantite_stock or 0))
-                        produit.quantite_stock -= qty_decimal
-                        stock_apres = Decimal(str(produit.quantite_stock or 0))
-                        mouvement = MouvementStock(
-                            produit_id=produit.id,
-                            type_mouvement='sortie',
-                            quantite=qty_decimal,
-                            stock_avant=stock_avant,
-                            stock_apres=stock_apres,
-                            raison=f'Vente {sale.reference}',
-                            reference=sale.reference,
-                            tenant_id=produit.tenant_id,
-                        )
-                        db.session.add(mouvement)
-                    except ValueError as e:
-                        stock_errors.append(str(e))
+        db.session.add(LigneVente(**mapped_ligne))
+        if produit_id:
+            produit_query = Produit.query.filter_by(id=produit_id)
+            if tenant_id:
+                produit_query = produit_query.filter_by(tenant_id=tenant_id)
+            produit = produit_query.with_for_update().first()
+            if not produit:
+                raise ValueError(f"Produit id={produit_id} introuvable")
+            try:
+                qty_decimal = prepared['quantite']
+                if produit.quantite_stock < qty_decimal:
+                    raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
+                stock_avant = Decimal(str(produit.quantite_stock or 0))
+                produit.quantite_stock -= qty_decimal
+                db.session.add(MouvementStock(
+                    produit_id=produit.id, type_mouvement='sortie',
+                    quantite=qty_decimal, stock_avant=stock_avant,
+                    stock_apres=produit.quantite_stock,
+                    raison=f'Vente {sale.reference}',
+                    reference=sale.reference, tenant_id=produit.tenant_id,
+                ))
+            except ValueError as e:
+                stock_errors.append(str(e))
     if stock_errors:
         db.session.rollback()
         raise ValueError("; ".join(stock_errors))
@@ -300,36 +401,33 @@ def get_by_client(client_id):
 
 
 def get_stats():
-    try:
-        tenant_id = get_current_tenant_id()
-        query = Vente.query.filter_by(is_active=True)
-        if tenant_id:
-            query = query.filter_by(tenant_id=tenant_id)
-        ventes = query.all()
-        count = len(ventes)
-        total = sum(float(v.total_ttc) for v in ventes if v.total_ttc is not None)
-        average = total / count if count > 0 else 0
-        by_status = {}
-        for vente in ventes:
-            statut = vente.statut
-            if statut not in by_status:
-                by_status[statut] = {'count': 0, 'total': 0.0}
-            by_status[statut]['count'] += 1
-            try:
-                by_status[statut]['total'] += float(vente.total_ttc) if vente.total_ttc is not None else 0.0
-            except (ValueError, TypeError):
-                pass
-        return {
-            'total': total,
-            'count': count,
-            'average': average,
-            'by_status': by_status
-        }
-    except Exception as e:
-        current_app.logger.exception('Error in get_stats')
-        return {
-            'total': 0,
-            'count': 0,
-            'average': 0,
-            'by_status': {}
-        }
+    tenant_id = get_current_tenant_id()
+    base = Vente.query.filter(Vente.is_active.is_(True))
+    if tenant_id:
+        base = base.filter(Vente.tenant_id == tenant_id)
+
+    total, count, average = db.session.query(
+        db.func.coalesce(db.func.sum(Vente.total_ttc), 0),
+        db.func.count(Vente.id),
+        db.func.coalesce(db.func.avg(Vente.total_ttc), 0),
+    ).select_from(Vente).filter(Vente.is_active.is_(True)).filter(
+        Vente.tenant_id == tenant_id if tenant_id else db.true()
+    ).one()
+
+    rows = db.session.query(
+        Vente.statut,
+        db.func.count(Vente.id),
+        db.func.coalesce(db.func.sum(Vente.total_ttc), 0),
+    ).filter(Vente.is_active.is_(True)).filter(
+        Vente.tenant_id == tenant_id if tenant_id else db.true()
+    ).group_by(Vente.statut).all()
+
+    return {
+        'total': float(total or 0),
+        'count': int(count or 0),
+        'average': float(average or 0),
+        'by_status': {
+            statut: {'count': int(cnt), 'total': float(amount or 0)}
+            for statut, cnt, amount in rows
+        },
+    }
