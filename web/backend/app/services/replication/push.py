@@ -104,15 +104,24 @@ def push_pending(app):
             status_code = getattr(response, 'status_code', 200)
 
             if status_code in (401, 403):
-                # Jeton absent/expiré : inutile d'insister sur les autres
-                # entrées, le poste doit se reconnecter en ligne.
-                auth_error = (
-                    'Session de réplication refusée par le serveur central '
-                    f'({status_code}) : reconnectez-vous en ligne.'
-                )
-                entry.last_error = auth_error
-                db.session.commit()
-                break
+                # Le token central peut avoir expire apres plusieurs heures.
+                # Tenter une rotation automatique du refresh JWT puis rejouer
+                # exactement la meme mutation, sans demander de nouveau login.
+                if refresh_service_token():
+                    try:
+                        response = _send(base, entry)
+                        status_code = getattr(response, 'status_code', 200)
+                    except Exception as exc:
+                        status_code = 0
+                        network_error = str(exc)[:500]
+                if status_code in (401, 403):
+                    auth_error = (
+                        'Session de réplication refusée par le serveur central '
+                        f'({status_code}) : reconnectez-vous en ligne.'
+                    )
+                    entry.last_error = auth_error
+                    db.session.commit()
+                    break
 
             if not getattr(response, 'ok', status_code < 400):
                 server_error = (
