@@ -1,7 +1,6 @@
 // src/pages/Contact.jsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Link } from 'react-router-dom';
 import { publicCatalogueService } from '../services/api';
 import Seo from '../components/Seo';
 import '../styles/landing.css';
