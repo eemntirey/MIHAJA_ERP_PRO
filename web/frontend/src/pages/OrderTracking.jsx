@@ -61,6 +61,7 @@ const OrderTracking = () => {
   if (loading) {
     return (
       <div className="page-container">
+        <PublicHeader />
         <div className="loading-screen">
           <div className="spinner-large"></div>
           <p>Chargement du suivi...</p>
@@ -72,6 +73,7 @@ const OrderTracking = () => {
   if (!tracking) {
     return (
       <div className="page-container">
+        <PublicHeader />
         <div className="alert error">
           <p>Commande introuvable. Vérifiez la référence.</p>
         </div>
