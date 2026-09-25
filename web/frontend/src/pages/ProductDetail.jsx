@@ -105,13 +105,13 @@ const ProductDetail = () => {
         image={productImage}
         structuredData={productStructuredData}
       />
-      <div className="page-container">
+      <div className="page-container public-product-page">
         <PublicHeader />
-        <div className="page-header">
+        <div className="page-header public-product-header">
         <div>
           <h1>{product.nom}</h1>
           {product.tenant_nom && (
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+            <p className="public-product-seller">
               Vendu par <strong>{product.tenant_nom}</strong>
             </p>
           )}
@@ -124,69 +124,62 @@ const ProductDetail = () => {
         )}
       </div>
 
-      <div className="card product-detail-grid">
+      <div className="card product-detail-grid public-product-detail">
         <div>
-          <div style={{
-            position: 'relative',
-            width: '100%', height: '0', paddingTop: '60%', background: 'var(--color-background)',
-            borderRadius: '0', border: '1px solid var(--color-border)', display: 'grid', placeItems: 'center',
-            color: 'var(--color-text-secondary)', fontSize: '13px', overflow: 'hidden',
-          }}>
+          <div className="public-product-visual">
             {product.image_url || product.image || product.photo ? (
-              <img src={product.image_url || product.image || product.photo} alt={product.nom} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
+              <img src={product.image_url || product.image || product.photo} alt={product.nom} />
             ) : (
-              'Visuel produit'
+              <div className="public-product-placeholder">
+                <i className="ti ti-package" aria-hidden="true" />
+                <span>Visuel produit indisponible</span>
+              </div>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="public-product-info">
           <div>
-            <div className="public-card__subtitle" style={{ textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}>
+            <div className="public-product-category">
               {product.categorie || 'Général'}
             </div>
-            <div className="product-card__price" style={{ fontSize: '26px', marginTop: '6px' }}>
+            <div className="public-product-price">
               {formatMGA(price)} Ar
             </div>
-            <p className="text-muted" style={{ fontSize: '12px', marginTop: '8px' }}>
+            <p className="public-product-stock">
+              <i className={stock > 0 ? 'ti ti-circle-check' : 'ti ti-alert-circle'} aria-hidden="true" />
               Stock disponible : {stock} unité{stock > 1 ? 's' : ''}
             </p>
           </div>
 
           {product.description_longue && (
-            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
-              {product.description_longue}
-            </p>
+            <p className="public-product-description">{product.description_longue}</p>
           )}
 
           {product.description_courte && !product.description_longue && (
-            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
-              {product.description_courte}
-            </p>
+            <p className="public-product-description">{product.description_courte}</p>
           )}
 
           {product.marque && (
-            <p style={{ fontSize: '13px' }}>
-              <strong>Marque :</strong> {product.marque}
-            </p>
+            <p className="public-product-meta"><strong>Marque :</strong> {product.marque}</p>
           )}
           {product.reference && (
-            <p style={{ fontSize: '13px' }}>
-              <strong>Référence :</strong> {product.reference}
-            </p>
+            <p className="public-product-meta"><strong>Référence :</strong> {product.reference}</p>
           )}
 
           {canBuy ? (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <input
-                type="number"
-                min="1"
-                max={maxQty}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
-                style={{ width: '100%', maxWidth: '90px', padding: '8px 10px', border: '1px solid var(--color-border-strong)', fontFamily: 'var(--font-body)', fontSize: '13px' }}
-                aria-label="Quantité"
-              />
+            <div className="public-product-buy">
+              <label className="public-product-quantity">
+                <span>Quantité</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={maxQty || 1}
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, Math.min(Math.max(maxQty, 1), parseInt(e.target.value, 10) || 1)))}
+                  aria-label="Quantité"
+                />
+              </label>
               <button
                 type="button"
                 className="btn-primary"
