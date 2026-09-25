@@ -112,6 +112,7 @@ const Login = () => {
                   <input
                     id="login-email"
                     type="email"
+                    autoFocus
                     placeholder="nom@entreprise.fr"
                     autoComplete="email"
                     aria-invalid={Boolean(errors.email)}

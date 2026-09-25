@@ -8,8 +8,10 @@
 import axios from 'axios';
 import { tokenStore } from '../storage/tokenStore';
 
+const _viteEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+const _isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || '/api/v1';
+  _viteEnv.VITE_API_URL || (_isElectron ? 'https://mihaja-erp-pro.onrender.com/api/v1' : '/api/v1');
 
 // A1 : Electron = secureStore + header ; web = cookies HttpOnly
 const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);

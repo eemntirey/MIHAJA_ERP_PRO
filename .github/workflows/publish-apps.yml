@@ -1,0 +1,117 @@
+name: Publier les applications
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Étiquette de la version à publier
+        required: true
+        default: v0.1.0
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    name: ERP Pro Desktop
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+          cache-dependency-path: desk/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: web/requirements.txt
+      - name: Installer le backend embarqué
+        shell: pwsh
+        working-directory: web/backend
+        run: |
+          python -m venv venv
+          .\venv\Scripts\python.exe -m pip install --upgrade pip
+          .\venv\Scripts\python.exe -m pip install -r ..\requirements.txt
+      - name: Installer les dépendances Desktop
+        working-directory: desk
+        run: npm ci --no-audit --no-fund
+      - name: Construire l’installeur Windows
+        working-directory: desk
+        run: npm run dist:offline
+      - name: Préparer l’artefact Desktop
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $installer = Get-ChildItem -Path "desk/dist" -Filter "*.exe" | Where-Object { $_.Name -like "*Setup*.exe" } | Select-Object -First 1
+          if (-not $installer) { throw "Installeur Windows introuvable dans desk/dist." }
+          Copy-Item -LiteralPath $installer.FullName -Destination "artifacts/ERP-Pro-Desktop-Setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installer
+          path: artifacts/ERP-Pro-Desktop-Setup.exe
+          if-no-files-found: error
+
+  mobile:
+    name: ERP Pro Mobile
+    runs-on: ubuntu-latest
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Installer les dépendances Mobile
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: Générer le projet Android
+        working-directory: mobile
+        run: npx expo prebuild --platform android --npm
+      - name: Construire l’APK Android
+        working-directory: mobile
+        run: |
+          chmod +x android/gradlew
+          android/gradlew -p android assembleRelease
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/release/app-release.apk artifacts/ERP-Pro-Mobile.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk
+          path: artifacts/ERP-Pro-Mobile.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publier la version
+    needs:
+      - desktop
+      - mobile
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Créer ou mettre à jour la GitHub Release
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" artifacts/* --clobber
+          else
+            gh release create "$RELEASE_TAG" artifacts/* --title "ERP Pro $RELEASE_TAG" --generate-notes
+          fi

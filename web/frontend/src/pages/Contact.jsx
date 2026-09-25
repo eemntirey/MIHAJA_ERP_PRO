@@ -1,10 +1,21 @@
 // src/pages/Contact.jsx
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import { publicCatalogueService } from '../services/api';
+import Seo from '../components/Seo';
 import '../styles/landing.css';
+import PublicHeader from '../components/PublicHeader';
+
+const CONTACT_SEO_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: 'Contact | MIHAJA ERP PRO',
+  url: 'https://erp.sekoliko.com/contact',
+  description: 'Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS.',
+};
 
 const Contact = () => {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '', website: '' });
   const [sending, setSending] = useState(false);
 
   const handleChange = (e) => {
@@ -12,20 +23,42 @@ const Contact = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSending(true);
-    setTimeout(() => {
+    if (sending) return;
+
+    const name = form.name.trim();
+    const email = form.email.trim();
+    const subject = form.subject.trim();
+    const message = form.message.trim();
+    if (!name || !email || !message) {
+      toast.error('Veuillez remplir tous les champs.');
+      return;
+    }
+
+    try {
+      setSending(true);
+      await publicCatalogueService.sendContactMessage({ name, email, subject, message, website: form.website });
       toast.success('Message envoyé avec succès');
-      setForm({ name: '', email: '', message: '' });
+      setForm({ name: '', email: '', subject: '', message: '', website: '' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Impossible d’envoyer votre message pour le moment.';
+      toast.error(msg);
+    } finally {
       setSending(false);
-    }, 800);
+    }
   };
 
   return (
-    <div className="landing-contact">
-      <div className="landing-container">
-        <div className="landing-section-header">
+    <>
+      <Seo
+        title="Contact | MIHAJA ERP PRO"
+        description="Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS."
+        canonical="https://erp.sekoliko.com/contact"
+        structuredData={CONTACT_SEO_DATA}
+      />
+      <div className="landing-contact"><PublicHeader />
+      <div className="landing-container"><div className="landing-section-header">
           <h2 className="landing-section-title" id="contact-titre">Contact</h2>
           <p className="landing-section-subtitle">
             Une question ? Notre équipe vous répond dans les plus brefs délais.
@@ -55,10 +88,22 @@ const Contact = () => {
                   type="email"
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="jean@hotel.fr"
+                  placeholder="jean@exemple.mg"
                   required
                 />
               </div>
+            </div>
+            <div className="landing-form-group">
+              <label htmlFor="contact-subject">Sujet</label>
+              <input
+                id="contact-subject"
+                name="subject"
+                type="text"
+                value={form.subject}
+                onChange={handleChange}
+                placeholder="Votre demande"
+                maxLength={160}
+              />
             </div>
             <div className="landing-form-group">
               <label htmlFor="contact-message">Message</label>
@@ -68,9 +113,15 @@ const Contact = () => {
                 value={form.message}
                 onChange={handleChange}
                 placeholder="Votre message..."
-                rows="5"
+                rows="6"
+                minLength={10}
+                maxLength={5000}
                 required
               />
+            </div>
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="contact-website">Ne pas remplir</label>
+              <input id="contact-website" name="website" value={form.website} onChange={handleChange} tabIndex="-1" autoComplete="off" />
             </div>
             <button type="submit" className="landing-btn landing-btn-primary" disabled={sending}>
               {sending ? 'Envoi...' : 'Envoyer le message'}
@@ -78,7 +129,8 @@ const Contact = () => {
           </form>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

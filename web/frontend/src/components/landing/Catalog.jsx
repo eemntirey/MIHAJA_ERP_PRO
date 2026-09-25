@@ -39,7 +39,7 @@ const Catalog = () => {
         <div className="landing-section-header">
           <h2 className="landing-section-title" id="catalogue-titre">Catalogue public</h2>
           <p className="landing-section-subtitle">
-            Découvrez nos produits sélectionnés pour les établissements hôteliers.
+            Découvrez les produits proposés par les entreprises présentes sur notre marketplace.
           </p>
         </div>
 
@@ -77,6 +77,7 @@ const Catalog = () => {
                 const category = produit.categorie_nom || produit.categorie || 'Général';
                 const seller = produit.tenant_nom || produit.vendeur || 'Vendeur';
                 const price = Number(produit.prix_vente_ht || produit.prix || 0);
+                const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
                 const image = getImage(produit);
 
                 return (
@@ -97,7 +98,7 @@ const Catalog = () => {
                       <h3 className="landing-product-name">{produit.nom || produit.name || 'Produit'}</h3>
 
                       <div className="landing-product-meta">
-                        <div className="landing-product-price">{price.toFixed(2)} Ar</div>
+                        <div className="landing-product-price">{formatMGA(price)} Ar</div>
                         <div className="landing-product-seller" title={seller}>{seller}</div>
                       </div>
 
@@ -113,7 +114,7 @@ const Catalog = () => {
             </div>
 
             <div className="landing-catalog-cta">
-              <Link to="/produits" className="landing-btn landing-btn-primary">
+              <Link to="/catalogue" className="landing-btn landing-btn-primary">
                 Voir tout le catalogue
               </Link>
             </div>

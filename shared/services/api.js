@@ -13,9 +13,11 @@ const backendPort = (typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('backendPort'))
     || null;
 
+const PRODUCTION_API_BASE_URL = '/api/v1';
+
 const RAW_API_BASE_URL = backendPort
     ? `http://127.0.0.1:${backendPort}/api/v1`
-    : (import.meta.env.VITE_API_URL || '/api/v1');
+    : (import.meta.env.VITE_API_URL || PRODUCTION_API_BASE_URL);
 
 const resolveAbsoluteApiUrl = (raw) => {
     if (!raw) return raw;
@@ -26,9 +28,11 @@ const resolveAbsoluteApiUrl = (raw) => {
 };
 
 const API_BASE_URL = resolveAbsoluteApiUrl(RAW_API_BASE_URL);
+const API_TIMEOUT_MS = 15000;
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    timeout: API_TIMEOUT_MS,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -239,10 +243,11 @@ api.interceptors.request.use(
 // ======================================================
 
 const RAW_PUBLIC_API_URL =
-    import.meta.env.VITE_PUBLIC_API_URL || '';
+    import.meta.env.VITE_PUBLIC_API_URL || PRODUCTION_API_BASE_URL;
 
 export const publicApi = axios.create({
     baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
+    timeout: API_TIMEOUT_MS,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -361,6 +366,9 @@ export const publicCatalogueService = {
 
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
+
+    sendContactMessage: (data) =>
+        publicApi.post('/public/contact', data),
 
     createCommandePapiPayment: (ref, data) =>
         publicApi.post(`/public/commandes/${ref}/papi-payment`, data),
@@ -873,6 +881,7 @@ export const entrepotService = {
 // ======================================================
 
 export const dashboardService = {
+  getOverview: () => api.get('/dashboard/overview'),
   getStats: () => api.get('/dashboard'),
   getSalesStats: () => api.get('/dashboard/sales-stats'),
   getTopProducts: () => api.get('/dashboard/top-products'),

@@ -1,6 +1,6 @@
 # backend/app/__init__.py
 
-from flask import Flask, current_app
+from flask import Flask, current_app, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS, cross_origin
@@ -24,7 +24,7 @@ load_dotenv()
 _PROCESS_ENV_KEYS = (
     'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
     'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
-    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY',
+    'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY', 'REDIS_URL', 'CORS_ORIGINS',
 )
 _process_env_snapshot = {
     key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
@@ -67,17 +67,16 @@ PUBLIC_PATH_PREFIXES = (
 
 # Rappel des commandes de correction, affiche uniquement si le schema manque.
 _SCHEMA_FIX_HELP = (
-    "  Commandes de correction (depuis web/backend) :\n"
-    "    python scripts/create_superadmin.py --create-tables   "
-    "# cree les tables + le super-admin\n"
-    "    python scripts/seed_roles.py                          "
-    "# roles et permissions systeme\n"
-    "    python -m flask --app 'app:create_app' db stamp head  "
-    "# marque les migrations comme appliquees\n"
-    "  Alternatives :\n"
-    "    - dev SQLite : DATABASE_URL=sqlite:///./erp.db "
+    "  Commande de correction (depuis web/backend, base PostgreSQL neuve) :\n"
+    "    python scripts/bootstrap_production.py                 "
+    "# initialise schema + migrations + roles + Super Admin\n"
+    "  Variables requises : DATABASE_URL + SUPERADMIN_PASSWORD.\n"
+    "  Le bootstrap refuse toute base partiellement initialisee et ne supprime "
+    "aucune donnee.\n"
+    "  Ne pas utiliser 'db stamp head' seul : stamp n'exécute aucune migration.\n"
+    "  Dev SQLite : DATABASE_URL=sqlite:///./erp.db "
     "(base web/backend/instance/erp.db)\n"
-    "    - conteneur  : powershell -File setup_postgresql.ps1 "
+    "  Conteneur local : powershell -File setup_postgresql.ps1 "
     "(Postgres erp-pg, port 55432)"
 )
 
@@ -160,6 +159,15 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    # Redis est utilise par le rate-limit et Celery. La variable du processus
+    # doit primer sur .env.local et etre exposee explicitement dans Flask.
+    redis_url = os.getenv('REDIS_URL', '').strip()
+    if not redis_url:
+        redis_url = 'redis://localhost:6379/0'
+    app.config['REDIS_URL'] = redis_url
+    app.config['CELERY_BROKER_URL'] = redis_url
+    app.config['CELERY_RESULT_BACKEND'] = redis_url
+
     # Mode embarque : conserve la trace du mode et les parametres de
     # replication dans la config de l'app (lus par app/services/replication).
     app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', '').lower()
@@ -196,7 +204,11 @@ def create_app():
     app.config['JWT_REFRESH_COOKIE'] = 'refresh_token_cookie'
     app.config['JWT_COOKIE_SECURE'] = _is_prod
     app.config['JWT_COOKIE_HTTPONLY'] = True
-    app.config['JWT_COOKIE_SAMESITE'] = 'Strict'
+    # Le frontend web et l'API sont sur des origines différentes (ex.\n    # erp.sekoliko.com -> mihaja-erp-pro.onrender.com). Les cookies JWT\n    # doivent donc être autorisés sur les requêtes XHR/fetch cross-site.\n    # En production, None est obligatoire pour cette topologie et Secure est\n    # déjà activé ci-dessus. En développement, Lax reste le comportement sûr\n    # par défaut. Une valeur explicite peut être fournie par l'environnement.\n    jwt_cookie_samesite = os.getenv(\n        'JWT_COOKIE_SAMESITE',\n        'None' if _is_prod else 'Lax',\n    ).strip().capitalize()\n    if jwt_cookie_samesite not in ('Strict', 'Lax', 'None'):\n        raise ValueError(\n            "JWT_COOKIE_SAMESITE doit être Strict, Lax ou None."\n        )\n    app.config['JWT_COOKIE_SAMESITE'] = jwt_cookie_samesite
+    # Explicite les chemins afin que les cookies JWT soient disponibles sur
+    # tous les endpoints API, notamment /api/v1/auth/refresh.
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
+    app.config['JWT_REFRESH_COOKIE_PATH'] = '/'
     app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
     app.config['JWT_CSRF_IN_COOKIES'] = True
 
@@ -298,7 +310,17 @@ def create_app():
             _dynamic_extra.append(_origin_env_hint)
         else:
             logger.warning('FRONTEND_URL ignoré (schéma invalide): %s', _origin_env_hint)
-    CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS + _dynamic_extra))
+    # Origines de déploiement connues : elles restent explicitement autorisées
+    # même si le service Render existant n'a pas encore resynchronisé
+    # CORS_ORIGINS depuis render.yaml. Liste exacte uniquement (jamais *.onrender.com).
+    _DEPLOYED_FRONTEND_ORIGINS = [
+        'https://erp.sekoliko.com',
+        'https://mihaja-erp-frontend-796e-qdh1.onrender.com',
+        'https://mihaja-erp-frontend-796e.onrender.com',
+    ]
+    CORS_ORIGINS = list(dict.fromkeys(
+        CORS_ORIGINS + _dynamic_extra + _DEPLOYED_FRONTEND_ORIGINS
+    ))
 
     # Partagé avec Flask-SocketIO (app.realtime.socket_server) : sans cette
     # clé dans app.config, le handshake /socket.io n'autorise que
@@ -336,6 +358,18 @@ def create_app():
         max_age=3600,
     )
 
+    @app.after_request
+    def _ensure_credentialed_cors(response):
+        origin = request.headers.get('Origin')
+        if origin and origin in CORS_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            vary = response.headers.get('Vary')
+            if vary and 'Origin' not in [v.strip() for v in vary.split(',')]:
+                response.headers['Vary'] = vary + ', Origin'
+            elif not vary:
+                response.headers['Vary'] = 'Origin'
+        return response
     jwt.init_app(app)
 
     # --- JWT Blocklist (révocation réelle) ---
@@ -448,7 +482,10 @@ def create_app():
         # origines statiques (app.config['CORS_ORIGINS']) étaient servies et les
         # patterns LAN/tunnel (ex. Expo web http://192.168.x.y:8081) restaient
         # sans en-tête Access-Control-Allow-Origin.
-        decorators=[cross_origin(origins=_cors_origins_config)]
+        decorators=[cross_origin(
+            origins=_cors_origins_config,
+            supports_credentials=True,
+        )]
     )
 
     @app.route('/')

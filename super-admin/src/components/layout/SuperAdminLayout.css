@@ -28,7 +28,7 @@
 
 .sa-sidebar-subtitle {
   font-size: 11px;
-  color: var(--color-text-dim);
+  color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 600;
@@ -47,7 +47,7 @@
   align-items: center;
   padding: 10px 14px;
   border-radius: var(--radius);
-  color: var(--color-text-muted);
+  color: #cbd5e1;
   font-weight: 500;
   font-size: 14px;
   transition: background 0.15s, color 0.15s;
@@ -84,7 +84,7 @@
 .sa-logout-btn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
-  border-color: var(--color-text-dim);
+  border-color: #cbd5e1;
 }
 
 .sa-main {
@@ -216,7 +216,7 @@
 }
 
 .sa-text-muted {
-  color: #94a3b8;
+  color: #cbd5e1;
   margin-bottom: 2rem;
 }
 
@@ -237,5 +237,62 @@
 
   .sa-layout {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .sa-sidebar {
+    width: 100%;
+    position: relative;
+    inset: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sa-sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+
+  .sa-nav-link {
+    min-width: 0;
+    line-height: 1.35;
+  }
+
+  .sa-main {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .sa-topbar {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .sa-topbar-title,
+  .sa-topbar-user,
+  .sa-user-name {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .sa-content {
+    width: 100%;
+    min-width: 0;
+    padding: 20px 16px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sa-sidebar-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-topbar-title h1 {
+    font-size: 18px;
   }
 }

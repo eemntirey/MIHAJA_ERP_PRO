@@ -35,9 +35,9 @@ const Register = () => {
 
           <div className="auth-login__context-inner">
             <div className="auth-login__brand-row">
-              <Link to="/" className="auth-login__brand" aria-label="ERP Pro accueil">
-                <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
-                <span className="auth-login__brand-name">ERP Pro</span>
+              <Link to="/" className="auth-login__brand" aria-label="MIHAJA ERP PRO accueil">
+                <span className="auth-login__brand-mark" aria-hidden="true" >M</span>
+                <span className="auth-login__brand-name" >MIHAJA ERP PRO</span>
               </Link>
               <span className="auth-login__brand-meta">Créer votre compte</span>
             </div>
@@ -57,9 +57,9 @@ const Register = () => {
             </div>
 
             <footer className="auth-login__context-footer">
-              <span>© {new Date().getFullYear()} ERP Pro</span>
+              <span>© {new Date().getFullYear()} MIHAJA ERP PRO</span>
               <span className="auth-login__watermark" aria-hidden="true">
-                ERP PRO · PILOTAGE · PRÉCISION
+                MIHAJA · ERP · PILOTAGE · PRÉCISION
               </span>
             </footer>
           </div>

@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --default-timeout=600 --retries=20 --disable-pip-version-check -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=600 --retries=20 --disable-pip-version-check -r requirements.txt \
+    && python -c "import barcode; print('python-barcode OK')"
 
 # Create and use a non-root user
 RUN groupadd --system app && useradd --system --gid app --create-home --home-dir /home/app app
@@ -28,10 +29,7 @@ USER app
 
 EXPOSE 5000
 
-# CMD production (B1) : gunicorn worker 'gthread' — 1 worker obligatoire tant
-# que SocketIO n'utilise pas message_queue=redis (événements intra-process).
-# simple-websocket (requirements) assure l'upgrade WebSocket en mode threading.
-# Dev : conserver `python run.py` (Werkzeug threaded) hors production.
-CMD ["gunicorn", "--workers", "1", "--threads", "8", "--worker-class", "gthread", \
-     "--bind", "0.0.0.0:5000", "--timeout", "120", "--access-logfile", "-", \
-     "app:create_app()"]
+# Bootstrap PostgreSQL automatique avant Gunicorn.
+# Une base vide est initialisee; une base partielle/incoherente bloque le demarrage
+# sans suppression ni reinitialisation de donnees.
+CMD ["sh", "-c", "python scripts/bootstrap_production.py && exec gunicorn --workers 1 --threads 8 --worker-class gthread --bind 0.0.0.0:5000 --timeout 120 --access-logfile - 'app:create_app()'"]

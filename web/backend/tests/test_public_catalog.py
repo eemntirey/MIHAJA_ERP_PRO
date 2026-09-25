@@ -448,3 +448,54 @@ class TestPublicCatalogStockFiltering:
         assert r.status_code == 200
         ids = [p['id'] for p in r.get_json().get('produits', [])]
         assert produit_essai.id not in ids
+
+
+def test_public_contact_validates_and_sends_email(app, monkeypatch):
+    """Le formulaire public doit transmettre le message au service SMTP réel."""
+    client = app.test_client()
+    calls = {}
+
+    monkeypatch.setattr(
+        'app.api.v1.public.Config.MAIL_CONTACT_RECIPIENT',
+        'support@test.mg',
+        raising=False,
+    )
+
+    def fake_send_email(subject, html_body, recipient, **kwargs):
+        calls.setdefault('emails', []).append({
+            'subject': subject,
+            'html_body': html_body,
+            'recipient': recipient,
+            **kwargs,
+        })
+        return {'success': True, 'delivered': True}
+
+    monkeypatch.setattr('app.api.v1.public.send_email', fake_send_email)
+
+    response = client.post('/public/contact', json={
+        'name': 'Jean Rakoto',
+        'email': 'jean@example.mg',
+        'message': 'Bonjour, je souhaite obtenir des informations.',
+    })
+
+    assert response.status_code == 200
+    assert response.get_json()['message'] == 'Message envoyé avec succès.'
+    assert calls['emails'][0]['recipient'] == 'support@test.mg'
+    assert calls['emails'][0]['reply_to'] == 'jean@example.mg'
+    assert 'Jean Rakoto' in calls['emails'][0]['html_body']
+    assert 'jean@example.mg' in calls['emails'][0]['html_body']
+    assert len(calls['emails']) == 2
+    assert calls['emails'][1]['recipient'] == 'jean@example.mg'
+
+
+def test_public_contact_rejects_invalid_input(app):
+    """Le formulaire public doit refuser les données incomplètes ou invalides."""
+    client = app.test_client()
+
+    response = client.post('/public/contact', json={
+        'name': 'Jean Rakoto',
+        'email': 'email-invalide',
+        'message': '',
+    })
+
+    assert response.status_code == 400

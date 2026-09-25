@@ -150,15 +150,16 @@ class Client(BaseTenantModel):
         """Vérifie si le client est à crédit"""
         return self.solde < 0
     
-    def to_dict(self, exclude=None):
+    def to_dict(self, exclude=None, include_stats=True):
         data = super().to_dict(exclude)
         if 'type' in data and self.type:
             data['type'] = self.type.value
         if 'secteur' in data and self.secteur:
             data['secteur'] = self.secteur.value
         data['nom_complet'] = self.nom_complet
-        data['total_achats'] = float(self.total_achats)
-        data['total_commandes'] = self.total_commandes
+        if include_stats:
+            data['total_achats'] = float(self.total_achats)
+            data['total_commandes'] = self.total_commandes
         return data
     
     def __repr__(self):

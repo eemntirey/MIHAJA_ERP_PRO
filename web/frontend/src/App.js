@@ -1,23 +1,63 @@
 // src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuth, AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { SyncProvider } from '../../../shared/contexts/SyncContext';
-import { useRealtimeSync } from '../../../shared/hooks/useRealtimeSync';
 import { authStorage } from '../../../shared/storage/authStorage';
 import { canAccessRoute } from '@shared/utils/navPermissions';
 import { PATH_PERMISSION_MAP, PATH_MODULE_MAP, ADMIN_PATHS, NAV_ITEMS } from '@shared/navConfig';
 
 // Composants d'authentification
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import RegisterUser from './components/auth/RegisterUser';
-import RegisterCompany from './components/auth/RegisterCompany';
-import ForgotPassword from './components/auth/ForgotPassword';
-import ResetPassword from './components/auth/ResetPassword';
-import FirstChangePassword from './components/auth/FirstChangePassword';
+const lazyWithRecovery = (loader, name) =>
+  lazy(() => loader().catch((error) => {
+    const key = `erp.lazy-recovery.${name}`;
+    try {
+      const lastAttempt = Number(sessionStorage.getItem(key) || 0);
+      if (!lastAttempt || Date.now() - lastAttempt > 30000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        const url = new URL(window.location.href);
+        url.searchParams.set('_erp_reload', String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    } catch {}
+    throw error;
+  }));
+
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '620px' }}>
+          <h1>Erreur de chargement de l’application</h1>
+          <p style={{ marginTop: '12px' }}>Une page ou une ressource JavaScript n’a pas pu être chargée.</p>
+          <button type="button" onClick={() => window.location.reload()} style={{ marginTop: '20px', padding: '10px 16px', cursor: 'pointer' }}>
+            Recharger
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+const Login = lazyWithRecovery(() => import('./components/auth/Login'), 'Login');
+const Register = lazyWithRecovery(() => import('./components/auth/Register'), 'Register');
+const RegisterUser = lazyWithRecovery(() => import('./components/auth/RegisterUser'), 'RegisterUser');
+const RegisterCompany = lazyWithRecovery(() => import('./components/auth/RegisterCompany'), 'RegisterCompany');
+const ForgotPassword = lazyWithRecovery(() => import('./components/auth/ForgotPassword'), 'ForgotPassword');
+const ResetPassword = lazyWithRecovery(() => import('./components/auth/ResetPassword'), 'ResetPassword');
+const FirstChangePassword = lazyWithRecovery(() => import('./components/auth/FirstChangePassword'), 'FirstChangePassword');
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
@@ -28,38 +68,41 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { LanguageProvider, useTranslation } from './i18n';
 
 // Pages
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import Clients from './pages/Clients';
-import Sales from './pages/Sales';
-import Inventory from './pages/Inventory';
-import Suppliers from './pages/Suppliers';
-import Invoices from './pages/Invoices';
-import Payments from './pages/Payments';
-import AI from './pages/AI';
-import Documentation from './pages/Documentation';
-import Checkout from './pages/Checkout';
-import OrderTracking from './pages/OrderTracking';
-import SuperAdmin from './pages/SuperAdmin';
-import SuperAdminProfile from './pages/SuperAdminProfile';
-import Profile from './pages/Profile';
-import Cart from './pages/Cart';
-import ProductDetail from './pages/ProductDetail';
-import Subscription from './pages/Subscription';
-import PaymentSettings from './pages/PaymentSettings';
-import Catalogue from './pages/Catalogue';
-import Suivi from './pages/Suivi';
-import Contact from './pages/Contact';
-import UserOrders from './pages/UserOrders';
-import Delivery from './pages/Delivery';
-import HR from './pages/HR';
-import Accounting from './pages/Accounting';
-import Documents from './pages/Documents';
-import Purchases from './pages/Purchases';
-import Users from './pages/Users';
-import Roles from './pages/Roles';
-import Permissions from './pages/Permissions';
+const Home = lazyWithRecovery(() => import('./pages/Home'), 'Home');
+const Dashboard = lazyWithRecovery(() => import('./pages/Dashboard'), 'Dashboard');
+const Products = lazyWithRecovery(() => import('./pages/Products'), 'Products');
+const Clients = lazyWithRecovery(() => import('./pages/Clients'), 'Clients');
+const Sales = lazyWithRecovery(() => import('./pages/Sales'), 'Sales');
+const Inventory = lazyWithRecovery(() => import('./pages/Inventory'), 'Inventory');
+const Suppliers = lazyWithRecovery(() => import('./pages/Suppliers'), 'Suppliers');
+const Invoices = lazyWithRecovery(() => import('./pages/Invoices'), 'Invoices');
+const Payments = lazyWithRecovery(() => import('./pages/Payments'), 'Payments');
+const AI = lazyWithRecovery(() => import('./pages/AI'), 'AI');
+const Documentation = lazyWithRecovery(() => import('./pages/Documentation'), 'Documentation');
+const Downloads = lazyWithRecovery(() => import('./pages/Downloads'), 'Downloads');
+const Terms = lazyWithRecovery(() => import('./pages/Terms'), 'Terms');
+const Privacy = lazyWithRecovery(() => import('./pages/Privacy'), 'Privacy');
+const Checkout = lazyWithRecovery(() => import('./pages/Checkout'), 'Checkout');
+const OrderTracking = lazyWithRecovery(() => import('./pages/OrderTracking'), 'OrderTracking');
+const SuperAdmin = lazyWithRecovery(() => import('./pages/SuperAdmin'), 'SuperAdmin');
+const SuperAdminProfile = lazyWithRecovery(() => import('./pages/SuperAdminProfile'), 'SuperAdminProfile');
+const Profile = lazyWithRecovery(() => import('./pages/Profile'), 'Profile');
+const Cart = lazyWithRecovery(() => import('./pages/Cart'), 'Cart');
+const ProductDetail = lazyWithRecovery(() => import('./pages/ProductDetail'), 'ProductDetail');
+const Subscription = lazyWithRecovery(() => import('./pages/Subscription'), 'Subscription');
+const PaymentSettings = lazyWithRecovery(() => import('./pages/PaymentSettings'), 'PaymentSettings');
+const Catalogue = lazyWithRecovery(() => import('./pages/Catalogue'), 'Catalogue');
+const Suivi = lazyWithRecovery(() => import('./pages/Suivi'), 'Suivi');
+const Contact = lazyWithRecovery(() => import('./pages/Contact'), 'Contact');
+const UserOrders = lazyWithRecovery(() => import('./pages/UserOrders'), 'UserOrders');
+const Delivery = lazyWithRecovery(() => import('./pages/Delivery'), 'Delivery');
+const HR = lazyWithRecovery(() => import('./pages/HR'), 'HR');
+const Accounting = lazyWithRecovery(() => import('./pages/Accounting'), 'Accounting');
+const Documents = lazyWithRecovery(() => import('./pages/Documents'), 'Documents');
+const Purchases = lazyWithRecovery(() => import('./pages/Purchases'), 'Purchases');
+const Users = lazyWithRecovery(() => import('./pages/Users'), 'Users');
+const Roles = lazyWithRecovery(() => import('./pages/Roles'), 'Roles');
+const Permissions = lazyWithRecovery(() => import('./pages/Permissions'), 'Permissions');
 
 // Composant de protection utilisant AuthContext.
 // PATH_MODULE_MAP, PATH_PERMISSION_MAP, ADMIN_PATHS et la logique
@@ -232,8 +275,13 @@ function App() {
           <CartProvider>
             <BrowserRouter>
               <div className="app">
-              <Routes>
+              <AppErrorBoundary>
+              <Suspense fallback={<div className="page-loading" role="status" aria-live="polite">Chargement…</div>}>
+                <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/telechargements" element={<Downloads />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/register/simple" element={<RegisterUser />} />
@@ -287,7 +335,9 @@ function App() {
                 <Route path="/mes-commandes" element={<UserOrders />} />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+                </Routes>
+              </Suspense>
+              </AppErrorBoundary>
               <ToastContainer
                 position="top-right"
                 autoClose={5000}

@@ -18,7 +18,7 @@
 services:
   # ---------- API Flask ----------
   - type: web
-    name: mihaja-erp-backend
+    name: mihaja-erp-pro
     runtime: docker
     dockerContext: ./web
     dockerfilePath: ./web/backend/Dockerfile
@@ -48,16 +48,24 @@ services:
       # Coller la clé staging du guide (docs/ops/DEPLOIEMENT_RENDER.md §4).
       - key: ENCRYPTION_KEY
         sync: false
+      - key: MAIL_CONTACT_RECIPIENT
+        sync: false
       - key: JWT_COOKIE_CSRF_PROTECT
         value: "false"
+      - key: REDIS_URL
+        sync: false
       # Mobile (Bearer direct) + futurs domaines ; le web passe en
       # same-origin via rewrites donc pas de CORS pour lui.
       - key: CORS_ORIGINS
-        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend.onrender.com
+        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend-796e-qdh1.onrender.com,https://mihaja-erp-frontend-796e.onrender.com,https://mihaja-erp-super-admin.onrender.com
+      - key: JWT_COOKIE_SAMESITE
+        value: None
       - key: FRONTEND_URL
-        value: https://erp.sekoliko.com
+        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
+      - key: PUBLIC_SITE_URL
+        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
       - key: FRONTEND_RESET_URL
-        value: https://erp.sekoliko.com/reset-password
+        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com/reset-password
       - key: PAPI_ENVIRONMENT
         value: sandbox
 
@@ -67,9 +75,28 @@ services:
   # est le défaut des static sites.
   - type: web
     name: mihaja-erp-frontend
-    env: static
+    runtime: static
     buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: web/frontend/build
+    # 1) Proxy API + Socket.IO vers le backend (same-origin → cookies JWT OK)
+    # 2) SPA fallback : F5 sur /register, /login, /dashboard, etc.
+    # L'ordre compte : les règles spécifiques AVANT le catch-all /*
+    routes:
+      - type: rewrite
+        source: /sitemap.xml
+        destination: https://mihaja-erp-pro.onrender.com/api/v1/public/sitemap.xml
+      - type: rewrite
+        source: /api/*
+        destination: https://mihaja-erp-pro.onrender.com/api/*
+      - type: rewrite
+        source: /socket.io/*
+        destination: https://mihaja-erp-pro.onrender.com/socket.io/*
+      - type: rewrite
+        source: /download/desktop
+        destination: https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       # Version Node figée (CRA + react-app-rewired validés sur Node 20).
       - key: NODE_VERSION
@@ -78,20 +105,39 @@ services:
       # ESLint en erreurs fatales : on désactive pour le staging.
       - key: CI
         value: "false"
+      # Same-origin : le navigateur appelle /api/v1 sur le même host ;
+      # les rewrites ci-dessus relayent vers le backend Flask.
+      - key: VITE_API_URL
+        value: /api/v1
+      # Socket.IO doit joindre directement le backend : le rewrite d'un
+      # static site Render ne garantit pas la persistance du polling Socket.IO.
+      - key: VITE_SOCKET_URL
+        value: https://mihaja-erp-pro.onrender.com
+      - key: VITE_PUBLIC_API_URL
+        value: /api/v1
 
   # ---------- Super Admin React/Vite (statique) ----------
   - type: web
     name: mihaja-erp-super-admin
-    env: static
+    runtime: static
     buildCommand: cd super-admin && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: super-admin/build
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://mihaja-erp-pro.onrender.com/api/*
+      - type: rewrite
+        source: /socket.io/*
+        destination: https://mihaja-erp-pro.onrender.com/socket.io/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: NODE_VERSION
         value: 20.19.0
       - key: CI
         value: "false"
-      # Même origine que le site : l'API passe par les rewrites
-      # /api/* et /socket.io/* configurés après déploiement.
+      # Même origine : rewrites /api/* et /socket.io/* ci-dessus.
       - key: VITE_API_URL
         value: /api/v1
 

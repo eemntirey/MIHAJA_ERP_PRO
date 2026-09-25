@@ -49,7 +49,7 @@ def _build_smtp_config(config=None):
     }
 
 
-def send_email(subject, html_body, recipient, *, config=None):
+def send_email(subject, html_body, recipient, *, config=None, reply_to=None):
     """Envoie un email HTML via SMTP. Retourne un dict descriptif (jamais
     d'exception) : {'delivered': True} si envoye, '' delivered False'' si
     desactive / non configure / echec."""
@@ -73,6 +73,8 @@ def send_email(subject, html_body, recipient, *, config=None):
     msg['From'] = msg_from
     msg['To'] = recipient
     msg['Subject'] = subject
+    if reply_to:
+        msg['Reply-To'] = reply_to.replace('\r', ' ').replace('\n', ' ')
     msg.attach(MIMEText(html_body, 'html', 'utf-8'))
 
     try:

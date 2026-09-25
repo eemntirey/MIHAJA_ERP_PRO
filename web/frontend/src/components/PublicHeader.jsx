@@ -1,0 +1,21 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import '../pages/Pages.css';
+
+const PublicHeader = ({ compact = false }) => (
+  <header className={`public-header public-page-header${compact ? ' public-header--compact' : ''}`}>
+    <Link to="/" className="brand" aria-label="MIHAJA ERP PRO accueil">
+      <span className="brand-icon" aria-hidden="true">M</span>
+      <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
+    </Link>
+    <nav className="public-nav" aria-label="Navigation principale">
+      <Link to="/" className="public-nav-link">Accueil</Link>
+      <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
+      <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
+      <Link to="/contact" className="public-nav-link">Contact</Link>
+      <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
+    </nav>
+  </header>
+);
+
+export default PublicHeader;

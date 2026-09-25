@@ -65,6 +65,7 @@ const LoginPage = () => {
             <input
               id="email"
               type="text"
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="superadmin ou superadmin@mihaja.mg"

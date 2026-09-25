@@ -5,7 +5,26 @@ import { toast } from 'react-toastify';
 import { publicCatalogueService, authService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import Seo from '../components/Seo';
 import './Pages.css';
+
+const HOME_SEO_DATA = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      name: 'MIHAJA ERP PRO',
+      url: 'https://erp.sekoliko.com/',
+      description: 'ERP SaaS pour les entreprises à Madagascar.',
+    },
+    {
+      '@type': 'WebSite',
+      name: 'MIHAJA ERP PRO',
+      url: 'https://erp.sekoliko.com/',
+      inLanguage: 'fr',
+    },
+  ],
+};
 
 const getNotifKind = (notif) => {
   const text = `${notif?.message || notif || ''}`.toLowerCase();
@@ -23,12 +42,12 @@ const FEATURES = [
   {
     icon: 'ti ti-receipt',
     title: 'Facturation rapide',
-    desc: 'Génération automatique de factures, devis et bons de commande conformes à la réglementation malgache.',
+    desc: 'Génération de factures, devis et bons de commande adaptés aux besoins des entreprises à Madagascar.',
   },
   {
     icon: 'ti ti-users',
     title: 'Gestion clientèle',
-    desc: 'Base de données centralisée de vos clients, historique des achats et programmess de fidélité.',
+    desc: 'Base de données centralisée de vos clients, historique des achats et programmes de fidélité.',
   },
   {
     icon: 'ti ti-chart-bar',
@@ -48,30 +67,27 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: '500+', label: 'Entreprises actives' },
-  { value: '10 000+', label: 'Produits gérés' },
-  { value: '99.9%', label: 'Disponibilité' },
-  { value: '24/7', label: 'Support technique' },
+  { value: 'Multi-tenant', label: 'Espaces d’entreprise isolés' },
+  { value: 'MGA', label: 'Devise adaptée au marché local' },
+  { value: 'Web', label: 'Application accessible sur navigateur' },
+  { value: 'Desktop', label: 'Application Windows disponible' },
 ];
 
-const TESTIMONIALS = [
+const VALUE_POINTS = [
   {
-    name: 'Rakoto Jean',
-    role: 'Directeur, Teknisyo SARL',
-    text: 'ERP Pro a transformé notre gestion des stocks. Nous avons réduit les pertes de 40% en seulement 3 mois.',
-    avatar: 'RJ',
+    icon: 'ti ti-shield-check',
+    title: 'Données séparées',
+    desc: 'Chaque entreprise travaille dans son espace tenant, avec une séparation des données côté plateforme.',
   },
   {
-    name: 'Rasoa Hélène',
-    role: 'Gérante, Boutique Tolagnaro',
-    text: 'La facturation est devenue un jeu d\'enfant. Je recommande vivement cette solution pour toute PME à Madagascar.',
-    avatar: 'RH',
+    icon: 'ti ti-layout-dashboard',
+    title: 'Pilotage centralisé',
+    desc: 'Stocks, ventes, achats, clients, factures et livraisons sont réunis dans un même ERP.',
   },
   {
-    name: 'Andry Rabe',
-    role: 'Chef comptable, MadaImport',
-    text: 'Le tableau de bord nous donne une visibilité instantanée sur notre activité. Un outil indispensable.',
-    avatar: 'AR',
+    icon: 'ti ti-devices',
+    title: 'Accès multiplateforme',
+    desc: 'La plateforme est accessible sur le Web et dispose d’une application Desktop pour Windows.',
   },
 ];
 
@@ -82,6 +98,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [trackingRef, setTrackingRef] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserCartouche, setShowUserCartouche] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -89,14 +106,15 @@ const Home = () => {
   const userMenuRef = useRef(null);
 
   const isUser = user?.role === 'USER' || user?.role === 'user';
-  const role = (user?.role || '').toLowerCase();
-
   useEffect(() => {
     fetchProducts();
+  }, []);
+
+  useEffect(() => {
     if (isUser && isAuthenticated) {
       fetchNotifications();
     }
-  }, []);
+  }, [isUser, isAuthenticated]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -105,8 +123,18 @@ const Home = () => {
         setEditingName(false);
       }
     };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowUserCartouche(false);
+        setEditingName(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const fetchProducts = async () => {
@@ -153,11 +181,11 @@ const Home = () => {
     }
   };
 
-  const handleSearch = (e) => {
+  const handleTrackOrder = (e) => {
     e.preventDefault();
-    const ref = (searchQuery || '').trim();
+    const ref = (trackingRef || '').trim();
     if (!ref) {
-      toast.warn('Saisissez une référence de commande ou un nom de produit.');
+      toast.warn('Saisissez une référence de commande.');
       return;
     }
     fetchNotifications(ref);
@@ -207,14 +235,23 @@ const Home = () => {
   }, [products, searchQuery]);
 
   return (
-    <div className="home-page">
+    <>
+      <Seo
+        title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
+        description="MIHAJA ERP PRO est un ERP SaaS pour gérer stocks, ventes, achats, factures, clients et livraisons pour les entreprises à Madagascar."
+        canonical="https://erp.sekoliko.com/"
+        structuredData={HOME_SEO_DATA}
+      />
+      <div className="home-page">
       {/* ── Header ── */}
       <header className="public-header">
         <Link to="/" className="brand">
-          <span className="brand-icon">EP</span>
-          <span className="brand-name">ERP Pro</span>
+          <span className="brand-icon" aria-hidden="true">M</span>
+          <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
         </Link>
         <nav className="public-nav">
+          <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
+          <a href="#telechargements" className="public-nav-link">Téléchargements</a>
           {isAuthenticated ? (
             <>
               {isUser && (
@@ -223,78 +260,135 @@ const Home = () => {
                     type="button"
                     className="user-cartouche-trigger"
                     onClick={openUserMenu}
-                    aria-haspopup="true"
+                    id="mihaja-user-menu-trigger"
+                    aria-haspopup="menu"
                     aria-expanded={showUserCartouche}
+                    aria-controls="mihaja-user-menu"
                   >
                     <span className="user-cartouche-avatar" aria-hidden="true">
-                      {(user?.prenom?.[0] || 'U').toUpperCase()}
+                      {(user?.prenom?.[0] || user?.nom?.[0] || 'U').toUpperCase()}
                     </span>
-                    <span className="user-cartouche-greeting">
-                      Bienvenue, {user?.prenom || 'Utilisateur'}
+                    <span className="user-cartouche-trigger-copy">
+                      <span className="user-cartouche-trigger-name">
+                        {user?.prenom || user?.nom || 'Mon compte'}
+                      </span>
+                      <span className="user-cartouche-trigger-label">Compte client</span>
                     </span>
-                    <span className="user-cartouche-chevron" aria-hidden="true">
-                      ▾
-                    </span>
+                    <i
+                      className={`ti ti-chevron-down user-cartouche-chevron${showUserCartouche ? ' is-open' : ''}`}
+                      aria-hidden="true"
+                    />
                   </button>
 
                   {showUserCartouche && (
-                    <div className="user-cartouche">
+                    <div id="mihaja-user-menu" className="user-cartouche" role="menu" aria-labelledby="mihaja-user-menu-trigger">
                       <div className="user-cartouche-header">
                         <div className="user-cartouche-avatar-large" aria-hidden="true">
-                          {(user?.prenom?.[0] || 'U').toUpperCase()}
+                          {(user?.prenom?.[0] || user?.nom?.[0] || 'U').toUpperCase()}
                         </div>
                         <div className="user-cartouche-meta">
                           {editingName ? (
-                            <div className="user-cartouche-edit-form">
-                              <input
-                                type="text"
-                                value={nameForm.prenom}
-                                onChange={(e) => setNameForm((prev) => ({ ...prev, prenom: e.target.value }))}
-                                placeholder="Prénom"
-                                className="user-cartouche-input"
-                              />
-                              <input
-                                type="text"
-                                value={nameForm.nom}
-                                onChange={(e) => setNameForm((prev) => ({ ...prev, nom: e.target.value }))}
-                                placeholder="Nom"
-                                className="user-cartouche-input"
-                              />
-                              <button
-                                type="button"
-                                className="user-cartouche-save"
-                                onClick={saveName}
-                              >
-                                Enregistrer
-                              </button>
-                            </div>
+                            <>
+                              <span className="user-cartouche-section-label">Modifier le profil</span>
+                              <div className="user-cartouche-edit-form">
+                                <label>
+                                  <span>Prénom</span>
+                                  <input
+                                    type="text"
+                                    value={nameForm.prenom}
+                                    onChange={(e) => setNameForm((prev) => ({ ...prev, prenom: e.target.value }))}
+                                    placeholder="Votre prénom"
+                                    className="user-cartouche-input"
+                                    autoFocus
+                                  />
+                                </label>
+                                <label>
+                                  <span>Nom</span>
+                                  <input
+                                    type="text"
+                                    value={nameForm.nom}
+                                    onChange={(e) => setNameForm((prev) => ({ ...prev, nom: e.target.value }))}
+                                    placeholder="Votre nom"
+                                    className="user-cartouche-input"
+                                  />
+                                </label>
+                                <div className="user-cartouche-edit-actions">
+                                  <button type="button" className="user-cartouche-cancel" onClick={() => setEditingName(false)}>
+                                    Annuler
+                                  </button>
+                                  <button type="button" className="user-cartouche-save" onClick={saveName}>
+                                    <i className="ti ti-check" aria-hidden="true" />
+                                    Enregistrer
+                                  </button>
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <>
-                              <strong>{user?.prenom} {user?.nom}</strong>
-                              <span>{user?.email}</span>
-                              <button
-                                type="button"
-                                className="user-cartouche-edit"
-                                onClick={startEditName}
-                              >
-                                Modifier mon nom
-                              </button>
+                              <span className="user-cartouche-section-label">Compte client</span>
+                              <strong>{user?.prenom || ''} {user?.nom || ''}</strong>
+                              <span className="user-cartouche-email">{user?.email || 'Adresse e-mail non renseignée'}</span>
+                              <span className="user-cartouche-status">
+                                <i className="ti ti-circle-check-filled" aria-hidden="true" />
+                                Compte actif
+                              </span>
                             </>
                           )}
                         </div>
                       </div>
-                      <div className="user-cartouche-footer">
-                        <Link to="/mes-commandes" className="user-cartouche-orders">
-                          Mes commandes
-                        </Link>
-                        <button
-                          type="button"
-                          className="user-cartouche-logout"
-                          onClick={handleLogout}
-                        >
-                          Se déconnecter
-                        </button>
-                      </div>
+
+                      {!editingName && (
+                        <>
+                          <div className="user-cartouche-body">
+                            <button type="button" className="user-cartouche-item" role="menuitem" onClick={startEditName}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-user" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mes informations</strong>
+                                <small>Modifier mon nom et mes coordonnées</small>
+                              </span>
+                              <i className="ti ti-chevron-right" aria-hidden="true" />
+                            </button>
+
+                            <Link to="/mes-commandes" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-package" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mes commandes</strong>
+                                <small>Consulter mes achats et suivis</small>
+                              </span>
+                              {notifications.length > 0 && (
+                                <b className="user-cartouche-count">{notifications.length}</b>
+                              )}
+                            </Link>
+
+                            <Link to="/cart" className="user-cartouche-item" role="menuitem" onClick={() => setShowUserCartouche(false)}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-shopping-cart" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Mon panier</strong>
+                                <small>Voir les articles sélectionnés</small>
+                              </span>
+                              {totalItems > 0 && (
+                                <b className="user-cartouche-count">{totalItems}</b>
+                              )}
+                            </Link>
+
+                            <button type="button" className="user-cartouche-item" role="menuitem" onClick={startEditName}>
+                              <span className="user-cartouche-item-icon"><i className="ti ti-edit" aria-hidden="true" /></span>
+                              <span>
+                                <strong>Modifier mon nom</strong>
+                                <small>Mettre à jour mon identité</small>
+                              </span>
+                              <i className="ti ti-chevron-right" aria-hidden="true" />
+                            </button>
+                          </div>
+
+                          <div className="user-cartouche-footer">
+                            <button type="button" className="user-cartouche-logout" role="menuitem" onClick={handleLogout}>
+                              <i className="ti ti-logout-2" aria-hidden="true" />
+                              <span>Se déconnecter</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -313,7 +407,6 @@ const Home = () => {
              </>
            ) : (
             <>
-              <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
               <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
               <Link to="/register" className="public-nav-link btn-nav-register">S'inscrire</Link>
             </>
@@ -356,7 +449,7 @@ const Home = () => {
               </div>
               <p className="vit-hero__note">
                 <i className="ti ti-shield-check" aria-hidden="true" />
-                Essai gratuit 14 jours — Aucune carte bancaire requise
+                Essai gratuit — Aucune carte bancaire requise
               </p>
             </div>
           </section>
@@ -380,14 +473,15 @@ const Home = () => {
               )}
             </div>
 
-            <form onSubmit={handleSearch} className="orders-track">
+            <form onSubmit={handleTrackOrder} className="orders-track">
               <div className="orders-track__field">
                 <i className="ti ti-search orders-track__icon" aria-hidden="true" />
                 <input
                   type="text"
-                  placeholder="Rechercher un produit par nom ou vendeur..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Suivre une commande par référence..."
+                  value={trackingRef}
+                  onChange={(e) => setTrackingRef(e.target.value)}
+                  aria-label="Référence de commande"
                 />
               </div>
               <button type="submit" className="btn-primary orders-track__btn">
@@ -539,31 +633,80 @@ const Home = () => {
               </div>
             </section>
 
-            {/* ── Testimonials ── */}
-            <section className="vit-testimonials">
+            {/* ── Why MIHAJA ── */}
+            <section className="vit-features">
               <div className="vit-section-header">
-                <span className="vit-section-tag">Témoignages</span>
-                <h2 className="vit-section-title">Ils nous font confiance</h2>
+                <span className="vit-section-tag">Pourquoi MIHAJA ERP PRO</span>
+                <h2 className="vit-section-title">Une base solide pour votre gestion</h2>
                 <p className="vit-section-subtitle">
-                  Découvrez ce que nos clients disent de leur expérience avec ERP Pro.
+                  Une plateforme pensée pour centraliser les opérations quotidiennes sans multiplier les outils.
                 </p>
               </div>
-              <div className="vit-testimonials__grid">
-                {TESTIMONIALS.map((t) => (
-                  <div className="vit-testimonial-card" key={t.name}>
-                    <div className="vit-testimonial-card__quote">
-                      <i className="ti ti-quote" aria-hidden="true" />
+              <div className="vit-features__grid">
+                {VALUE_POINTS.map((point) => (
+                  <div className="vit-feature-card" key={point.title}>
+                    <div className="vit-feature-card__icon">
+                      <i className={point.icon} aria-hidden="true" />
                     </div>
-                    <p className="vit-testimonial-card__text">{t.text}</p>
-                    <div className="vit-testimonial-card__author">
-                      <div className="vit-testimonial-card__avatar">{t.avatar}</div>
-                      <div>
-                        <strong className="vit-testimonial-card__name">{t.name}</strong>
-                        <span className="vit-testimonial-card__role">{t.role}</span>
-                      </div>
-                    </div>
+                    <h3 className="vit-feature-card__title">{point.title}</h3>
+                    <p className="vit-feature-card__desc">{point.desc}</p>
                   </div>
                 ))}
+              </div>
+            </section>
+
+            {/* ── Downloads ── */}
+            <section className="vit-downloads" id="telechargements">
+              <div className="vit-section-header">
+                <span className="vit-section-tag">
+                  <i className="ti ti-download" aria-hidden="true" />
+                  Applications
+                </span>
+                <h2 className="vit-section-title">Téléchargez MIHAJA ERP PRO</h2>
+                <p className="vit-section-subtitle">
+                  Utilisez MIHAJA ERP PRO sur votre ordinateur dès maintenant.
+                </p>
+              </div>
+
+              <div className="vit-downloads__grid">
+                <a
+                  className="vit-download-card"
+                  href="/download/desktop"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Télécharger MIHAJA ERP PRO pour Windows"
+                >
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-windows" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>Windows — Desktop</strong>
+                    <span>Installer MIHAJA ERP PRO pour Windows</span>
+                  </span>
+                  <i className="ti ti-arrow-down" aria-hidden="true" />
+                </a>
+
+                <div className="vit-download-card vit-download-card--disabled" aria-disabled="true">
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-android" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>Android</strong>
+                    <span>Bientôt disponible sur Google Play</span>
+                  </span>
+                  <span className="vit-download-card__status">Bientôt</span>
+                </div>
+
+                <div className="vit-download-card vit-download-card--disabled" aria-disabled="true">
+                  <span className="vit-download-card__icon" aria-hidden="true">
+                    <i className="ti ti-brand-apple" />
+                  </span>
+                  <span className="vit-download-card__content">
+                    <strong>iPhone / iPad</strong>
+                    <span>Bientôt disponible sur l’App Store</span>
+                  </span>
+                  <span className="vit-download-card__status">Bientôt</span>
+                </div>
               </div>
             </section>
 
@@ -615,7 +758,28 @@ const Home = () => {
           )}
 
           {!loading && !error && (
-            <div className="home-products-grid">
+            <>
+              <div className="vit-catalogue-search" role="search">
+                <i className="ti ti-search" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher un produit ou un vendeur..."
+                  aria-label="Rechercher dans le catalogue"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="vit-catalogue-search__clear"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Effacer la recherche"
+                  >
+                    <i className="ti ti-x" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <div className="home-products-grid">
               {products.length === 0 ? (
                 <div className="card full-width vit-catalogue-empty">
                   <i className="ti ti-package-off vit-catalogue-empty__icon" aria-hidden="true" />
@@ -668,15 +832,15 @@ const Home = () => {
                           className="vit-btn vit-btn--outline vit-btn--sm"
                         >
                           <i className="ti ti-eye" aria-hidden="true" />
-                          Details
+                          Détails
                         </Link>
-                        {(isUser || isAuthenticated) && (
+                        {isUser && (
                           <button
                             type="button"
                             className="vit-btn vit-btn--primary vit-btn--sm"
                             onClick={() => {
                               addItem(product, 1);
-                              toast.success(`${product.nom} ajoute au panier`);
+                              toast.success(`${product.nom} ajouté au panier`);
                             }}
                           >
                             <i className="ti ti-shopping-cart-plus" aria-hidden="true" />
@@ -698,6 +862,7 @@ const Home = () => {
                 ))
               )}
             </div>
+            </>
           )}
         </section>
       </main>
@@ -728,6 +893,7 @@ const Home = () => {
                 </div>
                 <div className="vit-footer__col">
                   <h4>Ressources</h4>
+                  <a href="#telechargements">Télécharger les applications</a>
                   <Link to="/documentation">Documentation</Link>
                   <a href="mailto:support@mihaja.mg">Support technique</a>
                   <a href="tel:+261340000000">Contact commercial</a>
@@ -735,8 +901,8 @@ const Home = () => {
                 <div className="vit-footer__col">
                   <h4>Entreprise</h4>
                   <Link to="/contact">Contactez-nous</Link>
-                  <a href="#">Mentions légales</a>
-                  <a href="#">Politique de confidentialité</a>
+                  <Link to="/terms">Mentions légales</Link>
+                  <Link to="/privacy">Politique de confidentialité</Link>
                 </div>
               </div>
             </div>
@@ -751,7 +917,8 @@ const Home = () => {
           </div>
         </footer>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

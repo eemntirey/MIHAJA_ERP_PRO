@@ -1,4 +1,5 @@
-from flask import request, current_app, g
+from xml.sax.saxutils import escape as xml_escape
+from flask import request, current_app, g, Response
 from flask_restx import Namespace, Resource
 from app.models.produit import Produit
 from app.models.tenant import Tenant
@@ -148,6 +149,137 @@ def _infer_tenant_from_items(items):
         return db.session.get(Tenant, produit.tenant_id)
     except Exception:
         return None
+
+
+@ns_public.route('/contact')
+class PublicContact(Resource):
+    @rate_limit(5, 300)
+    def post(self):
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return {'message': 'Corps JSON invalide.'}, 400
+
+        if str(data.get('website') or '').strip():
+            return {'message': 'Message refusé.'}, 400
+
+        name = str(data.get('name') or '').strip()
+        email = str(data.get('email') or '').strip()
+        subject_input = str(data.get('subject') or '').strip()
+        message = str(data.get('message') or '').strip()
+
+        if not name or not email or not message:
+            return {'message': 'Nom, email et message sont requis.'}, 400
+        if len(name) > 120 or len(email) > 254 or len(subject_input) > 160 or len(message) > 5000:
+            return {'message': 'Un ou plusieurs champs dépassent la longueur autorisée.'}, 400
+
+        parsed_name, parsed_email = parseaddr(email)
+        if parsed_name or parsed_email != email or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+            return {'message': 'Adresse email invalide.'}, 400
+
+        recipient = getattr(Config, 'MAIL_CONTACT_RECIPIENT', None)
+        if not recipient:
+            current_app.logger.error('Contact public impossible : MAIL_CONTACT_RECIPIENT non configuré')
+            return {'message': 'Le service de contact est momentanément indisponible.'}, 503
+
+        safe_name = name.replace('\r', ' ').replace('\n', ' ')
+        safe_subject = subject_input.replace('\r', ' ').replace('\n', ' ')
+        subject = f"Contact MIHAJA ERP — {safe_subject or safe_name}"
+        now = datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')
+
+        html_body = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;color:#111">'
+            '<h2>Nouveau message depuis MIHAJA ERP PRO</h2>'
+            f'<p><strong>Nom :</strong> {html_lib.escape(name)}</p>'
+            f'<p><strong>Email :</strong> {html_lib.escape(email)}</p>'
+            f'<p><strong>Sujet :</strong> {html_lib.escape(safe_subject or "Demande générale")}</p>'
+            f'<p><strong>Date :</strong> {html_lib.escape(now)}</p>'
+            '<p><strong>Message :</strong></p>'
+            '<div style="white-space:pre-wrap;border-left:3px solid #d4af37;padding:10px 14px;background:#fafafa">'
+            f'{html_lib.escape(message)}</div>'
+            '<p style="margin-top:22px;color:#777;font-size:12px">Message envoyé depuis le formulaire public MIHAJA ERP PRO.</p>'
+            '</div>'
+        )
+
+        result = send_email(subject, html_body, recipient, reply_to=email)
+        if not result.get('delivered'):
+            current_app.logger.error('Envoi contact non livré : %s', result.get('message', 'erreur SMTP'))
+            return {'message': 'Impossible d’envoyer le message pour le moment. Réessayez plus tard.'}, 503
+
+        acknowledgement = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;color:#111">'
+            '<h2>Nous avons bien reçu votre message</h2>'
+            f'<p>Bonjour {html_lib.escape(name)},</p>'
+            '<p>Merci d’avoir contacté MIHAJA ERP PRO. Votre demande a bien été transmise à notre équipe.</p>'
+            f'<p><strong>Sujet :</strong> {html_lib.escape(safe_subject or "Demande générale")}</p>'
+            '<p>Nous reviendrons vers vous à l’adresse email utilisée pour ce message.</p>'
+            '<p style="color:#777;font-size:12px">Ceci est un accusé de réception automatique.</p>'
+            '</div>'
+        )
+        ack = send_email('Confirmation de réception — MIHAJA ERP PRO', acknowledgement, email)
+        if not ack.get('delivered'):
+            current_app.logger.warning('Accusé de réception non envoyé au contact : %s', ack.get('message', 'erreur SMTP'))
+
+        return {'message': 'Message envoyé avec succès.'}, 200
+
+
+@ns_public.route('/sitemap.xml')
+class PublicSitemap(Resource):
+    def get(self):
+        """Sitemap dynamique des pages publiques indexables."""
+        active_tenant_ids = _get_active_tenant_ids()
+        today = datetime.utcnow().date()
+
+        public_site_url = (getenv('PUBLIC_SITE_URL') or getenv('FRONTEND_URL') or 'http://localhost:3000').rstrip('/')
+        static_urls = [
+            (f'{public_site_url}/', 'weekly', '1.0'),
+            (f'{public_site_url}/catalogue', 'daily', '0.9'),
+            (f'{public_site_url}/contact', 'monthly', '0.6'),
+        ]
+
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ]
+        for loc, changefreq, priority in static_urls:
+            lines.extend([
+                '  <url>',
+                f'    <loc>{xml_escape(loc)}</loc>',
+                f'    <lastmod>{today.isoformat()}</lastmod>',
+                f'    <changefreq>{changefreq}</changefreq>',
+                f'    <priority>{priority}</priority>',
+                '  </url>',
+            ])
+
+        if active_tenant_ids:
+            products = db.session.query(
+                Produit.id,
+                Produit.updated_at,
+            ).filter(
+                Produit.tenant_id.in_(active_tenant_ids),
+                Produit.is_active == True,
+                Produit.published == True,
+                Produit.quantite_stock > 0,
+                Produit.quantite_stock > func.coalesce(Produit.seuil_alerte, 0),
+            ).order_by(
+                Produit.updated_at.desc().nullslast(),
+                Produit.id.desc(),
+            ).limit(45000).all()
+
+            for product_id, updated_at in products:
+                lastmod = updated_at.date().isoformat() if updated_at else today.isoformat()
+                lines.extend([
+                    '  <url>',
+                    f'    <loc>{xml_escape(public_site_url)}/produits/{int(product_id)}</loc>',
+                    f'    <lastmod>{lastmod}</lastmod>',
+                    '    <changefreq>weekly</changefreq>',
+                    '    <priority>0.7</priority>',
+                    '  </url>',
+                ])
+
+        lines.append('</urlset>')
+        response = Response('\n'.join(lines), mimetype='application/xml')
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response, 200
 
 
 @ns_public.route('/produits')

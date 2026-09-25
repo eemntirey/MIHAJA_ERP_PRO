@@ -7,12 +7,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { syncService } from '../services/api';
 import { tokenStore } from '../storage/tokenStore';
+import { useAuth } from '../contexts/AuthContext';
 
 const POLL_INTERVAL_MS = 5000;
 const USE_WEBSOCKET = false;
 
 export function useRealtime(options = {}) {
   const { onFavoriteUpdate, onColumnUpdate, onFilterUpdate, onNotification, onUserUpdate, onTenantUpdate, pollInterval = POLL_INTERVAL_MS } = options;
+  const { isAuthenticated } = useAuth();
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState(null);
   const intervalRef = useRef(null);
@@ -95,8 +97,15 @@ export function useRealtime(options = {}) {
       }
     };
 
-    // A1 : web — se connecter même sans token en localStorage (cookies HttpOnly).
-    // Electron — exiger le token (secureStore).
+    // Web : ne jamais poller les événements avant l'authentification.
+    // Les JWT web sont HttpOnly et ne sont donc pas lisibles ici.
+    if (!isAuthenticated) {
+      setConnected(false);
+      return () => {
+        window.removeEventListener('auth:logout', handleLogout);
+      };
+    }
+
     const token = tokenStore.getAccessToken();
     const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
     const hasToken = isElectron ? !!token : true;
@@ -136,7 +145,7 @@ export function useRealtime(options = {}) {
       }
       window.removeEventListener('auth:logout', handleLogout);
     };
-  }, [processEvent, pollInterval]);
+  }, [processEvent, pollInterval, isAuthenticated]);
 
   return {
     connected,
