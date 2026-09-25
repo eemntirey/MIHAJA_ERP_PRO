@@ -6,6 +6,7 @@ import { publicCatalogueService, setPublicTenantContext } from '../services/api'
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
+import PublicHeader from '../components/PublicHeader';
 
 const PAYMENT_METHODS = [
   { value: 'MVOLA', label: 'MVola' },
@@ -205,6 +206,7 @@ const Checkout = () => {
   if (loading) {
     return (
       <div className="page-container">
+      <PublicHeader />
         <div className="loading-screen">
           <div className="spinner-large"></div>
           <p>Chargement...</p>
