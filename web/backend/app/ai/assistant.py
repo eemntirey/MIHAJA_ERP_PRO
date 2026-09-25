@@ -8,6 +8,8 @@ from app.security.tenant import get_current_tenant_id
 from app.ai.previsions import predict_sales, predict_stock_rupture
 from app.ai.recommendations import suggest_reorders
 from app.ai.external_services import external_ai, web_search, context_manager
+from app.ai import ai_tools
+from app.ai.ai_permissions import can_access_domain, require_domain_access, AIPermissionError
 from app import db
 import logging
 
@@ -108,7 +110,34 @@ def ask_assistant(tenant_id=None, prompt="", conversation=None):
 
 
 def _answer_internal(tenant_id, prompt_lower):
+    if any(w in prompt_lower for w in ['que dois-je faire', 'que dois je faire', 'à faire', 'a faire', 'priorités', 'priorites', 'aujourd’hui', "aujourd'hui", 'maintenant', 'urgent']):
+        sections = []
+
+        if can_access_domain('stocks'):
+            health = ai_tools.get_stock_health(tenant_id=tenant_id)
+            low = ai_tools.get_low_stock_products(tenant_id=tenant_id, limit=5)
+            if health.get('ruptures', 0):
+                names = ', '.join(item.get('nom') for item in low.get('items', []) if item.get('statut') == 'rupture')
+                sections.append(f"- **Stock** : {health['ruptures']} rupture(s). À traiter en priorité{(': ' + names) if names else '.'}")
+            elif health.get('alertes', 0):
+                sections.append(f"- **Stock** : {health['alertes']} produit(s) sous le seuil d’alerte.")
+
+        if can_access_domain('finances'):
+            debts = ai_tools.get_customer_debts(tenant_id=tenant_id, limit=5)
+            if debts.get('count', 0):
+                sections.append(f"- **Créances** : {debts['count']} facture(s) à relancer, pour **{debts['total_creances']:.2f} Ar**.")
+
+        if can_access_domain('achats'):
+            pending = ai_tools.get_pending_purchase_orders(tenant_id=tenant_id, limit=5)
+            if pending.get('count', 0):
+                sections.append(f"- **Achats** : {pending['count']} commande(s) fournisseur encore en attente.")
+
+        if not sections:
+            return "Aucune priorité critique détectée avec les données actuellement accessibles."
+        return "**Priorités du moment** :\n" + "\n".join(sections)
+
     if any(w in prompt_lower for w in ['prévision', 'prevision', 'projections', 'futur', 'tendance']):
+        require_domain_access('ventes')
         prev = predict_sales(tenant_id=tenant_id, periods=30)
         return (f"**Prévisions de Ventes (30 prochains jours)** :\n"
                 f"- Chiffre d'affaires estimé : **{prev['total_predicted']:.2f} Ar**\n"
@@ -117,6 +146,7 @@ def _answer_internal(tenant_id, prompt_lower):
                 f"- Indice de confiance du modèle : **{int(prev['confidence_score']*100)}%**")
 
     if any(w in prompt_lower for w in ['réapprovision', 'réapprovisionnement', 'reorder', 'commande fournisseur', 'stock à commander', 'approvisionnement']):
+        require_domain_access('stocks')
         recommandations = suggest_reorders(tenant_id=tenant_id)
         suggestions = recommandations.get('recommendations') if isinstance(recommandations, dict) else None
         if not suggestions:
@@ -129,6 +159,7 @@ def _answer_internal(tenant_id, prompt_lower):
         return "**Réapprovisionnement recommandé** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['stock', 'inventaire', 'rupture', 'seuil', 'alerte']):
+        require_domain_access('stocks')
         produits_list = Produit.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         alertes = [p for p in produits_list if (p.quantite_stock or 0) <= (p.seuil_alerte or 0)]
         ruptures = [p for p in produits_list if (p.quantite_stock or 0) == 0]
@@ -145,6 +176,7 @@ def _answer_internal(tenant_id, prompt_lower):
         return msg
 
     if any(w in prompt_lower for w in ['top produit', 'meilleur produit', 'meilleures ventes', 'produits les plus vendus', 'top ventes']):
+        require_domain_access('ventes')
         results = db.session.query(
             LigneVente.produit_id,
             db.func.sum(LigneVente.quantite).label('quantite_vendue'),
@@ -162,21 +194,25 @@ def _answer_internal(tenant_id, prompt_lower):
         return "**Produits les plus vendus** :\n" + "\n".join(lines)
 
     if any(w in prompt_lower for w in ['vente', 'ca', 'chiffre', 'chiffre d\'affaires', 'revenu']):
+        require_domain_access('ventes')
         ventes_list = Vente.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         total_ca = sum(float(v.total_ttc or 0) for v in ventes_list)
         return f"**Chiffre d'Affaires Total** : **{total_ca:.2f} Ar** générés sur un total de **{len(ventes_list)} ventes** enregistrées."
 
     if any(w in prompt_lower for w in ['facture', 'impayé', 'impayee', 'retard', 'paiement']):
+        require_domain_access('finances')
         factures_list = Facture.query.filter_by(is_active=True, tenant_id=tenant_id).all()
         impayees = [f for f in factures_list if getattr(f.statut, 'value', str(f.statut)).lower() in ['non_payee', 'payee_partiel', 'en_attente']]
         montant_impaye = sum(float(f.total_ttc or 0) for f in impayees)
         return f"**Factures** : **{len(impayees)} facture(s) en attente ou non payée(s)** pour un montant total restant dû de **{montant_impaye:.2f} Ar** sur {len(factures_list)} factures émises."
 
     if any(w in prompt_lower for w in ['client', 'acheteur']):
+        require_domain_access('clients')
         nb_clients = Client.query.filter_by(is_active=True, tenant_id=tenant_id).count()
         return f"**Portefeuille Clients** : Vous avez actuellement **{nb_clients} client(s) actif(s)** enregistrés dans le système."
 
     if any(w in prompt_lower for w in ['fournisseur', 'achat', 'commande']):
+        require_domain_access('achats')
         nb_fournisseurs = Fournisseur.query.filter_by(is_active=True, tenant_id=tenant_id).count()
         return f"**Fournisseurs** : **{nb_fournisseurs} fournisseur(s)** enregistrés."
 
