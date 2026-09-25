@@ -95,6 +95,13 @@ class CommandeAchatService:
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
         if lignes_data is not None:
+            active_receptions = ReceptionAchat.query.filter_by(
+                commande_achat_id=id, tenant_id=instance.tenant_id, is_active=True
+            ).count()
+            if active_receptions:
+                raise ValueError(
+                    "Impossible de modifier les lignes d'une commande ayant déjà des réceptions"
+                )
             LigneAchat.query.filter_by(commande_achat_id=id, is_active=True).update({'is_active': False})
             total_ht = 0
             total_ttc = 0
@@ -270,13 +277,110 @@ class ReceptionAchatService:
         return instance
 
     @classmethod
+    def _refresh_commande_status(cls, commande):
+        lines = LigneAchat.query.filter_by(
+            commande_achat_id=commande.id,
+            tenant_id=commande.tenant_id,
+            is_active=True,
+        ).all()
+        if not lines:
+            return
+        received_rows = db.session.query(
+            cls.model.produit_id,
+            db.func.coalesce(db.func.sum(cls.model.quantite_recue), 0),
+        ).filter(
+            cls.model.commande_achat_id == commande.id,
+            cls.model.tenant_id == commande.tenant_id,
+            cls.model.is_active.is_(True),
+        ).group_by(cls.model.produit_id).all()
+        received = {pid: Decimal(str(qty or 0)) for pid, qty in received_rows}
+        complete = all(
+            received.get(line.produit_id, Decimal('0')) >= Decimal(str(line.quantite or 0))
+            for line in lines
+        )
+        any_received = any(received.get(line.produit_id, Decimal('0')) > 0 for line in lines)
+        if complete:
+            commande.statut = 'recue'
+        elif any_received:
+            commande.statut = 'partiellement_recue'
+
+    @classmethod
     def update(cls, id, data):
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        data = dict(data or {})
+        if any(key in data for key in ('commande_achat_id', 'produit_id', 'quantite_commandee')):
+            raise ValueError("Le rattachement produit/commande d'une réception est immutable")
+
+        if 'quantite_recue' in data:
+            try:
+                new_qty = Decimal(str(data['quantite_recue']))
+            except (TypeError, ValueError):
+                raise ValueError("quantite_recue invalide")
+            if new_qty <= 0:
+                raise ValueError("La quantité reçue doit être supérieure à 0")
+
+            commande = instance.commande_achat
+            line = LigneAchat.query.filter_by(
+                commande_achat_id=commande.id,
+                produit_id=instance.produit_id,
+                tenant_id=instance.tenant_id,
+                is_active=True,
+            ).first()
+            if not line:
+                raise ValueError("La ligne d'achat liée à la réception est introuvable")
+
+            deja_recu = db.session.query(
+                db.func.coalesce(db.func.sum(cls.model.quantite_recue), 0)
+            ).filter(
+                cls.model.commande_achat_id == commande.id,
+                cls.model.produit_id == instance.produit_id,
+                cls.model.tenant_id == instance.tenant_id,
+                cls.model.is_active.is_(True),
+                cls.model.id != instance.id,
+            ).scalar() or 0
+            max_qty = Decimal(str(line.quantite or 0)) - Decimal(str(deja_recu))
+            if new_qty > max_qty:
+                raise ValueError(f"Quantité reçue trop élevée : reste {max_qty}")
+
+            produit = Produit.query.filter_by(
+                id=instance.produit_id,
+                tenant_id=instance.tenant_id,
+                is_active=True,
+            ).with_for_update().first()
+            if not produit:
+                raise ValueError("Produit introuvable")
+
+            old_qty = Decimal(str(instance.quantite_recue or 0))
+            delta = new_qty - old_qty
+            stock_avant = Decimal(str(produit.quantite_stock or 0))
+            if delta < 0 and stock_avant < -delta:
+                raise ValueError("Stock insuffisant pour réduire cette réception")
+            produit.quantite_stock = stock_avant + delta
+
+            if delta != 0:
+                db.session.add(MouvementStock(
+                    produit_id=produit.id,
+                    type_mouvement='entree' if delta > 0 else 'sortie',
+                    quantite=abs(delta),
+                    stock_avant=stock_avant,
+                    stock_apres=produit.quantite_stock,
+                    raison=f'Correction réception {instance.reference}',
+                    reference=instance.reference,
+                    tenant_id=instance.tenant_id,
+                ))
+
+            instance.quantite_recue = new_qty
+            instance.ecart = new_qty - Decimal(str(instance.quantite_commandee or 0))
+
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
+            if key in ('quantite_recue', 'commande_achat_id', 'produit_id', 'quantite_commandee'):
+                continue
+            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at', 'is_active'):
                 setattr(instance, key, value)
+
+        cls._refresh_commande_status(instance.commande_achat)
         try:
             db.session.commit()
         except IntegrityError as e:
@@ -292,10 +396,39 @@ class ReceptionAchatService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
-        instance.delete()
+
+        produit = Produit.query.filter_by(
+            id=instance.produit_id,
+            tenant_id=instance.tenant_id,
+            is_active=True,
+        ).with_for_update().first()
+        if not produit:
+            raise ValueError("Produit introuvable")
+
+        qty = Decimal(str(instance.quantite_recue or 0))
+        stock_avant = Decimal(str(produit.quantite_stock or 0))
+        if stock_avant < qty:
+            raise ValueError(
+                "Impossible d'annuler la réception : le stock disponible est inférieur à la quantité reçue"
+            )
+        produit.quantite_stock = stock_avant - qty
+        db.session.add(MouvementStock(
+            produit_id=produit.id,
+            type_mouvement='sortie',
+            quantite=qty,
+            stock_avant=stock_avant,
+            stock_apres=produit.quantite_stock,
+            raison=f'Annulation réception {instance.reference}',
+            reference=instance.reference,
+            tenant_id=instance.tenant_id,
+        ))
+        commande = instance.commande_achat
+        instance.is_active = False
+        cls._refresh_commande_status(commande)
         try:
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
             raise ValueError(f"Erreur de base de données: {str(e)}")
         return True
+
