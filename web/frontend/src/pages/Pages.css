@@ -5319,3 +5319,75 @@
 .landing-legal-page{padding-bottom:80px}.landing-legal-card{max-width:900px;margin:30px auto 0;padding:clamp(26px,5vw,52px);background:rgba(255,255,255,.94);border:1px solid rgba(11,12,13,.09);border-radius:22px;box-shadow:0 22px 70px rgba(11,12,13,.08)}.landing-legal-card section+section{margin-top:34px;padding-top:30px;border-top:1px solid rgba(11,12,13,.08)}.landing-legal-card h2{margin:0 0 10px;color:#0b0c0d;font-size:18px;letter-spacing:-.025em}.landing-legal-card p{margin:0;color:#626762;font-size:14px;line-height:1.8}.landing-legal-card a{color:#8c7020;font-weight:700}
 .downloads-page .public-page-header{margin-bottom:26px}.downloads-footer{width:min(1180px,calc(100% - 40px));margin:40px auto 0;padding:22px 0 34px;border-top:1px solid rgba(11,12,13,.09);color:#777b76;font-size:12px}
 @media(max-width:760px){.public-page-header,.public-header.public-page-header{width:calc(100% - 24px);min-height:68px;margin-top:12px;padding:0 12px;border-radius:14px}.public-nav{overflow-x:auto;scrollbar-width:none}.public-nav::-webkit-scrollbar{display:none}.public-nav-link{white-space:nowrap;padding:9px 8px;font-size:12px}.public-nav-link.btn-nav-login{padding-inline:12px}.public-page-header .brand-name{display:none}.landing-legal-card{margin-top:20px;border-radius:16px;padding:24px 20px}}
+
+
+/* ======================================================
+   PANIER — TRANSITION PLUS DOUCE
+   Entrée progressive sans modifier la logique du panier.
+   ====================================================== */
+.page-container:has(.cart-table) {
+  animation: cartPageEnter 520ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.page-container:has(.cart-table) > .page-header {
+  animation: cartSectionEnter 560ms cubic-bezier(.22, 1, .36, 1) 40ms both;
+}
+
+.page-container:has(.cart-table) .cart-table-wrap {
+  animation: cartSectionEnter 620ms cubic-bezier(.22, 1, .36, 1) 90ms both;
+}
+
+.page-container:has(.cart-table) .cart-table tbody tr {
+  animation: cartRowEnter 420ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.page-container:has(.cart-table) .cart-table tbody tr:nth-child(1) { animation-delay: 130ms; }
+.page-container:has(.cart-table) .cart-table tbody tr:nth-child(2) { animation-delay: 165ms; }
+.page-container:has(.cart-table) .cart-table tbody tr:nth-child(3) { animation-delay: 200ms; }
+.page-container:has(.cart-table) .cart-table tbody tr:nth-child(4) { animation-delay: 235ms; }
+.page-container:has(.cart-table) .cart-table tbody tr:nth-child(5) { animation-delay: 270ms; }
+
+.page-container:has(.cart-table) > .card:last-child {
+  animation: cartSectionEnter 620ms cubic-bezier(.22, 1, .36, 1) 150ms both;
+}
+
+@keyframes cartPageEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cartSectionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cartRowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-container:has(.cart-table),
+  .page-container:has(.cart-table) > .page-header,
+  .page-container:has(.cart-table) .cart-table-wrap,
+  .page-container:has(.cart-table) .cart-table tbody tr,
+  .page-container:has(.cart-table) > .card:last-child {
+    animation: none;
+  }
+}
