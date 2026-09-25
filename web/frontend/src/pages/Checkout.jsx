@@ -11,7 +11,7 @@ import PublicHeader from '../components/PublicHeader';
 const PAYMENT_METHODS = [
   { value: 'MVOLA', label: 'MVola' },
   { value: 'ORANGE_MONEY', label: 'Orange Money' },
-  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
+  { value: 'ARTEL_MONEY', label: 'Airtel Money' },
   { value: 'BRED', label: 'Carte bancaire' },
 ];
 
@@ -80,6 +80,8 @@ const Checkout = () => {
     };
     fetchProducts();
   }, [cart]);
+
+  const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -258,7 +260,7 @@ const Checkout = () => {
                       <p className="public-card__subtitle">Quantité: {qty}</p>
                     </div>
                     <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '18px' }}>
-                      {(price * qty).toFixed(2)} Ar
+                      {formatMGA(price * qty)} Ar
                     </p>
                   </div>
                 );
@@ -266,7 +268,7 @@ const Checkout = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
                 <p style={{ fontWeight: 700, fontSize: '15px' }}>Total</p>
                 <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '20px', color: 'var(--color-primary)' }}>
-                  {orderTotal.toFixed(2)} Ar
+                  {formatMGA(orderTotal)} Ar
                 </p>
               </div>
             </div>
@@ -304,7 +306,7 @@ const Checkout = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="code_postal">Code postal</label>
-                <input id="code_postal" name="code_postal" value={formData.code_postal} onChange={handleChange} required />
+                <input id="code_postal" name="code_postal" value={formData.code_postal} onChange={handleChange} inputMode="numeric" />
               </div>
               <div className="form-group">
                 <label htmlFor="pays">Pays</label>
