@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import api, { modeleDocumentService, documentService } from '../services/api';
+import api, { modeleDocumentService, documentService, saleService, factureService } from '../services/api';
 import { authStorage } from '../../shared/storage/authStorage';
 import './Documents.css';
 
@@ -8,12 +8,14 @@ export default function Documents() {
     const [tab, setTab] = useState('documents');
     const [modeles, setModeles] = useState([]);
     const [documents, setDocuments] = useState([]);
+    const [sales, setSales] = useState([]);
+    const [factures, setFactures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [previewDoc, setPreviewDoc] = useState(null);
 
     const [modeleForm, setModeleForm] = useState({ nom: '', type_document: 'facture', contenu_modele: '', est_defaut: false, logo_url: '', mention_legales: '', conditions_generales: '' });
-    const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', donnees: '{}' });
+    const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '' });
 
     const [editingId, setEditingId] = useState(null);
     const contenuRef = useRef(null);
@@ -22,13 +24,15 @@ export default function Documents() {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [m, d] = await Promise.allSettled([modeleDocumentService.getAll(), documentService.getAll()]);
-            const failed = [m, d].filter(r => r.status === 'rejected');
+            const [m, d, s, f] = await Promise.allSettled([modeleDocumentService.getAll(), documentService.getAll(), saleService.getAll(), factureService.getAll()]);
+            const failed = [m, d, s, f].filter(r => r.status === 'rejected');
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
             }
             setModeles((m.status === 'fulfilled' ? m.value?.data?.modeles || m.value?.data || [] : []));
             setDocuments((d.status === 'fulfilled' ? d.value?.data?.documents || d.value?.data || [] : []));
+            setSales((s.status === 'fulfilled' ? s.value?.data?.ventes || s.value?.data || [] : []));
+            setFactures((f.status === 'fulfilled' ? f.value?.data?.factures || f.value?.data || [] : []));
         } catch (err) { toast.error('Erreur chargement'); }
         finally { setLoading(false); }
     };
@@ -77,12 +81,17 @@ export default function Documents() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            let donnees = {};
-            try { donnees = JSON.parse(docForm.donnees); } catch { toast.error('JSON invalide dans donnees'); setSubmitting(false); return; }
-            const data = { ...docForm, modele_id: Number(docForm.modele_id), entite_id: Number(docForm.entite_id) || null, donnees };
+            const data = {
+                modele_id: docForm.modele_id ? Number(docForm.modele_id) : null,
+                type_document: docForm.type_document,
+                reference: docForm.reference.trim() || null,
+                entite_type: docForm.entite_type,
+                entite_id: Number(docForm.entite_id),
+                donnees: {},
+            };
             const response = await documentService.generer(data);
             toast.success('Document généré avec succès');
-            setDocForm({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', donnees: '{}' });
+            setDocForm({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '' });
             if (response.data) {
                 setDocuments(prev => [response.data, ...prev]);
             } else {
@@ -245,25 +254,63 @@ export default function Documents() {
                                 {modeles.map(m => <option key={m.id} value={m.id}>{m.nom} ({typeLabels[m.type_document] || m.type_document})</option>)}
                             </select>
                         </div>
-                        <div className="form-group">
-                            <label htmlFor="reference">Référence</label>
-                            <input id="reference" name="reference" placeholder="Référence" value={docForm.reference} onChange={e => setDocForm({...docForm, reference: e.target.value})} autoComplete="on" required />
-                        </div>
-                        <div className="form-group">
-                            <select value={docForm.type_document} onChange={e => setDocForm({...docForm, type_document: e.target.value})}>
-                                <option value="facture">Facture</option><option value="devis">Devis</option><option value="contrat">Contrat</option><option value="bon_livraison">Bon de livraison</option><option value="avoir">Avoir</option>
+                        <div className="form-group full-width">
+                            <label>Document à partir de</label>
+                            <select
+                                value={docForm.entite_type}
+                                onChange={(event) => {
+                                    const type = event.target.value;
+                                    const items = type === 'vente' ? sales : factures;
+                                    const first = items[0];
+                                    setDocForm((prev) => ({
+                                        ...prev,
+                                        entite_type: type,
+                                        entite_id: first?.id ? String(first.id) : '',
+                                        reference: first?.reference || '',
+                                    }));
+                                }}
+                            >
+                                <option value="vente">Vente</option>
+                                <option value="facture">Facture</option>
                             </select>
-                        </div>
-                        <div className="form-group">
-                            <select value={docForm.entite_type} onChange={e => setDocForm({...docForm, entite_type: e.target.value})}>
-                                <option value="vente">Vente</option><option value="facture">Facture</option><option value="commande">Commande</option><option value="abonnement">Abonnement</option>
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <input placeholder="Entité ID" type="number" value={docForm.entite_id} onChange={e => setDocForm({...docForm, entite_id: e.target.value})} />
+                            <small className="text-muted">Les données métier sont reprises automatiquement. Vous n’avez pas à saisir de JSON ni d’ID.</small>
                         </div>
                         <div className="form-group full-width">
-                            <textarea placeholder='Données JSON (ex: {"client_nom":"Boutique Soa","total_ttc":"326400","items":[{"produit_nom":"Riz blanc (sac 50 kg)","quantite":2,"prix_unitaire":136000,"taux_tva":20,"total_ht":272000}]})' value={docForm.donnees} onChange={e => setDocForm({...docForm, donnees: e.target.value})} rows={3} required />
+                            <label>{docForm.entite_type === 'vente' ? 'Vente' : 'Facture'} *</label>
+                            <select
+                                value={docForm.entite_id}
+                                onChange={(event) => {
+                                    const id = Number(event.target.value);
+                                    const items = docForm.entite_type === 'vente' ? sales : factures;
+                                    const item = items.find((entry) => entry.id === id);
+                                    setDocForm((prev) => ({
+                                        ...prev,
+                                        entite_id: event.target.value,
+                                        reference: item?.reference || '',
+                                    }));
+                                }}
+                                required
+                            >
+                                <option value="">Sélectionner</option>
+                                {(docForm.entite_type === 'vente' ? sales : factures).map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {(item.reference || '#' + item.id) + ' — ' + (item.client_nom || item.client?.nom || 'Client')}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Type de document</label>
+                            <select value={docForm.type_document} onChange={event => setDocForm({...docForm, type_document: event.target.value})}>
+                                <option value="facture">Facture</option>
+                                <option value="devis">Devis</option>
+                                <option value="bon_livraison">Bon de livraison</option>
+                                <option value="avoir">Avoir</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Référence</label>
+                            <input id="reference" name="reference" placeholder="Reprise automatiquement" value={docForm.reference} onChange={event => setDocForm({...docForm, reference: event.target.value})} />
                         </div>
                         <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Générer le PDF'}</button>
                     </form>
