@@ -154,18 +154,60 @@ class VenteResource(Resource):
         from app.models.ligne_vente import LigneVente
         from app.models.facture import Facture
         from app.models.paiement import Paiement
+        from app.models.produit import Produit
+        from app.models.stock import MouvementStock
         from app.security.tenant import tenant_filtered_get
         vente = tenant_filtered_get(Vente, id)
         if not vente:
             return {'message': 'Vente non trouvee'}, 404
         try:
+            lignes = LigneVente.query.filter_by(
+                vente_id=id, is_active=True, tenant_id=vente.tenant_id
+            ).all()
+            product_ids = sorted({ligne.produit_id for ligne in lignes if ligne.produit_id})
+            products = {}
+            if product_ids:
+                products = {
+                    p.id: p for p in Produit.query.filter(
+                        Produit.id.in_(product_ids)
+                    ).filter_by(tenant_id=vente.tenant_id).with_for_update().all()
+                }
+
+            # Une suppression de vente restitue exactement le stock sorti par
+            # cette vente et laisse une trace dans l'historique.
+            for ligne in lignes:
+                produit = products.get(ligne.produit_id)
+                if not produit:
+                    raise ValueError(f'Produit id={ligne.produit_id} introuvable')
+                qty = Decimal(str(ligne.quantite or 0))
+                stock_avant = Decimal(str(produit.quantite_stock or 0))
+                produit.quantite_stock = stock_avant + qty
+                db.session.add(MouvementStock(
+                    produit_id=produit.id,
+                    type_mouvement='entree',
+                    quantite=qty,
+                    stock_avant=stock_avant,
+                    stock_apres=produit.quantite_stock,
+                    raison=f'Annulation vente {vente.reference}',
+                    reference=vente.reference,
+                    tenant_id=vente.tenant_id,
+                ))
+
             vente.is_active = False
-            LigneVente.query.filter_by(vente_id=id, is_active=True, tenant_id=vente.tenant_id).update({'is_active': False}, synchronize_session=False)
-            Facture.query.filter_by(vente_id=id, is_active=True, tenant_id=vente.tenant_id).update({'is_active': False}, synchronize_session=False)
-            Paiement.query.filter_by(vente_id=id, is_active=True, tenant_id=vente.tenant_id).update({'is_active': False}, synchronize_session=False)
-            from app import db
+            LigneVente.query.filter_by(
+                vente_id=id, is_active=True, tenant_id=vente.tenant_id
+            ).update({'is_active': False}, synchronize_session=False)
+            Facture.query.filter_by(
+                vente_id=id, is_active=True, tenant_id=vente.tenant_id
+            ).update({'is_active': False}, synchronize_session=False)
+            Paiement.query.filter_by(
+                vente_id=id, is_active=True, tenant_id=vente.tenant_id
+            ).update({'is_active': False}, synchronize_session=False)
             db.session.commit()
             return {'message': 'Vente supprimee'}, 200
+        except ValueError as e:
+            db.session.rollback()
+            return {'message': str(e)}, 400
         except Exception:
             db.session.rollback()
             current_app.logger.exception('Erreur lors de la suppression de la vente')
