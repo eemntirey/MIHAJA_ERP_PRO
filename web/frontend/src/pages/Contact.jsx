@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { publicCatalogueService } from '../services/api';
 import Seo from '../components/Seo';
 import '../styles/landing.css';
+import PublicHeader from '../components/PublicHeader';
 
 const CONTACT_SEO_DATA = {
   '@context': 'https://schema.org',
@@ -56,20 +57,8 @@ const Contact = () => {
         canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/contact"
         structuredData={CONTACT_SEO_DATA}
       />
-      <div className="landing-contact">
-      <div className="landing-container">
-        <header className="landing-public-page-header">
-          <Link to="/" className="brand" aria-label="MIHAJA ERP PRO accueil">
-            <span className="brand-icon">EP</span>
-            <span className="brand-name">ERP Pro</span>
-          </Link>
-          <nav aria-label="Navigation principale">
-            <Link to="/" className="public-nav-link">Accueil</Link>
-            <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
-            <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
-          </nav>
-        </header>
-        <div className="landing-section-header">
+      <div className="landing-contact"><PublicHeader />
+      <div className="landing-container"><div className="landing-section-header">
           <h2 className="landing-section-title" id="contact-titre">Contact</h2>
           <p className="landing-section-subtitle">
             Une question ? Notre équipe vous répond dans les plus brefs délais.
