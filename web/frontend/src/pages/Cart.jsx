@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useCart } from '../contexts/CartContext';
 import './Pages.css';
+import PublicHeader from '../components/PublicHeader';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const Cart = () => {
   if (cart.length === 0) {
     return (
       <div className="page-container">
+        <PublicHeader />
         <div className="page-header">
           <div>
             <h1>Votre panier</h1>
