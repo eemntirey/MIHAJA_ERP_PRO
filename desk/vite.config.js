@@ -22,6 +22,7 @@ export default defineConfig({
       '@shared': sharedDir,
       '@desk-shared': deskSharedDir,
       '@': path.resolve(__dirname, 'src'),
+      'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
     },
   },
   server: {
