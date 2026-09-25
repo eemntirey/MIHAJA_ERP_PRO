@@ -1,30 +1,32 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { commandeAchatService, receptionService } from '../services/api';
+import { commandeAchatService, receptionService, productService } from '../services/api';
 import './Pages.css';
 
 export default function Purchases() {
     const [tab, setTab] = useState('commandes');
     const [commandes, setCommandes] = useState([]);
     const [receptions, setReceptions] = useState([]);
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
     const [cmdForm, setCmdForm] = useState({ fournisseur_id: '', total_ht: '', total_ttc: '', statut: 'brouillon', date_commande: '', date_livraison_prevue: '', conditions_paiement: '30 jours', lignes: '' });
-    const [recForm, setRecForm] = useState({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
+    const [recForm, setRecForm] = useState({ commande_achat_id: '', produit_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
 
     const [editingId, setEditingId] = useState(null);
 
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [c, r] = await Promise.allSettled([commandeAchatService.getAll(), receptionService.getAll()]);
+            const [c, r, p] = await Promise.allSettled([commandeAchatService.getAll(), receptionService.getAll(), productService.getAll()]);
             const failed = [c, r].filter(r => r.status === 'rejected');
             if (failed.length > 0) {
               const msgs = failed.map(r => r.reason?.response?.data?.message || r.reason?.message || 'Erreur');
             }
             setCommandes((c.status === 'fulfilled' ? c.value?.data?.commandes || c.value?.data || [] : []));
             setReceptions((r.status === 'fulfilled' ? r.value?.data?.receptions || r.value?.data || [] : []));
+            setProducts((p.status === 'fulfilled' ? p.value?.data?.produits || p.value?.data || [] : []));
         } catch (err) { toast.error('Erreur chargement'); }
         finally { setLoading(false); }
     };
@@ -70,12 +72,13 @@ export default function Purchases() {
             const data = {
                 ...recForm,
                 commande_achat_id: recForm.commande_achat_id ? Number(recForm.commande_achat_id) : null,
+                produit_id: recForm.produit_id ? Number(recForm.produit_id) : null,
                 quantite_recue: Number(recForm.quantite_recue),
                 quantite_commandee: Number(recForm.quantite_commandee)
             };
             await receptionService.create(data);
             toast.success('Réception créée');
-            setRecForm({ commande_achat_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
+            setRecForm({ commande_achat_id: '', produit_id: '', reference: '', quantite_recue: '', quantite_commandee: '', remarque: '' });
             fetchAll();
         } catch (e) { toast.error(e.response?.data?.message || 'Erreur'); }
         finally { setSubmitting(false); }
@@ -187,6 +190,15 @@ export default function Purchases() {
                             <select value={recForm.commande_achat_id} onChange={e => setRecForm({...recForm, commande_achat_id: e.target.value})} required>
                                 <option value="">Commande</option>
                                 {commandes.map(c => <option key={c.id} value={c.id}>{c.reference}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Produit</label>
+                            <select value={recForm.produit_id} onChange={e => setRecForm({...recForm, produit_id: e.target.value})}>
+                                <option value="">Auto si commande à un seul produit</option>
+                                {products.map(product => (
+                                    <option key={product.id} value={product.id}>{product.nom} (#{product.id})</option>
+                                ))}
                             </select>
                         </div>
                         <div className="form-group">
