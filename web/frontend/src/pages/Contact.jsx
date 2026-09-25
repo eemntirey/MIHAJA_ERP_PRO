@@ -10,12 +10,12 @@ const CONTACT_SEO_DATA = {
   '@context': 'https://schema.org',
   '@type': 'ContactPage',
   name: 'Contact | MIHAJA ERP PRO',
-  url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/contact',
+  url: 'https://erp.sekoliko.com/contact',
   description: 'Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS.',
 };
 
 const Contact = () => {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '', website: '' });
   const [sending, setSending] = useState(false);
 
   const handleChange = (e) => {
@@ -29,6 +29,7 @@ const Contact = () => {
 
     const name = form.name.trim();
     const email = form.email.trim();
+    const subject = form.subject.trim();
     const message = form.message.trim();
     if (!name || !email || !message) {
       toast.error('Veuillez remplir tous les champs.');
@@ -37,9 +38,9 @@ const Contact = () => {
 
     try {
       setSending(true);
-      await publicCatalogueService.sendContactMessage({ name, email, message });
+      await publicCatalogueService.sendContactMessage({ name, email, subject, message, website: form.website });
       toast.success('Message envoyé avec succès');
-      setForm({ name: '', email: '', message: '' });
+      setForm({ name: '', email: '', subject: '', message: '', website: '' });
     } catch (err) {
       const msg = err.response?.data?.message || 'Impossible d’envoyer votre message pour le moment.';
       toast.error(msg);
@@ -53,7 +54,7 @@ const Contact = () => {
       <Seo
         title="Contact | MIHAJA ERP PRO"
         description="Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS."
-        canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/contact"
+        canonical="https://erp.sekoliko.com/contact"
         structuredData={CONTACT_SEO_DATA}
       />
       <div className="landing-contact"><PublicHeader />
@@ -93,6 +94,18 @@ const Contact = () => {
               </div>
             </div>
             <div className="landing-form-group">
+              <label htmlFor="contact-subject">Sujet</label>
+              <input
+                id="contact-subject"
+                name="subject"
+                type="text"
+                value={form.subject}
+                onChange={handleChange}
+                placeholder="Votre demande"
+                maxLength={160}
+              />
+            </div>
+            <div className="landing-form-group">
               <label htmlFor="contact-message">Message</label>
               <textarea
                 id="contact-message"
@@ -100,9 +113,15 @@ const Contact = () => {
                 value={form.message}
                 onChange={handleChange}
                 placeholder="Votre message..."
-                rows="5"
+                rows="6"
+                minLength={10}
+                maxLength={5000}
                 required
               />
+            </div>
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="contact-website">Ne pas remplir</label>
+              <input id="contact-website" name="website" value={form.website} onChange={handleChange} tabIndex="-1" autoComplete="off" />
             </div>
             <button type="submit" className="landing-btn landing-btn-primary" disabled={sending}>
               {sending ? 'Envoi...' : 'Envoyer le message'}
