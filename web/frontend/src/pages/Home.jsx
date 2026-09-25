@@ -677,8 +677,7 @@ const Home = () => {
 
 
 
-        {isAuthenticated && (
-          <>
+        {/* ── Downloads ── */}
             {/* ── Downloads pour client connecté ── */}
             <section className="vit-downloads" id="telechargements">
               <div className="vit-section-header">
@@ -734,8 +733,6 @@ const Home = () => {
               </div>
             </section>
 
-          </>
-        )}
 
         {/* ── Catalogue (always visible) ── */}
         <section id="catalogue" className="vit-catalogue">
