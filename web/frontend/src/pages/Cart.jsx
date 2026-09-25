@@ -10,6 +10,8 @@ const Cart = () => {
   const navigate = useNavigate();
   const { cart, removeItem, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
+  const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+
   const handleCheckout = () => {
     if (cart.length === 0) return;
     navigate('/checkout', { state: { cart } });
@@ -39,6 +41,7 @@ const Cart = () => {
 
   return (
     <div className="page-container">
+      <PublicHeader />
       <div className="page-header">
         <div>
           <h1>Votre panier</h1>
@@ -52,8 +55,8 @@ const Cart = () => {
         </div>
       </div>
 
-      <div className="card">
-        <table className="data-table">
+      <div className="card cart-table-wrap">
+        <table className="data-table cart-table">
           <thead>
             <tr>
               <th>Produit</th>
@@ -90,8 +93,8 @@ const Cart = () => {
                       aria-label={`Quantité de ${item.nom}`}
                     />
                   </td>
-                  <td className="text-center">{price.toFixed(2)} Ar</td>
-                  <td className="text-center">{(price * qty).toFixed(2)} Ar</td>
+                  <td className="text-center">{formatMGA(price)} Ar</td>
+                  <td className="text-center">{formatMGA(price * qty)} Ar</td>
                   <td className="text-center">
                     <button
                       type="button"
@@ -112,7 +115,7 @@ const Cart = () => {
       <div className="card" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="stat-label">Total du panier</div>
-          <div className="stat-value">{totalPrice.toFixed(2)} Ar</div>
+          <div className="stat-value">{formatMGA(totalPrice)} Ar</div>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <Link to="/" className="btn-secondary">Continuer les courses</Link>
