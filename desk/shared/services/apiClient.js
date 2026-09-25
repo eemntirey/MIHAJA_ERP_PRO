@@ -8,8 +8,16 @@
 import axios from 'axios';
 import { tokenStore } from '../storage/tokenStore';
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || '/api/v1';
+// Voir shared/services/api.js : en exe Electron la page est servie en file://,
+// il faut donc viser explicitement le backend embarqué (?backendPort=...).
+const backendPort = (typeof window !== 'undefined'
+  && window.location
+  && new URLSearchParams(window.location.search).get('backendPort'))
+  || null;
+
+export const API_BASE_URL = backendPort
+  ? `http://127.0.0.1:${backendPort}/api/v1`
+  : (import.meta.env.VITE_API_URL || '/api/v1');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

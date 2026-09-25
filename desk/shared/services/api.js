@@ -8,8 +8,24 @@ import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
-const API_BASE_URL =
-    import.meta.env.VITE_API_URL || '/api/v1';
+// L'exe packagé charge le renderer en file:// : une URL relative ('/api/v1')
+// ne peut pas atteindre le backend embarqué. electron/main.js passe le port
+// du backend local en query string (?backendPort=...), comme le fait
+// déjà shared/services/api.js (celui utilisé par l'AuthContext / le login).
+const backendPort = (typeof window !== 'undefined'
+    && window.location
+    && new URLSearchParams(window.location.search).get('backendPort'))
+    || null;
+
+// Origine du backend local : les endpoints publics (/public/...) ne sont pas
+// préfixés par /api/v1.
+const API_ORIGIN = backendPort
+    ? `http://127.0.0.1:${backendPort}`
+    : '';
+
+const API_BASE_URL = backendPort
+    ? `${API_ORIGIN}/api/v1`
+    : (import.meta.env.VITE_API_URL || '/api/v1');
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -198,7 +214,7 @@ api.interceptors.request.use(
 // ======================================================
 
 export const publicApi = axios.create({
-    baseURL: import.meta.env.VITE_PUBLIC_API_URL || '',
+    baseURL: API_ORIGIN || import.meta.env.VITE_PUBLIC_API_URL || '',
     headers: {
         'Content-Type': 'application/json',
     },

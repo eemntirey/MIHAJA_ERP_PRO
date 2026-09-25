@@ -10,8 +10,17 @@ import { tokenStore } from '../storage/tokenStore';
 
 const _viteEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
 const _isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+// En Electron, le renderer tourne contre le backend local embarqué
+// (?backendPort=... passé par electron/main.js) : le JWT émis par ce backend
+// est refusé par le central, ce qui déclencherait un logout forcé (401).
+const _backendPort = (typeof window !== 'undefined'
+  && window.location
+  && new URLSearchParams(window.location.search).get('backendPort'))
+  || null;
 export const API_BASE_URL =
-  _viteEnv.VITE_API_URL || (_isElectron ? 'https://mihaja-erp-pro.onrender.com/api/v1' : '/api/v1');
+  _viteEnv.VITE_API_URL
+  || (_backendPort ? `http://127.0.0.1:${_backendPort}/api/v1` : null)
+  || (_isElectron ? 'https://mihaja-erp-pro.onrender.com/api/v1' : '/api/v1');
 
 // A1 : Electron = secureStore + header ; web = cookies HttpOnly
 const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);

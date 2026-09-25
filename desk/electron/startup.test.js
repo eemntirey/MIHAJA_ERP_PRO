@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { buildBackendEnv } = require('./backendHost');
+const { isAllowedSecureKey } = require('./secureStorePolicy');
 
 test('le release reconstruit et teste le backend embarqué', () => {
   const packageJson = JSON.parse(
@@ -59,4 +60,61 @@ test('PyInstaller embarque les modules chargés par les migrations', () => {
 
   assert.match(spec, /['"]engineio\.async_drivers\.threading['"]/);
   assert.match(spec, /['"]logging\.config['"]/);
+});
+
+// Régression : le store sécurisé refusait les clés d'auth ('erp.auth.*' et
+// legacy), aucun token n'était persisté -> pas de header Authorization ->
+// 401 -> 'auth:logout' -> retour immédiat au login après une connexion
+// pourtant réussie dans l'exe packagé.
+test('le store sécurisé accepte toutes les clés d’authentification', () => {
+  const authKeys = [
+    'access_token',
+    'refresh_token',
+    'user',
+    'tenant',
+    'subscription',
+    'erp.auth.access_token',
+    'erp.auth.refresh_token',
+    'erp.auth.user',
+    'erp.auth.tenant',
+    'erp.auth.subscription',
+    'erp.desk.preferences.42:7.theme',
+  ];
+
+  for (const key of authKeys) {
+    assert.equal(isAllowedSecureKey(key), true, `clé rejetée: ${key}`);
+  }
+});
+
+test('le store sécurisé refuse les clés hors politique', () => {
+  const rejected = ['password', 'erp.authx.user', 'erp.desk', 'session', '', null, undefined, 42];
+
+  for (const key of rejected) {
+    assert.equal(isAllowedSecureKey(key), false, `clé acceptée: ${String(key)}`);
+  }
+});
+
+test('les clés écrites par les stores d’auth sont couvertes par la politique', () => {
+  const KEY_PATTERN = /'((?:erp\.[a-z.]+)|(?:access_token|refresh_token|user|tenant|subscription))'/g;
+  const stores = [
+    ['shared', 'storage', 'authStorage.js'],
+    ['shared', 'storage', 'tokenStore.js'],
+    ['desk', 'shared', 'storage', 'authStorage.js'],
+    ['desk', 'shared', 'storage', 'tokenStore.js'],
+  ].map((parts) => path.join(__dirname, '..', '..', ...parts));
+
+  let found = 0;
+  for (const store of stores) {
+    const content = fs.readFileSync(store, 'utf8');
+    for (const match of content.matchAll(KEY_PATTERN)) {
+      found += 1;
+      assert.equal(
+        isAllowedSecureKey(match[1]),
+        true,
+        `${path.relative(path.join(__dirname, '..', '..'), store)}: clé rejetée ${match[1]}`,
+      );
+    }
+  }
+
+  assert.ok(found >= 10, `clés d'auth détectées: ${found}`);
 });

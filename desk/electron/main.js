@@ -21,7 +21,7 @@ let win = null;
 // clé : les opérations passent par IPC à canal strict. Si le chiffrement OS
 // est indisponible, on échoue en "fail-closed" (renvoie null) au lieu de
 // stocker les tokens en clair.
-const SECURE_STORE_ALLOWED_PREFIX = 'erp.desk.';
+const { isAllowedSecureKey } = require('./secureStorePolicy');
 const SECURE_STORE_MAX_VALUE_LEN = 64 * 1024;
 let secureStoreCache = null;
 
@@ -48,7 +48,7 @@ function persistSecureStore(cache) {
 }
 
 function _isAllowedSecureKey(key) {
-  return typeof key === 'string' && key.startsWith(SECURE_STORE_ALLOWED_PREFIX);
+  return isAllowedSecureKey(key);
 }
 
 function registerSecureStoreHandlers() {

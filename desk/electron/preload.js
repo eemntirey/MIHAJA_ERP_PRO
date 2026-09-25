@@ -5,7 +5,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Store sécurisé : délègue TOUTES les opérations au processus principal via
-// IPC (canal strict, clés préfixées erp.desk.*, chiffré au repos par
+// IPC (canal strict, clés selon electron/secureStorePolicy.js — 'erp.desk.*',
+// 'erp.auth.*' et les clés legacy d'authentification —, chiffré au repos par
 // safeStorage). L'interface reste synchrone pour storageAdapter.
 const secureStore = {
   get: (key) => {

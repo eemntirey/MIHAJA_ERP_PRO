@@ -89,6 +89,7 @@ const ProtectedRoute = ({ children }) => {
     user,
     mustChangePassword,
     subscription,
+    subscriptionLoading,
     getAllowedModules,
     hasAnyPermission,
     hasPermission,
@@ -136,7 +137,10 @@ const ProtectedRoute = ({ children }) => {
   const hasActiveSubscription = subscription &&
     (subscription.statut === 'actif' || subscription.statut === 'ACTIF' || subscription.statut === 'ACTIVE');
 
-  if (!isSubscriptionPage && !hasActiveSubscription) {
+  // Identique au web (src/App.js) : tant que l'abonnement se charge, on
+  // rend la route cible au lieu de dériver vers /subscription (le fetch
+  // part de la connexion et arrive 50 ms plus tard).
+  if (!isSubscriptionPage && !subscriptionLoading && !hasActiveSubscription) {
     return <Navigate to="/subscription" replace />;
   }
 

@@ -7,9 +7,18 @@ import { tokenStore } from '../storage/tokenStore';
 
 const PRODUCTION_SOCKET_URL = 'https://mihaja-erp-pro.onrender.com';
 
+// Exe Electron (file://) : viser le backend embarqué plutôt que le central,
+// dont le JWT local serait refusé au handshake.
+const backendPort = (typeof window !== 'undefined'
+  && window.location
+  && new URLSearchParams(window.location.search).get('backendPort'))
+  || null;
+
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.VITE_API_URL
+  (backendPort
+    ? `http://127.0.0.1:${backendPort}`
+    : import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
     // Same-origin par défaut : en dev, Vite relaie /socket.io vers le
     // backend (ws: true) ; en prod, reverse-proxy same-origin. Un fallback
