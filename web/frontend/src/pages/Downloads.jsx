@@ -3,7 +3,7 @@ import Seo from '../components/Seo';
 import PublicHeader from '../components/PublicHeader';
 import './Pages.css';
 
-const DESKTOP_DOWNLOAD_URL = 'https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe';
+const DESKTOP_DOWNLOAD_URL = '/download/desktop';
 
 const DOWNLOADS = [
   {
