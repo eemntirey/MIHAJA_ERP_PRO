@@ -402,25 +402,21 @@ def get_by_client(client_id):
 
 def get_stats():
     tenant_id = get_current_tenant_id()
-    base = Vente.query.filter(Vente.is_active.is_(True))
+    filters = [Vente.is_active.is_(True)]
     if tenant_id:
-        base = base.filter(Vente.tenant_id == tenant_id)
+        filters.append(Vente.tenant_id == tenant_id)
 
     total, count, average = db.session.query(
         db.func.coalesce(db.func.sum(Vente.total_ttc), 0),
         db.func.count(Vente.id),
         db.func.coalesce(db.func.avg(Vente.total_ttc), 0),
-    ).select_from(Vente).filter(Vente.is_active.is_(True)).filter(
-        Vente.tenant_id == tenant_id if tenant_id else db.true()
-    ).one()
+    ).filter(*filters).one()
 
     rows = db.session.query(
         Vente.statut,
         db.func.count(Vente.id),
         db.func.coalesce(db.func.sum(Vente.total_ttc), 0),
-    ).filter(Vente.is_active.is_(True)).filter(
-        Vente.tenant_id == tenant_id if tenant_id else db.true()
-    ).group_by(Vente.statut).all()
+    ).filter(*filters).group_by(Vente.statut).all()
 
     return {
         'total': float(total or 0),
