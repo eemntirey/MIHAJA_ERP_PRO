@@ -31,7 +31,7 @@ const Downloads = () => (
     <Seo
       title="Télécharger MIHAJA ERP PRO | Desktop et Mobile"
       description="Téléchargez les applications officielles MIHAJA ERP PRO pour ordinateur et mobile."
-      canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/telechargements"
+      canonical="https://erp.sekoliko.com/telechargements"
     />
     <div className="downloads-page">
       <PublicHeader />
