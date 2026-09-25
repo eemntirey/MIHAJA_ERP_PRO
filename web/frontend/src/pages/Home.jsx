@@ -260,6 +260,7 @@ const Home = () => {
                     type="button"
                     className="user-cartouche-trigger"
                     onClick={openUserMenu}
+                    id="mihaja-user-menu-trigger"
                     aria-haspopup="menu"
                     aria-expanded={showUserCartouche}
                     aria-controls="mihaja-user-menu"
@@ -280,7 +281,7 @@ const Home = () => {
                   </button>
 
                   {showUserCartouche && (
-                    <div id="mihaja-user-menu" className="user-cartouche" role="menu" aria-label="Menu du compte client">
+                    <div id="mihaja-user-menu" className="user-cartouche" role="menu" aria-labelledby="mihaja-user-menu-trigger">
                       <div className="user-cartouche-header">
                         <div className="user-cartouche-avatar-large" aria-hidden="true">
                           {(user?.prenom?.[0] || user?.nom?.[0] || 'U').toUpperCase()}
