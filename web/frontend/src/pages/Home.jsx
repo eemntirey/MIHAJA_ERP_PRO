@@ -241,7 +241,7 @@ const Home = () => {
           <span className="brand-name">ERP Pro</span>
         </Link>
         <nav className="public-nav">
-          <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
+          <a href="#telechargements" className="public-nav-link">Téléchargements</a>
           {isAuthenticated ? (
             <>
               {isUser && (
@@ -611,7 +611,7 @@ const Home = () => {
               <div className="vit-downloads__grid">
                 <a
                   className="vit-download-card"
-                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases"
+                  href="https://github.com/eemntirey/MIHAJA_ERP_PRO/releases/download/desktop-latest/MIHAJA-ERP-PRO-Setup.exe"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Télécharger MIHAJA ERP PRO pour Windows"
@@ -811,7 +811,7 @@ const Home = () => {
                 </div>
                 <div className="vit-footer__col">
                   <h4>Ressources</h4>
-                  <Link to="/telechargements">Télécharger les applications</Link>
+                  <a href="#telechargements">Télécharger les applications</a>
                   <Link to="/documentation">Documentation</Link>
                   <a href="mailto:support@mihaja.mg">Support technique</a>
                   <a href="tel:+261340000000">Contact commercial</a>
