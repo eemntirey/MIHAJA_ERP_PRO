@@ -10,9 +10,9 @@ const AuthLeftPanel = ({ brandLink = '/' }) => {
 
       <div className="auth-login__context-inner">
         <div className="auth-login__brand-row">
-          <Link to={brandLink} className="auth-login__brand" aria-label="ERP Pro accueil">
-            <span className="auth-login__brand-mark" aria-hidden="true">EP</span>
-            <span className="auth-login__brand-name">ERP Pro</span>
+          <Link to={brandLink} className="auth-login__brand" aria-label="MIHAJA ERP PRO accueil">
+            <span className="auth-login__brand-mark" aria-hidden="true" >M</span>
+            <span className="auth-login__brand-name" >MIHAJA ERP PRO</span>
           </Link>
           <span className="auth-login__brand-meta">Gestion intégrée</span>
         </div>
@@ -56,9 +56,9 @@ const AuthLeftPanel = ({ brandLink = '/' }) => {
         </div>
 
         <footer className="auth-login__context-footer">
-          <span>© 2026 ERP Pro</span>
+          <span>© 2026 MIHAJA ERP PRO</span>
           <span className="auth-login__watermark" aria-hidden="true">
-            ERP PRO · PILOTAGE · PRÉCISION
+            MIHAJA · ERP · PILOTAGE · PRÉCISION
           </span>
           <span className="auth-login__status">
             <span aria-hidden="true" />
