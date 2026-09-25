@@ -4,6 +4,7 @@ from app.security.tenant import get_current_tenant_id
 from app import db
 from sqlalchemy import or_, func
 from typing import Optional, Dict, Any, List, Tuple
+import uuid
 
 class FournisseurService(BaseService):
     model = Fournisseur
