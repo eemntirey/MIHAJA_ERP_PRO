@@ -8,12 +8,12 @@ const CATALOGUE_SEO_DATA = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
   name: 'Catalogue produits | MIHAJA ERP PRO',
-  url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/catalogue',
+  url: 'https://erp.sekoliko.com/catalogue',
   description: 'Découvrez les produits disponibles sur la vitrine publique MIHAJA ERP PRO.',
   isPartOf: {
     '@type': 'WebSite',
     name: 'MIHAJA ERP PRO',
-    url: 'https://mihaja-erp-frontend-796e-qdh1.onrender.com/',
+    url: 'https://erp.sekoliko.com/',
   },
 };
 
@@ -23,7 +23,7 @@ const Catalogue = () => {
       <Seo
         title="Catalogue produits | MIHAJA ERP PRO"
         description="Découvrez les produits disponibles sur la vitrine publique MIHAJA ERP PRO."
-        canonical="https://mihaja-erp-frontend-796e-qdh1.onrender.com/catalogue"
+        canonical="https://erp.sekoliko.com/catalogue"
         structuredData={CATALOGUE_SEO_DATA}
       />
       <div className="landing-root">
