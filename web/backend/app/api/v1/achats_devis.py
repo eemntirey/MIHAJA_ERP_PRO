@@ -50,7 +50,10 @@ class CommandeAchatResource(Resource):
     @permission_required('purchase_order.create')
     @tenant_required_readonly
     def delete(self, id):
-        success = CommandeAchatService.delete(id)
+        try:
+            success = CommandeAchatService.delete(id)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not success:
             return {'message': 'Commande d\'achat non trouvee'}, 404
         return {'message': 'Commande d\'achat supprimee'}, 200
@@ -67,8 +70,11 @@ class ReceptionList(Resource):
     @tenant_required_readonly
     def post(self):
         from flask import request
-        data = request.get_json()
-        reception = ReceptionAchatService.create(data)
+        data = request.get_json() or {}
+        try:
+            reception = ReceptionAchatService.create(data)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         return reception.to_dict(), 201
 
 @ns_receptions.route('/<int:id>')
@@ -94,7 +100,10 @@ class ReceptionResource(Resource):
     @permission_required('purchase_order.create')
     @tenant_required_readonly
     def delete(self, id):
-        success = ReceptionAchatService.delete(id)
+        try:
+            success = ReceptionAchatService.delete(id)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not success:
             return {'message': 'Reception non trouvee'}, 404
         return {'message': 'Reception supprimee'}, 200
