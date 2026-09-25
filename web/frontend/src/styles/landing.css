@@ -1983,3 +1983,155 @@
     font-size: 17px !important;
   }
 }
+
+
+/* ======================================================
+   DOWNLOADS — FINITION PREMIUM MIHAJA
+   ====================================================== */
+#telechargements.vit-downloads {
+  padding: 84px 24px;
+  background: #f7f5ef;
+  border-top: 1px solid rgba(11, 12, 13, 0.06);
+  border-bottom: 1px solid rgba(11, 12, 13, 0.06);
+}
+
+#telechargements .vit-section-header {
+  max-width: 760px;
+  margin: 0 auto 34px;
+  text-align: center;
+}
+
+#telechargements .vit-downloads__grid {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+#telechargements .vit-download-card {
+  position: relative;
+  min-width: 0;
+  min-height: 126px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid rgba(11, 12, 13, 0.09);
+  border-radius: 18px;
+  color: #151719;
+  text-decoration: none;
+  box-shadow: 0 10px 32px rgba(11, 12, 13, 0.055);
+  transition: transform 220ms cubic-bezier(.22, 1, .36, 1), box-shadow 220ms ease, border-color 220ms ease;
+}
+
+#telechargements .vit-download-card:not(.vit-download-card--disabled):hover {
+  transform: translateY(-5px);
+  border-color: rgba(200, 168, 78, 0.48);
+  box-shadow: 0 20px 46px rgba(11, 12, 13, 0.11);
+}
+
+#telechargements .vit-download-card:focus-visible {
+  outline: 3px solid rgba(200, 168, 78, 0.30);
+  outline-offset: 3px;
+}
+
+#telechargements .vit-download-card__icon {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(200, 168, 78, 0.25);
+  border-radius: 14px;
+  background: #f7f2e2;
+  color: #806a29;
+  font-size: 24px;
+}
+
+#telechargements .vit-download-card__content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#telechargements .vit-download-card__content strong {
+  color: #111315;
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+#telechargements .vit-download-card__content span {
+  color: #777b76;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#telechargements .vit-download-card > .ti-arrow-down {
+  flex: 0 0 auto;
+  color: #8b6d1b;
+  font-size: 19px;
+  transition: transform 180ms ease;
+}
+
+#telechargements .vit-download-card:not(.vit-download-card--disabled):hover > .ti-arrow-down {
+  transform: translateY(3px);
+}
+
+#telechargements .vit-download-card--disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  background: #f3f1eb;
+  box-shadow: none;
+}
+
+#telechargements .vit-download-card--disabled .vit-download-card__icon {
+  background: #eae7df;
+  border-color: rgba(11, 12, 13, 0.08);
+  color: #898b86;
+}
+
+#telechargements .vit-download-card--disabled .vit-download-card__status {
+  background: #e8e5de;
+  color: #747770;
+}
+
+@media (max-width: 960px) {
+  #telechargements .vit-downloads__grid {
+    grid-template-columns: 1fr;
+    max-width: 700px;
+  }
+}
+
+@media (max-width: 640px) {
+  #telechargements.vit-downloads {
+    padding: 64px 16px;
+  }
+
+  #telechargements .vit-download-card {
+    min-height: 104px;
+    padding: 16px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+
+  #telechargements .vit-download-card__icon {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+    font-size: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #telechargements .vit-download-card,
+  #telechargements .vit-download-card > .ti-arrow-down {
+    transition: none;
+  }
+}
