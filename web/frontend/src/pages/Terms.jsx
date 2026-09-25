@@ -2,8 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo';
 import '../styles/landing.css';
+import PublicHeader from '../components/PublicHeader';
 
-const SITE_URL = 'https://mihaja-erp-frontend-796e-qdh1.onrender.com';
+const SITE_URL = 'https://erp.sekoliko.com';
 
 const Terms = () => (
   <>
@@ -12,23 +13,7 @@ const Terms = () => (
       description="Conditions d’utilisation du service MIHAJA ERP PRO."
       canonical={`${SITE_URL}/terms`}
     />
-    <div className="landing-root">
-      <header className="public-header">
-        <div className="landing-container landing-header-inner">
-          <Link to="/" className="brand" aria-label="MIHAJA ERP PRO accueil">
-            <span className="brand-icon">EP</span>
-            <span className="brand-name">ERP Pro</span>
-          </Link>
-          <nav className="public-nav" aria-label="Navigation principale">
-            <Link to="/" className="public-nav-link">Accueil</Link>
-            <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
-            <Link to="/telechargements" className="public-nav-link">Téléchargements</Link>
-            <Link to="/contact" className="public-nav-link">Contact</Link>
-          </nav>
-        </div>
-      </header>
-
-      <main className="landing-container landing-legal-page">
+    <div className="landing-root"><PublicHeader />\n\n      <main className="landing-container landing-legal-page">
         <div className="landing-section-header">
           <span className="vit-section-tag">Informations légales</span>
           <h1 className="landing-section-title">Conditions d’utilisation</h1>
