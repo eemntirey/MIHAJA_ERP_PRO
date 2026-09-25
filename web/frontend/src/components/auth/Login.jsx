@@ -214,7 +214,7 @@ const Login = () => {
 
             <p className="auth-login__security">
               <i className="ti ti-shield-check" aria-hidden="true" />
-              Connexion protégée par JWT &amp; SSL
+              Vos données sont protégées.
             </p>
           </div>
         </section>
