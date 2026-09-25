@@ -13,6 +13,7 @@ ligne_vente_model = ns.model('LigneVente', {
     'quantite': fields.Float(required=True, description='Quantité vendue'),
     'prix_unitaire': fields.Float(required=False, description='Prix unitaire HT (auto-sélectionné selon type de client si non fourni)'),
     'taux_tva': fields.Float(description='Taux TVA', default=20),
+    'remise': fields.Float(description='Remise en pourcentage', default=0),
 })
 
 vente_model = ns.model('Vente', {
