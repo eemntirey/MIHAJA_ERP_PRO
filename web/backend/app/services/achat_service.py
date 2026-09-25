@@ -103,8 +103,8 @@ class CommandeAchatService:
                     "Impossible de modifier les lignes d'une commande ayant déjà des réceptions"
                 )
             LigneAchat.query.filter_by(commande_achat_id=id, is_active=True).update({'is_active': False})
-            total_ht = 0
-            total_ttc = 0
+            total_ht = Decimal('0')
+            total_ttc = Decimal('0')
             for ligne in lignes_data:
                 ligne['commande_achat_id'] = id
                 ligne['tenant_id'] = instance.tenant_id
@@ -260,11 +260,7 @@ class ReceptionAchatService:
         instance = cls.model(**data)
         db.session.add(instance)
 
-        total_received = Decimal(str(existing_received)) + quantite_recue
-        if total_received >= quantite_commandee:
-            commande.statut = 'recue'
-        else:
-            commande.statut = 'partiellement_recue'
+        cls._refresh_commande_status(commande)
 
         try:
             db.session.commit()
