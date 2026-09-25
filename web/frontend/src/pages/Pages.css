@@ -5444,3 +5444,134 @@
     transform: none;
   }
 }
+
+
+/* ======================================================
+   HOME CATALOGUE SEARCH — MIHAJA PREMIUM OVERRIDE
+   Source réelle : Home.jsx
+   ====================================================== */
+
+.vit-catalogue-search {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  min-height: 48px !important;
+  margin: 0 auto 24px !important;
+  padding: 0 14px !important;
+  box-sizing: border-box !important;
+
+  background: #f7f5ef !important;
+  border: 1px solid rgba(11, 12, 13, 0.12) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(11, 12, 13, 0.05) !important;
+
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.vit-catalogue-search:focus-within {
+  background: #ffffff !important;
+  border-color: #c8a84e !important;
+  box-shadow: 0 0 0 3px rgba(200, 168, 78, 0.14) !important;
+}
+
+.vit-catalogue-search > i.ti-search {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: #8b6d1b !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+
+.vit-catalogue-search input[type="search"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: block !important;
+
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 46px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+
+  background: transparent !important;
+  background-image: none !important;
+
+  color: #151719 !important;
+  font-family: var(--font-body) !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  box-shadow: none !important;
+}
+
+.vit-catalogue-search input[type="search"]:focus {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.vit-catalogue-search input[type="search"]::placeholder {
+  color: #777b76 !important;
+  opacity: 1 !important;
+}
+
+.vit-catalogue-search input[type="search"]::-webkit-search-decoration,
+.vit-catalogue-search input[type="search"]::-webkit-search-cancel-button,
+.vit-catalogue-search input[type="search"]::-webkit-search-results-button,
+.vit-catalogue-search input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.vit-catalogue-search__clear {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #777b76 !important;
+  cursor: pointer;
+}
+
+.vit-catalogue-search__clear:hover {
+  background: #f1efe8 !important;
+  color: #151719 !important;
+}
+
+.vit-catalogue-search__clear:focus-visible {
+  outline: 2px solid #c8a84e !important;
+  outline-offset: 2px !important;
+}
+
+@media (max-width: 640px) {
+  .vit-catalogue-search {
+    min-height: 44px !important;
+    padding: 0 12px !important;
+    border-radius: 9px !important;
+  }
+
+  .vit-catalogue-search input[type="search"] {
+    height: 42px !important;
+    font-size: 16px !important;
+  }
+}
