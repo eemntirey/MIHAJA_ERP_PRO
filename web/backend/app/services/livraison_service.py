@@ -431,12 +431,11 @@ class LivraisonService:
             return None
         flow = {
             'en_attente': 'chargee',
-            'chargee': 'en_route',
+            'chargee': 'en_cours',
+            'en_cours': 'en_route',
             'en_route': 'livree',
         }
         next_status = flow.get(livraison.statut)
         if not next_status:
             return livraison
-        livraison.statut = next_status
-        db.session.commit()
-        return livraison
+        return cls.add_suivi(id, next_status)
