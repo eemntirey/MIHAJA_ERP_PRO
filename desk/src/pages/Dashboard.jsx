@@ -414,6 +414,41 @@ const PriorityPanel = ({ priorities }) => {
   );
 };
 
+const GettingStarted = ({ stats }) => {
+  const steps = [
+    { done: stats.products > 0, title: 'Ajouter vos produits', description: 'Créez votre catalogue et vos prix.', href: '/products', action: 'Ajouter un produit', icon: 'ti-package' },
+    { done: stats.clients > 0, title: 'Ajouter vos clients', description: 'Enregistrez vos boutiques et clients.', href: '/clients', action: 'Ajouter un client', icon: 'ti-users' },
+    { done: stats.salesToday > 0 || stats.revenue > 0, title: 'Enregistrer votre première vente', description: 'Le stock et le chiffre d’affaires suivront automatiquement.', href: '/sales', action: 'Créer une vente', icon: 'ti-shopping-cart' },
+    { done: true, title: 'Utiliser l’assistant IA', description: 'Demandez vos priorités et analyses métier.', href: '/ai', action: 'Ouvrir l’IA', icon: 'ti-sparkles' },
+  ];
+
+  const remaining = steps.filter((step) => !step.done);
+  if (!remaining.length) return null;
+
+  return (
+    <section className="dashboard-getting-started" aria-labelledby="getting-started-title">
+      <div className="dashboard-getting-started__intro">
+        <p className="dashboard-overline">Démarrage</p>
+        <h2 id="getting-started-title">Commencez par ces quelques étapes</h2>
+        <p>MIHAJA vous accompagne : commencez par les éléments essentiels, le reste se construit au fil de votre activité.</p>
+      </div>
+      <div className="dashboard-getting-started__steps">
+        {remaining.map((step, index) => (
+          <Link className="dashboard-getting-started__step" to={step.href} key={step.title}>
+            <span className="dashboard-getting-started__number">{index + 1}</span>
+            <span className="dashboard-getting-started__icon"><i className={`ti ${step.icon}`} aria-hidden="true" /></span>
+            <span className="dashboard-getting-started__copy">
+              <strong>{step.title}</strong>
+              <span>{step.description}</span>
+            </span>
+            <span className="dashboard-getting-started__action">{step.action}<i className="ti ti-arrow-right" aria-hidden="true" /></span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, setUser, logout, hasRole } = useAuth();
@@ -601,6 +636,10 @@ const Dashboard = () => {
             onRefresh={fetchDashboardData}
             loading={loading}
           />
+
+          {!loading && (
+            <GettingStarted stats={dashboardState.stats} />
+          )}
 
           {error && (
             <div className="dashboard-error" role="alert">
