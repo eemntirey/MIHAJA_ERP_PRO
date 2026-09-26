@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 PROVIDER_METHOD_MAP = {
     'MVOLA': 'MVOLA',
     'ORANGE_MONEY': 'ORANGE_MONEY',
-    'ARTEL_MONEY': 'AIRTEL_MONEY',
+    'AIRTEL_MONEY': 'AIRTEL_MONEY',
     'BRED': 'VISA',
 }
 
@@ -35,7 +35,7 @@ def _build_papi_payload(
     reference = f"SUB-{tenant.id}-{subscription.id}-{uuid.uuid4().hex[:8].upper()}"
 
     provider = payment_method.upper()
-    if provider not in ('MVOLA', 'ORANGE_MONEY', 'ARTEL_MONEY', 'BRED'):
+    if provider not in ('MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'BRED'):
         raise PapiValidationError(f"Mode de paiement invalide: {payment_method}")
 
     success_url = (
@@ -80,7 +80,7 @@ def create_subscription_payment(
 
     Args:
         subscription_id: The subscription to pay.
-        payment_method: One of MVOLA, ORANGE_MONEY, ARTEL_MONEY, BRED.
+        payment_method: One of MVOLA, ORANGE_MONEY, AIRTEL_MONEY, BRED.
         is_test_mode: Whether to use Papi test mode.
         tenant_id: Tenant ID (optional, falls back to current request tenant).
 
@@ -212,14 +212,14 @@ def create_subscription_payment(
 
 
 PAPER_METHODS = ('ESPECES', 'VIREMENT', 'CHEQUE')
-ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'ARTEL_MONEY', 'BRED')
+ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'BRED')
 
 METHOD_ALIASES = {
     'mvola': 'MVOLA',
     'orange_money': 'ORANGE_MONEY',
     'orange money': 'ORANGE_MONEY',
-    'airtel_money': 'ARTEL_MONEY',
-    'airtel money': 'ARTEL_MONEY',
+    'airtel_money': 'AIRTEL_MONEY',
+    'airtel money': 'AIRTEL_MONEY',
     'bred': 'BRED',
     'especes': 'ESPECES',
     'espèces': 'ESPECES',
