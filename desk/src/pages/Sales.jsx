@@ -491,8 +491,6 @@ const Sales = () => {
   const [showDevisModal, setShowDevisModal] = useState(false);
   const [editingDevis, setEditingDevis] = useState(null);
   const [devisForm, setDevisForm] = useState({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
-
-  const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
   const [avoirForm, setAvoirForm] = useState({ vente_id: '', facture_id: '', client_id: '', montant_ht: '', montant_ttc: '', motif: '', statut: 'en_attente' });
 
@@ -593,17 +591,6 @@ const Sales = () => {
     } finally { setSaleActionLoading(false); }
   };
 
-  const handleCreateDevis = async (e) => {
-    e.preventDefault();
-    try {
-      const data = { ...devisForm, client_id: Number(devisForm.client_id), total_ht: Number(devisForm.total_ht), total_ttc: Number(devisForm.total_ttc) };
-      await devisService.create(data);
-      toast.success('Devis créé');
-      setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
-      fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
-  };
-
   const openDevisModal = (devis = null) => {
     setEditingDevis(devis);
     if (devis) {
@@ -622,7 +609,7 @@ const Sales = () => {
     setShowDevisModal(true);
   };
 
-const closeDevisModal = () => {
+  const closeDevisModal = () => {
     setShowDevisModal(false);
     setEditingDevis(null);
     setDevisForm({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });

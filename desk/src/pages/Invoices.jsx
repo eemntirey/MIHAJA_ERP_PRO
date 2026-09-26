@@ -423,8 +423,7 @@ const Invoices = () => {
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
-              )}
+                )))}
             </tbody>
           </table>
         </div>
