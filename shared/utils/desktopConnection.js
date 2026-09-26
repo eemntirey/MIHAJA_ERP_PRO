@@ -32,7 +32,10 @@ const centralBase = async () => {
   if (!centralBasePromise) {
     centralBasePromise = window.electron.backend
       .getCentralApiBaseUrl()
-      .then((url) => normalize(url) + '/api/v1')
+      .then((url) => {
+        const base = normalize(url);
+        return base ? `${base}/api/v1` : '';
+      })
       .catch(() => '');
   }
   return centralBasePromise;
@@ -122,3 +125,10 @@ export const resetDesktopConnectionProbe = () => {
 };
 
 export default resolveDesktopRoute;
+
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    checkedAt = 0;
+  });
+}
