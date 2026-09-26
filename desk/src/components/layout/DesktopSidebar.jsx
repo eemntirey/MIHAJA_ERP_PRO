@@ -245,15 +245,26 @@ const DesktopSidebar = ({
 
         {profileOpen && (
           <div className="desktop-sidebar__menu" role="menu">
-            {isSuperAdmin && (
+            {isSuperAdmin ? (
               <Link to="/super-admin/profile" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                <i className="ti ti-user" aria-hidden="true" /> Profil
+              </Link>
+            ) : (
+              <Link to="/profile" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
                 <i className="ti ti-user" aria-hidden="true" /> Profil
               </Link>
             )}
             {isAdminPrincipal && (
-              <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
-                <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
-              </Link>
+              <>
+                <Link to="/subscription" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                  <i className="ti ti-credit-card" aria-hidden="true" /> Abonnement
+                </Link>
+                {!isSuperAdmin && (
+                  <Link to="/payment-settings" className="desktop-sidebar__menu-item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                    <i className="ti ti-settings-cog" aria-hidden="true" /> Paramètres de paiement
+                  </Link>
+                )}
+              </>
             )}
             <ThemeToggle
               enabled={darkMode}
