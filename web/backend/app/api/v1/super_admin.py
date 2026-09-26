@@ -1542,18 +1542,20 @@ class SuperAdminPlans(Resource):
             current_app.logger.exception('Persistance du plan %s impossible', code)
             return {'message': 'Impossible de sauvegarder la configuration du plan'}, 500
 
+        effective_plan = get_plan_config(code)
+
         _log_audit(
             TypeActionAudit.MODIFICATION_PARAMETRE,
-            f"Modification plan {code}: prix={plan['prix']}, durée={plan['duree_jours']}j",
-            metadata={'plan_code': code, 'prix': plan['prix'], 'duree_jours': plan['duree_jours']},
+            f"Modification plan {code}: prix={effective_plan['prix']}, durée={effective_plan['duree_jours']}j",
+            metadata={'plan_code': code, 'prix': effective_plan['prix'], 'duree_jours': effective_plan['duree_jours']},
         )
 
         try:
             broadcast_to_super_admin('plan:updated', {
                 'code': plan['code'],
-                'label': plan['label'],
-                'prix': plan['prix'],
-                'duree_jours': plan['duree_jours'],
+                'label': effective_plan.get('label', plan['label']),
+                'prix': effective_plan['prix'],
+                'duree_jours': effective_plan['duree_jours'],
             })
         except Exception:
             pass
@@ -1562,9 +1564,9 @@ class SuperAdminPlans(Resource):
             'message': 'Plan mis à jour',
             'plan': {
                 'code': plan['code'],
-                'label': plan['label'],
-                'prix': plan['prix'],
-                'duree_jours': plan['duree_jours'],
+                'label': effective_plan.get('label', plan['label']),
+                'prix': effective_plan['prix'],
+                'duree_jours': effective_plan['duree_jours'],
             }
         }, 200
 
