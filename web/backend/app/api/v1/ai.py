@@ -301,6 +301,35 @@ class InsightsResource(Resource):
             return {'message': 'Erreur lors de la generation des insights'}, 500
 
 # NOUVEAUX ENDPOINTS
+@ns.route('/analytics/stock')
+@ns.doc(responses={200: 'Analyse stock', 403: 'Permission refusee'})
+class AnalyticsStockResource(Resource):
+    @permission_required('stock.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            result = analyze_stock()
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI analytics stock error: %s', e)
+            return {'message': 'Erreur lors de l analyse du stock'}, 500
+
+
+@ns.route('/analytics/sales')
+@ns.doc(responses={200: 'Analyse ventes', 403: 'Permission refusee'})
+class AnalyticsSalesResource(Resource):
+    @permission_required('sale.view')
+    @tenant_required_readonly
+    def get(self):
+        try:
+            days = request.args.get('days', default=30, type=int)
+            result = analyze_sales(days=days)
+            return result, 200
+        except Exception as e:
+            current_app.logger.exception('AI analytics sales error: %s', e)
+            return {'message': 'Erreur lors de l analyse des ventes'}, 500
+
+
 @ns.route('/analytics/finances')
 @ns.doc(responses={200: 'Analyse finances', 403: 'Permission refusee'})
 class AnalyticsFinancesResource(Resource):
