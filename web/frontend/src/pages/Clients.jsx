@@ -1,6 +1,7 @@
 // src/pages/Clients.jsx
 import React, { useState, useEffect } from 'react';
 import { clientService } from '../services/api';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import { toast } from 'react-toastify';
 import ClientModal from '../components/ClientModal';
 import AccessButton from '../components/common/AccessButton';
@@ -273,6 +274,7 @@ const Clients = () => {
           client={currentClient}
           onClose={closeModal}
           onSuccess={() => {
+            markOnboardingAction('clients');
             fetchClients();
             closeModal();
           }}
