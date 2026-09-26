@@ -7,6 +7,7 @@ import DarkModeToggle from './DarkModeToggle';
 import ChatInput from './ChatInput';
 import DesktopLayout from './DesktopLayout';
 import CommandPalette from './CommandPalette';
+import GuidedOnboarding, { ONBOARDING_ACTION_EVENT, shouldOpenGuidedOnboarding } from '../GuidedOnboarding';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { authService, saleService, stockService, factureService, dashboardService } from '../../services/api';
 import { toast } from 'react-toastify';
@@ -33,6 +34,7 @@ const MainLayout = () => {
 
   const [counters, setCounters] = useState({ sales: 0, stock: 0, invoices: 0, salesToday: 0 });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   useEffect(() => {
@@ -60,6 +62,19 @@ const MainLayout = () => {
     logout();
     navigate('/');
   };
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const openGuide = () => setGuideOpen(true);
+    window.addEventListener('erp:open-onboarding', openGuide);
+
+    if (shouldOpenGuidedOnboarding(user)) {
+      setGuideOpen(true);
+    }
+
+    return () => window.removeEventListener('erp:open-onboarding', openGuide);
+  }, [user]);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameForm, setNameForm] = useState({ prenom: '', nom: '' });
@@ -143,16 +158,19 @@ const MainLayout = () => {
 
   if (isDesktop) {
     return (
-      <DesktopLayout
-        darkMode={darkMode}
-        onToggleDarkMode={toggleDarkMode}
-        onLogout={handleLogout}
-        counters={counters}
-        notifications={notifications}
-        unreadCount={unreadCount}
-        onMarkAsRead={markAsRead}
-        onMarkAllAsRead={markAllAsRead}
-      />
+      <>
+        <DesktopLayout
+          darkMode={darkMode}
+          onToggleDarkMode={toggleDarkMode}
+          onLogout={handleLogout}
+          counters={counters}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
+        />
+        <GuidedOnboarding open={guideOpen} onClose={() => setGuideOpen(false)} />
+      </>
     );
   }
 
@@ -189,6 +207,7 @@ const MainLayout = () => {
       )}
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <GuidedOnboarding open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   );
 };
