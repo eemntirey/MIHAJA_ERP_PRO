@@ -61,7 +61,10 @@ class TenantList(Resource):
         data = request.get_json() or {}
         now = datetime.utcnow()
         trial_duration = timedelta(days=14)
-        plan = data.get('plan', 'gratuit')
+        plan = str(data.get('plan', 'gratuit')).strip().lower()
+        from app.security.plans import PLAN_CONFIG
+        if plan not in PLAN_CONFIG:
+            return {'message': 'Plan invalide. Choisissez un plan existant.'}, 400
 
         allowed, message = check_tenant_limit(plan)
         if not allowed:
