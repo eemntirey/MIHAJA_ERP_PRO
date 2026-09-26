@@ -212,7 +212,10 @@ def pull_changes(app):
             ))
             return {'applied': 0, 'revision': 0}
 
-        if not SyncCursor.query.first():
+        if not SyncCursor.query.filter_by(
+            tenant_id=tenant_id,
+            device_id=device_id(),
+        ).first():
             ensure_cursors(tenant_id)
 
         applied = 0
@@ -242,9 +245,9 @@ def pull_changes(app):
                 # déjà en base locale (sinon doublon à chaque pull).
                 if change.get('source_device_id') == my_device:
                     continue
-                tenant_for_change = (
-                    (change.get('payload') or {}).get('tenant_id') or tenant_id
-                )
+                # Le tenant est imposé par le curseur/authentification local.
+                # Ne jamais laisser le payload distant choisir une autre portée.
+                tenant_for_change = tenant_id
                 try:
                     if _apply_change(tenant_for_change, change):
                         applied += 1
