@@ -7,7 +7,7 @@ import DarkModeToggle from './DarkModeToggle';
 import ChatInput from './ChatInput';
 import DesktopLayout from './DesktopLayout';
 import CommandPalette from './CommandPalette';
-import GuidedOnboarding, { ONBOARDING_ACTION_EVENT, shouldOpenGuidedOnboarding } from '../GuidedOnboarding';
+import GuidedOnboarding, { shouldOpenGuidedOnboarding } from '../GuidedOnboarding';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { authService, saleService, stockService, factureService, dashboardService } from '../../services/api';
 import { toast } from 'react-toastify';
