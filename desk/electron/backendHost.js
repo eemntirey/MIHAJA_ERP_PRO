@@ -222,7 +222,7 @@ function getCentralApiBaseUrl() {
   const base = cfg.replicationUrl
     || process.env.REPLICATION_URL
     || 'https://mihaja-erp-pro.onrender.com';
-  return String(base).replace(/\\/+$/, '');
+  return String(base).replace(/\/+$/, '');
 }
 
 // Déclenche un cycle immédiat push/pull après le retour du central.
