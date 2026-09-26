@@ -165,3 +165,35 @@ test('le service tenant Super Admin utilise une route de suppression existante',
   assert.match(api, /delete: \(id\) =>\s*api\.delete\(\`\/super-admin\/tenants\/\$\{id\}\`\)/);
   assert.doesNotMatch(api, /\/super-admin\/tenants\/\$\{id\}\/delete/);
 });
+
+test('la matrice RBAC definit toutes les permissions utilisees par les roles', () => {
+  const matrix = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'permission_matrix.py'),
+    'utf8',
+  );
+  const definitionSection = matrix.split('WILDCARD_PERMISSION')[0];
+  const definitions = new Set(
+    [...definitionSection.matchAll(/^\s*"([^"]+)":\s*\{/gm)].map((m) => m[1]),
+  );
+  const referenced = new Set(
+    [...matrix.matchAll(/"([a-z_]+\.[a-z_]+)"/g)].map((m) => m[1]),
+  );
+  for (const permission of referenced) {
+    assert.equal(
+      definitions.has(permission),
+      true,
+      `Permission non définie dans PERMISSION_DEFINITIONS: ${permission}`,
+    );
+  }
+});
+
+test('les filtres de dates comptables renvoient un 400 au lieu dun 500', () => {
+  const compta = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'comptabilite.py'),
+    'utf8',
+  );
+  assert.equal(
+    (compta.match(/except \(ValueError, TypeError\):\s*\n\s*return \{'message': 'Format de date invalide/g) || []).length,
+    3,
+  );
+});
