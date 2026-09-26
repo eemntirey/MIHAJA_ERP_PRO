@@ -94,12 +94,33 @@ class MonAbonnement(Resource):
         tenant_id = claims.get('tenant_id')
         if not tenant_id:
             return {'message': 'Aucun tenant associe'}, 401
+        tenant = None
         try:
             tenant = db.session.get(Tenant, tenant_id)
         except Exception:
             current_app.logger.exception(
                 "Lecture du tenant %s impossible (donnees invalides)", tenant_id
             )
+        # Backend embarque : le central fait foi (la table `abonnements` n'est
+        # pas replicee). Repli sur la copie locale si le central est injoignable,
+        # pour rester utilisable hors-ligne.
+        if current_app.config.get('LOCAL_EMBEDDED'):
+            from app.services.central_subscription import (
+                fetch_central_subscription,
+                mirror_abonnement,
+            )
+            payload = fetch_central_subscription()
+            if isinstance(payload, dict) and 'abonnement' in payload:
+                try:
+                    mirror_abonnement(tenant, payload)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    current_app.logger.exception(
+                        "Miroir de l'abonnement central impossible (tenant %s)",
+                        tenant_id,
+                    )
+                return payload, 200
         # Priorité à une demande en attente de règlement (ex: passage au plan Pro/Entreprise)
         abonnement = Abonnement.query.filter(
             Abonnement.tenant_id == tenant_id,

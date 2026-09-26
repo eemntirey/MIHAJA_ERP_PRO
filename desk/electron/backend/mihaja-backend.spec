@@ -44,6 +44,8 @@ hiddenimports = [
     'app.services.replication.entities',
     'app.services.local_auth',
     'app.services.local_bootstrap',
+    # Abonnement central (miroir + proxy hors-ligne du desk).
+    'app.services.central_subscription',
     # Client HTTP du moteur de réplication.
     'requests',
     'urllib3',

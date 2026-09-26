@@ -141,6 +141,31 @@ def _mirror_tenant(tenant_data):
     return tenant
 
 
+def _mirror_central_subscription(tenant):
+    """Recopie l'abonnement du central en local apres un login reussi.
+
+    La replication ne couvre pas `abonnements` : sans ce miroir, le desk
+    garderait une ancienne demande locale (statut en attente) et afficherait
+    « non abonne » alors que le tenant est abonne sur le web. Echec silencieux
+    : un problem d'abonnement ne doit jamais empecher d'ouvrir une session.
+    """
+    if tenant is None:
+        return
+    try:
+        from app.services.central_subscription import (
+            fetch_central_subscription,
+            mirror_abonnement,
+        )
+        payload = fetch_central_subscription()
+        if payload is None:
+            return
+        mirror_abonnement(tenant, payload)
+        db.session.commit()
+    except Exception as exc:
+        logger.warning("Miroir de l'abonnement central impossible : %s", exc)
+        db.session.rollback()
+
+
 def _mirror_user(user_data, tenant, raw_password):
     """Crée/met à jour l'utilisateur local (avec cache scrypt du mot de passe)."""
     from app.models.utilisateur import Role, StatutUtilisateur, Utilisateur
@@ -227,6 +252,7 @@ def authenticate_local_device(identifier, password, tenant_slug=None,
                 current_app.config['LOCAL_TENANT_ID'] = tenant.id
                 ensure_local_cursors(tenant.id)
             _db.session.commit()
+            _mirror_central_subscription(tenant)
             try:
                 from app.services.replication.pull import pull_changes
                 pull_changes(current_app._get_current_object())

@@ -208,6 +208,49 @@ class _FakeResponse:
         return self._payload
 
 
+def _central_subscription_payload(plan='pro', statut='actif'):
+    """Reponse /abonnements/mon-abonnement du central (tenant 4242)."""
+    return {
+        'abonnement': {
+            'tenant_id': 4242,
+            'montant': 15000.0,
+            'devise': 'MGA',
+            'date_debut': '2026-09-24T05:37:59.101546',
+            'date_fin': '2099-10-24T05:37:59.101550',
+            'statut': statut,
+            'methode_paiement': None,
+            'reference_paiement': None,
+            'plan': plan,
+            'notes': None,
+            'max_utilisateurs': 7,
+            'max_produits': 200,
+            'max_clients': 1000,
+            'max_admins': 1,
+            'max_employees': 6,
+            'max_interns': 0,
+            'max_tenants': -1,
+            'modules': ['dashboard', 'produits', 'ventes'],
+            'id': 1,
+            'created_at': '2026-09-23T14:46:43.764222',
+            'updated_at': '2026-09-24T05:37:59.102323',
+            'is_active': True,
+        },
+        'can_renew': True,
+        'tenant': {
+            'id': 4242,
+            'nom': 'Tenant Central',
+            'plan': plan,
+            'statut': 'actif',
+            'max_utilisateurs': 7,
+            'max_employees': 6,
+            'users_count': 1,
+            'employees_count': 0,
+        },
+        'is_free_plan': plan == 'gratuit',
+        'pricing': None,
+    }
+
+
 def test_online_login_mirrors_user_and_caches_credentials(
     local_embedded_app, client, monkeypatch
 ):
@@ -236,8 +279,11 @@ def test_online_login_mirrors_user_and_caches_credentials(
         return _FakeResponse(central_login)
 
     def _get(url, **kwargs):
-        assert url.endswith('/api/v1/auth/me')
-        return _FakeResponse(central_me)
+        if url.endswith('/api/v1/auth/me'):
+            return _FakeResponse(central_me)
+        if url.endswith('/api/v1/abonnements/mon-abonnement'):
+            return _FakeResponse(_central_subscription_payload())
+        raise AssertionError(f'URL inattendue : {url}')
 
     monkeypatch.setattr(requests, 'post', _post)
     monkeypatch.setattr(requests, 'get', _get)
@@ -248,7 +294,9 @@ def test_online_login_mirrors_user_and_caches_credentials(
     assert response.status_code == 200, response.get_json()
     body = response.get_json()
     assert body.get('offline') is False
-    assert body['access_token'] == 'jeton-central-abc'
+    # Jeton LOCAL : le jeton central ne sert qu'a la replication.
+    assert body['access_token']
+    assert body['access_token'] != 'jeton-central-abc'
 
     with local_embedded_app.app_context():
         user = Utilisateur.query.filter_by(username=username).first()
@@ -259,3 +307,203 @@ def test_online_login_mirrors_user_and_caches_credentials(
         assert 'motdepasse-central' not in user.local_password_hash
         assert SyncState.get_service_token() == 'jeton-central-abc'
         assert local_embedded_app.extensions['repl_token'] == 'jeton-central-abc'
+
+        # L'abonnement du central est miroiré (sinon le desk affiche
+        # « non abonne » alors que le tenant est abonne sur le web).
+        from datetime import datetime
+
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        from app.models.tenant import Tenant
+
+        tenant = Tenant.query.filter_by(slug='tenant-central').first()
+        assert tenant is not None
+        assert tenant.plan == 'pro'
+        actifs = [
+            a for a in Abonnement.query.filter_by(tenant_id=tenant.id).all()
+            if a.is_active
+        ]
+        assert len(actifs) == 1
+        assert actifs[0].statut == StatutAbonnement.ACTIF
+        assert actifs[0].plan == 'pro'
+        assert actifs[0].date_fin > datetime.utcnow()
+        assert actifs[0].modules == 'dashboard,produits,ventes'
+
+
+def _add_pending_demande(slug, plan='gratuit'):
+    """Demande locale jamais reglee (creee depuis le desk, ignoree du central).
+
+    A appeler dans un contexte applicatif.
+    """
+    from datetime import datetime, timedelta
+
+    from app import db
+    from app.models.abonnement import Abonnement, StatutAbonnement
+    from app.models.tenant import StatutTenant, Tenant
+
+    tenant = Tenant.query.filter_by(slug=slug).first()
+    if tenant is None:
+        tenant = Tenant(
+            nom='Poste Local', slug=slug, domaine='local.test',
+            statut=StatutTenant.ACTIF, plan=plan,
+        )
+        db.session.add(tenant)
+        db.session.flush()
+    demande = Abonnement(
+        tenant_id=tenant.id,
+        date_debut=datetime.utcnow() - timedelta(days=1),
+        date_fin=datetime.utcnow() + timedelta(days=30),
+        plan=plan,
+        statut=StatutAbonnement.EN_ATTENTE,
+        montant=15000,
+    )
+    db.session.add(demande)
+    db.session.commit()
+    return tenant.id, demande.id
+
+
+def test_login_replaces_pending_local_subscription_with_central_one(
+    local_embedded_app, client, monkeypatch
+):
+    """Demande locale restee en attente : le miroir central la remplace.
+
+    Reproduit le bug « non abonne » du desk : la ligne locale EN_ATTENTE
+    (prioritaire dans /mon-abonnement) masquait l'abonnement actif du web.
+    """
+    import requests
+
+    from app import db
+    from app.models.abonnement import Abonnement, StatutAbonnement
+    from app.models.tenant import Tenant
+
+    with local_embedded_app.app_context():
+        tenant_id, demande_id = _add_pending_demande('tenant-central')
+        demande = db.session.get(Abonnement, demande_id)
+        assert demande.statut == StatutAbonnement.EN_ATTENTE
+
+    central_login = {
+        'access_token': 'jeton-central-abc',
+        'refresh_token': 'refresh-central-abc',
+        'user': {'username': 'abonne_central',
+                 'email': 'abonne@central.local', 'role': 'admin'},
+    }
+    central_me = {
+        'user': central_login['user'],
+        'tenant': {'id': 4242, 'nom': 'Tenant Central', 'slug': 'tenant-central',
+                   'domaine': 'central.local', 'plan': 'pro'},
+    }
+
+    def _post(url, **kwargs):
+        return _FakeResponse(central_login)
+
+    def _get(url, **kwargs):
+        if url.endswith('/api/v1/auth/me'):
+            return _FakeResponse(central_me)
+        if url.endswith('/api/v1/abonnements/mon-abonnement'):
+            return _FakeResponse(_central_subscription_payload())
+        raise AssertionError(f'URL inattendue : {url}')
+
+    monkeypatch.setattr(requests, 'post', _post)
+    monkeypatch.setattr(requests, 'get', _get)
+
+    response = client.post('/api/v1/auth/login', json={
+        'username': 'abonne_central', 'password': 'motdepasse-central',
+    })
+    assert response.status_code == 200, response.get_json()
+
+    with local_embedded_app.app_context():
+        demande = db.session.get(Abonnement, demande_id)
+        assert demande.is_active is False
+        assert demande.statut == StatutAbonnement.ANNULE
+        actifs = [
+            a for a in Abonnement.query.filter_by(tenant_id=tenant_id).all()
+            if a.is_active
+        ]
+        assert len(actifs) == 1
+        assert actifs[0].statut == StatutAbonnement.ACTIF
+        assert actifs[0].plan == 'pro'
+        assert db.session.get(Tenant, tenant_id).plan == 'pro'
+
+
+def _local_login(client, user):
+    """Ouvre une session locale (le central est injoignable : cache scrypt)."""
+    response = client.post('/api/v1/auth/login', json={
+        'username': user.username,
+        'password': user._raw_password,
+    })
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json().get('offline') is True
+    return response.get_json()['access_token']
+
+
+def test_mon_abonnement_proxies_central_when_embedded(
+    local_embedded_app, cached_local_user, client, monkeypatch
+):
+    """Mode embarque en ligne : /mon-abonnement renvoie l'abonnement du central."""
+    import requests
+
+    from app import db
+    from app.models.abonnement import Abonnement, StatutAbonnement
+
+    with local_embedded_app.app_context():
+        # Isolation : les tests partagent la base de session.
+        Abonnement.query.filter_by(
+            tenant_id=cached_local_user.tenant_id,
+        ).delete()
+        tenant_id, _ = _add_pending_demande('test-tenant-rep')
+
+    monkeypatch.setattr(
+        requests, 'get',
+        lambda url, **kwargs: _FakeResponse(_central_subscription_payload()),
+    )
+    token = _local_login(client, cached_local_user)
+
+    response = client.get(
+        '/api/v1/abonnements/mon-abonnement',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body['abonnement']['statut'] == 'actif'
+    assert body['abonnement']['plan'] == 'pro'
+    assert body['tenant']['plan'] == 'pro'
+
+    with local_embedded_app.app_context():
+        rows = Abonnement.query.filter_by(tenant_id=tenant_id).all()
+        assert [a.statut for a in rows if a.is_active] == [StatutAbonnement.ACTIF]
+        assert [a.statut for a in rows].count(StatutAbonnement.ANNULE) == 1
+
+
+def test_mon_abonnement_falls_back_to_local_when_central_unreachable(
+    local_embedded_app, cached_local_user, client
+):
+    """Central injoignable : la copie locale sert (poste hors-ligne)."""
+    from datetime import datetime, timedelta
+
+    from app import db
+    from app.models.abonnement import Abonnement, StatutAbonnement
+
+    with local_embedded_app.app_context():
+        # Isolation : les tests partagent la base de session.
+        Abonnement.query.filter_by(
+            tenant_id=cached_local_user.tenant_id,
+        ).delete()
+        abonnement = Abonnement(
+            tenant_id=cached_local_user.tenant_id,
+            date_debut=datetime.utcnow() - timedelta(days=1),
+            date_fin=datetime.utcnow() + timedelta(days=30),
+            plan='gratuit',
+            statut=StatutAbonnement.ACTIF,
+            montant=0,
+        )
+        db.session.add(abonnement)
+        db.session.commit()
+
+    token = _local_login(client, cached_local_user)
+    response = client.get(
+        '/api/v1/abonnements/mon-abonnement',
+        headers={'Authorization': f'Bearer {token}'},
+    )
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body['abonnement']['statut'] == 'actif'
+    assert body['abonnement']['plan'] == 'gratuit'
