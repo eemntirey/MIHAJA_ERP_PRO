@@ -24,6 +24,15 @@
   transition: all 0.18s ease;
 }
 
+
+/* La sidebar est fixe : la zone métier garde sa largeur réservée. */
+@media (min-width: 768px) {
+  .main-layout.desktop-layout .desktop-main {
+    width: calc(100% - var(--erp-sidebar-width));
+    margin-left: var(--erp-sidebar-width);
+  }
+}
+
 .main-layout.desktop-layout .main-content.desktop-content {
   flex: 1;
   min-width: 0;
