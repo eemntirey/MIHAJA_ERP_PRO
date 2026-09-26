@@ -14,6 +14,12 @@ const Tenants = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nom: '', slug: '', email_contact: '', telephone: '', ville: '', pays: 'Madagascar',
+    plan: 'gratuit', admin_nom: '', admin_prenom: '', admin_email: '', admin_password: '',
+  });
   const navigate = useNavigate();
 
   const perPage = 15;
@@ -85,6 +91,55 @@ const Tenants = () => {
     });
   };
 
+  const handleCreateChange = (e) => {
+    const { name, value } = e.target;
+    setCreateForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      nom: '', slug: '', email_contact: '', telephone: '', ville: '', pays: 'Madagascar',
+      plan: 'gratuit', admin_nom: '', admin_prenom: '', admin_email: '', admin_password: '',
+    });
+  };
+
+  const handleCreateTenant = async (e) => {
+    e.preventDefault();
+    if (!createForm.nom || !createForm.slug || !createForm.admin_email || !createForm.admin_password) {
+      toast.error('Entreprise, slug, email admin et mot de passe sont requis');
+      return;
+    }
+    try {
+      setCreateSaving(true);
+      const response = await superAdminTenantService.create({
+        nom: createForm.nom,
+        slug: createForm.slug,
+        email_contact: createForm.email_contact || createForm.admin_email,
+        telephone: createForm.telephone,
+        ville: createForm.ville,
+        pays: createForm.pays,
+        plan: createForm.plan,
+        statut: 'en_essai',
+        admin_nom: createForm.admin_nom,
+        admin_prenom: createForm.admin_prenom,
+        admin_email: createForm.admin_email,
+        admin_password: createForm.admin_password,
+      });
+      const created = response.data?.tenant || response.data;
+      toast.success('Tenant créé');
+      setShowCreateModal(false);
+      resetCreateForm();
+      if (created?.id) {
+        setTenants((prev) => [created, ...prev]);
+      }
+      fetchTenants();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Échec de la création du tenant');
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
   const handleActivate = async (id) => {
     try {
       await superAdminTenantService.activate(id);
@@ -147,6 +202,9 @@ const Tenants = () => {
           <h1>Tenants</h1>
           <p>Gestion de l'ensemble des tenants de la plateforme ({total} total)</p>
         </div>
+        <button onClick={() => setShowCreateModal(true)} className="btn-primary">
+          <i className="ti ti-plus" aria-hidden="true" /> Nouveau tenant
+        </button>
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
@@ -297,6 +355,72 @@ const Tenants = () => {
             )}
           </div>
         </>
+      )}
+
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => !createSaving && setShowCreateModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Nouveau tenant</h2>
+              <button type="button" className="btn-close" onClick={() => !createSaving && setShowCreateModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleCreateTenant} className="modal-form">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="create-nom">Entreprise *</label>
+                  <input id="create-nom" name="nom" value={createForm.nom} onChange={handleCreateChange} required />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-slug">Slug *</label>
+                  <input id="create-slug" name="slug" value={createForm.slug} onChange={handleCreateChange} placeholder="ex. entreprise-mada" required />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-plan">Plan</label>
+                  <select id="create-plan" name="plan" value={createForm.plan} onChange={handleCreateChange}>
+                    <option value="gratuit">Gratuit</option>
+                    <option value="starter">Starter</option>
+                    <option value="pro">Pro</option>
+                    <option value="enterprise">Entreprise</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-email-contact">Email contact</label>
+                  <input id="create-email-contact" type="email" name="email_contact" value={createForm.email_contact} onChange={handleCreateChange} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-admin-nom">Nom admin</label>
+                  <input id="create-admin-nom" name="admin_nom" value={createForm.admin_nom} onChange={handleCreateChange} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-admin-prenom">Prénom admin</label>
+                  <input id="create-admin-prenom" name="admin_prenom" value={createForm.admin_prenom} onChange={handleCreateChange} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-admin-email">Email admin *</label>
+                  <input id="create-admin-email" type="email" name="admin_email" value={createForm.admin_email} onChange={handleCreateChange} required />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-admin-password">Mot de passe admin *</label>
+                  <input id="create-admin-password" type="password" name="admin_password" value={createForm.admin_password} onChange={handleCreateChange} minLength={8} required />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-telephone">Téléphone</label>
+                  <input id="create-telephone" name="telephone" value={createForm.telephone} onChange={handleCreateChange} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="create-ville">Ville</label>
+                  <input id="create-ville" name="ville" value={createForm.ville} onChange={handleCreateChange} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)} disabled={createSaving}>Annuler</button>
+                <button type="submit" className="btn-primary" disabled={createSaving}>
+                  {createSaving ? 'Création...' : 'Créer le tenant'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {confirmAction && (
