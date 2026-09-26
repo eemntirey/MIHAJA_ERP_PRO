@@ -120,7 +120,7 @@ class FactureResource(Resource):
             db.session.rollback()
             return {'message': str(e)}, 400
 
-    @permission_required('invoice.update')
+    @permission_required('invoice.delete')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture"""
