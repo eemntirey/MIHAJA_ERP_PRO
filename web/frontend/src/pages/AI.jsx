@@ -2,6 +2,7 @@
 // Interface conversationnelle style DeepSeek
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { aiService } from '../services/api';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -265,6 +266,7 @@ const AI = () => {
       // Petit délai pour laisser voir l'indicateur de frappe
       setTimeout(() => {
         setMessages((prev) => [...prev, assistantMessage]);
+        markOnboardingAction('ai');
         setIsLoading(false);
       }, 400);
     } catch (err) {
