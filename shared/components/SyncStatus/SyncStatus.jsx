@@ -12,7 +12,7 @@ export default function SyncStatus() {
     let alive = true;
     const poll = async () => {
       try {
-        const { data } = await api.get('/sync/local-status');
+        const { data } = await api.get('/sync/local-status', { _forceLocal: true });
         if (alive) setState({ ...data, reachable: true });
       } catch {
         if (alive) setState({ reachable: false, pending_count: '?' });
