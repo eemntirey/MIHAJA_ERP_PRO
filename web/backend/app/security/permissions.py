@@ -3,7 +3,7 @@ from flask_jwt_extended import get_jwt_identity, get_jwt, jwt_required
 from app.models.utilisateur import Utilisateur, Role
 from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import has_permission as _has_permission_single
-from app.security.plan_limits import resolve_tenant_context, is_unlimited
+from app.security.plan_limits import resolve_tenant_context
 
 # Correspondance entre namespace de permission et module d'abonnement.
 # Les domaines sans entrée (profil, notifications, admin, reporting, etc.)
