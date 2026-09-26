@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { commandeAchatService, receptionService, productService, fournisseurService } from '../services/api';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import './Pages.css';
 
 const EMPTY_LINE = () => ({
@@ -173,6 +174,7 @@ export default function Purchases() {
             } else {
                 await commandeAchatService.create(data);
                 toast.success('Commande créée');
+                markOnboardingAction('purchases');
             }
             resetCommandForm();
             await fetchAll();
@@ -215,6 +217,7 @@ export default function Purchases() {
 
             await receptionService.create(data);
             toast.success('Réception enregistrée et stock mis à jour');
+            markOnboardingAction('purchases');
             setRecForm(EMPTY_REC);
             await fetchAll();
         } catch (err) {
