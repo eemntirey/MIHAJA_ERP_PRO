@@ -531,3 +531,16 @@ def test_unknown_subscription_plan_is_rejected(app):
                 'tenant_id': tenant.id,
                 'plan': 'plan_inexistant',
             })
+
+def test_backend_blocks_unsubscribed_module_by_permission(app):
+    """Une permission valide ne doit pas contourner la souscription du tenant."""
+    tenant, admin = _make_tenant_with_abonnement(
+        plan='gratuit',
+        modules='dashboard,produits,clients,ventes,factures,paiements,rh,stocks,documents',
+    )
+    client = app.test_client()
+    headers = _login(client, 'admin', 'Admin123!', 'tenant-test')
+
+    r = client.get('/api/v1/comptes', headers=headers)
+    assert r.status_code == 403, r.get_json()
+    assert r.get_json()['module'] == 'comptabilite'
