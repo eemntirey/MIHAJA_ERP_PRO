@@ -232,3 +232,15 @@ test('le webhook Papi convertit EN_ATTENTE/PENDING en PROCESSING', () => {
   assert.match(webhook, /StatutPaiement\.EN_ATTENTE, StatutPaiement\.PENDING/);
   assert.match(webhook, /paiement\.statut = StatutPaiement\.PROCESSING/);
 });
+
+test('la création tenant Super Admin envoie les champs requis par le backend', () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'frontend', 'src', 'pages', 'SuperAdmin.jsx'),
+    'utf8',
+  );
+  assert.match(page, /slug: formData\.slug/);
+  assert.match(page, /email_contact: formData\.email/);
+  assert.match(page, /admin_email: formData\.admin_email \|\| formData\.email/);
+  assert.match(page, /admin_password: formData\.admin_password/);
+  assert.match(page, /plan: formData\.plan/);
+});
