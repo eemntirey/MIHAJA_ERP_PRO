@@ -43,7 +43,7 @@ const probe = async (base) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const response = await fetch(`${base.replace(/\\/api\\/v1$/, '')}/health`, {
+    const response = await fetch(`${base.replace(/\/api\/v1$/, '')}/health`, {
       method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
