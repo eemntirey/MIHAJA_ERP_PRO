@@ -197,3 +197,15 @@ test('les filtres de dates comptables renvoient un 400 au lieu dun 500', () => {
     3,
   );
 });
+
+test('les dépendances du module public sont importées avant usage', () => {
+  const pub = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'public.py'),
+    'utf8',
+  );
+  assert.match(pub, /from email\.utils import parseaddr/);
+  assert.match(pub, /from os import getenv/);
+  assert.match(pub, /import html as html_lib/);
+  assert.match(pub, /from app\.config\.settings import Config/);
+  assert.match(pub, /from app\.services\.email_service import send_email/);
+});
