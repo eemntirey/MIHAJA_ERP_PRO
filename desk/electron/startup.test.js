@@ -118,3 +118,32 @@ test('les clés écrites par les stores d’auth sont couvertes par la politique
 
   assert.ok(found >= 10, `clés d'auth détectées: ${found}`);
 });
+
+test('le Desk utilise le central en ligne et le local uniquement en repli', () => {
+  const api = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'shared', 'services', 'api.js'),
+    'utf8',
+  );
+
+  assert.match(api, /resolveDesktopRoute\(\{[\s\S]*?forceLocal/);
+  assert.match(api, /markDesktopCentralUnavailable\(\)/);
+  assert.match(api, /_desktopTarget === 'central'/);
+  assert.match(api, /tokenStore\.getCentralAccessToken\(\)/);
+  assert.match(api, /tokenStore\.getOfflineAccessToken\(\)/);
+  assert.match(api, /api\.post\('\/auth\/login'.*_forceLocal/);
+});
+
+test('le backend local expose le cycle de synchronisation immédiat', () => {
+  const host = fs.readFileSync(
+    path.join(__dirname, 'backendHost.js'),
+    'utf8',
+  );
+  const syncApi = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'local_sync.py'),
+    'utf8',
+  );
+
+  assert.match(host, /getCentralApiBaseUrl/);
+  assert.match(host, /syncNow/);
+  assert.match(syncApi, /\/local-run/);
+});
