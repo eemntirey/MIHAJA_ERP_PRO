@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import SelectField from '../components/ui/SelectField';
 import { productService } from '../services/api';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import { toast } from 'react-toastify';
 import { UNITS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
@@ -158,6 +159,7 @@ const Products = () => {
         const res = await productService.create(submitData);
         savedProduct = res.data;
         toast.success('Produit cree avec succes');
+        markOnboardingAction('products');
       }
 
       if (pendingImageFile && savedProduct?.id) {
