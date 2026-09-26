@@ -511,3 +511,23 @@ def test_airt_money_provider_code_is_consistent(app):
     from app.services.papi.payment import PROVIDER_METHOD_MAP
 
     assert PROVIDER_METHOD_MAP['AIRTEL_MONEY'] == 'AIRTEL_MONEY'
+
+def test_unknown_subscription_plan_is_rejected(app):
+    """La création ne doit jamais substituer silencieusement le plan gratuit."""
+    from app.services.abonnement_service import AbonnementService
+
+    with app.app_context():
+        tenant = Tenant(
+            nom='Tenant Invalid Plan',
+            slug='invalid-plan-test',
+            statut=StatutTenant.ACTIF,
+            plan='gratuit',
+        )
+        db.session.add(tenant)
+        db.session.commit()
+
+        with pytest.raises(ValueError, match='Plan invalide'):
+            AbonnementService.create_abonnement({
+                'tenant_id': tenant.id,
+                'plan': 'plan_inexistant',
+            })
