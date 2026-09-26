@@ -147,3 +147,21 @@ test('le backend local expose le cycle de synchronisation immédiat', () => {
   assert.match(host, /syncNow/);
   assert.match(syncApi, /\/local-run/);
 });
+
+test('les contrats IA critiques existent côté backend', () => {
+  const ai = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'ai.py'),
+    'utf8',
+  );
+  assert.match(ai, /@ns\.route\('\/analytics\/stock'\)/);
+  assert.match(ai, /@ns\.route\('\/analytics\/sales'\)/);
+});
+
+test('le service tenant Super Admin utilise une route de suppression existante', () => {
+  const api = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'shared', 'services', 'api.js'),
+    'utf8',
+  );
+  assert.match(api, /delete: \(id\) =>\s*api\.delete\(\`\/super-admin\/tenants\/\$\{id\}\`\)/);
+  assert.doesNotMatch(api, /\/super-admin\/tenants\/\$\{id\}\/delete/);
+});
