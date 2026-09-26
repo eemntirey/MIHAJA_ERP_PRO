@@ -1,6 +1,6 @@
 // src/pages/Permissions.jsx
-import React, { useState, useEffect } from 'react';
-import { permissionService } from '../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { permissionService, roleService } from '../services/api';
 import { toast } from 'react-toastify';
 import './Pages.css';
 
@@ -18,6 +18,8 @@ const Permissions = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
+  const [roles, setRoles] = useState([]);
+  const [roleFilter, setRoleFilter] = useState('');
 
   const fetchPermissions = async () => {
     try {
@@ -108,6 +110,25 @@ const Permissions = () => {
 
   const modules = Array.from(new Set(permissions.map(p => p.module).filter(Boolean)));
 
+  const permissionRolesMap = useMemo(() => {
+    const map = {};
+    roles.forEach((role) => {
+      (role.permissions || []).forEach((permission) => {
+        if (!map[permission.code]) map[permission.code] = [];
+        map[permission.code].push(role.display_name || role.name);
+      });
+    });
+    return map;
+  }, [roles]);
+
+  const filteredPermissions = useMemo(() => {
+    if (!roleFilter) return permissions;
+    const role = roles.find(r => r.name === roleFilter);
+    if (!role) return permissions;
+    const codes = new Set((role.permissions || []).map(p => p.code));
+    return permissions.filter(p => codes.has(p.code));
+  }, [permissions, roleFilter, roles]);
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -137,6 +158,19 @@ const Permissions = () => {
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="form-select"
+          title="Filtrer par rôle"
+        >
+          <option value="">Tous les rôles</option>
+          {roles.filter(r => r.name !== 'super_admin').map((role) => (
+            <option key={role.name} value={role.name}>
+              {role.display_name || role.name} ({role.permissions?.length || 0})
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && <div className="alert error">{error}</div>}
@@ -156,7 +190,7 @@ const Permissions = () => {
               </tr>
             </thead>
             <tbody>
-              {permissions.map((p) => (
+              {filteredPermissions.map((p) => (
                 <tr key={p.id}>
                   <td>{p.code}</td>
                   <td>{p.module}</td>
