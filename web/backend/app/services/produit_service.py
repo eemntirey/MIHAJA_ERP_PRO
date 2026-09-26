@@ -13,13 +13,31 @@ class ProduitService(BaseService):
 
     @classmethod
     def update(cls, id, data):
+        """Met à jour les données descriptives/prix sans modifier le stock directement."""
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        data = dict(data or {})
+        protected = {
+            'id', 'tenant_id', 'created_at', 'updated_at',
+            'created_by', 'updated_by', 'is_active', 'quantite_stock',
+            'valeur_stock', 'marge_unitaire', 'taux_marge', 'taux_marque',
+        }
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
+            if key in protected:
+                continue
+            if hasattr(instance, key):
                 setattr(instance, key, value)
-        db.session.commit()
+
+        # Champs dérivés : rester cohérents après modification du prix/TVA/dimensions.
+        instance._calculer_prix_ttc()
+        instance._calculer_volume()
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return instance
 
     @classmethod
