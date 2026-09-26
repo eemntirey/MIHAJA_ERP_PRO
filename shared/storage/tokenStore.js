@@ -26,6 +26,16 @@ const LEGACY = {
   subscription: 'subscription',
 };
 
+// Desktop : double session sécurisée. Les jetons centraux servent lorsque
+// le serveur central est joignable ; les jetons locaux servent uniquement
+// au backend SQLite embarqué en mode hors-ligne.
+const DESKTOP = {
+  centralAccess: 'erp.desk.central_access_token',
+  centralRefresh: 'erp.desk.central_refresh_token',
+  offlineAccess: 'erp.desk.offline_access_token',
+  offlineRefresh: 'erp.desk.offline_refresh_token',
+};
+
 // Electron = secureStore disponible ; web = localStorage (tokens en cookies HttpOnly)
 const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
 
@@ -33,6 +43,23 @@ export const tokenStore = {
   // A1 : web retourne null (les cookies HttpOnly gèrent les tokens)
   getAccessToken: () => isElectron ? (getString(NEW.access) || getString(LEGACY.access)) : null,
   getRefreshToken: () => isElectron ? (getString(NEW.refresh) || getString(LEGACY.refresh)) : null,
+
+  getCentralAccessToken: () => isElectron ? getString(DESKTOP.centralAccess) : null,
+  getCentralRefreshToken: () => isElectron ? getString(DESKTOP.centralRefresh) : null,
+  getOfflineAccessToken: () => isElectron ? getString(DESKTOP.offlineAccess) : null,
+  getOfflineRefreshToken: () => isElectron ? getString(DESKTOP.offlineRefresh) : null,
+
+  setCentralTokens: ({ access_token, refresh_token }) => {
+    if (!isElectron) return;
+    if (access_token) setString(DESKTOP.centralAccess, access_token);
+    if (refresh_token) setString(DESKTOP.centralRefresh, refresh_token);
+  },
+
+  setOfflineTokens: ({ access_token, refresh_token }) => {
+    if (!isElectron) return;
+    if (access_token) setString(DESKTOP.offlineAccess, access_token);
+    if (refresh_token) setString(DESKTOP.offlineRefresh, refresh_token);
+  },
 
   // A1 : web — no-op (les tokens sont en cookies, gérés par le backend)
   // Electron — stocke dans secureStore comme auparavant
@@ -90,6 +117,7 @@ export const tokenStore = {
   clear: () => {
     Object.values(NEW).forEach(removeKey);
     Object.values(LEGACY).forEach(removeKey);
+    Object.values(DESKTOP).forEach(removeKey);
   },
 };
 
