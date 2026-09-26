@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import api, { modeleDocumentService, documentService, saleService, factureService } from '../services/api';
+import { modeleDocumentService, documentService, saleService, factureService } from '../services/api';
 import './Documents.css';
 
 export default function Documents() {
