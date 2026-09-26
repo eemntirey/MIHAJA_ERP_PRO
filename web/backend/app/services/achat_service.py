@@ -24,6 +24,35 @@ class CommandeAchatService:
         return query
 
     @classmethod
+    def _validate_tenant_references(cls, tenant_id, fournisseur_id=None, lignes=None):
+        """Empêche toute commande d'achat de référencer un autre tenant."""
+        if fournisseur_id is not None:
+            from app.models.fournisseur import Fournisseur
+            fournisseur = Fournisseur.query.filter_by(
+                id=fournisseur_id,
+                tenant_id=tenant_id,
+                is_active=True,
+            ).first()
+            if not fournisseur:
+                raise ValueError("Fournisseur introuvable pour ce tenant")
+
+        for ligne in lignes or []:
+            produit_id = ligne.get('produit_id')
+            if produit_id is None:
+                raise ValueError("produit_id est requis pour chaque ligne")
+            try:
+                produit_id = int(produit_id)
+            except (TypeError, ValueError):
+                raise ValueError("produit_id doit être un entier")
+            produit = Produit.query.filter_by(
+                id=produit_id,
+                tenant_id=tenant_id,
+                is_active=True,
+            ).first()
+            if not produit:
+                raise ValueError(f"Produit id={produit_id} introuvable pour ce tenant")
+
+    @classmethod
     def get_all(cls, page=1, per_page=20, filters=None, order_by=None):
         query = cls.model.query.filter_by(is_active=True)
         query = cls._get_tenant_filter(query)
@@ -47,10 +76,20 @@ class CommandeAchatService:
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
+        data = dict(data or {})
         data['tenant_id'] = tenant_id
         if not data.get('reference'):
             data['reference'] = _gen_reference('ACH')
-        
+
+        lignes_data = data.get('lignes', [])
+        if not isinstance(lignes_data, list):
+            raise ValueError("lignes doit être une liste")
+        cls._validate_tenant_references(
+            tenant_id,
+            data.get('fournisseur_id'),
+            lignes_data,
+        )
+
         for date_field in ('date_livraison_prevue', 'date_reception', 'date_commande'):
             if date_field in data and isinstance(data[date_field], str):
                 try:
@@ -91,6 +130,17 @@ class CommandeAchatService:
         if not instance:
             return None
         lignes_data = data.pop('lignes', None)
+        if lignes_data is not None and not isinstance(lignes_data, list):
+            raise ValueError("lignes doit être une liste")
+        tenant_id = instance.tenant_id
+        if 'fournisseur_id' in data:
+            try:
+                fournisseur_id = int(data.get('fournisseur_id'))
+            except (TypeError, ValueError):
+                raise ValueError("fournisseur_id doit être un entier")
+            cls._validate_tenant_references(tenant_id, fournisseur_id, None)
+        if lignes_data is not None:
+            cls._validate_tenant_references(tenant_id, None, lignes_data)
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
