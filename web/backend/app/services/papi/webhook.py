@@ -18,6 +18,7 @@ from app.services.papi.errors import (
 from app.services.tenant_papi_service import get_webhook_secret_for_tenant
 from app.models.commande_client import CommandeClient, StatutCommande
 from app.config.settings import Config
+from app.security.plans import get_plan_duration_days, is_unlimited
 
 logger = logging.getLogger(__name__)
 
@@ -217,22 +218,31 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
 
         if paiement.subscription_id:
             subscription = db.session.get(Abonnement, paiement.subscription_id)
-            if subscription and subscription.statut != StatutAbonnement.ACTIF:
+            if subscription:
+                now = datetime.utcnow()
+                was_active = subscription.statut == StatutAbonnement.ACTIF
                 subscription.statut = StatutAbonnement.ACTIF
                 if not subscription.date_debut:
-                    subscription.date_debut = datetime.utcnow()
-                if not subscription.date_fin:
-                    from datetime import timedelta
-                    subscription.date_fin = datetime.utcnow() + timedelta(days=30)
+                    subscription.date_debut = now
+                if not subscription.date_fin or subscription.date_fin <= now:
+                    duration = get_plan_duration_days(subscription.plan)
+                    subscription.date_fin = (
+                        now + __import__('datetime').timedelta(days=365 * 99)
+                        if is_unlimited(duration)
+                        else now + __import__('datetime').timedelta(days=duration)
+                    )
                 subscription.methode_paiement = paiement.payment_method
                 subscription.reference_paiement = paiement.external_reference
                 db.session.add(subscription)
 
                 if subscription.tenant_id:
                     tenant = db.session.get(Tenant, subscription.tenant_id)
-                    if tenant and tenant.statut != StatutTenant.ACTIF:
+                    if tenant:
                         tenant.statut = StatutTenant.ACTIF
-                        tenant.date_abonnement = datetime.utcnow()
+                        tenant.is_active = True
+                        tenant.plan = subscription.plan
+                        if not was_active:
+                            tenant.date_abonnement = now
                         db.session.add(tenant)
 
         if paiement.commande_client_id:
