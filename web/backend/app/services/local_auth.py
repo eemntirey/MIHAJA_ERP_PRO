@@ -268,6 +268,10 @@ def authenticate_local_device(identifier, password, tenant_slug=None,
             'tenant': tenant.to_dict() if tenant else None,
             'must_change_password': bool(user.must_change_password),
             'offline': False,
+            # Le renderer conserve le jeton central pour les appels directs
+            # PostgreSQL et le jeton local pour le fallback/offline.
+            'central_access_token': token,
+            'central_refresh_token': body.get('refresh_token'),
         }, None
 
     if status_code in (400, 401, 403):
