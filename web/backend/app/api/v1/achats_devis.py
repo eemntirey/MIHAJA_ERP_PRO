@@ -144,7 +144,7 @@ class DevisResource(Resource):
             return {'message': 'Devis non trouve'}, 404
         return devis.to_dict(), 200
 
-    @permission_required('quote.create')
+    @permission_required('quote.delete')
     @tenant_required_readonly
     def delete(self, id):
         success = DevisService.delete(id)
