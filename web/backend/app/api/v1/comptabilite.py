@@ -210,8 +210,14 @@ class TresorerieResource(Resource):
     @permission_required('tresorerie.update')
     def put(self, id):
         from flask import request
-        data = request.get_json()
-        entree = TresorerieService.update(id, data)
+        try:
+            data = request.get_json()
+            entree = TresorerieService.update(id, data)
+        except ValueError as exc:
+            return {'message': str(exc)}, 400
+        except Exception:
+            current_app.logger.exception('Erreur mise a jour tresorerie')
+            return {'message': 'Erreur lors de la mise a jour de la tresorerie'}, 500
         if not entree:
             return {'message': 'Entree de tresorerie non trouvee'}, 404
         return entree.to_dict(), 200
@@ -219,7 +225,13 @@ class TresorerieResource(Resource):
     @tenant_required_readonly
     @permission_required('tresorerie.delete')
     def delete(self, id):
-        success = TresorerieService.delete(id)
+        try:
+            success = TresorerieService.delete(id)
+        except ValueError as exc:
+            return {'message': str(exc)}, 400
+        except Exception:
+            current_app.logger.exception('Erreur suppression tresorerie')
+            return {'message': 'Erreur lors de la suppression de la tresorerie'}, 500
         if not success:
             return {'message': 'Entree de tresorerie non trouvee'}, 404
         return {'message': 'Entree de tresorerie supprimee'}, 200
