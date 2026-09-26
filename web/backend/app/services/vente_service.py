@@ -303,42 +303,84 @@ def create_with_lignes(data):
             except ValueError:
                 raise ValueError("Format de date invalide (attendu YYYY-MM-DD)")
 
-    total_ht = Decimal('0')
-    total_ttc = Decimal('0')
-    prepared_lines = []
-    for prepared in prepared_lines:
-        produit_id = prepared['produit_id']
-        quantite = prepared['quantite']
+    total_ht = 0
+    total_ttc = 0
+    stock_errors = []
+    for ligne in lignes_data:
+        quantite = Decimal(str(ligne.get('quantite', 0)))
+        prix_unitaire = ligne.get('prix_unitaire')
+        if _ajout_prix_automatique(prix_unitaire):
+            produit_reference = None
+            produit_id = ligne.get('produit_id')
+            if produit_id:
+                produit_query = Produit.query.filter_by(id=produit_id)
+                if tenant_id:
+                    produit_query = produit_query.filter_by(tenant_id=tenant_id)
+                produit_reference = produit_query.first()
+            ligne['prix_unitaire'] = prix_unitaire = (
+                float(_resolve_prix_unitaire(produit_reference, prix_field, repli))
+                if produit_reference else 0
+            )
+        prix_unitaire = Decimal(str(prix_unitaire))
+        taux_tva = Decimal(str(ligne.get('taux_tva', 20)))
+        remise = Decimal(str(ligne.get('remise', 0)))
+        base_ht = quantite * prix_unitaire * (1 - remise / 100)
+        total_ht += base_ht
+        total_ttc += base_ht * (1 + taux_tva / 100)
+
+    data['total_ht'] = total_ht
+    data['total_ttc'] = total_ttc
+    facture_auto = data.pop('facture_auto', None) or data.pop('confirmer_facture', None)
+    sale = Vente(**data)
+    db.session.add(sale)
+    db.session.flush()
+    for ligne in lignes_data:
+        produit_id = ligne.get('produit_id')
+        quantite = ligne.get('quantite')
         mapped_ligne = {
-            'vente_id': sale.id, 'tenant_id': sale.tenant_id,
-            'produit_id': produit_id, 'quantite': quantite,
-            'prix_unitaire_ht': prepared['prix_unitaire'],
-            'taux_tva': prepared['taux_tva'],
-            'remise': prepared['remise'],
+            'vente_id': sale.id,
+            'tenant_id': sale.tenant_id,
+            'produit_id': produit_id,
+            'quantite': quantite,
+            'prix_unitaire_ht': ligne.get('prix_unitaire'),
+            'taux_tva': ligne.get('taux_tva'),
         }
-        db.session.add(LigneVente(**mapped_ligne))
-        if produit_id:
-            produit_query = Produit.query.filter_by(id=produit_id)
-            if tenant_id:
-                produit_query = produit_query.filter_by(tenant_id=tenant_id)
-            produit = produit_query.with_for_update().first()
-            if not produit:
-                raise ValueError(f"Produit id={produit_id} introuvable")
-            try:
-                qty_decimal = prepared['quantite']
-                if produit.quantite_stock < qty_decimal:
-                    raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
-                stock_avant = Decimal(str(produit.quantite_stock or 0))
-                produit.quantite_stock -= qty_decimal
-                db.session.add(MouvementStock(
-                    produit_id=produit.id, type_mouvement='sortie',
-                    quantite=qty_decimal, stock_avant=stock_avant,
-                    stock_apres=produit.quantite_stock,
-                    raison=f'Vente {sale.reference}',
-                    reference=sale.reference, tenant_id=produit.tenant_id,
-                ))
-            except ValueError as e:
-                stock_errors.append(str(e))
+        ligne_vente = LigneVente(**mapped_ligne)
+        db.session.add(ligne_vente)
+        if produit_id and quantite is not None:
+            qty = float(quantite)
+            if qty > 0:
+                tenant_id = sale.tenant_id
+                # Verrouillage optimiste de la ligne produit pour eviter les
+                # races conditions (deux ventes concurrentes decrémentant
+                # le stock en parallele). Sur SQLite (mode dev/test),
+                # with_for_update est ignore : on compense par un SELECT
+                # immediat et le check de stock dans la meme transaction.
+                produit_query = Produit.query.filter_by(id=produit_id)
+                if tenant_id:
+                    produit_query = produit_query.filter_by(tenant_id=tenant_id)
+                produit = produit_query.with_for_update().first()
+                if produit:
+                    try:
+                        qty_decimal = Decimal(str(qty))
+                        if produit.quantite_stock < qty_decimal:
+                            raise ValueError(f"Stock insuffisant. Disponible: {produit.quantite_stock}")
+                        stock_avant = Decimal(str(produit.quantite_stock or 0))
+                        produit.quantite_stock -= qty_decimal
+                        stock_apres = Decimal(str(produit.quantite_stock or 0))
+                        mouvement = MouvementStock(
+                            produit_id=produit.id,
+                            type_mouvement='sortie',
+                            quantite=qty_decimal,
+                            stock_avant=stock_avant,
+                            stock_apres=stock_apres,
+                            raison=f'Vente {sale.reference}',
+                            reference=sale.reference,
+                            tenant_id=produit.tenant_id,
+                        )
+                        db.session.add(mouvement)
+                    except ValueError as e:
+                        stock_errors.append(str(e))
     if stock_errors:
         db.session.rollback()
         raise ValueError("; ".join(stock_errors))
