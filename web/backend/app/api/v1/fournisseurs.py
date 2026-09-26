@@ -135,7 +135,7 @@ class CommandeFournisseurResource(Resource):
         return commande.to_dict(), 200
 
     @ns.doc('delete_commande_fournisseur')
-    @permission_required('purchase_order.create')
+    @permission_required('purchase_order.delete')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une commande fournisseur"""
@@ -223,7 +223,7 @@ class FactureFournisseurResource(Resource):
         return facture.to_dict(), 200
 
     @ns.doc('delete_facture_fournisseur')
-    @permission_required('invoice.update')
+    @permission_required('invoice.delete')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime une facture fournisseur"""
