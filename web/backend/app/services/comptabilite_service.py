@@ -59,10 +59,26 @@ class CompteComptableService:
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
+        data = dict(data or {})
+        numero = str(data.get('numero') or '').strip()
+        if not numero:
+            raise ValueError("Le numéro du compte est obligatoire")
+        existing = cls.model.query.filter_by(
+            tenant_id=tenant_id,
+            numero=numero,
+            is_active=True,
+        ).first()
+        if existing:
+            raise ValueError(f"Le numéro de compte {numero} existe déjà pour ce tenant")
         data['tenant_id'] = tenant_id
+        data['numero'] = numero
         instance = cls.model(**data)
         db.session.add(instance)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return instance
 
     @classmethod
@@ -70,10 +86,30 @@ class CompteComptableService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        data = dict(data or {})
+        if 'numero' in data:
+            numero = str(data.get('numero') or '').strip()
+            if not numero:
+                raise ValueError("Le numéro du compte est obligatoire")
+            duplicate = cls.model.query.filter(
+                cls.model.tenant_id == instance.tenant_id,
+                cls.model.numero == numero,
+                cls.model.is_active.is_(True),
+                cls.model.id != instance.id,
+            ).first()
+            if duplicate:
+                raise ValueError(f"Le numéro de compte {numero} existe déjà pour ce tenant")
+            data['numero'] = numero
+        if 'solde' in data:
+            raise ValueError("Le solde comptable est calculé automatiquement")
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
+            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at', 'solde'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return instance
 
     @classmethod
