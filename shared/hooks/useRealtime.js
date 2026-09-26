@@ -108,7 +108,13 @@ export function useRealtime(options = {}) {
 
     const token = tokenStore.getAccessToken();
     const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
-    const hasToken = isElectron ? !!token : true;
+    const hasToken = isElectron
+      ? !!(
+          tokenStore.getCentralAccessToken() ||
+          tokenStore.getOfflineAccessToken() ||
+          token
+        )
+      : true;
     if (!hasToken) {
       setConnected(false);
       return () => {
