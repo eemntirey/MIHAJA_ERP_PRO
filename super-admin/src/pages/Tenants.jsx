@@ -38,8 +38,8 @@ const Tenants = () => {
   }, [page, search, statusFilter, planFilter]);
 
   const visibleTenants = useMemo(
-    () => tenants.filter(t => t.is_active !== false),
-    [tenants]
+    () => statusFilter ? tenants : tenants.filter(t => t.is_active !== false),
+    [tenants, statusFilter]
   );
 
   useEffect(() => {
@@ -66,19 +66,19 @@ const Tenants = () => {
 
   const handleDeletePermanent = async (id, nom) => {
     setConfirmAction({
-      title: 'Supprimer définitivement le tenant',
-      message: `Êtes-vous sûr de vouloir supprimer le tenant "${nom}" ?`,
-      warning: 'Cette action est IRRÉVERSIBLE. Toutes les données du tenant (utilisateurs, employés, produits, clients, ventes, factures, etc.) seront supprimées définitivement.',
-      confirmText: 'Supprimer définitivement',
+      title: 'Désactiver le tenant',
+      message: `Êtes-vous sûr de vouloir désactiver le tenant "${nom}" ?`,
+      warning: 'Cette action désactive le tenant et conserve une sauvegarde de ses données pour restauration/support.',
+      confirmText: 'Désactiver',
       confirmClass: 'btn-danger',
       onConfirm: async () => {
         try {
           await superAdminTenantService.delete(id);
-          toast.success('Tenant et toutes ses données supprimés');
+          toast.success('Tenant désactivé');
           setTenants(prev => prev.filter(t => t.id !== id));
           fetchTenants();
         } catch (err) {
-          toast.error(err.response?.data?.message || 'Échec de la suppression');
+          toast.error(err.response?.data?.message || 'Échec de la désactivation');
         }
         setConfirmAction(null);
       },
