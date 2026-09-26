@@ -25,6 +25,7 @@ _PROCESS_ENV_KEYS = (
     'FLASK_ENV', 'FLASK_DEBUG', 'DEBUG', 'LOCAL_DB_PATH', 'LOCAL_API_PORT',
     'REPLICATION_URL', 'REPLICATION_DEVICE_ID', 'DATABASE_URL',
     'TEST_DATABASE_URL', 'SECRET_KEY', 'JWT_SECRET_KEY', 'REDIS_URL', 'CORS_ORIGINS',
+    'DESKTOP_ELECTRON_CORS',
 )
 _process_env_snapshot = {
     key: os.environ[key] for key in _PROCESS_ENV_KEYS if key in os.environ
@@ -279,6 +280,18 @@ def create_app():
         if origin.strip()
     ]
     if _is_local_embedded:
+        CORS_ORIGINS.append('null')
+
+    # Electron packaged chargé en file:// peut envoyer Origin: null.
+    # Le Desk utilise exclusivement Authorization Bearer : on autorise donc
+    # cette origine seulement lorsqu'elle est explicitement activée pour le
+    # déploiement desktop, sans élargir les origines web classiques.
+    _electron_cors = (
+        _is_prod
+        and os.getenv('DESKTOP_ELECTRON_CORS', 'false').lower()
+        in ('1', 'true', 'yes', 'on')
+    )
+    if _electron_cors:
         CORS_ORIGINS.append('null')
 
     # I4 FIX : allow-list stricte en production (patterns LAN/tunnels = DEV only).
@@ -686,6 +699,13 @@ def create_app():
     def before_request():
         from flask import g, request
         from app.security.tenant import resolve_tenant_from_header
+
+        # Une page Electron locale peut avoir Origin: null. Elle est autorisée
+        # uniquement pour le Desk Bearer ; une requête null portant des cookies
+        # est refusée pour ne jamais exposer une session web HttpOnly à une page
+        # locale/sandboxée.
+        if request.headers.get('Origin') == 'null' and request.cookies:
+            return {'message': 'Requête Electron avec cookies refusée.'}, 403
 
         # g.current_tenant_id doit être remis à zéro comme les deux autres :
         # dans un contexte applicatif partagé (client de test, serveur
