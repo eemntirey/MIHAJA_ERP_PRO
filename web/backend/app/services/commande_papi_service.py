@@ -40,12 +40,12 @@ logger = logging.getLogger(__name__)
 
 # On garde la même liste de méthodes électroniques que pour les abonnements,
 # la vitrine applique exactement les mêmes opérateurs.
-ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'ARTEL_MONEY', 'BRED')
+ELECTRONIC_METHODS = ('MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'BRED')
 
 PROVIDER_METHOD_MAP = {
     'MVOLA': 'MVOLA',
     'ORANGE_MONEY': 'ORANGE_MONEY',
-    'ARTEL_MONEY': 'AIRTEL_MONEY',
+    'AIRTEL_MONEY': 'AIRTEL_MONEY',
     'BRED': 'VISA',
 }
 
