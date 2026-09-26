@@ -47,7 +47,7 @@ def auth_headers(app):
 
         abonnement = Abonnement(
             tenant_id=tenant.id,
-            montant=15000.0,
+            montant=5000.0,
             devise='MGA',
             date_debut=datetime.utcnow(),
             date_fin=datetime.utcnow() + timedelta(days=30),
@@ -105,7 +105,7 @@ def _papi_response(payment_link='https://pay.papi.mg/payment/abc123', notificati
     ref = reference or f'SUB-1-1-{uuid.uuid4().hex[:8].upper()}'
     return {
         'data': {
-            'amount': 15000.0,
+            'amount': 5000.0,
             'currency': 'MGA',
             'linkCreationDateTime': 1723850012,
             'linkExpirationDateTime': 1723853612,
@@ -317,7 +317,7 @@ class TestPapiWebhook:
                 'paymentStatus': 'SUCCESS',
                 'paymentMethod': 'MVOLA',
                 'currency': 'MGA',
-                'amount': 15000,
+                'amount': 5000,
                 'fee': 500,
                 'clientName': 'Test Tenant',
                 'description': 'Abonnement starter - Test Tenant',
@@ -349,7 +349,7 @@ class TestPapiWebhook:
             'paymentStatus': 'SUCCESS',
             'paymentMethod': 'MVOLA',
             'currency': 'MGA',
-            'amount': 15000,
+            'amount': 5000,
             'paymentReference': 'SUB-1-1-UNKNOWN',
             'notificationToken': 'wrong-token',
             'message': 'Paiement effectué avec succès.',
@@ -389,7 +389,7 @@ class TestPapiWebhook:
                 'paymentStatus': 'SUCCESS',
                 'paymentMethod': 'MVOLA',
                 'currency': 'MGA',
-                'amount': 15000,
+                'amount': 5000,
                 'paymentReference': reference,
                 'notificationToken': notification_token,
                 'message': 'Paiement effectué avec succès.',
