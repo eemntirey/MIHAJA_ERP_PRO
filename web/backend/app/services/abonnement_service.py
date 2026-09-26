@@ -327,7 +327,7 @@ class AbonnementService:
         date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
         abn_pro = Abonnement(
             tenant_id=tenant_id,
-            montant=PLAN_CONFIG.get('pro', {}).get('prix', 15000),
+            montant=get_plan_price('pro'),
             devise='MGA',
             date_debut=now,
             date_fin=date_fin,
@@ -336,9 +336,9 @@ class AbonnementService:
         )
         apply_plan_to_abonnement(abn_pro, 'pro')
         db.session.add(abn_pro)
+        ancien_plan = tenant.plan if tenant else 'gratuit'
         tenant.plan = 'pro'
         db.session.add(tenant)
-        ancien_plan = tenant.plan if tenant else 'gratuit'
         audit = SubscriptionAuditTrail(
             tenant_id=tenant_id,
             abonnement_id=abn_pro.id,
