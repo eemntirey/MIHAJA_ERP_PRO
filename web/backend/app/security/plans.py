@@ -72,6 +72,19 @@ PLAN_CONFIG = {
         'prix': 0,
         'duree_jours': 30,
     },
+    'starter': {
+        'label': 'Starter',
+        'max_utilisateurs': 3,
+        'max_produits': 100,
+        'max_clients': 500,
+        'max_admins': 1,
+        'max_employees': 2,
+        'max_interns': 0,
+        'max_tenants': -1,
+        'modules': _EXTENDED,
+        'prix': 5000,
+        'duree_jours': 30,
+    },
     'pro': {
         'label': 'Pro',
         'max_utilisateurs': 7,
@@ -158,7 +171,7 @@ def _persist_plan_override(plan, prix=None, duree_jours=None):
 
 def get_public_plans():
     """Retourne la liste publique avec les paramètres persistés."""
-    allowed_codes = ['gratuit', 'pro', 'enterprise']
+    allowed_codes = ['gratuit', 'starter', 'pro', 'enterprise']
     plans = []
     for code in allowed_codes:
         config = get_plan_config(code)
