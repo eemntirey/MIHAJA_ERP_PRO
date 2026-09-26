@@ -429,3 +429,38 @@ class TestAlignmentDateFin:
         assert _get_active_abonnement(tenant) is not None
         limits = _get_limits(tenant)
         assert limits['max_employees'] == 3
+
+def test_plan_pricing_persists_across_config_reload(app):
+    """Une modification de prix/durée survit au rechargement de PLAN_CONFIG."""
+    from app.models.platform_config import PlatformConfig
+    from app.security.plans import (
+        PLAN_CONFIG,
+        _persist_plan_override,
+        get_plan_config,
+        get_public_plans,
+    )
+
+    with app.app_context():
+        cfg = PlatformConfig.get_config()
+        cfg.plans_json = None
+        db.session.commit()
+
+        original = dict(PLAN_CONFIG['pro'])
+        try:
+            _persist_plan_override('pro', prix=17777, duree_jours=45)
+            # Simule un redémarrage : on remet les valeurs mémoire par défaut.
+            PLAN_CONFIG['pro']['prix'] = 15000
+            PLAN_CONFIG['pro']['duree_jours'] = 30
+
+            effective = get_plan_config('pro')
+            assert effective['prix'] == 17777
+            assert effective['duree_jours'] == 45
+
+            public = next(p for p in get_public_plans() if p['code'] == 'pro')
+            assert public['prix'] == 17777
+            assert public['duree_jours'] == 45
+        finally:
+            cfg = PlatformConfig.get_config()
+            cfg.plans_json = None
+            db.session.commit()
+            PLAN_CONFIG['pro'].update(original)
