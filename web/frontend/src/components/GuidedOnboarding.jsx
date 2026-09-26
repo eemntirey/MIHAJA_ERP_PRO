@@ -126,9 +126,10 @@ export const markOnboardingAction = (action) => {
 };
 
 const GuidedOnboarding = ({ open, onClose }) => {
-  const { user, getAllowedModules } = useAuth();
+  const { user, getAllowedModules, hasRole } = useAuth();
   const location = useLocation();
   const allowedModules = getAllowedModules();
+  const isSuperAdmin = hasRole('SUPER_ADMIN');
   const steps = useMemo(() => {
     if (!Array.isArray(allowedModules)) return STEPS;
     return STEPS.filter((step) => allowedModules.includes(step.module));
@@ -243,7 +244,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
     return () => window.clearTimeout(timer);
   }, [activeStep, activeCompleted, allComplete, progress, steps]);
 
-  if (!open || !user || steps.length === 0) return null;
+  if (!open || !user || isSuperAdmin || steps.length === 0) return null;
 
   const openStep = (step) => {
     setActiveId(step.id);
@@ -377,7 +378,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
 };
 
 export const shouldOpenGuidedOnboarding = (user) => {
-  if (!user) return false;
+  if (!user || String(user.role || '').toLowerCase() === 'super_admin') return false;
   try {
     const raw = localStorage.getItem(getStorageKey(user));
     if (!raw) return true;
