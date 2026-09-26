@@ -313,6 +313,16 @@ class AvoirService:
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
+        from app.models.client import Client
+        from app.models.vente import Vente
+        from app.models.facture import Facture
+        for model, entity_id, label in (
+            (Client, data.get('client_id'), "Client"),
+            (Vente, data.get('vente_id'), "Vente"),
+            (Facture, data.get('facture_id'), "Facture"),
+        ):
+            if entity_id is not None and not _tenant_fk_exists(model, entity_id, tenant_id):
+                raise ValueError(f"{label} introuvable pour ce tenant")
         data['tenant_id'] = tenant_id
         if not data.get('reference'):
             data['reference'] = _gen_reference('AV')
@@ -333,6 +343,16 @@ class AvoirService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        from app.models.client import Client
+        from app.models.vente import Vente
+        from app.models.facture import Facture
+        for model, key, label in (
+            (Client, 'client_id', "Client"),
+            (Vente, 'vente_id', "Vente"),
+            (Facture, 'facture_id', "Facture"),
+        ):
+            if key in data and data.get(key) is not None and not _tenant_fk_exists(model, data.get(key), instance.tenant_id):
+                raise ValueError(f"{label} introuvable pour ce tenant")
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
