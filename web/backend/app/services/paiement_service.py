@@ -137,11 +137,15 @@ def process_payment(data):
 
     paiement = Paiement(**normalized)
     db.session.add(paiement)
-    db.session.commit()
-
+    # La création du paiement et la mise à jour de la facture doivent
+    # rester dans une seule transaction.
     if facture_id:
         _recompute_facture_status(facture_id, commit=False)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
 
     return paiement
 
