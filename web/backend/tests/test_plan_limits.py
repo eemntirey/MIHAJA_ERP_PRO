@@ -464,3 +464,15 @@ def test_plan_pricing_persists_across_config_reload(app):
             cfg.plans_json = None
             db.session.commit()
             PLAN_CONFIG['pro'].update(original)
+
+def test_starter_plan_contract(app):
+    """Le plan Starter reste disponible et exposé avec ses limites."""
+    from app.security.plans import get_plan_config, get_public_plans
+
+    with app.app_context():
+        cfg = get_plan_config('starter')
+        assert cfg['prix'] == 5000
+        assert cfg['duree_jours'] == 30
+        assert cfg['max_utilisateurs'] == 3
+        assert cfg['max_employees'] == 2
+        assert 'starter' in {p['code'] for p in get_public_plans()}
