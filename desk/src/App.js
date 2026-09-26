@@ -48,6 +48,8 @@ const SuperAdminProfile = React.lazy(() => import('./pages/SuperAdminProfile'));
 const Roles = React.lazy(() => import('./pages/Roles'));
 const Permissions = React.lazy(() => import('./pages/Permissions'));
 const Users = React.lazy(() => import('./pages/Users'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const PaymentSettings = React.lazy(() => import('./pages/PaymentSettings'));
 
 // Authentification
 const Login = React.lazy(() => import('./components/auth/Login'));
@@ -254,6 +256,8 @@ const App = () => {
                 <Route path="roles" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Roles /></PageSuspense></RequireRole>} />
                 <Route path="permissions" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Permissions /></PageSuspense></RequireRole>} />
                 <Route path="users" element={<RequireRole role={['SUPER_ADMIN', 'ADMIN']}><PageSuspense><Users /></PageSuspense></RequireRole>} />
+                <Route path="profile" element={<PageSuspense><Profile /></PageSuspense>} />
+                <Route path="payment-settings" element={<RequireRole role={['ADMIN']}><PageSuspense><PaymentSettings /></PageSuspense></RequireRole>} />
 
                 {/* Boutique connectÃ©e (utilisateurs simples + autres rÃ´les) */}
                 <Route path="cart" element={<PageSuspense><Cart /></PageSuspense>} />
