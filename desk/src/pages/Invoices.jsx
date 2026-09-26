@@ -37,6 +37,9 @@ const Invoices = () => {
   });
 
   const [statusFilter, setStatusFilter] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [lignesByInvoiceId, setLignesByInvoiceId] = useState({});
+  const [lignesLoadingId, setLignesLoadingId] = useState(null);
 
   const fetchInvoices = async () => {
     try {
@@ -174,6 +177,31 @@ const Invoices = () => {
     setCurrentInvoice(null);
   };
 
+  const toggleExpandInvoice = async (invoice) => {
+    if (expandedId === invoice.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(invoice.id);
+    if (lignesByInvoiceId[invoice.id]) return;
+    const venteId = invoice.vente_id;
+    if (!venteId) {
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: [] }));
+      return;
+    }
+    try {
+      setLignesLoadingId(invoice.id);
+      const res = await saleService.getById(venteId);
+      const lignes = res.data?.lignes || res.data?.lignes_vente || [];
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: lignes }));
+    } catch (err) {
+      toast.error('Impossible de charger les lignes de la vente');
+      setLignesByInvoiceId(prev => ({ ...prev, [invoice.id]: [] }));
+    } finally {
+      setLignesLoadingId(null);
+    }
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -300,6 +328,7 @@ const Invoices = () => {
           <table className="data-table">
             <thead>
               <tr>
+                <th></th>
                 <th>N° Facture</th>
                 <th>Date</th>
                 <th>Client</th>
@@ -313,41 +342,88 @@ const Invoices = () => {
             <tbody>
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center">
+                  <td colSpan="9" className="text-center">
                     Aucune facture trouvée
                   </td>
                 </tr>
               ) : (
                 filteredInvoices.map(invoice => (
-                  <tr key={invoice.id}>
-                    <td>#{invoice.id}</td>
-                    <td>{formatDate(invoice.created_at)}</td>
-                    <td>{invoice.client_nom || invoice.client_id || 'N/A'}</td>
-                    <td>{formatCurrency(invoice.total_ttc)}</td>
-                    <td>{formatCurrency((invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
-                    <td>{formatCurrency((invoice.total_ttc || 0) - (invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(invoice.statut).class}`}>
-                        {getStatusBadge(invoice.statut).label}
-                      </span>
-                    </td>
-                    <td>
-                        <button 
-                          onClick={() => viewInvoiceDetails(invoice)}
-                          className="btn-small btn-view"
-                          title="Voir les détails"
+                  <React.Fragment key={invoice.id}>
+                    <tr>
+                      <td style={{ width: 32, textAlign: 'center' }}>
+                        <button
+                          onClick={() => toggleExpandInvoice(invoice)}
+                          className="btn-expand"
+                          title={expandedId === invoice.id ? 'Masquer les produits' : 'Voir les produits'}
+                          aria-expanded={expandedId === invoice.id}
                         >
+                          <i className={`ti ${expandedId === invoice.id ? 'ti-chevron-down' : 'ti-chevron-right'}`} aria-hidden="true" />
+                        </button>
+                      </td>
+                      <td>#{invoice.id}</td>
+                      <td>{formatDate(invoice.created_at)}</td>
+                      <td>{invoice.client_nom || invoice.client_id || 'N/A'}</td>
+                      <td>{formatCurrency(invoice.total_ttc)}</td>
+                      <td>{formatCurrency((invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
+                      <td>{formatCurrency((invoice.total_ttc || 0) - (invoice.paiements || []).reduce((sum, p) => sum + (p.montant || 0), 0))}</td>
+                      <td>
+                        <span className={`badge ${getStatusBadge(invoice.statut).class}`}>
+                          {getStatusBadge(invoice.statut).label}
+                        </span>
+                      </td>
+                      <td>
+                        <button onClick={() => viewInvoiceDetails(invoice)} className="btn-small btn-view" title="Voir les détails">
                           <i className="ti ti-eye" aria-hidden="true" />
                         </button>
-                      {invoice.statut !== 'payee' && (
-                        <button 
-                          onClick={() => openPaymentModal(invoice)}
-                          className="btn-small btn-edit"
-                          title="Enregistrer un paiement"
-                        >
-                          <i className="ti ti-cash" aria-hidden="true" />
-                        </button>
-                      )}
+                        {invoice.statut !== 'payee' && (
+                          <button onClick={() => openPaymentModal(invoice)} className="btn-small btn-edit" title="Enregistrer un paiement">
+                            <i className="ti ti-cash" aria-hidden="true" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {expandedId === invoice.id && (
+                      <tr className="invoice-lignes-row">
+                        <td colSpan="9" style={{ background: 'var(--color-bg-secondary, #fafafa)', padding: '12px 24px' }}>
+                          {lignesLoadingId === invoice.id ? (
+                            <span className="text-muted">Chargement des produits...</span>
+                          ) : !lignesByInvoiceId[invoice.id] || lignesByInvoiceId[invoice.id].length === 0 ? (
+                            <span className="text-muted">Aucun produit associé à cette facture.</span>
+                          ) : (
+                            <table className="data-table" style={{ margin: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th>Produit</th>
+                                  <th>Quantité</th>
+                                  <th>Prix unitaire HT</th>
+                                  <th>TVA %</th>
+                                  <th>Total HT</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lignesByInvoiceId[invoice.id].map((l, i) => {
+                                  const qty = Number(l.quantite) || 0;
+                                  const pu = Number(l.prix_unitaire_ht ?? l.prix_unitaire ?? 0);
+                                  const tva = Number(l.taux_tva ?? 0);
+                                  const totalHt = Number(l.total_ht ?? (qty * pu));
+                                  return (
+                                    <tr key={i}>
+                                      <td>{l.produit_nom || l.designation || `Produit #${l.produit_id}`}</td>
+                                      <td>{qty}</td>
+                                      <td>{formatCurrency(pu)}</td>
+                                      <td>{tva}%</td>
+                                      <td>{formatCurrency(totalHt)}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
                     </td>
                   </tr>
                 ))
