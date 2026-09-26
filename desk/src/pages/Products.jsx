@@ -95,6 +95,10 @@ const Products = () => {
 
   const openModal = (product = null) => {
     setCurrentProduct(product);
+    const mode = 'manuel';
+    setBarcodeMode(mode);
+    setPendingImageFile(null);
+    setImagePreview(null);
     setFormData(
       product
         ? {
@@ -106,12 +110,13 @@ const Products = () => {
             quantite_stock: product.quantite_stock || 0,
             categorie: product.categorie || '',
             code_barre: product.code_barre || '',
+            code_barre_mode: mode,
             seuil_alerte: product.seuil_alerte || 0,
             unite: product.unite || 'piece',
             image_url: product.image_url || '',
             published: product.published !== false,
           }
-        : { ...EMPTY_FORM, published: true }
+        : { ...EMPTY_FORM, code_barre_mode: mode, published: true }
     );
     setShowModal(true);
   };
@@ -123,15 +128,34 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { code_barre_mode, ...submitData } = formData;
     try {
+      let savedProduct;
       if (currentProduct) {
-        await productService.update(currentProduct.id, formData);
+        const res = await productService.update(currentProduct.id, submitData);
+        savedProduct = res.data || { id: currentProduct.id };
         toast.success('Produit mis à jour avec succès');
       } else {
-        await productService.create(formData);
+        const res = await productService.create(submitData);
+        savedProduct = res.data;
         toast.success('Produit créé avec succès');
       }
-      draft.clear(); // brouillon inutile après un enregistrement réussi
+
+      if (pendingImageFile && savedProduct?.id) {
+        try {
+          const fd = new FormData();
+          fd.append('image', pendingImageFile);
+          await productService.uploadImage(savedProduct.id, fd);
+          toast.success('Image uploadée');
+        } catch (imgErr) {
+          console.error('Image upload error:', imgErr);
+          toast.warn("Produit sauvegardé, mais l'image n'a pas pu être envoyée");
+        }
+      }
+
+      draft.clear();
+      setPendingImageFile(null);
+      setImagePreview(null);
       fetchProducts();
       closeModal();
     } catch (err) {
@@ -450,15 +474,21 @@ const Products = () => {
                     placeholder="Référence produit"
                   />
                 </FormField>
+                <FormField label="Mode code barre" htmlFor="produit-mode-code-barre">
+                  <select id="produit-mode-code-barre" name="code_barre_mode" value={barcodeMode}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setBarcodeMode(value);
+                      setFormData((prev) => ({ ...prev, code_barre_mode: value }));
+                    }}
+                  >
+                    <option value="auto">Automatique</option>
+                    <option value="manuel">Manuel</option>
+                  </select>
+                </FormField>
                 <FormField label="Code barre" htmlFor="produit-code-barre">
-                  <input
-                    id="produit-code-barre"
-                    type="text"
-                    name="code_barre"
-                    value={formData.code_barre}
-                    onChange={handleChange}
-                    placeholder="Code barre"
-                  />
+                  <input id="produit-code-barre" type="text" name="code_barre" value={formData.code_barre}
+                    onChange={handleChange} placeholder="Code barre" readOnly={barcodeMode === 'auto'} />
                 </FormField>
                 <FormField label="Catégorie" htmlFor="produit-categorie">
                   <input
@@ -529,26 +559,39 @@ const Products = () => {
                     ))}
                   </select>
                 </FormField>
-                <FormField label="Image (URL ou fichier local)" htmlFor="produit-image-url">
-                  <input
-                    id="produit-image-url"
-                    type="text"
-                    name="image_url"
-                    value={formData.image_url || ''}
-                    onChange={handleChange}
-                    placeholder="https://... ou chemin local"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
+                <FormField label="Image du produit" htmlFor="produit-image-url">
+                  {(formData.image_url || imagePreview) && (
+                    <div style={{ marginBottom: '8px', position: 'relative' }}>
+                      <img src={imagePreview || formData.image_url} alt="Aperçu"
+                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--color-border)' }} />
+                      <button type="button" onClick={async () => {
+                        if (currentProduct && formData.image_url && !pendingImageFile) {
+                          try { await productService.deleteImage(currentProduct.id); }
+                          catch (err) { toast.error(err.response?.data?.message || "Impossible de supprimer l'image"); return; }
+                        }
+                        setFormData((prev) => ({ ...prev, image_url: '' }));
+                        setPendingImageFile(null);
+                        setImagePreview(null);
+                      }} aria-label="Supprimer l'image"
+                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-danger, #ef4444)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                      >x</button>
+                    </div>
+                  )}
+                  <label htmlFor="produit-image-file" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px dashed var(--color-border, #d6d3d1)', background: 'var(--color-bg-secondary, #fafafa)', cursor: 'pointer', fontSize: '13px' }}>
+                    <i className="ti ti-upload" aria-hidden="true" />
+                    {pendingImageFile || formData.image_url ? "Changer l'image" : 'Choisir une image'}
+                  </label>
+                  <input id="produit-image-file" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" style={{ display: 'none' }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        setFormData((prev) => ({ ...prev, image_url: URL.createObjectURL(file) }));
+                        setPendingImageFile(file);
+                        setImagePreview(URL.createObjectURL(file));
                       }
                     }}
-                    style={{ marginTop: '4px' }}
                   />
+                  <input id="produit-image-url" type="text" name="image_url" value={formData.image_url || ''}
+                    onChange={handleChange} placeholder="Ou coller une URL d'image" style={{ marginTop: '6px' }} />
                 </FormField>
                 <FormField label="Actif" htmlFor="produit-published">
                   <label className="checkbox-label">
