@@ -170,6 +170,7 @@ const Tenants = () => {
           <select value={planFilter} onChange={handlePlanChange} style={{ width: '180px' }}>
             <option value="">Tous plans</option>
             <option value="gratuit">Gratuit</option>
+            <option value="starter">Starter</option>
             <option value="pro">Pro</option>
             <option value="enterprise">Entreprise</option>
           </select>
