@@ -132,7 +132,16 @@ class FactureResource(Resource):
             return {'message': 'Facture non trouvee'}, 404
         try:
             facture.is_active = False
-            Paiement.query.filter_by(facture_id=id, is_active=True, tenant_id=facture.tenant_id).update({'is_active': False})
+            Paiement.query.filter_by(
+                facture_id=id,
+                is_active=True,
+                tenant_id=facture.tenant_id
+            ).update({'is_active': False})
+            # La suppression de la facture invalide son éventuel statut paye
+            # sur la vente liée : recalcul dans la même transaction.
+            if facture.vente_id:
+                from app.services.facturation_service import _sync_vente_status
+                _sync_vente_status(facture)
             db.session.commit()
             return {'message': 'Facture supprimee'}, 200
         except Exception as e:
