@@ -633,6 +633,7 @@ const Invoices = () => {
                   <label>Date d'échéance</label>
                   <input type="date" name="date_echeance" value={formData.date_echeance} onChange={handleChange} />
                 </div>
+              </div>
               <div className="modal-footer">
                 <button type="button" onClick={closeModal} className="btn-secondary">
                   Annuler
