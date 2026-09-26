@@ -147,52 +147,70 @@ class Produit(BaseTenantModel):
         return self.quantite_stock <= self.seuil_critique
     
     def ajouter_stock(self, quantite, raison='', utilisateur_id=None):
-        """Ajoute du stock"""
+        """Ajoute du stock et enregistre le mouvement dans la même transaction."""
+        from app.models.stock import MouvementStock, TypeMouvement
+
         quantite = Decimal(str(quantite))
         if quantite <= 0:
             raise ValueError("La quantité doit être positive")
-        
-        self.quantite_stock += quantite
-        self.save()
-        
-        # Créer un mouvement de stock
-        from app.models.stock import MouvementStock
+
+        stock_avant = Decimal(str(self.quantite_stock or 0))
+        stock_apres = stock_avant + quantite
+        self.quantite_stock = stock_apres
+
         mouvement = MouvementStock(
             produit_id=self.id,
-            type_mouvement='entree',
+            type_mouvement=TypeMouvement.ENTREE,
             quantite=quantite,
+            stock_avant=stock_avant,
+            stock_apres=stock_apres,
             raison=raison,
             created_by=utilisateur_id,
-            tenant_id=self.tenant_id
+            tenant_id=self.tenant_id,
         )
-        mouvement.save()
+        try:
+            db.session.add(self)
+            db.session.add(mouvement)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return mouvement
-    
+
     def retirer_stock(self, quantite, raison='', utilisateur_id=None):
-        """Retire du stock"""
+        """Retire du stock et enregistre le mouvement dans la même transaction."""
+        from app.models.stock import MouvementStock, TypeMouvement
+
         quantite = Decimal(str(quantite))
         if quantite <= 0:
             raise ValueError("La quantité doit être positive")
-        
-        if self.quantite_stock < quantite:
-            raise ValueError(f"Stock insuffisant. Disponible: {self.quantite_stock}")
-        
-        self.quantite_stock -= quantite
-        self.save()
-        
-        # Créer un mouvement de stock
-        from app.models.stock import MouvementStock
+
+        stock_avant = Decimal(str(self.quantite_stock or 0))
+        if stock_avant < quantite:
+            raise ValueError(f"Stock insuffisant. Disponible: {stock_avant}")
+
+        stock_apres = stock_avant - quantite
+        self.quantite_stock = stock_apres
+
         mouvement = MouvementStock(
             produit_id=self.id,
-            type_mouvement='sortie',
+            type_mouvement=TypeMouvement.SORTIE,
             quantite=quantite,
+            stock_avant=stock_avant,
+            stock_apres=stock_apres,
             raison=raison,
             created_by=utilisateur_id,
-            tenant_id=self.tenant_id
+            tenant_id=self.tenant_id,
         )
-        mouvement.save()
+        try:
+            db.session.add(self)
+            db.session.add(mouvement)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return mouvement
-    
+
     def to_dict(self, exclude=None):
         data = super().to_dict(exclude)
         data['valeur_stock'] = float(self.valeur_stock)
