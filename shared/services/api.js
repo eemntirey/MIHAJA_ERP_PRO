@@ -14,10 +14,7 @@ const backendPort = (typeof window !== 'undefined'
     || null;
 
 const PRODUCTION_API_BASE_URL = '/api/v1';
-
-const RAW_API_BASE_URL = backendPort
-    ? `http://127.0.0.1:${backendPort}/api/v1`
-    : (import.meta.env.VITE_API_URL || PRODUCTION_API_BASE_URL);
+const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || PRODUCTION_API_BASE_URL;
 
 const resolveAbsoluteApiUrl = (raw) => {
     if (!raw) return raw;
@@ -29,6 +26,17 @@ const resolveAbsoluteApiUrl = (raw) => {
 
 const API_BASE_URL = resolveAbsoluteApiUrl(RAW_API_BASE_URL);
 const API_TIMEOUT_MS = 15000;
+
+// Electron garde le backend SQLite disponible en permanence, mais le Desk
+// utilise le serveur CENTRAL en priorité. Le backend local ne sert que de
+// continuité hors-ligne ou de repli lorsqu'un appel central est réellement
+// indisponible.
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
+
+import {
+    resolveDesktopRoute,
+    markDesktopCentralUnavailable,
+} from '../utils/desktopConnection';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -42,21 +50,46 @@ const api = axios.create({
 // INTERCEPTEUR REQUEST
 // ======================================================
 
-// A1 : sur web, les tokens sont en cookies HttpOnly (envoyés automatiquement).
-// Sur Electron, le header Authorization est toujours nécessaire (secureStore).
-const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
-
 api.interceptors.request.use(
-    (config) => {
+    async (config) => {
         config.headers = config.headers || {};
-        // A1 : web n'a pas besoin du header — le navigateur envoie les cookies
+
         if (isElectron) {
-            const token = tokenStore.getAccessToken();
-            if (token && !config.headers.Authorization) {
-                config.headers.Authorization = `Bearer ${token}`;
+            const route = await resolveDesktopRoute({
+                forceLocal: !!config._forceLocal,
+                target: config._desktopTargetLocked ? config._desktopTarget : null,
+            });
+            config.baseURL = route.baseURL;
+            config._desktopTarget = route.target;
+
+            // Une ancienne session V0.01 peut encore n'avoir que le jeton
+            // local. Dans ce cas, rester local jusqu'au prochain login en
+            // ligne plutôt que d'envoyer un JWT local au serveur central.
+            const centralToken = tokenStore.getCentralAccessToken();
+            const offlineToken = tokenStore.getOfflineAccessToken() || tokenStore.getAccessToken();
+            if (
+                route.target === 'central'
+                && !centralToken
+                && offlineToken
+                && !config.url?.includes('/auth/login')
+                && !config.url?.includes('/auth/refresh')
+            ) {
+                const localRoute = await resolveDesktopRoute({ forceLocal: true });
+                config.baseURL = localRoute.baseURL;
+                config._desktopTarget = 'local';
             }
+
+            const targetToken = config._desktopTarget === 'central'
+                ? tokenStore.getCentralAccessToken()
+                : tokenStore.getOfflineAccessToken() || tokenStore.getAccessToken();
+
+            if (targetToken && !config.headers.Authorization && !config.url?.includes('/auth/login')) {
+                config.headers.Authorization = `Bearer ${targetToken}`;
+            }
+        } else if (!config.baseURL) {
+            config.baseURL = API_BASE_URL;
         }
-        // Toujours envoyer les credentials (cookies) pour web
+
         config.withCredentials = true;
         return config;
     },
@@ -82,58 +115,64 @@ const processQueue = (error, token = null) => {
 };
 
 api.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const target = originalRequest?._desktopTarget || 'central';
 
-        // Pas de réponse du serveur
+        // Si le central disparaît en plein appel, basculer immédiatement vers
+        // SQLite. Une seule tentative de fallback évite toute boucle.
+        if (
+            isElectron
+            && target === 'central'
+            && !originalRequest?._desktopFallbackTried
+            && (
+                !error.response
+                || [502, 503, 504].includes(error.response.status)
+            )
+        ) {
+            markDesktopCentralUnavailable();
+            originalRequest._desktopFallbackTried = true;
+            originalRequest._desktopTargetLocked = true;
+            originalRequest._desktopTarget = 'local';
+            originalRequest._forceLocal = true;
+            return api(originalRequest);
+        }
+
         if (!error.response) {
-            console.error('Erreur réseau:', error.message);
-            toast.error('Erreur de connexion au serveur');
+            if (!(isElectron && target === 'central')) {
+                toast.error('Erreur de connexion au serveur');
+            }
             return Promise.reject(error);
         }
 
         const requestUrl = originalRequest?.url || '';
-
         const isLoginRequest = requestUrl.includes('/auth/login');
         const isRefreshRequest = requestUrl.includes('/auth/refresh');
 
         if (
-            error.response.status === 401 &&
-            !isLoginRequest &&
-            !isRefreshRequest &&
-            !originalRequest._retry
+            error.response.status === 401
+            && !isLoginRequest
+            && !isRefreshRequest
+            && !originalRequest._retry
         ) {
             originalRequest._retry = true;
 
-            // A1 : web — le refresh token est en cookie HttpOnly, envoyé
-            // automatiquement avec withCredentials. Electron — le token est
-            // dans secureStore et envoyé via le header Authorization.
-            const refreshToken = isElectron ? tokenStore.getRefreshToken() : null;
+            const refreshToken = isElectron
+                ? (
+                    target === 'central'
+                        ? tokenStore.getCentralRefreshToken()
+                        : tokenStore.getOfflineRefreshToken()
+                )
+                : null;
 
-            // Aucun refresh token (et web sans cookie) : déconnexion
-            if (!isElectron && error.response.status === 401) {
-                // Sur web, tenter le refresh (le cookie sera envoyé automatiquement)
-            } else if (!refreshToken) {
-                tokenStore.clear();
-                delete api.defaults.headers.common.Authorization;
-                window.dispatchEvent(new Event('auth:logout'));
-                return Promise.reject(error);
-            }
-
-            // Un renouvellement est déjà en cours : on place la requête
-            // en file d'attente pour la relancer après le rafraîchissement.
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({
-                        resolve: (token) => {
-                            // A1 : Electron met à jour le header ; web n'en a pas besoin
-                            if (isElectron && token && token !== 'cookie-auth') {
-                                originalRequest.headers.Authorization = `Bearer ${token}`;
-                            }
+                        resolve: () => {
+                            originalRequest._desktopTargetLocked = true;
+                            originalRequest._desktopTarget = target;
+                            originalRequest._forceLocal = target === 'local';
                             resolve(api(originalRequest));
                         },
                         reject,
@@ -144,50 +183,56 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // A1 : web envoie le refresh token via cookie (withCredentials).
-                // Electron l'envoie via le header Authorization.
                 const refreshHeaders = { 'Content-Type': 'application/json' };
                 if (isElectron && refreshToken) {
                     refreshHeaders.Authorization = `Bearer ${refreshToken}`;
                 }
+
                 const refreshResponse = await axios.post(
-                    `${API_BASE_URL.replace(/\/+$/, '')}/auth/refresh`,
+                    `${(originalRequest.baseURL || API_BASE_URL).replace(/\/+$/, '')}/auth/refresh`,
                     null,
                     {
                         headers: refreshHeaders,
                         withCredentials: true,
+                        timeout: API_TIMEOUT_MS,
                     }
                 );
 
                 const newAccessToken = refreshResponse.data?.access_token;
+                const newRefreshToken = refreshResponse.data?.refresh_token;
 
-                if (!newAccessToken && !isElectron) {
-                    // A1 : web — le nouveau access token est en cookie, pas besoin
-                    // de le lire depuis la réponse. La seule erreur est un 401/403.
-                } else if (!newAccessToken) {
+                if (!newAccessToken && isElectron) {
                     throw new Error('Nouveau access_token absent');
                 }
 
-                tokenStore.setSession({
-                    access_token: newAccessToken,
-                    refresh_token: refreshResponse.data.refresh_token,
-                    user: refreshResponse.data.user,
-                    tenant: refreshResponse.data.tenant,
-                });
-
-                // A1 : Electron met à jour le header ; web n'en a pas besoin
-                if (isElectron && newAccessToken) {
-                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                if (isElectron) {
+                    if (target === 'central') {
+                        tokenStore.setCentralTokens({
+                            access_token: newAccessToken,
+                            refresh_token: newRefreshToken,
+                        });
+                    } else {
+                        tokenStore.setOfflineTokens({
+                            access_token: newAccessToken,
+                            refresh_token: newRefreshToken,
+                        });
+                    }
+                } else {
+                    tokenStore.setSession({
+                        access_token: newAccessToken,
+                        refresh_token: newRefreshToken,
+                        user: refreshResponse.data.user,
+                        tenant: refreshResponse.data.tenant,
+                    });
                 }
 
-                // A1 : web — le queued request n'a pas besoin de token header
+                originalRequest._desktopTargetLocked = true;
+                originalRequest._desktopTarget = target;
+                originalRequest._forceLocal = target === 'local';
+
                 processQueue(null, newAccessToken || 'cookie-auth');
-
                 return api(originalRequest);
-
             } catch (refreshError) {
-                console.error('Échec du renouvellement:', refreshError);
-
                 const refreshStatus = refreshError.response?.status;
                 const isAuthFailure = refreshStatus === 401 || refreshStatus === 403;
 
@@ -198,7 +243,6 @@ api.interceptors.response.use(
                 }
 
                 processQueue(refreshError);
-
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
