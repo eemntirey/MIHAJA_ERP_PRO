@@ -159,7 +159,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
     const requests = [];
 
     const addCheck = (id, promise, key) => {
-      if (next[id]) return;
+      if (progress[id]) return;
       requests.push(
         Promise.resolve(promise)
           .then((response) => {
