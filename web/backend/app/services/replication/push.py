@@ -31,7 +31,9 @@ def _mutation_for(entry):
     if entity_pk is not None:
         # Risque n°6 : la PK locale n'est pas la PK centrale. On envoie la
         # correspondance si elle existe (mutation déjà poussée une fois).
-        remote_pk = SyncLocalMapping.remote_pk_for(entry.entity, entity_pk)
+        remote_pk = SyncLocalMapping.remote_pk_for(
+            entry.entity, entity_pk, tenant_id=entry.tenant_id
+        )
         if remote_pk is not None:
             entity_pk = remote_pk
     return {
@@ -205,7 +207,9 @@ def force_push_conflict(conflict):
     entity_pk = conflict.entity_pk
     if entity_pk is not None:
         entity_pk = SyncLocalMapping.remote_pk_for(
-            conflict.entity, entity_pk
+            conflict.entity,
+            entity_pk,
+            tenant_id=conflict.tenant_id,
         ) or entity_pk
 
     mutation = {
