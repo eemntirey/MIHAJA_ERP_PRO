@@ -476,3 +476,38 @@ def test_starter_plan_contract(app):
         assert cfg['max_utilisateurs'] == 3
         assert cfg['max_employees'] == 2
         assert 'starter' in {p['code'] for p in get_public_plans()}
+
+def test_renewal_creates_pending_subscription_without_replacing_active(app):
+    """Un renouvellement ne doit pas couper l'abonnement courant avant paiement."""
+    from app.services.abonnement_service import AbonnementService
+    from app.models.paiement import Paiement, TypePaiement, StatutPaiement
+
+    with app.app_context():
+        tenant, admin = _make_tenant_with_abonnement(plan='pro')
+        current = Abonnement.query.filter_by(
+            tenant_id=tenant.id,
+            statut=StatutAbonnement.ACTIF,
+            is_active=True,
+        ).one()
+
+        requested, paiement = AbonnementService.renew_subscription(
+            current.id,
+            new_plan='enterprise',
+            payment_method='MVOLA',
+        )
+
+        assert current.statut == StatutAbonnement.ACTIF
+        assert tenant.plan == 'pro'
+        assert requested.id != current.id
+        assert requested.plan == 'enterprise'
+        assert requested.statut == StatutAbonnement.EN_ATTENTE
+        assert paiement.subscription_id == requested.id
+        assert paiement.type == TypePaiement.ABONNEMENT
+        assert paiement.statut == StatutPaiement.EN_ATTENTE
+
+
+def test_airt_money_provider_code_is_consistent(app):
+    """Airtel doit utiliser AIRTEL_MONEY dans les flux Papi."""
+    from app.services.papi.payment import PROVIDER_METHOD_MAP
+
+    assert PROVIDER_METHOD_MAP['AIRTEL_MONEY'] == 'AIRTEL_MONEY'
