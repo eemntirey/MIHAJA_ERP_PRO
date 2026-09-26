@@ -1,6 +1,7 @@
 // src/pages/Products.jsx
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { productService } from '../services/api';
+import { productService as onlineProductService } from '../../../shared/services/api';
 import { toast } from 'react-toastify';
 import { UNITS } from '../constants/erpConstants';
 import DataTable from '../components/desktop/DataTable';
@@ -145,7 +146,7 @@ const Products = () => {
         try {
           const fd = new FormData();
           fd.append('image', pendingImageFile);
-          await productService.uploadImage(savedProduct.id, fd);
+          await onlineProductService.uploadImage(savedProduct.id, fd);
           toast.success('Image uploadée');
         } catch (imgErr) {
           console.error('Image upload error:', imgErr);
@@ -566,7 +567,7 @@ const Products = () => {
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--color-border)' }} />
                       <button type="button" onClick={async () => {
                         if (currentProduct && formData.image_url && !pendingImageFile) {
-                          try { await productService.deleteImage(currentProduct.id); }
+                          try { await onlineProductService.deleteImage(currentProduct.id); }
                           catch (err) { toast.error(err.response?.data?.message || "Impossible de supprimer l'image"); return; }
                         }
                         setFormData((prev) => ({ ...prev, image_url: '' }));
