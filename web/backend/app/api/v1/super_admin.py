@@ -42,7 +42,7 @@ from app.models.prime import Prime
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
-from app.security.plans import apply_plan_to_abonnement, get_plan_price, get_plan_config, _persist_plan_override
+from app.security.plans import apply_plan_to_abonnement, get_plan_price, get_plan_config, get_plan_duration_days, is_unlimited, _persist_plan_override
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
@@ -735,11 +735,22 @@ class ChangeSubscription(Resource):
             return err
 
         data = request.get_json() or {}
-        new_plan = data.get('plan')
-        days = data.get('days', 30)
-
+        new_plan = str(data.get('plan') or '').strip().lower()
         if not new_plan:
             return {'message': 'Plan requis'}, 400
+        if new_plan not in get_plan_config.__globals__['PLAN_CONFIG']:
+            return {'message': 'Plan invalide'}, 400
+
+        raw_days = data.get('days')
+        if raw_days in (None, ''):
+            days = get_plan_duration_days(new_plan)
+        else:
+            try:
+                days = int(raw_days)
+            except (TypeError, ValueError):
+                return {'message': 'Durée invalide'}, 400
+        if days != -1 and days <= 0:
+            return {'message': 'La durée doit être positive ou -1 pour illimité'}, 400
 
         tenant = db.session.get(Tenant, tenant_id)
         if not tenant:
@@ -754,9 +765,15 @@ class ChangeSubscription(Resource):
         ).order_by(Abonnement.date_fin.desc()).first()
 
         if abonnement:
+            now = datetime.utcnow()
             abonnement.plan = new_plan
-            abonnement.date_debut = datetime.utcnow()
-            abonnement.date_fin = datetime.utcnow() + timedelta(days=days)
+            abonnement.montant = get_plan_price(new_plan)
+            abonnement.date_debut = now
+            abonnement.date_fin = (
+                now + timedelta(days=365 * 99)
+                if is_unlimited(days)
+                else now + timedelta(days=days)
+            )
             abonnement.statut = StatutAbonnement.ACTIF
             apply_plan_to_abonnement(abonnement, new_plan)
 
