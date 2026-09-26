@@ -32,7 +32,7 @@ const getStockStatus = (quantite, seuil) => {
   return 'success';
 };
 
-const stockValueOf = (product) => (Number(product?.prix_vente_ht) || 0) * (Number(product?.quantite_stock) || 0);
+const stockValueOf = (product) => (Number(product?.prix_achat_ht) || 0) * (Number(product?.quantite_stock) || 0);
 
 const Inventory = () => {
   const [products, setProducts] = useState([]);
