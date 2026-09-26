@@ -58,6 +58,10 @@ services:
       # same-origin via rewrites donc pas de CORS pour lui.
       - key: CORS_ORIGINS
         value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend-796e-qdh1.onrender.com,https://mihaja-erp-frontend-796e.onrender.com,https://mihaja-erp-super-admin.onrender.com
+      # Electron packaged : Origin null + Authorization Bearer. Le backend
+      # refuse toute requête Origin null qui porte des cookies.
+      - key: DESKTOP_ELECTRON_CORS
+        value: "true"
       - key: JWT_COOKIE_SAMESITE
         value: None
       - key: FRONTEND_URL
