@@ -179,7 +179,13 @@ const TenantDetail = () => {
       return;
     }
     try {
-      await superAdminTenantService.changeSubscription(tenant.id, selectedPlan, 30);
+      const selectedPlanConfig = plans.find((plan) => plan.code === selectedPlan);
+      const duration = Number(selectedPlanConfig?.duree_jours);
+      await superAdminTenantService.changeSubscription(
+        tenant.id,
+        selectedPlan,
+        Number.isFinite(duration) ? duration : undefined,
+      );
       toast.success('Abonnement modifié');
       setShowChangeModal(false);
       fetchTenant();
