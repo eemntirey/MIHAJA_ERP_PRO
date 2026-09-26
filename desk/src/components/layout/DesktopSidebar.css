@@ -17,6 +17,25 @@
   flex-shrink: 0;
 }
 
+
+/* Navigation indépendante du défilement de la page sur desktop. */
+@media (min-width: 768px) {
+  .desktop-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .desktop-layout.electron .desktop-sidebar {
+    top: var(--titlebar-height, 40px);
+    height: calc(100vh - var(--titlebar-height, 40px));
+    max-height: calc(100vh - var(--titlebar-height, 40px));
+  }
+}
+
 .desktop-layout[data-theme='dark'] .desktop-sidebar {
   background: var(--color-surface);
   border-color: var(--color-border);
