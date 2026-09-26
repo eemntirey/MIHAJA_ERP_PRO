@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import { saleService, productService, clientService, devisService, bonLivraisonService, avoirService, factureService } from '../services/api';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, CLIENT_TYPE_LABELS } from '../constants/erpConstants';
 import SelectField from '../components/ui/SelectField';
@@ -221,6 +222,7 @@ export const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = fals
       } else {
         const res = await saleService.create(payload);
         toast.success(isPassager ? 'Vente créée (client passager)' : 'Vente créée avec succès');
+        markOnboardingAction('sales');
         const venteId = res?.data?.id || res?.id;
         if (venteId) {
           setPendingConfirm({ open: true, venteId });
