@@ -114,12 +114,15 @@ def issue_invoice(data, _commit=True):
 
     facture = Facture(
         vente_id=vente.id,
-        client_id=data.get('client_id') or vente.client_id,
+        # La vente est la seule source de vérité du client et du tenant.
+        client_id=vente.client_id,
         tenant_id=vente.tenant_id,
         reference=reference or _default_facture_reference(vente),
         total_ht=vente.total_ht,
         total_ttc=vente.total_ttc,
-        statut=data.get('statut') or 'non_payee',
+        # Une facture nouvellement émise est toujours non payée.
+        # Le statut est ensuite piloté exclusivement par les paiements.
+        statut='non_payee',
     )
     db.session.add(facture)
     if _commit:
