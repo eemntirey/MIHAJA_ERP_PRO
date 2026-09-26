@@ -189,15 +189,21 @@ class SyncLocalMapping(db.Model):
         return row
 
     @classmethod
-    def remote_pk_for(cls, entity, local_pk):
-        """PK central correspondant à un PK local (None si jamais poussé)."""
-        row = cls.query.filter_by(entity=entity, local_pk=local_pk).first()
+    def remote_pk_for(cls, entity, local_pk, tenant_id=None):
+        """PK central correspondant à un PK local, scoped par tenant si fourni."""
+        query = cls.query.filter_by(entity=entity, local_pk=local_pk)
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        row = query.first()
         return row.remote_pk if row else None
 
     @classmethod
-    def local_pk_for(cls, entity, remote_pk):
-        """PK local correspondant à un PK central (None si inconnu)."""
-        row = cls.query.filter_by(entity=entity, remote_pk=remote_pk).first()
+    def local_pk_for(cls, entity, remote_pk, tenant_id=None):
+        """PK local correspondant à un PK central, scoped par tenant si fourni."""
+        query = cls.query.filter_by(entity=entity, remote_pk=remote_pk)
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        row = query.first()
         return row.local_pk if row else None
 
 
