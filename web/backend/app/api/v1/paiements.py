@@ -101,12 +101,12 @@ class PaiementResource(Resource):
             return {'message': 'Paiement non trouve'}, 404
         try:
             paiement.is_active = False
-            db.session.commit()
-            # Recalcule le statut de la facture (et de la vente liee) :
-            # supprimer le paiement peut retrograder facture/vente.
+            # Le soft-delete du paiement et le recalcul facture/vente doivent
+            # être validés ensemble.
             if paiement.facture_id:
                 from app.services.paiement_service import _recompute_facture_status
-                _recompute_facture_status(paiement.facture_id)
+                _recompute_facture_status(paiement.facture_id, commit=False)
+            db.session.commit()
             return {'message': 'Paiement supprime'}, 200
         except Exception as e:
             db.session.rollback()
