@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './GuidedOnboarding.css';
@@ -84,6 +84,27 @@ const GuidedOnboarding = ({ open, onClose }) => {
     if (!Array.isArray(allowedModules)) return ALL_STEPS;
     return ALL_STEPS.filter((step) => step.module === 'dashboard' || allowedModules.includes(step.module));
   }, [allowedModules]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    try {
+      const key = getStorageKey(user);
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, 'started');
+      }
+    } catch {
+      // Le guide reste fonctionnel même sans stockage navigateur.
+    }
+  }, [open, user]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
 
   if (!open || steps.length === 0) return null;
 
