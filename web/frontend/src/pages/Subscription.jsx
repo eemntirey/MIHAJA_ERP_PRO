@@ -681,7 +681,7 @@ const Subscription = () => {
                     const features = PLAN_FEATURES[plan.code] || [];
                     const isCurrent = subscription.plan === plan.code;
                     const isSelected = renewPlan === plan.code;
-                    const order = { gratuit: 0, pro: 1, enterprise: 2 };
+                    const order = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 };
                     const currentOrder = order[subscription.plan] ?? 0;
                     const planOrder = order[plan.code] ?? 0;
                     const direction =
@@ -785,8 +785,8 @@ const Subscription = () => {
                 <div className="renew-modal__summary">
                   {(() => {
                     const chosen = plans.find((p) => p.code === renewPlan);
-                    const currentOrder = { gratuit: 0, pro: 1, enterprise: 2 }[subscription.plan] ?? 0;
-                    const chosenOrder = { gratuit: 0, pro: 1, enterprise: 2 }[renewPlan] ?? 0;
+                    const currentOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[subscription.plan] ?? 0;
+                    const chosenOrder = { gratuit: 0, starter: 1, pro: 2, enterprise: 3 }[renewPlan] ?? 0;
                     const isChange = chosenOrder !== currentOrder;
                     const currentMethodLabel =
                       PAYMENT_METHODS.find(
