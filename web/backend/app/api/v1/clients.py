@@ -85,9 +85,9 @@ class ClientListResource(Resource):
         if not data:
             return {'message': 'Données JSON requises'}, 400
         
-        if not data.get('code'):
-            return {'message': 'Le code client est requis'}, 400
-        
+        # Le code est optionnel côté API : ClientService le génère automatiquement
+        # lorsqu'il est absent, conformément au formulaire utilisateur.
+
         try:
             client = ClientService.create(data)
             return client.to_dict(), 201
