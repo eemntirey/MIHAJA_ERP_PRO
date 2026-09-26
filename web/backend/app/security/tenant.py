@@ -6,6 +6,7 @@ from app.models.admin_device import AdminDevice, StatutDevice
 from app import db
 from sqlalchemy import event
 import logging
+from datetime import datetime
 from app.security.roles import is_super_admin
 
 logger = logging.getLogger(__name__)
