@@ -213,3 +213,13 @@ test('les dépendances du module public sont importées avant usage', () => {
   assert.match(pub, /from app\.config\.settings import Config/);
   assert.match(pub, /from app\.services\.email_service import send_email/);
 });
+
+test('ProduitService bloque les mises a jour directes du stock', () => {
+  const service = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'services', 'produit_service.py'),
+    'utf8',
+  );
+  assert.match(service, /'quantite_stock'/);
+  assert.match(service, /instance\._calculer_prix_ttc\(\)/);
+  assert.match(service, /instance\._calculer_volume\(\)/);
+});
