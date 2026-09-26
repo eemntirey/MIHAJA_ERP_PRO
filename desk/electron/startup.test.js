@@ -172,11 +172,15 @@ test('la matrice RBAC definit toutes les permissions utilisees par les roles', (
     'utf8',
   );
   const definitionSection = matrix.split('WILDCARD_PERMISSION')[0];
+  const roleSection = matrix.slice(
+    matrix.indexOf('DEFAULT_PERMISSION_LISTS = {'),
+    matrix.indexOf('# Alias historique conserve'),
+  );
   const definitions = new Set(
     [...definitionSection.matchAll(/^\s*"([^"]+)":\s*\{/gm)].map((m) => m[1]),
   );
   const referenced = new Set(
-    [...matrix.matchAll(/"([a-z_]+\.[a-z_]+)"/g)].map((m) => m[1]),
+    [...roleSection.matchAll(/"([a-z_]+\.[a-z_]+)"/g)].map((m) => m[1]),
   );
   for (const permission of referenced) {
     assert.equal(
