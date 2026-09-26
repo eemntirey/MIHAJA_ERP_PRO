@@ -117,6 +117,16 @@ class CompteComptableService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
+        if instance.ecritures.filter_by(is_active=True).first():
+            raise ValueError(
+                "Impossible de supprimer un compte utilisé par des écritures comptables."
+            )
+        if instance.tresorerie_ecritures and any(
+            getattr(t, 'is_active', True) for t in instance.tresorerie_ecritures
+        ):
+            raise ValueError(
+                "Impossible de supprimer un compte utilisé par la trésorerie."
+            )
         instance.delete()
         return True
 
