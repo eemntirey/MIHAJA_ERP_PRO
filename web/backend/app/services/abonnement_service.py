@@ -162,90 +162,107 @@ class AbonnementService:
 
     @classmethod
     def renew_subscription(cls, abonnement_id, new_plan=None, payment_method=None):
-        abonnement = Abonnement.query.filter_by(id=abonnement_id, is_active=True).first()
-        if not abonnement:
+        """Crée une nouvelle demande de renouvellement sans couper l'accès actuel."""
+        current = Abonnement.query.filter_by(
+            id=abonnement_id, is_active=True
+        ).first()
+        if not current:
             return None
 
-        if new_plan and new_plan != abonnement.plan:
-            from app.security.plans import PLAN_CONFIG
-            if new_plan not in PLAN_CONFIG:
-                raise ValueError(f"Plan invalide: {new_plan}")
-            if new_plan == 'gratuit':
-                raise ValueError(
-                    "Impossible de renouveler vers le plan gratuit. "
-                    "Utilisez une demande de demission ou contactez le support."
-                )
-            if abonnement.plan == 'gratuit':
-                raise ValueError(
-                    "Le plan gratuit ne peut pas etre renouvele. "
-                    "Choisissez un plan payant pour migrer."
-                )
-            abonnement.plan = new_plan
-
-        # Si l'abonnement est expiré, le prix du renouvellement est majoré
-        # (pénalité d'expiration). On calcule le prix effectif maintenant.
-        prix_base = get_plan_price(abonnement.plan)
-        nb_jours_expires = days_since_expiration(abonnement)
-        expired = nb_jours_expires > 0
-        effective = compute_effective_subscription_price(
-            prix_base, abonnement.plan, expired=expired, days_after_expiry=nb_jours_expires
-        )
-        abonnement.montant = effective['prix_final']
-
-        if payment_method:
-            abonnement.methode_paiement = payment_method
-
-        now = datetime.utcnow()
-        if abonnement.date_fin and abonnement.date_fin > now:
-            base_date = abonnement.date_fin
-        else:
-            base_date = now
-
-        duree_jours = get_plan_duration_days(abonnement.plan)
-        if is_unlimited(duree_jours):
-            date_fin = base_date + timedelta(days=365 * 99)
-        else:
-            date_fin = base_date + timedelta(days=duree_jours)
-
-        abonnement.date_debut = base_date
-        abonnement.date_fin = date_fin
-        abonnement.statut = StatutAbonnement.ACTIF
-        apply_plan_to_abonnement(abonnement, abonnement.plan)
-        abonnement.save()
-
-        provider, resolved_payment_method = resolve_payment_provider(
-            abonnement.methode_paiement
-        )
-
-        notes_parts = [
-            f"Renouvellement de l'abonnement {abonnement.id}",
-        ]
-        if new_plan and new_plan != abonnement.plan:
-            notes_parts.append(f"Changement de plan vers {abonnement.plan}")
-        if payment_method and payment_method != abonnement.methode_paiement:
-            notes_parts.append(f"Mode de paiement: {resolved_payment_method}")
-        if effective['penalty_active']:
-            notes_parts.append(
-                f"Pen d'expiration appliquee: +{int(effective['penalty_percent'] * 100)}% "
-                f"(+{effective['penalty_amount']} Ar)"
+        requested_plan = str(new_plan or current.plan).strip().lower()
+        from app.security.plans import PLAN_CONFIG
+        if requested_plan not in PLAN_CONFIG:
+            raise ValueError(f"Plan invalide: {requested_plan}")
+        if requested_plan == 'gratuit':
+            raise ValueError(
+                "Impossible de renouveler vers le plan gratuit. "
+                "Choisissez un plan payant."
+            )
+        if current.plan == 'gratuit' and requested_plan == current.plan:
+            raise ValueError(
+                "Le plan gratuit ne peut pas etre renouvele. "
+                "Choisissez un plan payant pour migrer."
             )
 
+        # Une seule demande de renouvellement en attente par tenant.
+        pending = Abonnement.query.filter(
+            Abonnement.tenant_id == current.tenant_id,
+            Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+            Abonnement.is_active == True,
+            Abonnement.id != current.id,
+        ).all()
+        for item in pending:
+            item.statut = StatutAbonnement.ANNULE
+
+        now = datetime.utcnow()
+        expired_days = days_since_expiration(current)
+        effective = compute_effective_subscription_price(
+            get_plan_price(requested_plan),
+            requested_plan,
+            expired=expired_days > 0,
+            days_after_expiry=expired_days,
+        )
+
+        base_date = (
+            current.date_fin
+            if current.date_fin and current.date_fin > now
+            else now
+        )
+        duration = get_plan_duration_days(requested_plan)
+        date_fin = (
+            base_date + timedelta(days=365 * 99)
+            if is_unlimited(duration)
+            else base_date + timedelta(days=duration)
+        )
+
+        resolved_method = payment_method or current.methode_paiement
+        provider, resolved_payment_method = resolve_payment_provider(resolved_method)
+
+        notes = f"Renouvellement de l'abonnement {current.id}"
+        if requested_plan != current.plan:
+            notes = f"Changement de plan {current.plan} -> {requested_plan} - {notes}"
+        if effective['penalty_active']:
+            notes = (
+                f"{notes} - Majoration expiration +"
+                f"{int(effective['penalty_percent'] * 100)}%"
+            )
+
+        requested = Abonnement(
+            tenant_id=current.tenant_id,
+            montant=effective['prix_final'],
+            devise=current.devise or 'MGA',
+            date_debut=base_date,
+            date_fin=date_fin,
+            statut=StatutAbonnement.EN_ATTENTE,
+            methode_paiement=resolved_method,
+            plan=requested_plan,
+            notes=notes,
+        )
+        apply_plan_to_abonnement(requested, requested_plan)
+        db.session.add(requested)
+        db.session.flush()
+
         paiement = Paiement(
-            tenant_id=abonnement.tenant_id,
-            subscription_id=abonnement.id,
-            montant=abonnement.montant or prix_base,
-            devise=abonnement.devise,
+            tenant_id=current.tenant_id,
+            subscription_id=requested.id,
+            montant=requested.montant,
+            devise=requested.devise,
             statut=StatutPaiement.EN_ATTENTE,
             type=TypePaiement.ABONNEMENT,
             provider=provider,
             payment_method=resolved_payment_method,
-            reference=f"Renouvellement {abonnement.id}",
-            notes=" - ".join(notes_parts),
+            reference=f"Renouvellement {requested.id}",
+            notes=notes,
         )
         db.session.add(paiement)
-        db.session.commit()
 
-        return abonnement, paiement
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        return requested, paiement
 
     @classmethod
     def downgrade_to_gratuit_plan(cls, tenant_id, trigger='automatique', user_id=None, target_plan='gratuit'):
