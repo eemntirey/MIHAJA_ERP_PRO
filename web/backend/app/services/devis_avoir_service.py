@@ -9,6 +9,15 @@ def _gen_reference(prefix):
     ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
     return f'{prefix}-{ts}'
 
+def _tenant_fk_exists(model, entity_id, tenant_id):
+    if entity_id in (None, ''):
+        return True
+    try:
+        entity_id = int(entity_id)
+    except (TypeError, ValueError):
+        return False
+    return model.query.filter_by(id=entity_id, tenant_id=tenant_id, is_active=True).first() is not None
+
 class DevisService:
     model = Devis
 
@@ -43,6 +52,12 @@ class DevisService:
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("tenant_id est obligatoire pour cette ressource")
+        from app.models.client import Client
+        from app.models.utilisateur import Utilisateur
+        if not _tenant_fk_exists(Client, data.get('client_id'), tenant_id):
+            raise ValueError("Client introuvable pour ce tenant")
+        if not _tenant_fk_exists(Utilisateur, data.get('commercial_id'), tenant_id):
+            raise ValueError("Commercial introuvable pour ce tenant")
         data['tenant_id'] = tenant_id
         if not data.get('reference'):
             data['reference'] = _gen_reference('DEV')
@@ -63,6 +78,12 @@ class DevisService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        from app.models.client import Client
+        from app.models.utilisateur import Utilisateur
+        if 'client_id' in data and not _tenant_fk_exists(Client, data.get('client_id'), instance.tenant_id):
+            raise ValueError("Client introuvable pour ce tenant")
+        if 'commercial_id' in data and not _tenant_fk_exists(Utilisateur, data.get('commercial_id'), instance.tenant_id):
+            raise ValueError("Commercial introuvable pour ce tenant")
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_at'):
                 setattr(instance, key, value)
@@ -189,6 +210,18 @@ class BonLivraisonService:
         clean = cls._sanitize_payload(data)
         if not clean.get('client_id'):
             raise ValueError("client_id est obligatoire")
+        from app.models.client import Client
+        from app.models.vente import Vente
+        from app.models.livreur import Livreur
+        from app.models.vehicule import Vehicule
+        for model, entity_id, label in (
+            (Client, clean.get('client_id'), "Client"),
+            (Vente, clean.get('vente_id'), "Vente"),
+            (Livreur, clean.get('livreur_id'), "Livreur"),
+            (Vehicule, clean.get('vehicule_id'), "Véhicule"),
+        ):
+            if entity_id is not None and not _tenant_fk_exists(model, entity_id, tenant_id):
+                raise ValueError(f"{label} introuvable pour ce tenant")
         clean['tenant_id'] = tenant_id
         clean['reference'] = _gen_reference('BL')
         instance = cls.model(**clean)
@@ -209,6 +242,18 @@ class BonLivraisonService:
         if not instance:
             return None
         clean = cls._sanitize_payload(data)
+        from app.models.client import Client
+        from app.models.vente import Vente
+        from app.models.livreur import Livreur
+        from app.models.vehicule import Vehicule
+        for model, entity_id, label in (
+            (Client, clean.get('client_id'), "Client"),
+            (Vente, clean.get('vente_id'), "Vente"),
+            (Livreur, clean.get('livreur_id'), "Livreur"),
+            (Vehicule, clean.get('vehicule_id'), "Véhicule"),
+        ):
+            if entity_id is not None and not _tenant_fk_exists(model, entity_id, instance.tenant_id):
+                raise ValueError(f"{label} introuvable pour ce tenant")
         for key, value in clean.items():
             setattr(instance, key, value)
         try:
