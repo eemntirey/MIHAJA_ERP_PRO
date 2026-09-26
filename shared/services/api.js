@@ -597,8 +597,11 @@ export const plansService = {
 
 export const authService = {
 
+    // Le login passe toujours par le backend local : en ligne, celui-ci
+    // authentifie contre le central et met en cache la session + le secret
+    // de réplication ; hors-ligne, il vérifie le cache scrypt.
     login: (credentials) =>
-        api.post('/auth/login', credentials),
+        api.post('/auth/login', credentials, { _forceLocal: isElectron }),
 
     register: (data) =>
         api.post('/auth/register', data),
