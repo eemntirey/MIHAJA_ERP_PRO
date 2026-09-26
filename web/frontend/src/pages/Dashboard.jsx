@@ -549,6 +549,7 @@ const Dashboard = () => {
             periodCaption={periodCaption}
             onExport={handleExport}
             onRefresh={fetchDashboardData}
+            onOpenGuide={() => setGuideOpen(true)}
             loading={loading}
           />
 
