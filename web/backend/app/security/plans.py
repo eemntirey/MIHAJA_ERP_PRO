@@ -102,14 +102,66 @@ PLAN_CONFIG = {
 
 DEFAULT_PLAN = 'gratuit'
 
+def _get_persisted_plan_overrides():
+    """Charge les réglages de prix/durée persistés par le Super Admin.
+    En dehors d'un contexte Flask ou avant migration, retourne simplement
+    un dictionnaire vide afin de conserver les valeurs par défaut.
+    """
+    try:
+        from flask import g, has_app_context
+        if not has_app_context():
+            return {}
+        cached = getattr(g, '_mihaja_plan_overrides', None)
+        if cached is not None:
+            return cached
+        from app.models.platform_config import PlatformConfig
+        cfg = PlatformConfig.query.filter_by(id=1).first()
+        raw = getattr(cfg, 'plans_json', None) if cfg else None
+        overrides = raw if isinstance(raw, dict) else {}
+        g._mihaja_plan_overrides = overrides
+        return overrides
+    except Exception:
+        return {}
+
+def _persist_plan_override(plan, prix=None, duree_jours=None):
+    """Persiste les paramètres éditables d'un plan dans PlatformConfig."""
+    from app.models.platform_config import PlatformConfig
+    from app import db
+
+    cfg = PlatformConfig.get_config()
+    overrides = dict(cfg.plans_json or {})
+    current = dict(overrides.get(plan) or {})
+    if prix is not None:
+        current['prix'] = prix
+    if duree_jours is not None:
+        current['duree_jours'] = duree_jours
+    overrides[plan] = current
+    cfg.plans_json = overrides
+    db.session.add(cfg)
+    db.session.commit()
+
+    # Garder aussi le cache/processus courant cohérent immédiatement.
+    if plan in PLAN_CONFIG:
+        if prix is not None:
+            PLAN_CONFIG[plan]['prix'] = prix
+        if duree_jours is not None:
+            PLAN_CONFIG[plan]['duree_jours'] = duree_jours
+    try:
+        from flask import g, has_app_context
+        if has_app_context():
+            g._mihaja_plan_overrides = overrides
+    except Exception:
+        pass
+    return current
+
+
 
 def get_public_plans():
-    """Retourne la liste des plans affichés publiquement (gratuit / pro / entreprise)."""
+    """Retourne la liste publique avec les paramètres persistés."""
     allowed_codes = ['gratuit', 'pro', 'enterprise']
-
     plans = []
     for code in allowed_codes:
-        config = PLAN_CONFIG.get(code)
+        config = get_plan_config(code)
         if config:
             plans.append({
                 'code': code,
@@ -240,10 +292,16 @@ def days_since_expiration(abonnement):
 
 
 def get_plan_config(plan):
-    """Retourne la configuration du plan (avec repli sur le plan par défaut)."""
-    if not plan:
-        return PLAN_CONFIG[DEFAULT_PLAN]
-    return PLAN_CONFIG.get(plan, PLAN_CONFIG[DEFAULT_PLAN])
+    """Retourne la configuration effective (défaut + surcharge persistée)."""
+    code = plan or DEFAULT_PLAN
+    base = PLAN_CONFIG.get(code, PLAN_CONFIG[DEFAULT_PLAN])
+    config = dict(base)
+    config['modules'] = list(base.get('modules', []))
+    overrides = _get_persisted_plan_overrides().get(code) or {}
+    for key in ('prix', 'duree_jours'):
+        if key in overrides:
+            config[key] = overrides[key]
+    return config
 
 
 def get_plan_duration_days(plan):
