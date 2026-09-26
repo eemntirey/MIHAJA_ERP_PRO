@@ -412,32 +412,47 @@ class ValiderPaiementHorsLigne(Resource):
         if paiement.statut == StatutPaiement.SUCCESS:
             return {'message': 'Paiement deja valide'}, 400
 
-        paiement.statut = StatutPaiement.SUCCESS
-        paiement.date_paiement = datetime.utcnow()
-        db.session.commit()
+        try:
+            paiement.statut = StatutPaiement.SUCCESS
+            paiement.date_paiement = datetime.utcnow()
+            db.session.add(paiement)
 
-        abonnement = None
-        if paiement.subscription_id:
-            abonnement = db.session.get(Abonnement, paiement.subscription_id)
-            if abonnement and abonnement.statut != StatutAbonnement.ACTIF:
-                abonnement.statut = StatutAbonnement.ACTIF
-                if not abonnement.date_debut:
-                    abonnement.date_debut = datetime.utcnow()
-                if not abonnement.date_fin:
-                    from datetime import timedelta
-                    abonnement.date_fin = datetime.utcnow() + timedelta(days=30)
-                db.session.add(abonnement)
+            abonnement = None
+            if paiement.subscription_id:
+                abonnement = db.session.get(Abonnement, paiement.subscription_id)
+                if abonnement and abonnement.statut != StatutAbonnement.ACTIF:
+                    abonnement.statut = StatutAbonnement.ACTIF
+                    now = datetime.utcnow()
+                    if not abonnement.date_debut:
+                        abonnement.date_debut = now
+                    if not abonnement.date_fin or abonnement.date_fin <= now:
+                        from app.security.plans import get_plan_duration_days, is_unlimited
+                        duration = get_plan_duration_days(abonnement.plan)
+                        abonnement.date_fin = (
+                            now + timedelta(days=365 * 99)
+                            if is_unlimited(duration)
+                            else now + timedelta(days=duration)
+                        )
+                    db.session.add(abonnement)
 
-        tenant = None
-        if abonnement and abonnement.tenant_id:
-            tenant = db.session.get(Tenant, abonnement.tenant_id)
-            if tenant and tenant.statut != StatutTenant.ACTIF:
-                tenant.statut = StatutTenant.ACTIF
-                tenant.is_active = True
-                tenant.date_abonnement = datetime.utcnow()
-                db.session.add(tenant)
+            tenant = None
+            if abonnement and abonnement.tenant_id:
+                tenant = db.session.get(Tenant, abonnement.tenant_id)
+                if tenant and tenant.statut != StatutTenant.ACTIF:
+                    tenant.statut = StatutTenant.ACTIF
+                    tenant.is_active = True
+                    tenant.date_abonnement = datetime.utcnow()
+                    tenant.plan = abonnement.plan
+                    db.session.add(tenant)
 
-        db.session.commit()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception(
+                'Validation du paiement hors ligne impossible: paiement=%s',
+                paiement_id,
+            )
+            return {'message': 'Impossible de valider le paiement'}, 500
 
         try:
             if abonnement:
@@ -452,7 +467,6 @@ class ValiderPaiementHorsLigne(Resource):
             'abonnement': abonnement.to_dict() if abonnement else None,
             'tenant': tenant.to_dict() if tenant else None,
         }, 200
-
 
 @ns.route('/')
 class AbonnementList(Resource):
