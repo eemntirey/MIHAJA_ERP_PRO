@@ -68,8 +68,10 @@ contextBridge.exposeInMainWorld('electron', {
   // === Store sécurisé (tokens + préférences) ===
   secureStore,
 
-  // === Backend local embarqué ===
+  // === Backend local embarqué / routage central ===
   backend: {
     getPort: () => ipcRenderer.invoke('backend:port'),
+    getCentralApiBaseUrl: () => ipcRenderer.invoke('backend:central-api-base'),
+    syncNow: () => ipcRenderer.invoke('backend:sync-now'),
   },
 });
