@@ -215,7 +215,8 @@ class EcritureComptableService:
         # On n'autorise pas de modifier le débit/crédit directement : passer par valider/annuler.
         for key, value in data.items():
             if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by',
-                                                      'montant_debit', 'montant_credit', 'compte_id'):
+                                                      'montant_debit', 'montant_credit', 'compte_id',
+                                                      'statut'):
                 setattr(instance, key, value)
         db.session.commit()
         return instance
@@ -225,6 +226,11 @@ class EcritureComptableService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
+        if instance.statut == StatutEcriture.VALIDE:
+            raise ValueError(
+                "Une écriture validée ne peut pas être supprimée. "
+                "Utilisez l'annulation pour contrepasser ses effets."
+            )
         instance.delete()
         return True
 
