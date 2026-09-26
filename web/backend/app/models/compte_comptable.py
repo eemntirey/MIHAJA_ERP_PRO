@@ -1,6 +1,6 @@
 from app.models.base import BaseTenantModel
 from app import db
-from sqlalchemy import Index, Numeric
+from sqlalchemy import Index, Numeric, UniqueConstraint
 import enum
 
 class TypeCompte(enum.Enum):
@@ -12,7 +12,7 @@ class TypeCompte(enum.Enum):
 class CompteComptable(BaseTenantModel):
     __tablename__ = 'comptes_comptables'
 
-    numero = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    numero = db.Column(db.String(20), nullable=False, index=True)
     nom = db.Column(db.String(100), nullable=False)
     type_compte = db.Column(db.Enum(TypeCompte, name='type_compte', values_callable=lambda e: [x.value for x in e]), nullable=False)
     sous_compte_id = db.Column(db.Integer, db.ForeignKey('comptes_comptables.id'), index=True)
@@ -26,6 +26,7 @@ class CompteComptable(BaseTenantModel):
 
     __table_args__ = (
         Index('idx_compte_numero', 'numero'),
+        UniqueConstraint('tenant_id', 'numero', name='uq_compte_tenant_numero'),
     )
 
     def to_dict(self, exclude=None):
