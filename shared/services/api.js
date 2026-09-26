@@ -85,7 +85,9 @@ api.interceptors.request.use(
             config.baseURL = API_BASE_URL;
         }
 
-        config.withCredentials = true;
+        // Web : cookies HttpOnly. Electron : Bearer sécurisé uniquement,
+        // jamais de cookies web vers le central ou le backend local.
+        config.withCredentials = !isElectron;
         return config;
     },
     (error) => Promise.reject(error)
@@ -188,7 +190,7 @@ api.interceptors.response.use(
                     null,
                     {
                         headers: refreshHeaders,
-                        withCredentials: true,
+                        withCredentials: !isElectron,
                         timeout: API_TIMEOUT_MS,
                     }
                 );
