@@ -50,7 +50,7 @@ class FournisseurResource(Resource):
         return fournisseur.to_dict(), 200
 
     @ns.doc('delete_fournisseur')
-    @permission_required('supplier.update')
+    @permission_required('supplier.delete')
     @tenant_required_readonly
     def delete(self, fournisseur_id):
         """Supprime un fournisseur"""
