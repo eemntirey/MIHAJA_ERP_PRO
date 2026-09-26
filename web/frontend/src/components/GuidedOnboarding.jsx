@@ -209,7 +209,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
     setExpanded(true);
     setActiveId((id) => id || steps.find((step) => !current[step.id])?.id || steps[0]?.id || null);
     refreshProgress();
-  }, [open, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, user]);
 
   useEffect(() => {
     const handler = (event) => {
