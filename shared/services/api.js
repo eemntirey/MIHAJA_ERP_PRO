@@ -476,7 +476,7 @@ export const superAdminTenantService = {
     api.post(`/super-admin/tenants/${id}/reactivate`),
 
   delete: (id) =>
-    api.post(`/super-admin/tenants/${id}/delete`),
+    api.delete(`/super-admin/tenants/${id}`),
 
   extendSubscription: (id, days) =>
     api.post(`/super-admin/tenants/${id}/subscription/extend`, { days }),
