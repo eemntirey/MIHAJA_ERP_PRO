@@ -223,3 +223,12 @@ test('ProduitService bloque les mises a jour directes du stock', () => {
   assert.match(service, /instance\._calculer_prix_ttc\(\)/);
   assert.match(service, /instance\._calculer_volume\(\)/);
 });
+
+test('le webhook Papi convertit EN_ATTENTE/PENDING en PROCESSING', () => {
+  const webhook = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'services', 'papi', 'webhook.py'),
+    'utf8',
+  );
+  assert.match(webhook, /StatutPaiement\.EN_ATTENTE, StatutPaiement\.PENDING/);
+  assert.match(webhook, /paiement\.statut = StatutPaiement\.PROCESSING/);
+});
