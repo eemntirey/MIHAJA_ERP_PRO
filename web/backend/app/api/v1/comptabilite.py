@@ -51,7 +51,13 @@ class CompteResource(Resource):
     @tenant_required_readonly
     @permission_required_all('compte.delete')
     def delete(self, id):
-        success = CompteComptableService.delete(id)
+        try:
+            success = CompteComptableService.delete(id)
+        except ValueError as exc:
+            return {'message': str(exc)}, 400
+        except Exception:
+            current_app.logger.exception('Erreur suppression compte comptable')
+            return {'message': 'Erreur lors de la suppression du compte'}, 500
         if not success:
             return {'message': 'Compte non trouve'}, 404
         return {'message': 'Compte supprime'}, 200
