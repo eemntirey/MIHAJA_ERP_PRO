@@ -101,7 +101,7 @@ const Plans = () => {
         </div>
       ) : (
         <div className="stats-grid">
-          {plans.filter(p => p.code !== 'starter').map((plan) => (
+          {plans.map((plan) => (
             <div className="stat-card" key={plan.code}>
               <div className="stat-label">{plan.label}</div>
               <div className="stat-value">{plan.prix === 0 ? 'Gratuit' : `${plan.prix} Ar`}</div>
