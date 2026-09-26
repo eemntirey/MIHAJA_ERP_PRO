@@ -188,7 +188,7 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
                 password: password,
             });
 
-                const {
+            const {
                 access_token,
                 refresh_token,
                 user: userData,
@@ -196,7 +196,6 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
                 must_change_password: mustChange,
                 central_access_token: centralAccessToken,
                 central_refresh_token: centralRefreshToken,
-                offline: offlineMode,
             } = response.data || {};
 
             // A1 : web — les tokens sont en cookies HttpOnly, pas besoin de les lire
