@@ -248,7 +248,9 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
             new_status = StatutPaiement.FAILED
 
     elif payment_status == 'PENDING':
-        if paiement.statut == StatutPaiement.PENDING:
+        # Papi peut envoyer PENDING alors que le paiement local vient d'être
+        # créé en EN_ATTENTE. L'état canonique local devient PROCESSING.
+        if paiement.statut in (StatutPaiement.EN_ATTENTE, StatutPaiement.PENDING):
             paiement.statut = StatutPaiement.PROCESSING
             new_status = StatutPaiement.PROCESSING
 
