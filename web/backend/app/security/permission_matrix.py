@@ -27,6 +27,7 @@ PERMISSION_DEFINITIONS = {
     "invoice.delete": {"module": "invoice", "action": "delete", "description": "Supprimer des factures"},
     "payment.view": {"module": "payment", "action": "view", "description": "Voir les paiements"},
     "payment.create": {"module": "payment", "action": "create", "description": "Creer des paiements"},
+    "payment.delete": {"module": "payment", "action": "delete", "description": "Supprimer des paiements"},
     "quote.view": {"module": "quote", "action": "view", "description": "Voir les devis"},
     "quote.create": {"module": "quote", "action": "create", "description": "Creer des devis"},
     "quote.update": {"module": "quote", "action": "update", "description": "Modifier des devis"},
@@ -37,6 +38,7 @@ PERMISSION_DEFINITIONS = {
     "supplier.delete": {"module": "supplier", "action": "delete", "description": "Supprimer des fournisseurs"},
     "purchase_order.view": {"module": "purchase_order", "action": "view", "description": "Voir les commandes d'achat"},
     "purchase_order.create": {"module": "purchase_order", "action": "create", "description": "Creer des commandes d'achat"},
+    "purchase_order.delete": {"module": "purchase_order", "action": "delete", "description": "Supprimer des commandes d'achat"},
     "profile.view": {"module": "profile", "action": "view", "description": "Voir son profil"},
     "profile.update": {"module": "profile", "action": "update", "description": "Modifier son profil"},
     "compte.view": {"module": "compte", "action": "view", "description": "Voir les comptes"},
@@ -77,6 +79,7 @@ PERMISSION_DEFINITIONS = {
     "stagiaire.delete": {"module": "rh", "action": "delete", "description": "Supprimer des stagiaires"},
     "delivery.view": {"module": "delivery", "action": "view", "description": "Voir les livraisons"},
     "delivery.update": {"module": "delivery", "action": "update", "description": "Modifier les livraisons"},
+    "delivery.delete": {"module": "delivery", "action": "delete", "description": "Supprimer des livraisons"},
     "dashboard.view": {"module": "dashboard", "action": "view", "description": "Voir le tableau de bord"},
     "notification.view": {"module": "profile", "action": "view", "description": "Voir les notifications"},
     "notification.update": {"module": "profile", "action": "update", "description": "Marquer les notifications comme lues"},
@@ -156,13 +159,13 @@ DEFAULT_PERMISSION_LISTS = {
         # Notifications
         "notification.manage", "notification.update", "notification.view",
         # Paiements
-        "payment.create", "payment.view",
+        "payment.create", "payment.delete", "payment.view",
         # Produits
         "product.create", "product.update", "product.delete", "product.view",
         # Profil
         "profile.update", "profile.view",
         # Achats
-        "purchase_order.create", "purchase_order.view",
+        "purchase_order.create", "purchase_order.delete", "purchase_order.view",
         # Devis / Documents
         "quote.create", "quote.update", "quote.delete", "quote.view",
         # Rapports & dashboard
@@ -184,7 +187,7 @@ DEFAULT_PERMISSION_LISTS = {
         "prime.view", "prime.create", "prime.update", "prime.delete",
         "stagiaire.view", "stagiaire.create", "stagiaire.update", "stagiaire.delete",
         # Livraisons
-        "delivery.view", "delivery.update",
+        "delivery.view", "delivery.update", "delivery.delete",
     ],
     "manager": [
         "client.create", "client.update", "client.view",
