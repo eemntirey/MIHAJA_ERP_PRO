@@ -8,11 +8,6 @@ import { toast } from 'react-toastify';
 import { syncEngine } from '../utils/syncEngine';
 import { tokenStore } from '../storage/tokenStore';
 
-const backendPort = (typeof window !== 'undefined'
-    && window.location
-    && new URLSearchParams(window.location.search).get('backendPort'))
-    || null;
-
 const PRODUCTION_API_BASE_URL = '/api/v1';
 const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || PRODUCTION_API_BASE_URL;
 
@@ -31,12 +26,12 @@ const API_TIMEOUT_MS = 15000;
 // utilise le serveur CENTRAL en priorité. Le backend local ne sert que de
 // continuité hors-ligne ou de repli lorsqu'un appel central est réellement
 // indisponible.
-const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
-
 import {
     resolveDesktopRoute,
     markDesktopCentralUnavailable,
 } from '../utils/desktopConnection';
+
+const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
 
 const api = axios.create({
     baseURL: API_BASE_URL,
