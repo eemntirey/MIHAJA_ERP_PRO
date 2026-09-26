@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { factureService, saleService, clientService, paiementService } from '../services/api';
+import { markOnboardingAction } from '../components/GuidedOnboarding';
 import { toast } from 'react-toastify';
 import { PAYMENT_METHODS } from '../constants/erpConstants';
 import './Pages.css';
@@ -162,6 +163,7 @@ const Invoices = () => {
         reference,
       });
       toast.success('Facture créée avec succès');
+      markOnboardingAction('invoices');
       fetchInvoices();
       closeModal();
     } catch (err) {
