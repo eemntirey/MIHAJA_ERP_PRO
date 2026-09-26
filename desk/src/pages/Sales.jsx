@@ -488,6 +488,9 @@ const Sales = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
   const [saleActionLoading, setSaleActionLoading] = useState(false);
+  const [showDevisModal, setShowDevisModal] = useState(false);
+  const [editingDevis, setEditingDevis] = useState(null);
+  const [devisForm, setDevisForm] = useState({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
 
   const [devisForm, setDevisForm] = useState({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
   const [blForm, setBlForm] = useState({ vente_id: '', client_id: '', livreur_id: '', vehicule_id: '', adresse_livraison: '', date_livraison_prevue: '', statut: 'prepare', remarque: '' });
@@ -599,6 +602,75 @@ const Sales = () => {
       setDevisForm({ client_id: '', total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Erreur'); }
+  };
+
+  const openDevisModal = (devis = null) => {
+    setEditingDevis(devis);
+    if (devis) {
+      setDevisForm({
+        client_id: devis.client_id ?? null,
+        total_ht: devis.total_ht ?? '',
+        total_ttc: devis.total_ttc ?? '',
+        date_validite: devis.date_validite ? String(devis.date_validite).split('T')[0] : '',
+        statut: devis.statut || 'en_attente',
+        conditions_paiement: devis.conditions_paiement || '30 jours',
+        remarque: devis.remarque || '',
+      });
+    } else {
+      setDevisForm({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+    }
+    setShowDevisModal(true);
+  };
+
+const closeDevisModal = () => {
+    setShowDevisModal(false);
+    setEditingDevis(null);
+    setDevisForm({ client_id: null, total_ht: '', total_ttc: '', date_validite: '', statut: 'en_attente', conditions_paiement: '30 jours', remarque: '' });
+  };
+
+  const handleCreateDevis = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!devisForm.client_id) {
+      toast.error('Veuillez sélectionner un client');
+      return;
+    }
+    const totalHt = Number(devisForm.total_ht);
+    const totalTtc = Number(devisForm.total_ttc);
+    if (Number.isNaN(totalHt) || totalHt < 0) {
+      toast.error('Total HT invalide');
+      return;
+    }
+    if (Number.isNaN(totalTtc) || totalTtc < 0) {
+      toast.error('Total TTC invalide');
+      return;
+    }
+    try {
+      const data = {
+        client_id: Number(devisForm.client_id),
+        total_ht: totalHt,
+        total_ttc: totalTtc,
+        statut: devisForm.statut || 'en_attente',
+        conditions_paiement: devisForm.conditions_paiement || null,
+        remarque: devisForm.remarque || null,
+      };
+      if (devisForm.date_validite) {
+        data.date_validite = devisForm.date_validite;
+      }
+      if (editingDevis) {
+        await devisService.update(editingDevis.id, data);
+        toast.success('Devis mis à jour');
+      } else {
+        await devisService.create(data);
+        toast.success('Devis créé');
+      }
+      closeDevisModal();
+      fetchData();
+    } catch (err) {
+      if (err.response?.status !== 403) {
+        const msg = err.response?.data?.message || 'Erreur lors de la création du devis';
+        toast.error(msg);
+      }
+    }
   };
 
   const handleCreateBl = async (e) => {
@@ -847,49 +919,12 @@ const Sales = () => {
 
       {tab === 'devis' && (
         <div className="card">
-          <h3>Nouveau devis</h3>
-          <form onSubmit={handleCreateDevis} className="form-grid">
-            <div className="form-group">
-              <label>Client *</label>
-              <select value={devisForm.client_id} onChange={e => setDevisForm({...devisForm, client_id: e.target.value})} required>
-                <option value="">Client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Total HT *</label>
-              <input type="number" value={devisForm.total_ht} onChange={e => setDevisForm({...devisForm, total_ht: e.target.value})} required />
-            </div>
-            <div className="form-group">
-              <label>Total TTC *</label>
-              <input type="number" value={devisForm.total_ttc} onChange={e => setDevisForm({...devisForm, total_ttc: e.target.value})} required />
-            </div>
-            <div className="form-group">
-              <label>Date de validité</label>
-              <input type="date" value={devisForm.date_validite} onChange={e => setDevisForm({...devisForm, date_validite: e.target.value})} />
-            </div>
-            <div className="form-group">
-              <label>Statut</label>
-              <select value={devisForm.statut} onChange={e => setDevisForm({...devisForm, statut: e.target.value})}>
-                <option value="en_attente">En attente</option>
-                <option value="accepte">Accepté</option>
-                <option value="refuse">Refusé</option>
-                <option value="converti">Converti</option>
-                <option value="expire">Expiré</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Conditions de paiement</label>
-              <input value={devisForm.conditions_paiement} onChange={e => setDevisForm({...devisForm, conditions_paiement: e.target.value})} />
-            </div>
-            <div className="form-group">
-              <label>Remarque</label>
-              <textarea value={devisForm.remarque} onChange={e => setDevisForm({...devisForm, remarque: e.target.value})} />
-            </div>
-            <div className="form-group">
-              <button type="submit" className="btn-primary">Créer</button>
-            </div>
-          </form>
+          <div className="card-actions">
+            <button className="btn-primary" onClick={() => openDevisModal()}>
+              + Créer un devis
+            </button>
+          </div>
+          <p className="text-muted">Créez ou modifiez un devis dans une fenêtre dédiée, puis convertissez-le en vente lorsqu’il est accepté.</p>
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -906,30 +941,29 @@ const Sales = () => {
               </thead>
               <tbody>
                 {sortedDevis.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="text-center">Aucun devis trouvé</td>
-                  </tr>
-                ) : (
-                  sortedDevis.map(d => {
-                    const badge = getStatutBadge(d.statut);
-                    return (
-                      <tr key={d.id}>
-                        <td>{d.reference || 'N/A'}</td>
-                        <td>{d.client_nom || 'N/A'}</td>
-                        <td>{formatDate(d.date || d.created_at)}</td>
-                        <td>{formatCurrency(d.total_ht)}</td>
-                        <td>{formatCurrency(d.total_ttc)}</td>
-                        <td>{formatDate(d.date_validite)}</td>
-                        <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
-                        <td>
-                          <button className="btn-small btn-edit" title="Convertir" onClick={() => handleConvertDevis(d.id)}>
-                            <i className="ti ti-refresh" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                  <tr><td colSpan="8" className="text-center">Aucun devis trouvé</td></tr>
+                ) : sortedDevis.map(d => {
+                  const badge = getStatutBadge(d.statut);
+                  return (
+                    <tr key={d.id}>
+                      <td>{d.reference || 'N/A'}</td>
+                      <td>{d.client_nom || 'N/A'}</td>
+                      <td>{formatDate(d.date || d.created_at)}</td>
+                      <td>{formatCurrency(d.total_ht)}</td>
+                      <td>{formatCurrency(d.total_ttc)}</td>
+                      <td>{formatDate(d.date_validite)}</td>
+                      <td><span className={`badge ${badge.class}`}>{badge.label}</span></td>
+                      <td>
+                        <button className="btn-small btn-edit" title="Modifier" onClick={() => openDevisModal(d)} disabled={saleActionLoading}>
+                          <i className="ti ti-edit" />
+                        </button>
+                        <button className="btn-small btn-view" title="Convertir en vente" onClick={() => handleConvertDevis(d.id)} disabled={saleActionLoading || d.statut === 'converti'}>
+                          <i className="ti ti-refresh" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1170,6 +1204,63 @@ const Sales = () => {
                 <div className="form-group full-width"><label>Motif</label><div>{viewAvoir.motif}</div></div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {showDevisModal && (
+        <div className="modal-overlay" onClick={closeDevisModal}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingDevis ? 'Modifier le devis' : 'Nouveau devis'}</h2>
+              <button onClick={closeDevisModal} className="btn-close" aria-label="Fermer">×</button>
+            </div>
+            <form onSubmit={handleCreateDevis}>
+              <div className="modal-body">
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label>Client *</label>
+                    <select value={devisForm.client_id} onChange={e => setDevisForm({...devisForm, client_id: e.target.value})} required>
+                      <option value="">-- Sélectionner un client --</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.nom_complet || c.nom}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Total HT *</label>
+                    <input type="number" min="0" step="0.01" value={devisForm.total_ht} onChange={e => setDevisForm({...devisForm, total_ht: e.target.value})} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Total TTC *</label>
+                    <input type="number" min="0" step="0.01" value={devisForm.total_ttc} onChange={e => setDevisForm({...devisForm, total_ttc: e.target.value})} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Date de validité</label>
+                    <input type="date" value={devisForm.date_validite} onChange={e => setDevisForm({...devisForm, date_validite: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label>Statut</label>
+                    <select value={devisForm.statut} onChange={e => setDevisForm({...devisForm, statut: e.target.value})}>
+                      <option value="en_attente">En attente</option>
+                      <option value="accepte">Accepté</option>
+                      <option value="refuse">Refusé</option>
+                      <option value="converti">Converti</option>
+                      <option value="expire">Expiré</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Conditions de paiement</label>
+                    <input value={devisForm.conditions_paiement} onChange={e => setDevisForm({...devisForm, conditions_paiement: e.target.value})} placeholder="30 jours" />
+                  </div>
+                  <div className="form-group full-width">
+                    <label>Remarque</label>
+                    <textarea value={devisForm.remarque} onChange={e => setDevisForm({...devisForm, remarque: e.target.value})} rows={3} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={closeDevisModal}>Annuler</button>
+                <button type="submit" className="btn-primary">{editingDevis ? 'Mettre à jour' : 'Créer'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
