@@ -1231,6 +1231,7 @@ export const documentService = {
     getById: (id) => api.get(`/documents/${id}`),
     create: (data) => api.post('/documents', data),
     delete: (id) => api.delete(`/documents/${id}`),
+    getPdf: (id) => api.get(`/documents/${id}/pdf`, { responseType: 'blob' }),
     generer: (data) => api.post('/documents/generer', data),
 };
 
