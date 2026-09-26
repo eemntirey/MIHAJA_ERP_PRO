@@ -39,3 +39,24 @@ class LocalSyncStatus(Resource):
                 drift is not None and abs(drift) > tolerance
             ),
         }
+
+
+
+
+@ns.route('/local-run')
+class LocalSyncRun(Resource):
+    def post(self):
+        """Déclenche immédiatement un cycle push/pull sur le poste local."""
+        if not current_app.config.get('LOCAL_EMBEDDED'):
+            return {'message': 'Route réservée au backend local embarqué.'}, 404
+
+        from app.services.replication.push import push_pending
+        from app.services.replication.pull import pull_changes
+
+        push_result = push_pending(current_app._get_current_object())
+        pull_result = pull_changes(current_app._get_current_object())
+        return {
+            'push': push_result,
+            'pull': pull_result,
+            'online': True,
+        }, 200
