@@ -114,6 +114,7 @@ class ClientService(BaseService):
             for row in query.group_by(Vente.client_id).all()
         }
 
+    @classmethod
     def create(cls, data: Dict[str, Any]) -> Client:
         """Crée un nouveau client et génère un code si nécessaire."""
         tenant_id = get_current_tenant_id()
