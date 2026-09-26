@@ -247,13 +247,16 @@ def force_push_conflict(conflict):
 
     if result.get('status') in _SENT_STATUSES:
         # L'entrée d'outbox en conflit est désormais appliquée côté central.
-        for entry in SyncOutbox.query.filter_by(
-            entity=conflict.entity, status='conflict'
-        ).all():
-            if entry.entity_pk == conflict.entity_pk:
-                entry.status = 'sent'
-                entry.synced_at = datetime.utcnow()
-                entry.last_error = None
+        entries = SyncOutbox.query.filter_by(
+            tenant_id=conflict.tenant_id,
+            entity=conflict.entity,
+            status='conflict',
+            entity_pk=conflict.entity_pk,
+        ).all()
+        for entry in entries:
+            entry.status = 'sent'
+            entry.synced_at = datetime.utcnow()
+            entry.last_error = None
         db.session.commit()
         return True, None
 
