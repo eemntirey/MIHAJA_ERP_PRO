@@ -284,8 +284,10 @@ function createWindow(port) {
     }
   });
 
-  // Port du backend local embarqué
+  // Backend local + serveur central (lecture de configuration).
   ipcMain.handle('backend:port', () => backendHost.getPort());
+  ipcMain.handle('backend:central-api-base', () => backendHost.getCentralApiBaseUrl());
+  ipcMain.handle('backend:sync-now', () => backendHost.syncNow());
 
   if (isDev) {
     const url = port ? `${DEV_URL}/?backendPort=${port}` : DEV_URL;
