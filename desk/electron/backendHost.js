@@ -217,4 +217,44 @@ function getPort() {
   return currentPort;
 }
 
-module.exports = { buildBackendEnv, startLocalBackend, stopLocalBackend, getPort };
+function getCentralApiBaseUrl() {
+  const cfg = readUserConfig();
+  const base = cfg.replicationUrl
+    || process.env.REPLICATION_URL
+    || 'https://mihaja-erp-pro.onrender.com';
+  return String(base).replace(/\\/+$/, '');
+}
+
+// Déclenche un cycle immédiat push/pull après le retour du central.
+// Le backend local reste la machine d'exécution de la réplication et garde
+// son jeton de service en SQLite ; aucun secret n'est exposé au renderer.
+async function syncNow() {
+  if (!currentPort) return { skipped: true, reason: 'backend-local-off' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:${currentPort}/api/v1/sync/local-run`,
+      { method: 'POST', signal: controller.signal }
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.message || `HTTP ${response.status}`);
+    }
+    return body;
+  } catch (err) {
+    console.warn('[backend-local] Synchronisation immédiate impossible :', err.message);
+    return { skipped: true, reason: err.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = {
+  buildBackendEnv,
+  startLocalBackend,
+  stopLocalBackend,
+  getPort,
+  getCentralApiBaseUrl,
+  syncNow,
+};
