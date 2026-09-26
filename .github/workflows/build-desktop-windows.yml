@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - V0
+      - V0.01
     tags:
       - "desktop-v*"
   pull_request:
