@@ -424,9 +424,6 @@ const Invoices = () => {
                     )}
                   </React.Fragment>
                 ))}
-                    </td>
-                  </tr>
-                ))
               )}
             </tbody>
           </table>
