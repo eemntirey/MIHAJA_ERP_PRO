@@ -18,7 +18,8 @@ ligne_vente_model = ns.model('LigneVente', {
 })
 
 vente_model = ns.model('Vente', {
-    'client_id': fields.Integer(required=True, description='ID client'),
+    'client_id': fields.Integer(required=False, description='ID client (absent pour une vente passager)'),
+    'client_passager': fields.Boolean(required=False, description='Vente sans client nominatif, rattachée au client passager du tenant'),
     'type_vente': fields.String(description='Type de vente', default='detail', enum=['gros', 'detail']),
     'date': fields.String(description='Date de la vente'),
     'statut': fields.String(description='Statut de la vente', default='en_attente'),
