@@ -45,8 +45,13 @@ def ensure_cursors(tenant_id):
     fraîchement installé ne recevrait aucun produit ni client.
     """
     created = []
+    poste_id = device_id()
     for entity in REPLICATED_ENTITIES:
-        exists = SyncCursor.query.filter_by(entity=entity).first()
+        exists = SyncCursor.query.filter_by(
+            tenant_id=tenant_id,
+            device_id=poste_id,
+            entity=entity,
+        ).first()
         if exists is None:
             SyncCursor.upsert(
                 tenant_id=tenant_id, device_id=device_id(), entity=entity,
@@ -71,7 +76,9 @@ def _parse_dt(value):
 def _local_row(entity, tenant_id, remote_pk, payload):
     """Retrouve la ligne locale correspondant à un changement distant."""
     model = get_model(entity)
-    local_pk = SyncLocalMapping.local_pk_for(entity, remote_pk)
+    local_pk = SyncLocalMapping.local_pk_for(
+        entity, remote_pk, tenant_id=tenant_id
+    )
     if local_pk is not None:
         row = model.query.filter_by(id=local_pk, tenant_id=tenant_id).first()
         if row is not None:
@@ -213,7 +220,12 @@ def pull_changes(app):
         error = None
         my_device = device_id()
 
-        for cursor in SyncCursor.query.order_by(SyncCursor.id.asc()).all():
+        cursors = SyncCursor.query.filter_by(
+            tenant_id=tenant_id,
+            device_id=my_device,
+        ).order_by(SyncCursor.id.asc()).all()
+
+        for cursor in cursors:
             try:
                 ok, body, message = _fetch_changes(base, cursor)
             except Exception as exc:
@@ -260,7 +272,7 @@ def pull_changes(app):
         return {'applied': applied, 'revision': max_revision}
 
 
-def apply_remote_locally(entity, remote_payload, local_pk):
+def apply_remote_locally(entity, remote_payload, local_pk, tenant_id=None):
     """Écrase l'enregistrement local par la version distante (remote_wins).
 
     Appelé par POST /sync/conflicts/<id>/resolve : l'opérateur a choisi la
@@ -275,7 +287,10 @@ def apply_remote_locally(entity, remote_payload, local_pk):
 
     row = None
     if local_pk is not None:
-        row = db.session.get(model, local_pk)
+        query = model.query.filter_by(id=local_pk)
+        if tenant_id is not None and hasattr(model, 'tenant_id'):
+            query = query.filter_by(tenant_id=tenant_id)
+        row = query.first()
     if row is None:
         return False, "Enregistrement local introuvable pour ce conflit."
 
