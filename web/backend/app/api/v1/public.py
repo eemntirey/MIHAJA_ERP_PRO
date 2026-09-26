@@ -4,7 +4,6 @@ from os import getenv
 import html as html_lib
 
 from flask import request, current_app, g, Response
-from flask import request, current_app, g, Response
 from flask_restx import Namespace, Resource
 from app.models.produit import Produit
 from app.models.tenant import Tenant
