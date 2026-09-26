@@ -50,6 +50,8 @@ export default function Delivery() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [associerId, setAssocierId] = useState(null);
+  const [associerUserId, setAssocierUserId] = useState('');
 
   const fetchAll = async () => {
     setLoading(true);
@@ -124,6 +126,26 @@ export default function Delivery() {
       fetchAll();
     } catch (e) {
       toast.error('Erreur de suppression');
+    }
+  };
+
+  const handleAssocier = async (id) => {
+    const userId = Number(associerUserId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      toast.error('Veuillez saisir un identifiant utilisateur valide.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await livreurService.associerUtilisateur(id, userId);
+      toast.success('Compte utilisateur associé au livreur');
+      setAssocierId(null);
+      setAssocierUserId('');
+      fetchAll();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Impossible d'associer le compte utilisateur");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -289,15 +311,34 @@ export default function Delivery() {
           </form>
           <div className="table-container">
             <table className="data-table delivery-table">
-              <thead><tr><th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th>Compte associé</th><th>Actions</th></tr></thead>
               <tbody>
                 {livreurs.map(l => (
                   <tr key={l.id}>
                     <td>{l.nom}</td><td>{l.prenom}</td><td>{l.telephone}</td><td>{l.email}</td>
                     <td><StatusBadge status={l.statut} /></td>
+                    <td>{l.utilisateur_id ? `Utilisateur #${l.utilisateur_id}` : '—'}</td>
                     <td>
                       <span className="delivery-actions">
                         <button className="btn-small btn-edit" title="Modifier" onClick={() => handleEdit(l, 'livreur')}><i className="ti ti-edit" /></button>
+                        {associerId === l.id ? (
+                          <>
+                            <input type="number" min="1" placeholder="ID utilisateur" value={associerUserId}
+                              onChange={(e) => setAssocierUserId(e.target.value)} style={{ width: 110, marginRight: 4 }} />
+                            <button className="btn-small btn-edit" title="Associer" disabled={submitting} onClick={() => handleAssocier(l.id)}>
+                              <i className="ti ti-check" />
+                            </button>
+                            <button className="btn-small btn-secondary" title="Annuler" disabled={submitting}
+                              onClick={() => { setAssocierId(null); setAssocierUserId(''); }}>
+                              <i className="ti ti-x" />
+                            </button>
+                          </>
+                        ) : (
+                          <button className="btn-small btn-edit" title="Associer compte"
+                            onClick={() => { setAssocierId(l.id); setAssocierUserId(''); }}>
+                            <i className="ti ti-user-plus" />
+                          </button>
+                        )}
                         <button className="btn-small btn-delete" title="Supprimer" onClick={() => handleDelete('livreur', l.id)}><i className="ti ti-trash" /></button>
                       </span>
                     </td>
