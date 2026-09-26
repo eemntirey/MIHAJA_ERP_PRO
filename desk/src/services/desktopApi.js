@@ -306,31 +306,35 @@ const offlineAware = (key, apiService, transform = null) => {
     }
   };
 
-  const wrap = (methodName, ...args) => {
-    const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    const exec = () => apiService[methodName](...args).then((res) => {
-      writeCache(res.data);
-      return res;
-    }).catch((err) => {
-      const cached = readCache();
-      if (cached !== null) {
-        return Promise.resolve({ data: cached });
-      }
-      return Promise.reject(err);
-    });
+  const isReadMethod = (methodName) => (
+    /^(get|list|fetch|search|load|status|summary|overview|me|read)/i.test(methodName)
+  );
 
-    if (!online) {
-      const cached = readCache();
-      if (cached !== null) {
-        return Promise.resolve({ data: cached });
-      }
-      return apiService[methodName](...args).catch((err) => {
-        if (readCache() !== null) return Promise.resolve({ data: readCache() });
+  const canFallbackToCache = (err) => (
+    !err?.response
+    || [502, 503, 504].includes(err.response.status)
+  );
+
+  const wrap = (methodName, ...args) => {
+    // Le routage central/local est désormais porté par shared/services/api.js.
+    // Même hors-ligne, une MUTATION doit être exécutée contre SQLite locale :
+    // ne jamais répondre avec le cache à un POST/PUT/PATCH/DELETE.
+    return apiService[methodName](...args)
+      .then((res) => {
+        if (isReadMethod(methodName)) {
+          writeCache(res.data);
+        }
+        return res;
+      })
+      .catch((err) => {
+        if (isReadMethod(methodName) && canFallbackToCache(err)) {
+          const cached = readCache();
+          if (cached !== null) {
+            return Promise.resolve({ data: cached });
+          }
+        }
         return Promise.reject(err);
       });
-    }
-
-    return exec();
   };
 
   return new Proxy(apiService, {
