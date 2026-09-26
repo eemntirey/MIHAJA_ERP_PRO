@@ -55,10 +55,14 @@ class LivreurService:
 
     @classmethod
     def get_by_user(cls, user_id):
-        return cls.model.query.filter_by(
+        query = cls.model.query.filter_by(
             utilisateur_id=user_id,
             is_active=True,
-        ).first()
+        )
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        return query.first()
 
     @classmethod
     def _validate_utilisateur_tenant(cls, utilisateur_id, tenant_id):
@@ -295,16 +299,23 @@ class LivraisonService:
             livreur_id=livreur_id,
             is_active=True,
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
         paginated = query.paginate(page=page, per_page=per_page, error_out=False)
         return paginated.items, paginated.total
 
     @classmethod
     def get_for_livreur_by_id(cls, livreur_id, livraison_id):
-        return cls.model.query.filter_by(
+        query = cls.model.query.filter_by(
             id=livraison_id,
             livreur_id=livreur_id,
             is_active=True,
-        ).first()
+        )
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        return query.first()
 
     @classmethod
     def create(cls, data):
