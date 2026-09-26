@@ -257,3 +257,16 @@ test('les imports runtime critiques auth et vitrine sont présents', () => {
   assert.match(tenant, /from datetime import datetime/);
   assert.match(pub, /^import re$/m);
 });
+
+test('les imports critiques stock et entrepôts sont présents', () => {
+  const stocks = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'stocks.py'),
+    'utf8',
+  );
+  const entrepots = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'entrepots.py'),
+    'utf8',
+  );
+  assert.match(stocks, /from flask import request, current_app/);
+  assert.match(entrepots, /from flask import request/);
+});
