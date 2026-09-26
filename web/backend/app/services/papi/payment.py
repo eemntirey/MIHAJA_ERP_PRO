@@ -112,6 +112,9 @@ def create_subscription_payment(
 
     if subscription.tenant_id != tenant_id:
         raise ValueError("Acces refuse a cet abonnement")
+    if not subscription.is_active or subscription.statut != StatutAbonnement.EN_ATTENTE:
+        raise ValueError("Cet abonnement n'est pas en attente de paiement")
+
 
     user_id = None
     try:
@@ -299,6 +302,9 @@ def create_subscription_offline_payment(
 
     if subscription.tenant_id != tenant_id:
         raise ValueError("Acces refuse a cet abonnement")
+    if not subscription.is_active or subscription.statut != StatutAbonnement.EN_ATTENTE:
+        raise ValueError("Cet abonnement n'est pas en attente de paiement")
+
 
     if not subscription.montant or float(subscription.montant) < 300:
         raise ValueError("Le montant de l'abonnement est inferieur au minimum requis (300 MGA)")
