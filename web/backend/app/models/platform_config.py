@@ -14,6 +14,9 @@ class PlatformConfig(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     is_subscription_active = db.Column(db.Boolean, nullable=False, default=False)
+    # Surcharges persistants pour les paramètres éditables des plans.
+    # Format: {"gratuit": {"prix": 0, "duree_jours": 30}, ...}
+    plans_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True)
