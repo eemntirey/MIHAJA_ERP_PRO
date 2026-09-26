@@ -286,9 +286,13 @@ class PayerAbonnement(Resource):
 
         paiement = Paiement.query.filter_by(
             tenant_id=abonnement.tenant_id,
+            subscription_id=abonnement.id,
             type=TypePaiement.ABONNEMENT,
             is_active=True
         ).order_by(Paiement.created_at.desc()).first()
+
+        if not paiement:
+            return {'message': 'Aucun paiement en attente pour cet abonnement'}, 400
 
         if paiement:
             paiement.statut = StatutPaiement.CONFIRME
