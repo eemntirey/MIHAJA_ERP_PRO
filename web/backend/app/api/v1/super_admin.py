@@ -42,7 +42,7 @@ from app.models.prime import Prime
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
-from app.security.plans import apply_plan_to_abonnement, get_plan_price
+from app.security.plans import apply_plan_to_abonnement, get_plan_price, get_plan_config, _persist_plan_override
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
@@ -1474,12 +1474,12 @@ class SuperAdminPlans(Resource):
                     Abonnement.plan == plan['code'],
                     Abonnement.is_active == True,
                 ).scalar() or 0
-            cfg = PLAN_CONFIG.get(plan['code'], {})
+            cfg = get_plan_config(plan['code'])
             plans_data.append({
                 'code': plan['code'],
-                'label': plan['label'],
-                'prix': plan['prix'],
-                'duree_jours': plan['duree_jours'],
+                'label': cfg.get('label', plan['label']),
+                'prix': cfg.get('prix', 0),
+                'duree_jours': cfg.get('duree_jours', 30),
                 'max_utilisateurs': cfg.get('max_utilisateurs', 1),
                 'max_employees': cfg.get('max_employees', 0),
                 'modules': cfg.get('modules', []),
@@ -1530,6 +1530,17 @@ class SuperAdminPlans(Resource):
                     PLAN_CONFIG[code]['duree_jours'] = duree
             except (ValueError, TypeError):
                 return {'message': 'Durée invalide'}, 400
+
+        try:
+            _persist_plan_override(
+                code,
+                prix=plan.get('prix') if 'prix' in data else None,
+                duree_jours=plan.get('duree_jours') if 'duree_jours' in data else None,
+            )
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Persistance du plan %s impossible', code)
+            return {'message': 'Impossible de sauvegarder la configuration du plan'}, 500
 
         _log_audit(
             TypeActionAudit.MODIFICATION_PARAMETRE,
