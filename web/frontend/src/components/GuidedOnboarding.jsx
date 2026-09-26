@@ -154,7 +154,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
     if (!user || steps.length === 0) return;
     setChecking(true);
 
-    const next = { ...progress };
+    const detected = {};
     const requests = [];
 
     const addCheck = (id, promise, key) => {
@@ -163,7 +163,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
         Promise.resolve(promise)
           .then((response) => {
             const total = readCount(response?.data, key);
-            if (total > 0) next[id] = true;
+            if (total > 0) detected[id] = true;
           })
           .catch(() => {})
       );
@@ -188,7 +188,7 @@ const GuidedOnboarding = ({ open, onClose }) => {
     await Promise.all(requests);
 
     setProgress((current) => {
-      const merged = { ...current, ...next };
+      const merged = { ...current, ...detected };
       persistState(user, merged);
       return merged;
     });
