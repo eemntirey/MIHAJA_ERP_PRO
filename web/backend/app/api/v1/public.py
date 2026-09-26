@@ -2,6 +2,7 @@ from xml.sax.saxutils import escape as xml_escape
 from email.utils import parseaddr
 from os import getenv
 import html as html_lib
+import re
 
 from flask import request, current_app, g, Response
 from flask_restx import Namespace, Resource
