@@ -178,6 +178,13 @@ def create_commande_papi_payment(
             f"Mode de paiement invalide: {payment_method}"
         )
 
+    # Le mode test est une décision serveur liée à l'environnement Papi
+    # du tenant. Un client public ne doit jamais pouvoir forcer le sandbox.
+    papi_environment = (
+        tenant.papi_environment or Config.PAPI_ENVIRONMENT or 'sandbox'
+    ).strip().lower()
+    server_test_mode = papi_environment == 'sandbox'
+
     payload, reference = _build_payload(
         commande,
         tenant,
@@ -186,7 +193,7 @@ def create_commande_papi_payment(
         customer_phone,
         method_normalized,
         '',
-        is_test_mode,
+        server_test_mode,
     )
 
     try:
