@@ -2,7 +2,7 @@
 import hashlib
 import hmac
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app import db
 from app.models.paiement import Paiement, StatutPaiement
@@ -227,9 +227,9 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
                 if not subscription.date_fin or subscription.date_fin <= now:
                     duration = get_plan_duration_days(subscription.plan)
                     subscription.date_fin = (
-                        now + __import__('datetime').timedelta(days=365 * 99)
+                        now + timedelta(days=365 * 99)
                         if is_unlimited(duration)
-                        else now + __import__('datetime').timedelta(days=duration)
+                        else now + timedelta(days=duration)
                     )
                 subscription.methode_paiement = paiement.payment_method
                 subscription.reference_paiement = paiement.external_reference
