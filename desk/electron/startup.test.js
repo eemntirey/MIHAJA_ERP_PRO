@@ -244,3 +244,16 @@ test('la création tenant Super Admin envoie les champs requis par le backend', 
   assert.match(page, /admin_password: formData\.admin_password/);
   assert.match(page, /plan: formData\.plan/);
 });
+
+test('les imports runtime critiques auth et vitrine sont présents', () => {
+  const tenant = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'tenant.py'),
+    'utf8',
+  );
+  const pub = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'public.py'),
+    'utf8',
+  );
+  assert.match(tenant, /from datetime import datetime/);
+  assert.match(pub, /^import re$/m);
+});
