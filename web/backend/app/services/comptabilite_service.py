@@ -377,10 +377,21 @@ class TresorerieService:
         instance = cls.get_by_id(id)
         if not instance:
             return None
+        data = dict(data or {})
+        financial_fields = {'date', 'type_operation', 'montant', 'mode_paiement', 'compte_bancaire', 'reference', 'compte_id', 'ecriture_id'}
+        if (instance.is_reconcilie or instance.ecriture_id) and financial_fields.intersection(data):
+            raise ValueError(
+                "Une écriture de trésorerie liée ou réconciliée ne peut pas être modifiée "
+                "sur ses champs financiers."
+            )
         for key, value in data.items():
-            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by'):
+            if hasattr(instance, key) and key not in ('id', 'tenant_id', 'created_at', 'updated_by', 'ecriture_id'):
                 setattr(instance, key, value)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return instance
 
     @classmethod
@@ -388,8 +399,16 @@ class TresorerieService:
         instance = cls.get_by_id(id)
         if not instance:
             return False
-        db.session.delete(instance)
-        db.session.commit()
+        if instance.is_reconcilie or instance.ecriture_id:
+            raise ValueError(
+                "Une écriture de trésorerie liée ou réconciliée ne peut pas être supprimée."
+            )
+        instance.delete()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
         return True
 
     @classmethod
