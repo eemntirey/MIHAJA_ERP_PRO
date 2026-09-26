@@ -77,7 +77,7 @@ class ModeleResource(Resource):
             db.session.rollback()
             return {'message': 'Erreur lors de la modification du modèle de document'}, 500
 
-    @permission_required('quote.create')
+    @permission_required('quote.delete')
     @tenant_required_readonly
     def delete(self, id):
         success = ModeleDocumentService.delete(id)
@@ -127,7 +127,7 @@ class DocumentResource(Resource):
             return {'message': 'Document non trouve'}, 404
         return document.to_dict(), 200
 
-    @permission_required('quote.create')
+    @permission_required('quote.delete')
     @tenant_required_readonly
     def delete(self, id):
         success = DocumentGenereService.delete(id)
