@@ -544,3 +544,27 @@ def test_backend_blocks_unsubscribed_module_by_permission(app):
     r = client.get('/api/v1/comptes', headers=headers)
     assert r.status_code == 403, r.get_json()
     assert r.get_json()['module'] == 'comptabilite'
+
+def test_papi_payment_requires_pending_subscription(app):
+    """Un abonnement actif ne peut pas générer un second paiement Papi."""
+    from app.models.paiement import Paiement
+    from app.services.papi.payment import create_subscription_payment
+
+    with app.app_context():
+        tenant, _ = _make_tenant_with_abonnement(plan='pro')
+        current = Abonnement.query.filter_by(
+            tenant_id=tenant.id,
+            statut=StatutAbonnement.ACTIF,
+            is_active=True,
+        ).one()
+
+        with pytest.raises(ValueError, match='en attente de paiement'):
+            create_subscription_payment(
+                current.id,
+                'MVOLA',
+                tenant_id=tenant.id,
+            )
+        assert Paiement.query.filter_by(
+            tenant_id=tenant.id,
+            subscription_id=current.id,
+        ).count() == 0
