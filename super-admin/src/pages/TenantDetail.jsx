@@ -141,18 +141,18 @@ const TenantDetail = () => {
 
   const handleDelete = () => {
     setConfirmAction({
-      title: 'Supprimer le tenant',
-      message: `Êtes-vous sûr de vouloir supprimer définitivement ${tenant.nom} ? Toutes les données (utilisateurs, employés, produits, ventes, factures, etc.) seront supprimées de la base de données.`,
-      warning: 'Cette action est irréversible.',
-      confirmText: 'Supprimer',
+      title: 'Désactiver le tenant',
+      message: `Êtes-vous sûr de vouloir désactiver ${tenant.nom} ? Une sauvegarde des données est conservée pour restauration/support.`,
+      warning: 'Cette action désactive le tenant sans suppression physique immédiate des données.',
+      confirmText: 'Désactiver',
       confirmClass: 'btn-danger',
       onConfirm: async () => {
         try {
           await superAdminTenantService.delete(tenant.id);
-          toast.success('Tenant supprimé');
+          toast.success('Tenant désactivé');
           navigate('/tenants');
         } catch {
-          toast.error('Échec de la suppression');
+          toast.error('Échec de la désactivation');
         }
         setConfirmAction(null);
       },
