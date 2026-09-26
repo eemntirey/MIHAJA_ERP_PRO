@@ -163,13 +163,19 @@ const SuperAdmin = () => {
 
   const [formData, setFormData] = useState({
     nom: '',
+    slug: '',
     email: '',
     telephone: '',
     adresse: '',
     ville: '',
     code_postal: '',
     pays: 'Madagascar',
-    statut: 'actif',
+    plan: 'gratuit',
+    admin_nom: '',
+    admin_prenom: '',
+    admin_email: '',
+    admin_password: '',
+    statut: 'en_essai',
   });
 
   const fetchTenants = async () => {
@@ -373,13 +379,19 @@ const SuperAdmin = () => {
       statut: tenant.statut || 'actif',
     } : {
       nom: '',
+      slug: '',
       email: '',
       telephone: '',
       adresse: '',
       ville: '',
       code_postal: '',
       pays: 'Madagascar',
-      statut: 'actif',
+      plan: 'gratuit',
+      admin_nom: '',
+      admin_prenom: '',
+      admin_email: '',
+      admin_password: '',
+      statut: 'en_essai',
     });
     setShowModal(true);
   };
@@ -404,10 +416,31 @@ const SuperAdmin = () => {
           setTenants(prev => prev.map(t => t.id === editingTenant.id ? response.data : t));
         }
       } else {
-        const response = await tenantService.create(formData);
+        const payload = {
+          nom: formData.nom,
+          slug: formData.slug,
+          email_contact: formData.email,
+          telephone: formData.telephone,
+          adresse: formData.adresse,
+          ville: formData.ville,
+          code_postal: formData.code_postal,
+          pays: formData.pays,
+          plan: formData.plan,
+          statut: formData.statut,
+          admin_nom: formData.admin_nom,
+          admin_prenom: formData.admin_prenom,
+          admin_email: formData.admin_email || formData.email,
+          admin_password: formData.admin_password,
+        };
+        if (!payload.slug || !payload.admin_email || !payload.admin_password) {
+          toast.error('Slug, email admin et mot de passe admin sont requis');
+          return;
+        }
+        const response = await tenantService.create(payload);
         toast.success('Tenant créé');
-        if (response.data && response.data.id) {
-          setTenants(prev => [...prev, response.data]);
+        if (response.data && (response.data.id || response.data.tenant?.id)) {
+          const createdTenant = response.data.tenant || response.data;
+          setTenants(prev => [...prev, createdTenant]);
         }
       }
       closeModal();
@@ -1480,13 +1513,50 @@ const SuperAdmin = () => {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-grid">
                 <div className="form-group full-width">
-                  <label htmlFor="nom">Nom</label>
+                  <label htmlFor="nom">Entreprise *</label>
                   <input id="nom" name="nom" value={formData.nom} onChange={handleChange} required disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
+                {!editingTenant && (
+                  <>
+                    <div className="form-group full-width">
+                      <label htmlFor="slug">Slug *</label>
+                      <input id="slug" name="slug" value={formData.slug} onChange={handleChange} placeholder="ex. mon-entreprise" required />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="plan">Plan *</label>
+                      <select id="plan" name="plan" value={formData.plan} onChange={handleChange}>
+                        <option value="gratuit">Gratuit</option>
+                        <option value="starter">Starter</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                  </>
+                )}
                 <div className="form-group full-width">
-                  <label htmlFor="email">Email</label>
-                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required disabled={!!editingTenant} readOnly={!!editingTenant} />
+                  <label htmlFor="email">Email de contact</label>
+                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={!!editingTenant} readOnly={!!editingTenant} />
                 </div>
+                {!editingTenant && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="admin_nom">Nom admin principal</label>
+                      <input id="admin_nom" name="admin_nom" value={formData.admin_nom} onChange={handleChange} />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="admin_prenom">Prénom admin principal</label>
+                      <input id="admin_prenom" name="admin_prenom" value={formData.admin_prenom} onChange={handleChange} />
+                    </div>
+                    <div className="form-group full-width">
+                      <label htmlFor="admin_email">Email admin principal *</label>
+                      <input id="admin_email" name="admin_email" type="email" value={formData.admin_email} onChange={handleChange} placeholder="Par défaut : email de contact" required={false} />
+                    </div>
+                    <div className="form-group full-width">
+                      <label htmlFor="admin_password">Mot de passe admin principal *</label>
+                      <input id="admin_password" name="admin_password" type="password" value={formData.admin_password} onChange={handleChange} minLength={8} required />
+                    </div>
+                  </>
+                )}
                 <div className="form-group">
                   <label htmlFor="telephone">Téléphone</label>
                   <input id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} disabled={!!editingTenant} readOnly={!!editingTenant} />
@@ -1523,11 +1593,11 @@ const SuperAdmin = () => {
                 <div className="form-group">
                   <label htmlFor="statut">Statut</label>
                   <select id="statut" name="statut" value={formData.statut} onChange={handleChange}>
+                    <option value="en_essai">En essai</option>
                     <option value="actif">Actif</option>
                     <option value="inactif">Inactif</option>
                   </select>
                 </div>
-              </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
                 <button type="submit" className="btn-primary">Enregistrer</button>
