@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services/api';
-import GuidedOnboarding, { shouldOpenGuidedOnboarding } from '../components/GuidedOnboarding';
 import {
   buildChartGeometry,
   buildPriorities,
@@ -427,7 +426,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
-  const [guideOpen, setGuideOpen] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -492,12 +490,6 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  useEffect(() => {
-    if (hasLoaded && shouldOpenGuidedOnboarding(user)) {
-      setGuideOpen(true);
-    }
-  }, [hasLoaded, user]);
-
   const chartGeometry = useMemo(
     () => buildChartGeometry(dashboardState.evolution),
     [dashboardState.evolution]
@@ -549,7 +541,7 @@ const Dashboard = () => {
             periodCaption={periodCaption}
             onExport={handleExport}
             onRefresh={fetchDashboardData}
-            onOpenGuide={() => setGuideOpen(true)}
+            onOpenGuide={() => window.dispatchEvent(new CustomEvent('erp:open-onboarding'))}
             loading={loading}
           />
 
@@ -652,11 +644,6 @@ const Dashboard = () => {
           </section>
         </div>
       </main>
-
-      <GuidedOnboarding
-        open={guideOpen}
-        onClose={() => setGuideOpen(false)}
-      />
 
       <Link className="dashboard-assistant" to="/ai" aria-label="Ouvrir l’assistant IA" title="Assistant IA">
         <i className="ti ti-sparkles" aria-hidden="true" />
