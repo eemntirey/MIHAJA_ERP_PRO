@@ -115,20 +115,30 @@ class ClientService(BaseService):
         }
 
     def create(cls, data: Dict[str, Any]) -> Client:
-        """Crée un nouveau client"""
-        if 'code' not in data or not data['code']:
-            raise ValueError("Le code client est requis")
-
-        data['code'] = cls._validate_code(data['code'])
-
+        """Crée un nouveau client et génère un code si nécessaire."""
         tenant_id = get_current_tenant_id()
         if not tenant_id:
             raise ValueError("Aucun tenant associe a ce compte")
-        
-        q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
-        q = q.execution_options(_skip_tenant_filter=True)
-        if q.first():
-            raise ValueError(f"Le code {data['code']} existe déjà")
+
+        code = str(data.get('code') or '').strip()
+        if code:
+            data['code'] = cls._validate_code(code)
+            q = cls.model.query.filter_by(code=data['code'], tenant_id=tenant_id)
+            q = q.execution_options(_skip_tenant_filter=True)
+            if q.first():
+                raise ValueError(f"Le code {data['code']} existe déjà")
+        else:
+            # Génération côté serveur : le code reste unique et l'utilisateur
+            # n'a pas besoin de renseigner un identifiant technique.
+            for _ in range(10):
+                candidate = f"CLI-{uuid.uuid4().hex[:8].upper()}"
+                q = cls.model.query.filter_by(code=candidate, tenant_id=tenant_id)
+                q = q.execution_options(_skip_tenant_filter=True)
+                if not q.first():
+                    data['code'] = candidate
+                    break
+            else:
+                raise ValueError("Impossible de générer un code client unique")
         
         if data.get('email'):
             q = cls.model.query.filter_by(email=data['email'], tenant_id=tenant_id)
