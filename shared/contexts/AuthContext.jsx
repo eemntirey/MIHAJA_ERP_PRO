@@ -9,6 +9,7 @@ import api, { authService, subscriptionService } from '../services/api';
 import { authStorage, AUTH_KEYS } from '../storage/authStorage';
 import { runMigration } from '../utils/migrateLocalStorage';
 import { getDeviceId } from '../utils/deviceId';
+import { tokenStore } from '../storage/tokenStore';
 
 export const AuthContext = createContext();
 
@@ -187,12 +188,15 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
                 password: password,
             });
 
-            const {
+                const {
                 access_token,
                 refresh_token,
                 user: userData,
                 tenant: tenantData,
                 must_change_password: mustChange,
+                central_access_token: centralAccessToken,
+                central_refresh_token: centralRefreshToken,
+                offline: offlineMode,
             } = response.data || {};
 
             // A1 : web — les tokens sont en cookies HttpOnly, pas besoin de les lire
@@ -205,6 +209,22 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
             const mustChangeFlag = Boolean(
                 mustChange ?? userData?.must_change_password
             );
+
+            // Desktop : conserver les deux chemins d'accès. Le central est la
+            // source de vérité en ligne ; le token local reste disponible pour
+            // le basculement hors-ligne sans perdre la session.
+            if (typeof window !== 'undefined' && window.electron?.secureStore) {
+                tokenStore.setOfflineTokens({
+                    access_token,
+                    refresh_token,
+                });
+                if (centralAccessToken) {
+                    tokenStore.setCentralTokens({
+                        access_token: centralAccessToken,
+                        refresh_token: centralRefreshToken,
+                    });
+                }
+            }
 
             // S'assurer que userData inclut le flag pour les rechargements de page
             const normalizedUser = { ...userData, must_change_password: mustChangeFlag };
