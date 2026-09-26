@@ -114,7 +114,10 @@ class EcritureResource(Resource):
     @tenant_required_readonly
     @permission_required('ecriture.delete')
     def delete(self, id):
-        success = EcritureComptableService.delete(id)
+        try:
+            success = EcritureComptableService.delete(id)
+        except ValueError as exc:
+            return {'message': str(exc)}, 400
         if not success:
             return {'message': 'Ecriture non trouvee'}, 404
         return {'message': 'Ecriture supprimee'}, 200
