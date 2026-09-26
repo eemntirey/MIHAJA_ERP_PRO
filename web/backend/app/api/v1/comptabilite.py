@@ -151,12 +151,11 @@ class EcritureJournal(Resource):
         date_debut = request.args.get('date_debut')
         date_fin = request.args.get('date_fin')
         compte_id = request.args.get('compte_id')
-        debut = date.fromisoformat(date_debut) if date_debut else None
-        fin = date.fromisoformat(date_fin) if date_fin else None
-        if date_debut and debut is None:
-            return {'message': 'Format de date_debut invalide (YYYY-MM-DD)'}, 400
-        if date_fin and fin is None:
-            return {'message': 'Format de date_fin invalide (YYYY-MM-DD)'}, 400
+        try:
+            debut = date.fromisoformat(date_debut) if date_debut else None
+            fin = date.fromisoformat(date_fin) if date_fin else None
+        except (ValueError, TypeError):
+            return {'message': 'Format de date invalide (YYYY-MM-DD)'}, 400
         try:
             compte_id_int = int(compte_id) if compte_id else None
         except (TypeError, ValueError):
@@ -231,12 +230,11 @@ class TresorerieSolde(Resource):
         from flask import request
         date_debut = request.args.get('date_debut')
         date_fin = request.args.get('date_fin')
-        debut = date.fromisoformat(date_debut) if date_debut else None
-        fin = date.fromisoformat(date_fin) if date_fin else None
-        if date_debut and debut is None:
-            return {'message': 'Format de date_debut invalide (YYYY-MM-DD)'}, 400
-        if date_fin and fin is None:
-            return {'message': 'Format de date_fin invalide (YYYY-MM-DD)'}, 400
+        try:
+            debut = date.fromisoformat(date_debut) if date_debut else None
+            fin = date.fromisoformat(date_fin) if date_fin else None
+        except (ValueError, TypeError):
+            return {'message': 'Format de date invalide (YYYY-MM-DD)'}, 400
         solde = TresorerieService.get_solde(debut, fin)
         return {'solde': solde, 'date_debut': date_debut, 'date_fin': date_fin}, 200
 
@@ -249,12 +247,11 @@ class TresorerieMouvements(Resource):
         from flask import request
         date_debut = request.args.get('date_debut')
         date_fin = request.args.get('date_fin')
-        debut = date.fromisoformat(date_debut) if date_debut else None
-        fin = date.fromisoformat(date_fin) if date_fin else None
-        if date_debut and debut is None:
-            return {'message': 'Format de date_debut invalide (YYYY-MM-DD)'}, 400
-        if date_fin and fin is None:
-            return {'message': 'Format de date_fin invalide (YYYY-MM-DD)'}, 400
+        try:
+            debut = date.fromisoformat(date_debut) if date_debut else None
+            fin = date.fromisoformat(date_fin) if date_fin else None
+        except (ValueError, TypeError):
+            return {'message': 'Format de date invalide (YYYY-MM-DD)'}, 400
         mouvements = TresorerieService.get_mouvements(debut, fin)
         return {'mouvements': mouvements, 'count': len(mouvements)}, 200
 
