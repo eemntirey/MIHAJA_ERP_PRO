@@ -78,6 +78,10 @@ class TenantList(Resource):
         if not admin_email or not admin_password:
             return {'message': 'admin_email et admin_password sont requis pour creer l\'admin principal'}, 400
 
+        password_error = _validate_password(admin_password)
+        if password_error:
+            return {'message': password_error}, 400
+
         try:
             tenant = Tenant(
                 nom=data.get('nom'),
