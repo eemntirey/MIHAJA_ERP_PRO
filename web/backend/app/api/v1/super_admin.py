@@ -42,7 +42,7 @@ from app.models.prime import Prime
 from app.models.desk_state import DeskFavorite, DeskFilterPreset, DeskColumnConfig, SyncEvent
 from app.services.rh_service import EmployeService
 from app.security.roles import is_super_admin
-from app.security.plans import apply_plan_to_abonnement, get_plan_price, get_plan_config, get_plan_duration_days, is_unlimited, _persist_plan_override
+from app.security.plans import apply_plan_to_abonnement, get_plan_price, get_plan_config, get_plan_duration_days, is_unlimited, _persist_plan_override, PLAN_CONFIG
 from app.websockets.socket_events import broadcast_to_tenant, broadcast_to_super_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
@@ -738,7 +738,7 @@ class ChangeSubscription(Resource):
         new_plan = str(data.get('plan') or '').strip().lower()
         if not new_plan:
             return {'message': 'Plan requis'}, 400
-        if new_plan not in get_plan_config.__globals__['PLAN_CONFIG']:
+        if new_plan not in PLAN_CONFIG:
             return {'message': 'Plan invalide'}, 400
 
         raw_days = data.get('days')
