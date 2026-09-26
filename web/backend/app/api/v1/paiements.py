@@ -90,7 +90,7 @@ class PaiementResource(Resource):
             current_app.logger.exception('Erreur mise a jour paiement')
             return {'message': 'Erreur lors de la mise a jour du paiement'}, 400
 
-    @permission_required('payment.create')
+    @permission_required('payment.delete')
     @tenant_required_readonly
     def delete(self, id):
         """Supprime un paiement"""
