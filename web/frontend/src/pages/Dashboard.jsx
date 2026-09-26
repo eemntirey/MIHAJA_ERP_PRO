@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService } from '../services/api';
+import GuidedOnboarding, { shouldOpenGuidedOnboarding } from '../components/GuidedOnboarding';
 import {
   buildChartGeometry,
   buildPriorities,
@@ -51,7 +52,7 @@ const fadeUp = {
 };
 
 
-const DashboardHeader = ({ periodLabel, periodCaption, onExport, onRefresh, loading }) => (
+const DashboardHeader = ({ periodLabel, periodCaption, onExport, onRefresh, onOpenGuide, loading }) => (
   <header className="dashboard-header">
     <div className="dashboard-header__copy">
       <p className="dashboard-eyebrow">Vue opérationnelle / {periodCaption}</p>
@@ -66,6 +67,10 @@ const DashboardHeader = ({ periodLabel, periodCaption, onExport, onRefresh, load
         <i className="ti ti-calendar-event" aria-hidden="true" />
         <span>{periodLabel}</span>
         <i className="ti ti-chevron-down" aria-hidden="true" />
+      </button>
+      <button type="button" className="dashboard-button dashboard-button--outline" onClick={onOpenGuide}>
+        <i className="ti ti-help-circle" aria-hidden="true" />
+        Guide
       </button>
       <button type="button" className="dashboard-button dashboard-button--outline" onClick={onExport}>
         <i className="ti ti-download" aria-hidden="true" />
@@ -422,6 +427,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -485,6 +491,12 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  useEffect(() => {
+    if (hasLoaded && shouldOpenGuidedOnboarding(user)) {
+      setGuideOpen(true);
+    }
+  }, [hasLoaded, user]);
 
   const chartGeometry = useMemo(
     () => buildChartGeometry(dashboardState.evolution),
@@ -639,6 +651,11 @@ const Dashboard = () => {
           </section>
         </div>
       </main>
+
+      <GuidedOnboarding
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+      />
 
       <Link className="dashboard-assistant" to="/ai" aria-label="Ouvrir l’assistant IA" title="Assistant IA">
         <i className="ti ti-sparkles" aria-hidden="true" />
