@@ -114,8 +114,9 @@ class StockMouvementList(Resource):
             )
             return {'message': str(exc)}, 400
         except Exception:
+            db.session.rollback()
             current_app.logger.exception('Erreur lors de la mise a jour du stock')
-            return {'message': 'Erreur lors de la mise a jour du stock'}, 400
+            return {'message': 'Erreur lors de la mise a jour du stock'}, 500
 
 @ns.route('/stats')
 class StockStats(Resource):
