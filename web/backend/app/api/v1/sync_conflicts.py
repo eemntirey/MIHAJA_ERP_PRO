@@ -14,6 +14,7 @@ from flask_restx import Namespace, Resource
 
 from app import db
 from app.models.sync_replica import SyncConflict
+from app.security.tenant import get_current_tenant_id
 
 ns = Namespace('sync/conflicts', description='Résolution des conflits locaux')
 
@@ -23,9 +24,11 @@ class ConflictList(Resource):
     @jwt_required()
     def get(self):
         """Conflits enregistrés, du plus récent au plus ancien."""
-        rows = SyncConflict.query.order_by(
-            SyncConflict.created_at.desc()
-        ).all()
+        tenant_id = get_current_tenant_id()
+        query = SyncConflict.query.order_by(SyncConflict.created_at.desc())
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        rows = query.all()
         return {
             'conflicts': [
                 {
@@ -48,7 +51,11 @@ class ConflictResolve(Resource):
     @jwt_required()
     def post(self, conflict_id):
         """Tranche un conflit : version locale ou version centrale."""
-        conflict = SyncConflict.query.filter_by(id=conflict_id).first()
+        tenant_id = get_current_tenant_id()
+        query = SyncConflict.query.filter_by(id=conflict_id)
+        if tenant_id is not None:
+            query = query.filter_by(tenant_id=tenant_id)
+        conflict = query.first()
         if conflict is None:
             return {'message': 'Conflit introuvable.'}, 404
 
@@ -68,7 +75,10 @@ class ConflictResolve(Resource):
         else:
             from app.services.replication.pull import apply_remote_locally
             ok, message = apply_remote_locally(
-                conflict.entity, conflict.remote_payload, conflict.entity_pk,
+                conflict.entity,
+                conflict.remote_payload,
+                conflict.entity_pk,
+                tenant_id=conflict.tenant_id,
             )
             if not ok:
                 return {'message': message}, 409
