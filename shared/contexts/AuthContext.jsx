@@ -51,51 +51,98 @@ export function AuthProvider({ children, fetchSubscriptionOnInit = true }) {
     }, []);
 
     useEffect(() => {
-        const token = authStorage.getAccessToken();
-        const userData = authStorage.getUser();
-        const tenantData = authStorage.getTenant();
-        const subscriptionData = authStorage.getSubscription();
+        let cancelled = false;
 
-        // A1 : web — restaurer la session depuis les données utilisateur même
-        // sans token en localStorage (les tokens sont en cookies HttpOnly).
-        // Electron — exiger le token (secureStore).
-        const hasValidSession = userData && (token || typeof window !== 'undefined' && window.localStorage);
-        if (hasValidSession) {
-            try {
-                setUser(userData);
-                setIsAuthenticated(true);
-                // Restaurer le flag must_change_password depuis les donnees
-                // utilisateur persistees (storage local / localStorage).
-                setMustChangePassword(Boolean(userData.must_change_password));
-
-                if (tenantData) {
-                    setTenant(tenantData);
-                }
-
-                if (subscriptionData) {
-                    setSubscription(subscriptionData);
-                } else if (fetchSubscriptionOnInit) {
-                    setSubscriptionLoading(true);
-                }
-            } catch (error) {
-                authStorage.clear();
-                setUser(null);
-                setTenant(null);
-                setSubscription(null);
-                setSubscriptionLoading(false);
-                setIsAuthenticated(false);
-            }
-        } else {
+        const resetSession = () => {
+            if (cancelled) return;
+            authStorage.clear();
             setUser(null);
             setTenant(null);
             setSubscription(null);
             setSubscriptionLoading(false);
             setIsAuthenticated(false);
             setMustChangePassword(false);
-        }
+        };
 
-        setLoading(false);
-    }, []);
+        const restoreSession = async () => {
+            const isElectron = typeof window !== 'undefined' && !!window.electron?.secureStore;
+            const token = authStorage.getAccessToken();
+            const userData = authStorage.getUser();
+            const tenantData = authStorage.getTenant();
+            const subscriptionData = authStorage.getSubscription();
+
+            if (!userData) {
+                if (!cancelled) {
+                    setUser(null);
+                    setTenant(null);
+                    setSubscription(null);
+                    setSubscriptionLoading(false);
+                    setIsAuthenticated(false);
+                    setMustChangePassword(false);
+                    setLoading(false);
+                }
+                return;
+            }
+
+            try {
+                let restoredUser = userData;
+                let restoredTenant = tenantData;
+
+                if (isElectron) {
+                    // Electron peut fonctionner hors ligne : la session locale
+                    // reste disponible tant qu'un jeton local existe.
+                    if (!token) {
+                        resetSession();
+                        return;
+                    }
+                } else {
+                    // Web : le JWT est HttpOnly et ne peut pas être vérifié depuis
+                    // localStorage. Valider systématiquement la session côté API
+                    // afin d'éviter qu'un profil cache ne lance des appels protégés
+                    // avec un cookie expiré/inexistant.
+                    const response = await authService.getCurrentUser();
+                    restoredUser = response.data?.user || null;
+                    restoredTenant = response.data?.tenant || null;
+                    if (!restoredUser) {
+                        throw new Error('Session utilisateur absente');
+                    }
+
+                    authStorage.setUser(restoredUser);
+                    if (restoredTenant) {
+                        authStorage.setTenant(restoredTenant);
+                    }
+                }
+
+                if (cancelled) return;
+
+                setUser(restoredUser);
+                setTenant(restoredTenant || null);
+                setIsAuthenticated(true);
+                setMustChangePassword(Boolean(restoredUser.must_change_password));
+
+                if (subscriptionData) {
+                    setSubscription(subscriptionData);
+                } else if (fetchSubscriptionOnInit && (restoredUser?.tenant_id || restoredUser?.tenant?.id)) {
+                    setSubscriptionLoading(true);
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    console.warn('[AuthContext] Session restoration failed:', error.response?.status || error.message);
+                    resetSession();
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        restoreSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [fetchSubscriptionOnInit]);
 
     useEffect(() => {
         runMigration().catch(() => {
