@@ -71,7 +71,10 @@ class AbonnementService:
         if not tenant_id:
             raise ValueError("tenant_id requis")
 
-        plan = data.get('plan', 'gratuit')
+        plan = str(data.get('plan', 'gratuit')).strip().lower()
+        from app.security.plans import PLAN_CONFIG
+        if plan not in PLAN_CONFIG:
+            raise ValueError(f"Plan invalide: {plan}")
 
         if plan == 'gratuit' and get_plan_price(plan) == 0:
             return cls.activate_free_plan(tenant_id, plan), None
