@@ -165,6 +165,34 @@ class TestPapiPaymentCreation:
         assert data['payment']['payment_method'] == 'MVOLA'
         assert data['payment']['statut'] == 'en_attente'
 
+    def test_create_payment_preserves_merchant_reference(self, client, app, auth_headers):
+        headers, tenant_id, user_id, sub_id = auth_headers
+        mock_response = _papi_response()
+        papi_reference = mock_response['data']['paymentReference']
+        merchant_reference = f'SUB-MERCHANT-{uuid.uuid4().hex[:10].upper()}'
+        mock_response['data']['merchantPaymentReference'] = merchant_reference
+
+        with patch('app.services.papi.client.requests.post') as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = mock_response
+            mock_post.return_value.raise_for_status.return_value = None
+
+            response = client.post(
+                f'/api/v1/papi/payments/subscription/{sub_id}',
+                headers=headers,
+                json={'payment_method': 'MVOLA', 'is_test_mode': True},
+            )
+
+        assert response.status_code == 200, response.get_json()
+        with app.app_context():
+            paiement = Paiement.query.filter_by(
+                external_reference=merchant_reference,
+                tenant_id=tenant_id,
+            ).one()
+            metadata = json.loads(paiement.payment_metadata or '{}')
+            assert metadata['merchant_payment_reference'] == merchant_reference
+            assert metadata['papi_payment_reference'] == papi_reference
+
     def test_create_payment_invalid_method(self, client, auth_headers):
         headers, tenant_id, user_id, sub_id = auth_headers
         response = client.post(
@@ -210,7 +238,7 @@ class TestPapiPaymentCreation:
 
             from flask_jwt_extended import create_access_token
             other_token = create_access_token(
-                identity=other_user.id,
+                identity=str(other_user.id),
                 additional_claims={
                     'username': other_user.username,
                     'email': other_user.email,
