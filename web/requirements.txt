@@ -17,7 +17,7 @@ alembic==1.12.1
 # Sécurité
 PyJWT==2.13.0
 bcrypt==4.1.1
-cryptography==48.0.1
+cryptography==50.0.0
 python-dotenv==1.2.2
 
 # Validation et sérialisation
