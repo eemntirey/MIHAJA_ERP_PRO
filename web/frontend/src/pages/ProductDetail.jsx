@@ -75,6 +75,8 @@ const ProductDetail = () => {
     product.description_courte ||
     `Découvrez ${product.nom} sur MIHAJA ERP PRO.`;
   const productImage = product.image_url || product.image || product.photo || undefined;
+  const publicBaseUrl = window.location.origin;
+  const productCanonicalUrl = `${publicBaseUrl}/produit/${id}`;
   const productStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -87,7 +89,7 @@ const ProductDetail = () => {
       : undefined,
     offers: {
       '@type': 'Offer',
-      url: `https://erp.sekoliko.com/produits/${id}`,
+      url: productCanonicalUrl,
       priceCurrency: 'MGA',
       price: price,
       availability: stock > 0
@@ -101,7 +103,7 @@ const ProductDetail = () => {
       <Seo
         title={`${product.nom} | MIHAJA ERP PRO`}
         description={productDescription.slice(0, 160)}
-        canonical={`https://erp.sekoliko.com/produits/${id}`}
+        canonical={productCanonicalUrl}
         type="product"
         image={productImage}
         structuredData={productStructuredData}
