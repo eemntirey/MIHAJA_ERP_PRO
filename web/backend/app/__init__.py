@@ -424,7 +424,7 @@ def create_app():
     def revoked_token_callback(jwt_header, jwt_payload):
         return {'message': 'Token JWT révoqué'}, 401
 
-    from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError
+    from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, RevokedTokenError, JWTDecodeError, CSRFError
 
     @jwt.unauthorized_loader
     def unauthorized_callback(err):
@@ -453,6 +453,17 @@ def create_app():
     @app.errorhandler(RevokedTokenError)
     def handle_revoked_token_error(e):
         return {'message': 'Token JWT révoqué'}, 401
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        # En production, le CSRF JWT reste obligatoire. Une erreur CSRF est
+        # une erreur d'authentification (401), jamais une erreur serveur 500.
+        # Cela permet au frontend de renouveler/recréer proprement la session
+        # au lieu de faire remonter une fausse panne du backend.
+        return {
+            'message': 'Protection CSRF JWT invalide ou absente',
+            'code': 'JWT_CSRF_ERROR',
+        }, 401
 
     from werkzeug.exceptions import HTTPException
 
@@ -490,7 +501,7 @@ def create_app():
         from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidSignatureError, InvalidTokenError
         if isinstance(e, (
             NoAuthorizationError, InvalidHeaderError,
-            RevokedTokenError, JWTDecodeError,
+            RevokedTokenError, JWTDecodeError, CSRFError,
             WrongTokenError, ExpiredSignatureError,
             # PyJWT brut : flask_jwt_extended 4.x laisse fuiter le DecodeError
             # (ex: header de token non décodable en base64) sans l'envelopper
