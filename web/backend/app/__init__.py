@@ -209,13 +209,12 @@ def create_app():
     # tous les endpoints API, notamment /api/v1/auth/refresh.
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_REFRESH_COOKIE_PATH'] = '/'
-    # CSRF double-submit obligatoire en production.
-    jwt_cookie_csrf_protect = os.getenv(
-        'JWT_COOKIE_CSRF_PROTECT',
-        'true' if _is_prod else 'false',
-    ).lower() in ('1', 'true', 'yes', 'on')
-    if _is_prod and not jwt_cookie_csrf_protect:
-        raise ValueError('JWT_COOKIE_CSRF_PROTECT doit être activé en production')
+    # CSRF double-submit : toujours force en production, meme si une ancienne
+    # variable Render conserve accidentellement la valeur "false".
+    jwt_cookie_csrf_protect = (
+        True if _is_prod else os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false')
+        .lower() in ('1', 'true', 'yes', 'on')
+    )
     app.config['JWT_COOKIE_CSRF_PROTECT'] = jwt_cookie_csrf_protect
     app.config['JWT_CSRF_IN_COOKIES'] = True
     app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrf_access_token'
