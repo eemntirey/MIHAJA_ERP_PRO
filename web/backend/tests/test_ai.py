@@ -58,7 +58,8 @@ def _seed_ai_tenant_data(tenant, tag, rich=False):
     ``PRODUIT-SECRET-<tag>``, facture impayée de 45 jours) dont toute
     apparition dans les résultats d'un autre tenant prouve une fuite.
     """
-    client = Client(code=f'CL-{tag}', nom=f'Client {tag}', tenant_id=tenant.id)
+    unique_tag = f'{tag}-{uuid.uuid4().hex[:10]}'
+    client = Client(code=f'CL-{unique_tag}', nom=f'Client {tag}', tenant_id=tenant.id)
     db.session.add(client)
     db.session.flush()
 
@@ -74,7 +75,7 @@ def _seed_ai_tenant_data(tenant, tag, rich=False):
         # pour predict_sales.
         total = 500000 if i == 0 else 100
         vente = Vente(
-            reference=f'V-{tag}-{i}',
+            reference=f'V-{unique_tag}-{i}',
             client_id=client.id,
             total_ht=total,
             total_ttc=total,
@@ -89,7 +90,7 @@ def _seed_ai_tenant_data(tenant, tag, rich=False):
     facture = Facture(
         vente_id=ventes[0].id,
         client_id=client.id,
-        reference=f'F-{tag}',
+        reference=f'F-{unique_tag}',
         total_ttc=100000,
         statut='non_payee',
         created_at=now - timedelta(days=45),
@@ -98,8 +99,8 @@ def _seed_ai_tenant_data(tenant, tag, rich=False):
     db.session.add(facture)
 
     produit = Produit(
-        reference=f'P-{tag}',
-        nom=f'PRODUIT-SECRET-{tag}',
+        reference=f'P-{unique_tag}',
+        nom=f'PRODUIT-SECRET-{tag}-{unique_tag.split('-',1)[1]}',
         quantite_stock=1,
         seuil_alerte=10,
         prix_achat_ht=100,
