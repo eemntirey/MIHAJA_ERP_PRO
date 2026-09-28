@@ -3,6 +3,7 @@ import Seo from '../components/Seo';
 import PublicHeader from '../components/PublicHeader';
 import './Pages.css';
 
+const PUBLIC_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 const DESKTOP_DOWNLOAD_URL = '/download/desktop';
 
 const DOWNLOADS = [
