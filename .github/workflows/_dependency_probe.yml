@@ -24,7 +24,7 @@ jobs:
 
       - name: Install from generated lockfile
         working-directory: desk
-        run: npm ci --ignore-scripts
+        run: npm ci
 
       - name: Validate startup contracts
         working-directory: desk
