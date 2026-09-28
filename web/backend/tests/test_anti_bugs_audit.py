@@ -114,6 +114,25 @@ def _register_company(client, name, email, plan='starter', password='Companie123
     from app.services.abonnement_service import AbonnementService
 
     with current_app.app_context():
+        # L'inscription laisse le Gratuit dans l'historique. Pour préparer une
+        # fixture Starter/Pro, on le conserve comme historique mais on désactive
+        # son statut courant avant d'activer le plan de test.
+        free_abonnement = (
+            Abonnement.query
+            .filter_by(
+                tenant_id=tenant_id,
+                plan='gratuit',
+                is_active=True,
+            )
+            .order_by(Abonnement.created_at.desc())
+            .first()
+        )
+        if free_abonnement:
+            free_abonnement.is_active = False
+            free_abonnement.statut = StatutAbonnement.ANNULE
+            db.session.add(free_abonnement)
+            db.session.flush()
+
         abonnement = AbonnementService.create_abonnement({
             'tenant_id': tenant_id,
             'plan': plan,
