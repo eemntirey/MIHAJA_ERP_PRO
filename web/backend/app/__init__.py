@@ -770,42 +770,59 @@ def create_app():
             )
             g.current_tenant = None
 
-    # Auto-seed des rôles/permissions système si la table est vide.
-    # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
-    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
-    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
-    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
-    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
-    try:
-        with app.app_context():
-            missing_tables, inspection_error = _inspect_database_schema()
-            if inspection_error is not None or missing_tables:
-                _log_database_schema_problem(missing_tables, inspection_error)
-            else:
-                from app.models.role_permission import RoleModel, Permission
-                roles_empty = db.session.query(RoleModel.id).first() is None
-                perms_empty = db.session.query(Permission.id).first() is None
-                if roles_empty or perms_empty:
-                    from scripts.seed_roles import seed_roles
-                    seed_roles(app)
-                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
+
+    # Auto-seed explicite : les rôles/permissions systèmes peuvent être convergés
+    # automatiquement en dev/test, mais la production doit passer par le bootstrap
+    # ou une opération de maintenance explicitement autorisée. Cela évite toute
+    # écriture implicite au démarrage d'un serveur de production.
+    _auto_seed_raw = os.getenv('AUTO_SEED_DATA')
+    if _auto_seed_raw is None:
+        auto_seed_data = not _is_prod
+    else:
+        auto_seed_data = _auto_seed_raw.strip().lower() in ('1', 'true', 'yes', 'on')
+    app.config['AUTO_SEED_DATA'] = auto_seed_data
+
+    if auto_seed_data:
+        # Auto-seed des rôles/permissions système si la table est vide.
+        # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
+        # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
+        # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+        # Le schéma est inspecté AVANT toute requête : une base non migrée produit
+        # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
+        try:
+            with app.app_context():
+                missing_tables, inspection_error = _inspect_database_schema()
+                if inspection_error is not None or missing_tables:
+                    _log_database_schema_problem(missing_tables, inspection_error)
                 else:
-                    # Convergence : la matrice peut gagner de nouveaux codes
-                    # (ex. `user.delete`) sans que la table `permissions` soit
-                    # vide. On complète alors UNIQUEMENT les lignes manquantes
-                    # (idempotent, aucune donnée existante n'est supprimée) afin
-                    # que presets et rôles personnalisés exposent bien le CRUD
-                    # complet des modules souscrits par le tenant.
-                    from scripts.seed_roles import missing_permission_codes, seed_roles
-                    missing_codes = missing_permission_codes()
-                    if missing_codes:
+                    from app.models.role_permission import RoleModel, Permission
+                    roles_empty = db.session.query(RoleModel.id).first() is None
+                    perms_empty = db.session.query(Permission.id).first() is None
+                    if roles_empty or perms_empty:
+                        from scripts.seed_roles import seed_roles
                         seed_roles(app)
-                        logger.info(
-                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
-                            len(missing_codes), ", ".join(missing_codes[:10]),
-                        )
-    except Exception:
-        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+                        logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                    else:
+                        # Convergence : la matrice peut gagner de nouveaux codes
+                        # (ex. `user.delete`) sans que la table `permissions` soit
+                        # vide. On complète alors UNIQUEMENT les lignes manquantes
+                        # (idempotent, aucune donnée existante n'est supprimée) afin
+                        # que presets et rôles personnalisés exposent bien le CRUD
+                        # complet des modules souscrits par le tenant.
+                        from scripts.seed_roles import missing_permission_codes, seed_roles
+                        missing_codes = missing_permission_codes()
+                        if missing_codes:
+                            seed_roles(app)
+                            logger.info(
+                                "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
+                                len(missing_codes), ", ".join(missing_codes[:10]),
+                            )
+        except Exception:
+            logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+
+
+    else:
+        logger.info("Auto-seed rôles/permissions désactivé (AUTO_SEED_DATA=false).")
 
     # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
 
