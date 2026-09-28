@@ -1,0 +1,41 @@
+name: Dependency Probe (temporary)
+
+on:
+  push:
+    branches: [V0.01]
+
+jobs:
+  desktop-electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desk/package-lock.json
+
+      - name: Update Electron within patched major
+        working-directory: desk
+        run: npm install --save-dev electron@40.10.6 --package-lock-only --ignore-scripts
+
+      - name: Install from generated lockfile
+        working-directory: desk
+        run: npm ci --ignore-scripts
+
+      - name: Validate startup contracts
+        working-directory: desk
+        run: npm run test:startup
+
+      - name: Upload generated manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-probe-electron
+          path: |
+            desk/package.json
+            desk/package-lock.json
+          if-no-files-found: error
+          retention-days: 2
