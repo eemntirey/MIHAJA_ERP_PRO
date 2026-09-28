@@ -87,7 +87,7 @@ def app():
 
 
 def _register_company(client, name, email, plan='starter', password='Companie123'):
-    return client.post('/api/v1/auth/register', json={
+    response = client.post('/api/v1/auth/register', json={
         'profile_type': 'company',
         'nom_entreprise': name,
         'email': email,
@@ -96,6 +96,53 @@ def _register_company(client, name, email, plan='starter', password='Companie123
         'nom': 'Boss',
         'plan': plan,
     })
+
+    # Le produit crée volontairement toute nouvelle entreprise sur le Gratuit.
+    # Pour les tests de quotas/permissions d'un plan payant, on prépare ensuite
+    # explicitement l'abonnement demandé dans la base de test. Cela ne modifie
+    # pas le contrat réel de /register.
+    if response.status_code == 201 and str(plan).strip().lower() != 'gratuit':
+        from app.models.abonnement import Abonnement, StatutAbonnement
+        from app.models.tenant import Tenant, StatutTenant
+        from app.security.plans import (
+            apply_plan_to_abonnement,
+            get_plan_duration_days,
+            get_plan_price,
+            is_unlimited,
+        )
+        from datetime import datetime, timedelta
+
+        with client.application.app_context():
+            payload = response.get_json() or {}
+            tenant_id = payload.get('tenant', {}).get('id')
+            if tenant_id:
+                tenant = db.session.get(Tenant, tenant_id)
+                abonnement = (
+                    Abonnement.query
+                    .filter_by(tenant_id=tenant_id)
+                    .order_by(Abonnement.id.asc())
+                    .first()
+                )
+                requested_plan = str(plan).strip().lower()
+                if tenant and abonnement:
+                    now = datetime.utcnow()
+                    tenant.plan = requested_plan
+                    tenant.statut = StatutTenant.ACTIF
+                    tenant.is_active = True
+                    abonnement.plan = requested_plan
+                    abonnement.statut = StatutAbonnement.ACTIF
+                    abonnement.montant = get_plan_price(requested_plan)
+                    abonnement.date_debut = now
+                    duration = get_plan_duration_days(requested_plan)
+                    abonnement.date_fin = (
+                        now + timedelta(days=365 * 99)
+                        if is_unlimited(duration)
+                        else now + timedelta(days=duration)
+                    )
+                    apply_plan_to_abonnement(abonnement, requested_plan)
+                    db.session.commit()
+
+    return response
 
 
 def _login(client, email, password='Companie123', device_id='device-audit'):
