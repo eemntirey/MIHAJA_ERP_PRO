@@ -1,3 +1,4 @@
+import uuid
 ﻿from datetime import datetime, timedelta
 
 from tests._db_utils import test_database_url
