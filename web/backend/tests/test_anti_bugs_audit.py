@@ -399,7 +399,8 @@ class TestCritiqueDeuxTenantsMemePlan:
         assert _create_user(client, ha, 'a6').status_code == 403
         # TB : idem
         for i in range(6):
-            assert _create_user(client, hb, f'b{i}').status_code == 201
+            rb_user = _create_user(client, hb, f'b{i}')
+            assert rb_user.status_code == 201, rb_user.get_json()
         assert _create_user(client, hb, 'b6').status_code == 403
         _record('7 deux tenants meme plan', 'PASS')
 
