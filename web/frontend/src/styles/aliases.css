@@ -11,8 +11,6 @@
   --color-accent-border:   var(--color-primary);
   --color-accent-ring:     var(--color-primary-ring);
 
-  --color-onyx:            var(--color-text-primary);
-  --color-onyx-soft:       var(--color-neutral-800);
   --color-paper:           var(--color-background);
   --color-line:            var(--color-border);
   --color-line-strong:     var(--color-border-strong);
