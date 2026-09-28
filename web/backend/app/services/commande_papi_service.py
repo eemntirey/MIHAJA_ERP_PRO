@@ -222,7 +222,8 @@ def create_commande_papi_payment(
         )
         raise CommandePapiError(str(exc)) from exc
 
-    external_reference = papi_data.get('paymentReference', reference)
+    papi_payment_reference = papi_data.get('paymentReference', '')
+    external_reference = papi_data.get('merchantPaymentReference') or reference
     notification_token = papi_data.get('notificationToken', '')
 
     existing = Paiement.query.filter_by(
@@ -260,6 +261,7 @@ def create_commande_papi_payment(
         payment_metadata=json.dumps({
             'notification_token': notification_token,
             'merchant_payment_reference': external_reference,
+            'papi_payment_reference': papi_payment_reference,
         }),
     )
     db.session.add(paiement)
