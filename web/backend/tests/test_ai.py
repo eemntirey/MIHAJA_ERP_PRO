@@ -262,7 +262,10 @@ def test_ai_endpoints_invalid_period_returns_message(client, app):
         )
 
     headers = {'Authorization': f'Bearer {token}', 'X-Tenant-Slug': tenant.slug}
-    r = client.get('/api/v1/ai/previsions?periods=0', headers=headers)
+    # Le token est signé par cette instance Flask locale ; utiliser son
+    # propre client évite de comparer avec l'instance globale du conftest.
+    local_client = app.test_client()
+    r = local_client.get('/api/v1/ai/previsions?periods=0', headers=headers)
     assert r.status_code == 400
     payload = r.get_json()
     assert 'message' in payload
