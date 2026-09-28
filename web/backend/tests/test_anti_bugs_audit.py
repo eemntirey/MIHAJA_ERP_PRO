@@ -629,7 +629,7 @@ class Test10JwtCrossTenant:
             ua = Utilisateur.query.filter_by(email='jt1@j.mg').first()
             tb = Tenant.query.filter_by(slug='jt2').first()
             forged = create_access_token(
-                identity=ua.id,
+                identity=str(ua.id),
                 additional_claims={
                     'role': 'admin',
                     'tenant_id': tb.id,  # altere
