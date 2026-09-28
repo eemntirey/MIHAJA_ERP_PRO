@@ -216,12 +216,18 @@ test('la matrice RBAC definit toutes les permissions utilisees par les roles', (
 
 test('le bypass du filtre tenant reste limité aux modules système autorisés', () => {
   const appRoot = path.join(__dirname, '..', '..', 'web', 'backend', 'app');
-  const allowed = new Set([
-    path.join('api', 'v1', 'permissions.py'),
-    path.join('api', 'v1', 'roles.py'),
-    path.join('api', 'v1', 'abonnements.py'),
-    path.join('security', 'tenant.py'),
-  ].map((value) => path.normalize(value)));
+  const expectedCounts = new Map([
+    [path.join('api', 'v1', 'permissions.py'), 1],
+    [path.join('api', 'v1', 'roles.py'), 2],
+    [path.join('api', 'v1', 'abonnements.py'), 2],
+    [path.join('api', 'v1', 'livraisons.py'), 1],
+    [path.join('api', 'v1', 'public.py'), 1],
+    [path.join('api', 'v1', 'users.py'), 1],
+    [path.join('services', 'base_service.py'), 1],
+    [path.join('services', 'client_service.py'), 11],
+    [path.join('services', 'fournisseur_service.py'), 4],
+    [path.join('security', 'tenant.py'), 2],
+  ].map(([value, count]) => [path.normalize(value), count]));
   const offenders = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -229,9 +235,16 @@ test('le bypass du filtre tenant reste limité aux modules système autorisés',
       if (entry.isDirectory()) walk(fullPath);
       else if (entry.isFile() && entry.name.endsWith('.py')) {
         const source = fs.readFileSync(fullPath, 'utf8');
-        if (source.includes('_skip_tenant_filter')) {
+        const count = (source.match(/_skip_tenant_filter/g) || []).length;
+        if (count > 0) {
           const relative = path.normalize(path.relative(appRoot, fullPath));
-          if (!allowed.has(relative)) offenders.push(relative);
+          if (!expectedCounts.has(relative)) {
+            offenders.push(relative + ' (fichier non autorisé)');
+          } else if (count !== expectedCounts.get(relative)) {
+            offenders.push(
+              relative + ' (occurrences=' + count + ', attendues=' + expectedCounts.get(relative) + ')',
+            );
+          }
         }
       }
     }
