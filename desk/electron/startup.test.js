@@ -270,3 +270,28 @@ test('les imports critiques stock et entrepôts sont présents', () => {
   assert.match(stocks, /from flask import request, current_app/);
   assert.match(entrepots, /from flask import request/);
 });
+
+test('la persistance des paramètres de plans est câblée de bout en bout', () => {
+  const model = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'models', 'platform_config.py'),
+    'utf8',
+  );
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'migrations', 'versions', 'bb2c3d4e5f6_persist_plan_config.py'),
+    'utf8',
+  );
+  const plans = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'plans.py'),
+    'utf8',
+  );
+  const admin = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'super_admin.py'),
+    'utf8',
+  );
+  assert.match(model, /plans_json\s*=\s*db\.Column\(db\.JSON/);
+  assert.match(migration, /add_column\(sa\.Column\('plans_json'/);
+  assert.match(plans, /def _persist_plan_override\(/);
+  assert.match(plans, /def get_plan_config\(/);
+  assert.match(admin, /_persist_plan_override\(/);
+  assert.match(admin, /get_plan_config\(/);
+});
