@@ -798,3 +798,59 @@ def create_app():
 
     # Auto-seed des rôles/permissions système si la table est vide.
     # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
+    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
+    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
+    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
+    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
+    try:
+        with app.app_context():
+            missing_tables, inspection_error = _inspect_database_schema()
+            if inspection_error is not None or missing_tables:
+                _log_database_schema_problem(missing_tables, inspection_error)
+            else:
+                from app.models.role_permission import RoleModel, Permission
+                roles_empty = db.session.query(RoleModel.id).first() is None
+                perms_empty = db.session.query(Permission.id).first() is None
+                if roles_empty or perms_empty:
+                    from scripts.seed_roles import seed_roles
+                    seed_roles(app)
+                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                else:
+                    # Convergence : la matrice peut gagner de nouveaux codes
+                    # (ex. `user.delete`) sans que la table `permissions` soit
+                    # vide. On complète alors UNIQUEMENT les lignes manquantes
+                    # (idempotent, aucune donnée existante n'est supprimée) afin
+                    # que presets et rôles personnalisés exposent bien le CRUD
+                    # complet des modules souscrits par le tenant.
+                    from scripts.seed_roles import missing_permission_codes, seed_roles
+                    missing_codes = missing_permission_codes()
+                    if missing_codes:
+                        seed_roles(app)
+                        logger.info(
+                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
+                            len(missing_codes), ", ".join(missing_codes[:10]),
+                        )
+    except Exception:
+        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+
+    # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
+
+    # P2 : en-têtes de sécurité (Helmet-like) sans dépendance externe.
+    @app.after_request
+    def _security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+            "object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        )
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = (
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=(), '
+            'magnetometer=(), gyroscope=()'
+        )
+        return response
+
+    return app
