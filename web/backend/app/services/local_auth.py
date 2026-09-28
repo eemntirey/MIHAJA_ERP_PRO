@@ -208,9 +208,9 @@ def _issue_local_tokens(user, tenant):
     from app.security.auth import _build_token_claims
 
     claims = _build_token_claims(user, tenant)
-    access_token = create_access_token(identity=user.id, additional_claims=claims)
+    access_token = create_access_token(identity=str(user.id), additional_claims=claims)
     refresh_token = create_refresh_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims={'pwd_v': user.token_version or 0},
     )
     return access_token, refresh_token

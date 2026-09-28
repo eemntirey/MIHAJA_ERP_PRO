@@ -190,7 +190,7 @@ def _build_token_claims(user, tenant=None):
 
 def create_access_token_for_user(user, tenant=None):
     return create_access_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims=_build_token_claims(user, tenant),
     )
 
@@ -270,13 +270,13 @@ def authenticate_user(identifier, password, tenant_slug=None, device_id=None):
     g.current_user = user
 
     access_token = create_access_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims=_build_token_claims(user, tenant),
     )
     # V2 : le refresh porte aussi pwd_v pour que /refresh rejette les
     # sessions antérieures à un changement de mot de passe.
     refresh_token = create_refresh_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims={'pwd_v': user.token_version or 0},
     )
 

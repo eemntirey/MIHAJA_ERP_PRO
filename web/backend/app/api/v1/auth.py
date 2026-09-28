@@ -361,7 +361,7 @@ class AuthRegister(Resource):
                 }, 500
 
             access_token = create_access_token(
-                identity=user.id,
+                identity=str(user.id),
                 additional_claims={
                     'username': user.username,
                     'email': user.email,
@@ -371,7 +371,7 @@ class AuthRegister(Resource):
                 }
             )
             refresh_token = create_refresh_token(
-                identity=user.id,
+                identity=str(user.id),
                 additional_claims={'pwd_v': user.token_version or 0},
             )
 
@@ -410,7 +410,7 @@ class AuthRegister(Resource):
         db.session.commit()
 
         access_token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={
                 'username': user.username,
                 'email': user.email,
@@ -419,7 +419,7 @@ class AuthRegister(Resource):
             }
         )
         refresh_token = create_refresh_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={'pwd_v': user.token_version or 0},
         )
 
@@ -476,7 +476,7 @@ class AuthRefresh(Resource):
             tenant = db.session.get(Tenant, user.tenant_id)
 
         access_token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={
                 'username': user.username,
                 'email': user.email,
@@ -497,7 +497,7 @@ class AuthRefresh(Resource):
         # partagés le font déjà via tokenStore.setSession). Un refresh
         # antérieur à un changement de mot de passe est rejeté ci-dessus.
         new_refresh_token = create_refresh_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={'pwd_v': user.token_version or 0},
         )
 
