@@ -326,7 +326,12 @@ class Test2AbonnementLieAuTenant:
         with app.app_context():
             for slug, expected_plan in [('a', 'pro'), ('b', 'pro'), ('c', 'starter')]:
                 tenant = Tenant.query.filter_by(slug=slug).first()
-                abo = Abonnement.query.filter_by(tenant_id=tenant.id).first()
+                abo = (
+                    Abonnement.query
+                    .filter_by(tenant_id=tenant.id, is_active=True)
+                    .order_by(Abonnement.created_at.desc())
+                    .first()
+                )
                 assert abo is not None
                 assert abo.tenant_id == tenant.id
                 assert abo.plan == expected_plan
