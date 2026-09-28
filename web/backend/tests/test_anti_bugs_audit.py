@@ -155,7 +155,11 @@ def _login(client, email, password='Companie123', device_id='device-audit'):
 
 
 def _auth(client, email, password='Companie123', device_id='device-audit'):
-    r = _login(client, email, password, device_id=device_id)
+    # Le client métier peut être réutilisé entre deux tenants dans un même
+    # test. Le login Flask pose des cookies JWT ; ils ne doivent jamais écraser
+    # l'identité représentée ensuite par le header Bearer du scénario testé.
+    auth_client = client.application.test_client()
+    r = _login(auth_client, email, password, device_id=device_id)
     assert r.status_code == 200, r.get_json()
     return {'Authorization': 'Bearer ' + r.get_json()['access_token']}
 
