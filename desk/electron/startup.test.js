@@ -148,6 +148,29 @@ test('le backend local expose le cycle de synchronisation immédiat', () => {
   assert.match(syncApi, /\/local-run/);
 });
 
+test('la protection CSRF cookie est obligatoire en production', () => {
+  const init = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', '__init__.py'),
+    'utf8',
+  );
+  assert.match(init, /'true' if _is_prod else 'false'/);
+  assert.match(init, /JWT_COOKIE_CSRF_PROTECT.*=.*jwt_cookie_csrf_protect/);
+  assert.match(init, /JWT_ACCESS_CSRF_COOKIE_NAME.*csrf_access_token/);
+  assert.match(init, /JWT_REFRESH_CSRF_COOKIE_NAME.*csrf_refresh_token/);
+  assert.match(init, /JWT_ACCESS_CSRF_HEADER_NAME.*X-CSRF-TOKEN/);
+});
+
+test('les mutations des permissions globales exigent Super Admin', () => {
+  const permissions = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'permissions.py'),
+    'utf8',
+  );
+  assert.match(permissions, /def _ensure_super_admin\(\)/);
+  assert.match(permissions, /def post\(self\):\s*\n\s*err = _ensure_super_admin\(\)/);
+  assert.match(permissions, /def put\(self, permission_id\):\s*\n\s*err = _ensure_super_admin\(\)/);
+  assert.match(permissions, /def delete\(self, permission_id\):\s*\n\s*err = _ensure_super_admin\(\)/);
+});
+
 test('les contrats IA critiques existent côté backend', () => {
   const ai = fs.readFileSync(
     path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'ai.py'),

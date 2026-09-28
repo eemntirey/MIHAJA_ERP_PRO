@@ -33,6 +33,28 @@ import {
 
 const isElectron = !!(typeof window !== 'undefined' && window.electron && window.electron.secureStore);
 
+const readCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const prefix = `${name}=`;
+    const row = document.cookie.split('; ').find((item) => item.startsWith(prefix));
+    return row ? decodeURIComponent(row.slice(prefix.length)) : null;
+};
+
+const attachWebCsrfHeader = (config) => {
+    if (isElectron) return config;
+    const method = String(config.method || 'get').toUpperCase();
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return config;
+    const cookieName = String(config.url || '').includes('/auth/refresh')
+        ? 'csrf_refresh_token'
+        : 'csrf_access_token';
+    const csrfToken = readCookie(cookieName);
+    if (csrfToken) {
+        config.headers = config.headers || {};
+        config.headers['X-CSRF-TOKEN'] = csrfToken;
+    }
+    return config;
+};
+
 const api = axios.create({
     baseURL: API_BASE_URL,
     timeout: API_TIMEOUT_MS,
@@ -85,10 +107,10 @@ api.interceptors.request.use(
             config.baseURL = API_BASE_URL;
         }
 
-        // Web : cookies HttpOnly. Electron : Bearer sécurisé uniquement,
-        // jamais de cookies web vers le central ou le backend local.
+        // Web : cookies HttpOnly + double-submit CSRF. Electron : Bearer sécurisé
+        // uniquement, jamais de cookies web vers le central ou le backend local.
         config.withCredentials = !isElectron;
-        return config;
+        return attachWebCsrfHeader(config);
     },
     (error) => Promise.reject(error)
 );
@@ -183,6 +205,11 @@ api.interceptors.response.use(
                 const refreshHeaders = { 'Content-Type': 'application/json' };
                 if (isElectron && refreshToken) {
                     refreshHeaders.Authorization = `Bearer ${refreshToken}`;
+                } else if (!isElectron) {
+                    const csrfToken = readCookie('csrf_refresh_token');
+                    if (csrfToken) {
+                        refreshHeaders['X-CSRF-TOKEN'] = csrfToken;
+                    }
                 }
 
                 const refreshResponse = await axios.post(

@@ -21,6 +21,16 @@ def _ensure_admin():
     return None
 
 
+def _ensure_super_admin():
+    user_id = get_jwt_identity()
+    user = db.session.get(Utilisateur, user_id)
+    if not user:
+        return {'message': 'Utilisateur non trouve'}, 401
+    if not is_super_admin(user.role):
+        return {'message': 'Acces Super Admin requis'}, 403
+    return None
+
+
 @ns.route('/')
 class PermissionList(Resource):
     @jwt_required()
@@ -47,7 +57,7 @@ class PermissionList(Resource):
 
     @jwt_required()
     def post(self):
-        err = _ensure_admin()
+        err = _ensure_super_admin()
         if err:
             return err
         data = request.get_json() or {}
@@ -82,7 +92,7 @@ class PermissionResource(Resource):
 
     @jwt_required()
     def put(self, permission_id):
-        err = _ensure_admin()
+        err = _ensure_super_admin()
         if err:
             return err
         permission = db.session.get(Permission, permission_id)
@@ -97,7 +107,7 @@ class PermissionResource(Resource):
 
     @jwt_required()
     def delete(self, permission_id):
-        err = _ensure_admin()
+        err = _ensure_super_admin()
         if err:
             return err
         permission = db.session.get(Permission, permission_id)

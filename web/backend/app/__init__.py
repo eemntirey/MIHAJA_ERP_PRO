@@ -210,8 +210,18 @@ def create_app():
     # tous les endpoints API, notamment /api/v1/auth/refresh.
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_REFRESH_COOKIE_PATH'] = '/'
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').lower() in ('1', 'true', 'yes', 'on')
+    jwt_cookie_csrf_protect = os.getenv(
+        'JWT_COOKIE_CSRF_PROTECT',
+        'true' if _is_prod else 'false',
+    ).lower() in ('1', 'true', 'yes', 'on')
+    if _is_prod and not jwt_cookie_csrf_protect:
+        raise ValueError('JWT_COOKIE_CSRF_PROTECT doit être activé en production')
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = jwt_cookie_csrf_protect
     app.config['JWT_CSRF_IN_COOKIES'] = True
+    app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrf_access_token'
+    app.config['JWT_REFRESH_CSRF_COOKIE_NAME'] = 'csrf_refresh_token'
+    app.config['JWT_ACCESS_CSRF_HEADER_NAME'] = 'X-CSRF-TOKEN'
+    app.config['JWT_REFRESH_CSRF_HEADER_NAME'] = 'X-CSRF-TOKEN'
 
     from datetime import timedelta
 

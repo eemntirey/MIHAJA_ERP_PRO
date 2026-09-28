@@ -51,7 +51,7 @@ services:
       - key: MAIL_CONTACT_RECIPIENT
         sync: false
       - key: JWT_COOKIE_CSRF_PROTECT
-        value: "false"
+        value: "true"
       - key: REDIS_URL
         sync: false
       # Mobile (Bearer direct) + futurs domaines ; le web passe en
