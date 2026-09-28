@@ -207,9 +207,14 @@ api.interceptors.response.use(
                     refreshHeaders.Authorization = `Bearer ${refreshToken}`;
                 } else if (!isElectron) {
                     const csrfToken = readCookie('csrf_refresh_token');
-                    if (csrfToken) {
-                        refreshHeaders['X-CSRF-TOKEN'] = csrfToken;
+                    if (!csrfToken) {
+                        const csrfError = new Error(
+                            'Session Web incomplète : cookie CSRF de renouvellement absent'
+                        );
+                        csrfError.code = 'WEB_REFRESH_CSRF_MISSING';
+                        throw csrfError;
                     }
+                    refreshHeaders['X-CSRF-TOKEN'] = csrfToken;
                 }
 
                 const refreshResponse = await axios.post(
@@ -258,7 +263,10 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 const refreshStatus = refreshError.response?.status;
-                const isAuthFailure = refreshStatus === 401 || refreshStatus === 403;
+                const isAuthFailure =
+                    refreshStatus === 401
+                    || refreshStatus === 403
+                    || refreshError.code === 'WEB_REFRESH_CSRF_MISSING';
 
                 if (isAuthFailure) {
                     tokenStore.clear();
