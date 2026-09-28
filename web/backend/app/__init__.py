@@ -469,7 +469,14 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_unexpected_exception(e):
-        from flask import jsonify
+        # Une HTTPException (400/404/405/415/422...) ne doit jamais être
+        # transformée en 500 par le handler générique Flask-RESTX.
+        if isinstance(e, HTTPException):
+            return {
+                'message': e.description or e.name,
+                'code': e.code or 500,
+            }, e.code or 500
+
         # JWT-specific exceptions are handled by the dedicated handlers above
         # (and on the Api namespace); ignore them here.
         from flask_jwt_extended.exceptions import (
