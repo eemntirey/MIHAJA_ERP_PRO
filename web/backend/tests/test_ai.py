@@ -100,7 +100,7 @@ def _seed_ai_tenant_data(tenant, tag, rich=False):
 
     produit = Produit(
         reference=f'P-{unique_tag}',
-        nom=f'PRODUIT-SECRET-{tag}-{unique_tag.split('-',1)[1]}',
+        nom=f'PRODUIT-SECRET-{tag}',
         quantite_stock=1,
         seuil_alerte=10,
         prix_achat_ht=100,
