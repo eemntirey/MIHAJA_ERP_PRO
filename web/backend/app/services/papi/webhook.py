@@ -2,6 +2,7 @@
 import hashlib
 import hmac
 import logging
+import time
 from datetime import datetime, timedelta
 
 from app import db
@@ -32,7 +33,14 @@ def _resolve_webhook_secret(payload: dict) -> str:
     - Sinon (abonnements legacy, références non conformes), fallback sur
       le secret plateforme ``Config.PAPI_WEBHOOK_SECRET``.
     """
-    reference = (payload or {}).get('paymentReference', '')
+    # Dans une notification Papi, paymentReference est la référence
+    # de la tentative Papi ; merchantPaymentReference est notre référence
+    # métier envoyée lors de la création du lien.
+    reference = (
+        (payload or {}).get('merchantPaymentReference')
+        or (payload or {}).get('paymentReference')
+        or ''
+    )
     parsed = parse_papi_reference(reference)
     if parsed and parsed.get('tenant_id'):
         tenant = db.session.get(Tenant, parsed['tenant_id'])
@@ -43,46 +51,61 @@ def _resolve_webhook_secret(payload: dict) -> str:
 
 
 def _verify_webhook_signature(payload: dict, headers, raw_body=None) -> bool:
+    """Vérifie la signature Papi selon le format officiel t=...,v1=....
+
+    Papi signe les octets bruts avec HMAC-SHA256 sur timestamp.raw_body
+    et impose une tolérance de 300 secondes pour limiter les rejeux.
+    """
     secret = _resolve_webhook_secret(payload)
     if not secret:
-        # Fail-closed : sans secret configuré, impossible de vérifier
-        # l'authenticité de la notification. Accepter le webhook ouvrirait
-        # la porte à des notifications forgées (paiements marqués SUCCESS).
         logger.error('Aucun secret webhook Papi disponible; webhook refuse')
         return False
-    signature_headers = [
-        headers.get('X-Papi-Signature'),
-        headers.get('X-Hub-Signature-256'),
-        headers.get('X-Webhook-Signature'),
-        headers.get('X-Papi-Hub-Signature'),
-    ]
-    received_sig = next((s for s in signature_headers if s), None)
-    if not received_sig:
-        logger.error('Papi webhook missing signature header')
+
+    header = headers.get('X-Papi-Signature') if headers else None
+    if not header:
+        logger.error('Papi webhook missing X-Papi-Signature header')
         return False
-    # Tolère le préfixe d'algorithme ("sha256=<hex>") utilisé par la
-    # plupart des plateformes de paiement.
-    if received_sig.lower().startswith('sha256='):
-        received_sig = received_sig.split('=', 1)[1]
-    # La signature doit couvrir le corps HTTP BRUT reçu (standard webhook),
-    # pas une re-sérialisation Python : Flask re-sérialise le JSON avec des
-    # clés triées, donc str(payload) ne reflète pas les octets envoyés.
+
+    values = {}
+    try:
+        for part in header.split(','):
+            key, value = part.strip().split('=', 1)
+            values[key] = value
+    except ValueError:
+        logger.error('Papi webhook signature header malformed')
+        return False
+
+    timestamp_raw = values.get('t')
+    received_sig = values.get('v1')
+    if not timestamp_raw or not received_sig:
+        logger.error('Papi webhook signature missing timestamp or v1')
+        return False
+
+    try:
+        timestamp = int(timestamp_raw)
+    except (TypeError, ValueError):
+        logger.error('Papi webhook invalid signature timestamp')
+        return False
+
+    now = int(time.time())
+    if abs(now - timestamp) > 300:
+        logger.error('Papi webhook timestamp outside tolerance window')
+        return False
+
     if raw_body is None:
-        raw_body = str(payload)
-    if isinstance(raw_body, bytes):
-        raw_body_bytes = raw_body
-    else:
-        raw_body_bytes = str(raw_body).encode('utf-8')
+        raw_body = b''
+    raw_body_bytes = raw_body if isinstance(raw_body, bytes) else str(raw_body).encode('utf-8')
+    signed_message = str(timestamp).encode('ascii') + b'.' + raw_body_bytes
     expected = hmac.new(
         secret.encode('utf-8'),
-        raw_body_bytes,
+        signed_message,
         hashlib.sha256,
     ).hexdigest()
+
     if not hmac.compare_digest(expected, received_sig):
         logger.error('Papi webhook signature mismatch')
         return False
     return True
-
 
 def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
     """Process an incoming Papi webhook notification.
