@@ -72,6 +72,12 @@ services:
         value: https://mihaja-erp-frontend-796e-qdh1.onrender.com/reset-password
       - key: PAPI_ENVIRONMENT
         value: sandbox
+      - key: PAPI_API_KEY
+        sync: false
+      - key: PAPI_WEBHOOK_SECRET
+        sync: false
+      - key: PAPI_CALLBACK_URL
+        value: https://mihaja-erp-pro.onrender.com/api/v1/papi/webhook
 
   # ---------- Frontend React (statique) ----------
   # NB : ne pas déclarer `plan: free` sur un service statique
