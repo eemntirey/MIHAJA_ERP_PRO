@@ -210,12 +210,27 @@ def create_app():
     # tous les endpoints API, notamment /api/v1/auth/refresh.
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_REFRESH_COOKIE_PATH'] = '/'
-    jwt_cookie_csrf_protect = os.getenv(
-        'JWT_COOKIE_CSRF_PROTECT',
-        'true' if _is_prod else 'false',
-    ).lower() in ('1', 'true', 'yes', 'on')
-    if _is_prod and not jwt_cookie_csrf_protect:
-        raise ValueError('JWT_COOKIE_CSRF_PROTECT doit être activé en production')
+    # Production: le CSRF des cookies JWT est une exigence de sécurité,
+    # pas une option configurable par une variable Render héritée ou erronée.
+    # On conserve la configuration explicite pour dev/test, mais en production
+    # la valeur effective est toujours True. Cela évite qu'un ancien
+    # JWT_COOKIE_CSRF_PROTECT=false injecté par l'environnement fasse échouer
+    # create_app() au démarrage.
+    if _is_prod:
+        if os.getenv('JWT_COOKIE_CSRF_PROTECT', '').strip().lower() not in (
+            '', '1', 'true', 'yes', 'on'
+        ):
+            logger.warning(
+                'JWT_COOKIE_CSRF_PROTECT=%r ignoré en production: '
+                'protection CSRF forcée à True.',
+                os.getenv('JWT_COOKIE_CSRF_PROTECT'),
+            )
+        jwt_cookie_csrf_protect = True
+    else:
+        jwt_cookie_csrf_protect = (
+            os.getenv('JWT_COOKIE_CSRF_PROTECT', 'false').strip().lower()
+            in ('1', 'true', 'yes', 'on')
+        )
     app.config['JWT_COOKIE_CSRF_PROTECT'] = jwt_cookie_csrf_protect
     app.config['JWT_CSRF_IN_COOKIES'] = True
     app.config['JWT_ACCESS_CSRF_COOKIE_NAME'] = 'csrf_access_token'
