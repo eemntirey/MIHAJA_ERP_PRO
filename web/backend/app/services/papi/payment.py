@@ -158,7 +158,8 @@ def create_subscription_payment(
         logger.error("Papi error: %s", exc)
         raise ValueError(str(exc)) from exc
 
-    external_reference = papi_data.get('paymentReference', payload['reference'])
+    papi_payment_reference = papi_data.get('paymentReference', '')
+    external_reference = papi_data.get('merchantPaymentReference') or payload['reference']
     notification_token = papi_data.get('notificationToken', '')
 
     existing_payment = Paiement.query.filter_by(
@@ -196,6 +197,7 @@ def create_subscription_payment(
         payment_metadata=json.dumps({
             'notification_token': notification_token,
             'merchant_payment_reference': external_reference,
+            'papi_payment_reference': papi_payment_reference,
         }),
     )
 
