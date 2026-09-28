@@ -566,7 +566,9 @@ class TestSubscriptionAdminPrincipal:
         })
         assert r.status_code == 201, r.get_json()
         data = r.get_json()
-        assert data['tenant']['plan'] == 'starter'
+        # L'inscription entreprise démarre volontairement en essai gratuit ;
+        # le choix d'un plan payant intervient après activation via abonnement/Papi.
+        assert data['tenant']['plan'] == 'gratuit'
         assert data['tenant']['admin_principal_id'] == data['user']['id']
         assert data['user']['is_principal_admin'] is True
         assert 'admin_key' not in data
