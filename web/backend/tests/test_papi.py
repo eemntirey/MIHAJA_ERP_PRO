@@ -80,18 +80,24 @@ PAPI_WEBHOOK_SECRET_TEST = (
 )
 
 
-def _papi_webhook_headers(raw_body):
-    """Headers d'un webhook Papi authentique : HMAC-SHA256 du corps brut."""
+def _papi_webhook_headers(raw_body, timestamp=None):
+    """Headers d'un webhook Papi authentique : t + HMAC-SHA256 du corps brut."""
+    timestamp = int(timestamp or datetime.utcnow().timestamp())
+    body = raw_body.encode('utf-8') if isinstance(raw_body, str) else raw_body
+    signed_message = f"{timestamp}.".encode('ascii') + body
     signature = hmac.new(
         PAPI_WEBHOOK_SECRET_TEST.encode('utf-8'),
-        raw_body.encode('utf-8') if isinstance(raw_body, str) else raw_body,
+        signed_message,
         hashlib.sha256,
     ).hexdigest()
-    return {'X-Papi-Signature': signature, 'Content-Type': 'application/json'}
+    return {
+        'X-Papi-Signature': f't={timestamp},v1={signature}',
+        'Content-Type': 'application/json',
+    }
 
 
 def _post_webhook(client, payload):
-    """Poste un webhook Papi avec une signature valide (corps brut signé)."""
+    """Poste un webhook Papi avec une signature valide sur le corps brut."""
     raw_body = json.dumps(payload)
     return client.post(
         '/api/v1/papi/webhook',
@@ -321,8 +327,8 @@ class TestPapiWebhook:
                 'fee': 500,
                 'clientName': 'Test Tenant',
                 'description': 'Abonnement starter - Test Tenant',
-                'merchantPaymentReference': 'MERCHANT-0001',
-                'paymentReference': reference,
+                'merchantPaymentReference': reference,
+                'paymentReference': 'papi-attempt-0001',
                 'notificationToken': notification_token,
                 'message': 'Paiement effectué avec succès.',
                 'payerEmail': 'test@example.com',
@@ -390,7 +396,8 @@ class TestPapiWebhook:
                 'paymentMethod': 'MVOLA',
                 'currency': 'MGA',
                 'amount': 5000,
-                'paymentReference': reference,
+                'merchantPaymentReference': reference,
+                'paymentReference': 'papi-attempt-duplicate',
                 'notificationToken': notification_token,
                 'message': 'Paiement effectué avec succès.',
             }
@@ -429,8 +436,9 @@ class TestPapiWebhook:
                 'paymentStatus': 'FAILED',
                 'paymentMethod': 'MVOLA',
                 'currency': 'MGA',
-                'amount': 15000,
-                'paymentReference': reference,
+                'amount': 5000,
+                'merchantPaymentReference': reference,
+                'paymentReference': 'papi-attempt-failed',
                 'notificationToken': notification_token,
                 'message': 'Paiement échoué.',
             }
