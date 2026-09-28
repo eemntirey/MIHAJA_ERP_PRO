@@ -1,0 +1,56 @@
+name: Refresh V0.01 JS lockfiles
+
+on:
+  pull_request:
+    branches:
+      - V0.01
+    paths:
+      - desk/package.json
+      - super-admin/package.json
+      - web/frontend/package.json
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: >-
+      github.event.pull_request.head.ref == 'fix/v001-surgical-stabilization' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Refresh Desk lockfile
+        working-directory: desk
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Refresh Super Admin lockfile
+        working-directory: super-admin
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Refresh Web lockfile
+        working-directory: web/frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Commit refreshed lockfiles
+        shell: bash
+        run: |
+          if git diff --quiet -- desk/package-lock.json super-admin/package-lock.json web/frontend/package-lock.json; then
+            echo "Lockfiles already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add desk/package-lock.json super-admin/package-lock.json web/frontend/package-lock.json
+          git commit -m "chore(v001): refresh JavaScript lockfiles"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
