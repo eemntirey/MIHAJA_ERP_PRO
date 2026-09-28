@@ -364,7 +364,7 @@ const RegisterCompany = () => {
               </div>
               <h4 className="register-plan-card__title">Plan Gratuit (30 jours inclus)</h4>
               <p className="register-plan-card__desc">
-                Accès complet aux modules standards pour démarrer (3 collaborateurs, 50 produits, 100 clients).
+                Accès aux modules standards pour démarrer (1 administrateur principal, 50 produits, 100 clients).
                 Le passage aux plans <strong>Pro</strong> ou <strong>Entreprise</strong> se fait après inscription avec paiement sécurisé depuis votre espace Abonnement.
               </p>
             </div>
