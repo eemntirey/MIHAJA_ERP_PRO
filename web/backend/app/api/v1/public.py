@@ -533,10 +533,49 @@ class PublicCommandeTracking(Resource):
             if hasattr(commande.statut, 'value')
             else commande.statut
         )
+        status_meta = {
+            'en_attente': {'label': 'Commande reçue', 'progress': 20},
+            'confirmee': {'label': 'Commande confirmée', 'progress': 50},
+            'expediee': {'label': 'Commande expédiée', 'progress': 75},
+            'livree': {'label': 'Commande livrée', 'progress': 100},
+            'annulee': {'label': 'Commande annulée', 'progress': 0},
+        }.get(str(statut_value).lower(), {'label': str(statut_value), 'progress': 0})
+
+        from app.models.paiement import Paiement
+        paiement = (
+            Paiement.query
+            .filter_by(
+                commande_client_id=commande.id,
+                provider='papi',
+                is_active=True,
+            )
+            .order_by(Paiement.created_at.desc())
+            .first()
+        )
+
+        # Ne jamais retourner nom/email/téléphone/adresse au simple détenteur
+        # d'une référence publique. Seules les données de suivi sont exposées.
+        items = []
+        for item in commande.items_list:
+            items.append({
+                'produit_id': item.get('produit_id'),
+                'quantite': item.get('quantite', 1),
+            })
+
         return {
             'reference': commande.reference,
             'statut': statut_value,
+            'statut_label': status_meta['label'],
+            'progress_percent': status_meta['progress'],
+            'created_at': commande.created_at.isoformat() if commande.created_at else None,
             'updated_at': commande.updated_at.isoformat() if commande.updated_at else None,
+            'total_ttc': float(commande.total_ttc or 0),
+            'payment_statut': (
+                paiement.statut.value
+                if paiement and hasattr(paiement.statut, 'value')
+                else (paiement.statut if paiement else None)
+            ),
+            'items': items,
         }, 200
 
 
