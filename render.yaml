@@ -63,7 +63,7 @@ services:
       - key: DESKTOP_ELECTRON_CORS
         value: "true"
       - key: JWT_COOKIE_SAMESITE
-        value: None
+        value: "None"
       - key: FRONTEND_URL
         value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
       - key: PUBLIC_SITE_URL
