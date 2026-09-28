@@ -126,7 +126,11 @@ class TestRenouvellement:
     def test_principal_admin_autorise(self, app):
         client = app.test_client()
         headers, abo_id = self._principal_and_abonnement(client, 'T A', 'ta@a.mg')
-        r = client.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=headers)
+        r = client.post(
+            f'/api/v1/abonnements/{abo_id}/renouveler',
+            headers=headers,
+            json={'plan': 'pro'},
+        )
         assert r.status_code == 200, r.get_json()
 
     def test_employe_refuse(self, app):
