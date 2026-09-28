@@ -69,9 +69,11 @@ services:
       - key: PUBLIC_SITE_URL
         value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
       - key: FRONTEND_RESET_URL
-        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com/reset-password
+        value: https://mihaja-erp-frontend-796e-qdh1.onrender.com
       - key: PAPI_ENVIRONMENT
         value: sandbox
+      - key: PAPI_CALLBACK_URL
+        value: https://mihaja-erp-pro.onrender.com/api/v1/papi/webhook
 
   # ---------- Frontend React (statique) ----------
   # NB : ne pas déclarer `plan: free` sur un service statique
