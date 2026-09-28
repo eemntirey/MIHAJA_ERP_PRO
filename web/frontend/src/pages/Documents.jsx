@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { modeleDocumentService, documentService, saleService, factureService } from '../services/api';
 import './Documents.css';
@@ -20,6 +20,10 @@ export default function Documents() {
     const [editingId, setEditingId] = useState(null);
     const contenuRef = useRef(null);
     const [stretchActive, setStretchActive] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [sourceFilter, setSourceFilter] = useState('all');
+    const [showGenerator, setShowGenerator] = useState(false);
 
     const fetchAll = async () => {
         setLoading(true);
@@ -177,6 +181,39 @@ export default function Documents() {
             toast.error(err.response?.data?.message || "Erreur lors de l'impression");
         }
     };
+    const filteredDocuments = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return documents.filter((doc) => {
+            const haystack = [
+                doc.reference,
+                doc.modele_nom,
+                doc.type_document,
+                doc.entite_type,
+                doc.entite_id,
+            ].filter(Boolean).join(' ').toLowerCase();
+            const matchesSearch = !query || haystack.includes(query);
+            const matchesType = typeFilter === 'all' || doc.type_document === typeFilter;
+            const matchesSource = sourceFilter === 'all' || doc.entite_type === sourceFilter;
+            return matchesSearch && matchesType && matchesSource;
+        });
+    }, [documents, searchQuery, typeFilter, sourceFilter]);
+
+    const documentStats = useMemo(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        return {
+            total: documents.length,
+            factures: documents.filter(d => d.type_document === 'facture').length,
+            devis: documents.filter(d => d.type_document === 'devis').length,
+            today: documents.filter(d => String(d.date_generation || '').slice(0, 10) === today).length,
+        };
+    }, [documents]);
+
+    const resetDocumentFilters = () => {
+        setSearchQuery('');
+        setTypeFilter('all');
+        setSourceFilter('all');
+    };
+
     const typeLabels = {
         facture: 'Facture',
         devis: 'Devis',
@@ -186,20 +223,47 @@ export default function Documents() {
     };
 
     return (
-        <div className="page-container">
-            <div className="page-header">
-                <h1>Documents</h1>
-                <a href="/documentation" className="manual-link" title="Manuel d'utilisation du module Documents, de A à Z">Manuel d'utilisation — Module Documents (de A à Z)</a>
-                <div className="tabs">
-                    {['modeles', 'documents'].map(t => (
-                        <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setEditingId(null); }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
-                    ))}
+        <div className="page-container documents-page">
+            <div className="documents-hero">
+                <div className="documents-hero-copy">
+                    <div className="documents-eyebrow">Centre documentaire</div>
+                    <h1>Documents</h1>
+                    <p>Générez, retrouvez et gérez vos documents commerciaux depuis un seul espace.</p>
+                </div>
+                <div className="documents-hero-actions">
+                    <a href="/documentation" className="documents-help-link" title="Manuel d'utilisation du module Documents">
+                        Guide du module
+                    </a>
+                    <button
+                        type="button"
+                        className="btn btn-primary documents-primary-action"
+                        onClick={() => { setTab('documents'); setShowGenerator(true); window.setTimeout(() => document.getElementById('document-generator')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }}
+                    >
+                        + Nouveau document
+                    </button>
                 </div>
             </div>
 
+            <div className="documents-tabs" role="tablist" aria-label="Sections du module Documents">
+                <button type="button" role="tab" aria-selected={tab === 'documents'} className={`documents-tab ${tab === 'documents' ? 'active' : ''}`} onClick={() => { setTab('documents'); setEditingId(null); }}>
+                    Documents <span>{documentStats.total}</span>
+                </button>
+                <button type="button" role="tab" aria-selected={tab === 'modeles'} className={`documents-tab ${tab === 'modeles' ? 'active' : ''}`} onClick={() => { setTab('modeles'); setEditingId(null); }}>
+                    Modèles <span>{modeles.length}</span>
+                </button>
+            </div>
+
             {tab === 'modeles' && (
-                <div className="card">
-                    <h3>{editingId ? 'Modifier' : 'Nouveau'} modèle de document</h3>
+                <div className="documents-section">
+                    <div className="documents-section-heading">
+                        <div>
+                            <span className="documents-section-kicker">Bibliothèque</span>
+                            <h2>{editingId ? 'Modifier un modèle' : 'Créer un modèle'}</h2>
+                            <p>Standardisez vos factures, devis, bons de livraison et autres documents.</p>
+                        </div>
+                        <span className="documents-section-count">{modeles.length} modèle{modeles.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="card documents-form-card">
                     <form onSubmit={handleSubmitModele} className="form-grid">
                         <div className="form-group">
                             <input placeholder="Nom" value={modeleForm.nom} onChange={e => setModeleForm({...modeleForm, nom: e.target.value})} required />
@@ -243,12 +307,48 @@ export default function Documents() {
                         <tbody>{modeles.map(m => <tr key={m.id}><td>{m.nom}</td><td>{typeLabels[m.type_document] || m.type_document}</td><td>{m.est_defaut ? 'Oui' : 'Non'}</td><td><button className="btn-small btn-edit" onClick={() => handleEditModele(m)} title="Modifier">&#9998;</button> <button className="btn-small btn-delete" onClick={() => handleDelete('modele', m.id)} title="Supprimer">&#10005;</button></td></tr>)}</tbody></table>
                     </div>
                 </div>
+                </div>
             )}
 
             {tab === 'documents' && (
-                <div className="card">
-                    <h3>Générer un document</h3>
-                    <form onSubmit={handleSubmitDocument} className="form-grid">
+                <>
+                    <div className="documents-kpis">
+                        <div className="documents-kpi documents-kpi-primary">
+                            <span className="documents-kpi-label">Tous les documents</span>
+                            <strong>{documentStats.total}</strong>
+                            <small>Bibliothèque actuelle</small>
+                        </div>
+                        <div className="documents-kpi">
+                            <span className="documents-kpi-label">Factures</span>
+                            <strong>{documentStats.factures}</strong>
+                            <small>Documents de facturation</small>
+                        </div>
+                        <div className="documents-kpi">
+                            <span className="documents-kpi-label">Devis</span>
+                            <strong>{documentStats.devis}</strong>
+                            <small>Documents commerciaux</small>
+                        </div>
+                        <div className="documents-kpi">
+                            <span className="documents-kpi-label">Aujourd'hui</span>
+                            <strong>{documentStats.today}</strong>
+                            <small>Documents générés</small>
+                        </div>
+                    </div>
+
+                    <div id="document-generator" className="documents-generator-card card">
+                        <div className="documents-generator-head">
+                            <div>
+                                <span className="documents-section-kicker">Création rapide</span>
+                                <h2>Générer un document</h2>
+                                <p>Choisissez une source et un modèle. Les données métier sont reprises automatiquement.</p>
+                            </div>
+                            <button type="button" className="btn btn-secondary btn-sm documents-collapse" onClick={() => setShowGenerator(v => !v)} aria-expanded={showGenerator}>
+                                {showGenerator ? 'Réduire' : 'Afficher'}
+                            </button>
+                        </div>
+
+                        {showGenerator && (
+                        <form onSubmit={handleSubmitDocument} className="form-grid documents-generator-form">
                         <div className="form-group">
                             <select value={docForm.modele_id} onChange={e => setDocForm({...docForm, modele_id: e.target.value})} required>
                                 <option value="">Modèle</option>
@@ -314,14 +414,47 @@ export default function Documents() {
                             <input id="reference" name="reference" placeholder="Reprise automatiquement" value={docForm.reference} onChange={event => setDocForm({...docForm, reference: event.target.value})} />
                         </div>
                         <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Générer le PDF'}</button>
-                    </form>
-
-                    <div className="documents-toolbar">
-                        <h4>Documents générés</h4>
-                        <span className="documents-count">{documents.length} document(s)</span>
+                        </form>
+                        )}
                     </div>
-                    <div className="table-container">
-                        <table className="data-table">
+
+                    <div className="documents-library card">
+                        <div className="documents-library-head">
+                            <div>
+                                <span className="documents-section-kicker">Bibliothèque</span>
+                                <h2>Documents générés</h2>
+                                <p>Recherchez et ouvrez rapidement vos documents existants.</p>
+                            </div>
+                            <span className="documents-count">{filteredDocuments.length} / {documents.length}</span>
+                        </div>
+
+                        <div className="documents-filters">
+                            <div className="documents-search">
+                                <span className="documents-search-icon" aria-hidden="true">⌕</span>
+                                <input
+                                    type="search"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder="Rechercher par référence, modèle ou source..."
+                                    aria-label="Rechercher un document"
+                                />
+                            </div>
+                            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Filtrer par type">
+                                <option value="all">Tous les types</option>
+                                {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select>
+                            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filtrer par source">
+                                <option value="all">Toutes les sources</option>
+                                <option value="vente">Ventes</option>
+                                <option value="facture">Factures</option>
+                            </select>
+                            {(searchQuery || typeFilter !== 'all' || sourceFilter !== 'all') && (
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={resetDocumentFilters}>Réinitialiser</button>
+                            )}
+                        </div>
+
+                        <div className="table-container">
+                        <table className="data-table documents-table">
                             <thead>
                                 <tr>
                                     <th>Référence</th>
@@ -334,30 +467,50 @@ export default function Documents() {
                             <tbody>
                                 {documents.length === 0 ? (
                                     <tr><td colSpan="5" className="documents-empty">Aucun document généré</td></tr>
-                                ) : documents.map(d => (
+                                ) : filteredDocuments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5">
+                                            <div className="documents-empty-state">
+                                                <div className="documents-empty-icon">▣</div>
+                                                <strong>Aucun document correspondant</strong>
+                                                <span>Modifiez vos critères de recherche ou générez un nouveau document.</span>
+                                                {(searchQuery || typeFilter !== 'all' || sourceFilter !== 'all') && <button type="button" className="btn btn-secondary btn-sm" onClick={resetDocumentFilters}>Effacer les filtres</button>}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : filteredDocuments.map(d => (
                                     <tr key={d.id}>
-                                        <td><span className="doc-ref">{d.reference}</span></td>
-                                        <td><span className="statut-badge statut-info">{typeLabels[d.type_document] || d.type_document}</span></td>
-                                        <td>{d.modele_nom || '-'}</td>
-                                        <td>{d.date_generation?.slice(0, 10)}</td>
+                                        <td>
+                                            <div className="document-title-cell">
+                                                <span className="document-file-icon">PDF</span>
+                                                <div>
+                                                    <span className="doc-ref">{d.reference || 'Sans référence'}</span>
+                                                    <small>{d.contenu_pdf_path ? 'PDF disponible' : 'Document sans fichier PDF'}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span className="documents-type-badge">{typeLabels[d.type_document] || d.type_document}</span></td>
+                                        <td><span className="document-source">{d.modele_nom || 'Modèle système'}</span></td>
+                                        <td><span className="document-date">{d.date_generation?.slice(0, 10) || '-'}</span></td>
                                         <td>
                                             <div className="doc-actions">
                                                 {d.contenu_pdf_path ? (
                                                     <>
-                                                        <button className="btn-small btn-view" onClick={() => openPreview(d)} title="Prévisualiser">&#128065;</button>
-                                                        <button className="btn-small btn-primary" onClick={() => handleDownload(d)} title="Télécharger">&#11015;</button>
-                                                        <button className="btn-small btn-secondary" onClick={() => handlePrint(d)} title="Imprimer">&#9993;</button>
+                                                        <button className="table-action table-action--view" onClick={() => openPreview(d)} title="Prévisualiser" aria-label="Prévisualiser">Voir</button>
+                                                        <button className="table-action" onClick={() => handleDownload(d)} title="Télécharger" aria-label="Télécharger">↓</button>
+                                                        <button className="table-action" onClick={() => handlePrint(d)} title="Imprimer" aria-label="Imprimer">Impr.</button>
                                                     </>
-                                                ) : <span className="text-muted">-</span>}
-                                                <button className="btn-small btn-delete" onClick={() => handleDelete('document', d.id)} title="Supprimer">&#10005;</button>
+                                                ) : <span className="text-muted">Indisponible</span>}
+                                                <button className="table-action table-action--delete" onClick={() => handleDelete('document', d.id)} title="Supprimer" aria-label="Supprimer">Suppr.</button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </div>
-                </div>
+                </>
             )}
 
             {previewDoc && (
