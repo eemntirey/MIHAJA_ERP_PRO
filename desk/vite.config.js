@@ -24,6 +24,9 @@ export default defineConfig({
       '@desk-shared': deskSharedDir,
       '@': path.resolve(__dirname, 'src'),
       'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
+      // ../shared/services/api.js importe Axios hors de desk/node_modules.
+      // Alias explicite pour le resolver Vite/Rollup.
+      'axios': path.resolve(__dirname, 'node_modules/axios'),
       // Le dossier ../shared est hors de l'arbre desk/node_modules ;
       // force donc la résolution Socket.IO vers la dépendance installée du Desk.
       'socket.io-client': path.resolve(__dirname, 'node_modules/socket.io-client'),
