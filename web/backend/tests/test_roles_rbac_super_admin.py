@@ -78,7 +78,7 @@ def _login_token(user_id, tenant_id=None, tenant_slug=None, role='admin'):
         claims['tenant_id'] = tenant_id
     if tenant_slug is not None:
         claims['tenant_slug'] = tenant_slug
-    return create_access_token(identity=user_id, additional_claims=claims)
+    return create_access_token(identity=str(user_id), additional_claims=claims)
 
 
 # --------------------------------------------------------------------------- #
