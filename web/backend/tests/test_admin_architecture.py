@@ -520,7 +520,7 @@ class TestSubscriptionAdminPrincipal:
             })
             assert r2.status_code == 201, r2.get_json()
             data = r2.get_json()
-            assert data['tenant']['plan'] == 'gratuit'
+            assert data['tenant']['plan'] == 'starter'
             assert data['admin']['email'] == 'newadmin@new.mg'
             assert data['admin']['role'] == 'admin'
             assert data['tenant']['admin_principal_id'] == data['admin']['id']
@@ -568,7 +568,7 @@ class TestSubscriptionAdminPrincipal:
         })
         assert r.status_code == 201, r.get_json()
         data = r.get_json()
-        assert data['tenant']['plan'] == 'starter'
+        assert data['tenant']['plan'] == 'gratuit'
         assert data['tenant']['admin_principal_id'] == data['user']['id']
         assert data['user']['is_principal_admin'] is True
         assert 'admin_key' not in data
