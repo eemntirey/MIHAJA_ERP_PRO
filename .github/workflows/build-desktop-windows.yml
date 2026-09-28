@@ -11,6 +11,7 @@ on:
   pull_request:
     branches:
       - main
+      - V0.01
 
 permissions:
   contents: write
