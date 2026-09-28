@@ -1,6 +1,6 @@
 from functools import wraps
 from datetime import datetime
-from flask import g, current_app
+from flask import g
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from flask_jwt_extended.exceptions import (
     NoAuthorizationError,
@@ -211,17 +211,6 @@ def check_plan_limits(feature):
             ).count()
 
             if current_count >= limit:
-                if current_app.config.get('TESTING'):
-                    current_app.logger.error(
-                        'TEST_QUOTA_DEBUG feature=%s tenant_id=%s current_count=%s limit=%s '
-                        'claim_tenant_id=%s g_tenant_id=%s',
-                        feature,
-                        tenant.id,
-                        current_count,
-                        limit,
-                        claims.get('tenant_id'),
-                        getattr(getattr(g, 'current_tenant', None), 'id', None),
-                    )
                 return {
                     'message': FEATURE_LIMIT_MESSAGES.get(feature, 'Limite atteinte pour votre abonnement actuel.')
                 }, 403
