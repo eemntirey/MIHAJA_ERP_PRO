@@ -10,7 +10,7 @@ const CONTACT_SEO_DATA = {
   '@context': 'https://schema.org',
   '@type': 'ContactPage',
   name: 'Contact | MIHAJA ERP PRO',
-  url: 'https://erp.sekoliko.com/contact',
+  url: `${PUBLIC_ORIGIN}/contact`,
   description: 'Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS.',
 };
 
@@ -54,7 +54,7 @@ const Contact = () => {
       <Seo
         title="Contact | MIHAJA ERP PRO"
         description="Contactez l’équipe MIHAJA ERP PRO pour toute question sur la solution ERP SaaS."
-        canonical="https://erp.sekoliko.com/contact"
+        canonical={`${PUBLIC_ORIGIN}/contact`}
         structuredData={CONTACT_SEO_DATA}
       />
       <div className="landing-contact"><PublicHeader />
