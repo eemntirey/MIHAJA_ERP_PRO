@@ -11,7 +11,7 @@ import PublicHeader from '../components/PublicHeader';
 const PAYMENT_METHODS = [
   { value: 'MVOLA', label: 'MVola' },
   { value: 'ORANGE_MONEY', label: 'Orange Money' },
-  { value: 'ARTEL_MONEY', label: 'Airtel Money' },
+  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
   { value: 'BRED', label: 'Carte bancaire' },
 ];
 
