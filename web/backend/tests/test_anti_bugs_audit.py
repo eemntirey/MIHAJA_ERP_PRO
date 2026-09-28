@@ -87,15 +87,44 @@ def app():
 
 
 def _register_company(client, name, email, plan='starter', password='Companie123'):
-    return client.post('/api/v1/auth/register', json={
+    """Crée l'entreprise dans son état métier réel, puis prépare optionnellement
+    un plan payant comme fixture de test sans appeler Papi.
+    
+    L'inscription publique commence toujours en Gratuit. Les tests qui veulent
+    vérifier les quotas Starter/Pro doivent donc activer explicitement le plan
+    demandé après l'inscription, sans détourner le comportement de production.
+    """
+    response = client.post('/api/v1/auth/register', json={
         'profile_type': 'company',
         'nom_entreprise': name,
         'email': email,
         'username': email,
         'password': password,
         'nom': 'Boss',
-        'plan': plan,
+        'plan': 'gratuit',
     })
+    if response.status_code != 201 or plan == 'gratuit':
+        return response
+
+    data = response.get_json() or {}
+    tenant_id = (data.get('tenant') or {}).get('id')
+    if not tenant_id:
+        return response
+
+    from app.services.abonnement_service import AbonnementService
+
+    with current_app.app_context():
+        abonnement = AbonnementService.create_abonnement({
+            'tenant_id': tenant_id,
+            'plan': plan,
+            'is_paid': True,
+            'methode_paiement': 'TEST',
+        })[0]
+        db.session.refresh(abonnement)
+
+    # Le contrat de ce helper reste celui de l'API d'inscription : le caller
+    # doit toujours se reconnecter après le changement de plan de la fixture.
+    return response
 
 
 def _login(client, email, password='Companie123', device_id='device-audit'):
