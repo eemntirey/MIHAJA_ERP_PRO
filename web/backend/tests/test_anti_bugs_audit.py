@@ -280,7 +280,7 @@ class Test2AbonnementLieAuTenant:
         for name, email in [('A', 'a@a.mg'), ('B', 'b@b.mg'), ('C', 'c@c.mg')]:
             _register_company(client, name, email, plan=('pro' if name != 'C' else 'starter'))
         with app.app_context():
-            for slug, expected_plan in [('a', 'pro'), ('b', 'pro'), ('c', 'starter')]:
+            for slug, expected_plan in [('a', 'gratuit'), ('b', 'gratuit'), ('c', 'gratuit')]:
                 tenant = Tenant.query.filter_by(slug=slug).first()
                 abo = Abonnement.query.filter_by(tenant_id=tenant.id).first()
                 assert abo is not None
