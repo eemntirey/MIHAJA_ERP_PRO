@@ -102,4 +102,43 @@ class PapiClient:
             data.get('paymentReference'),
             data.get('paymentLink'),
         )
+
+    def get_payment_link_status(self, merchant_payment_reference: str) -> Dict[str, Any]:
+        """Relit l'état d'un lien Papi par notre référence marchande."""
+        reference = str(merchant_payment_reference or '').strip()
+        if not reference:
+            raise PapiValidationError('Référence marchande Papi manquante')
+        url = f"{self.api_url}/{requests.utils.quote(reference, safe='-_.')}"
+        try:
+            response = requests.get(
+                url,
+                headers=self._headers(),
+                timeout=30,
+            )
+        except requests.ConnectionError as exc:
+            logger.error('Papi status connection error: %s', exc)
+            raise PapiUnavailableError('Papi API est indisponible') from exc
+        except requests.Timeout as exc:
+            logger.error('Papi status timeout: %s', exc)
+            raise PapiUnavailableError('Papi API a mis trop de temps à répondre') from exc
+        except requests.RequestException as exc:
+            logger.error('Papi status request error: %s', exc)
+            raise PapiUnavailableError('Erreur de communication avec Papi') from exc
+
+        if response.status_code in (401, 403):
+            raise PapiAuthError('Clé API Papi invalide')
+        if response.status_code == 404:
+            raise PapiError('Lien Papi introuvable')
+        if response.status_code != 200:
+            logger.error('Papi status unexpected status %s: %s', response.status_code, response.text)
+            raise PapiError(f'Papi a retourné le statut {response.status_code}')
+
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise PapiError('Réponse invalide de Papi') from exc
+        data = result.get('data') if isinstance(result, dict) else None
+        if not isinstance(data, dict):
+            raise PapiError('Réponse de statut Papi incomplète')
+        return data
         return data
