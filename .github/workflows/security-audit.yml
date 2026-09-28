@@ -2,9 +2,9 @@ name: Security Audit
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, V0.01]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, V0.01]
   schedule:
     # Audit hebdomadaire — lundi 06:00 UTC
     - cron: '0 6 * * 1'
@@ -90,4 +90,4 @@ jobs:
         run: pip install bandit[toml]
       - name: Run Bandit
         run: bandit -r web/backend/app -c web/backend/pyproject.toml || bandit -r web/backend/app -ll
-        continue-on-error: true
+        continue-on-error: false

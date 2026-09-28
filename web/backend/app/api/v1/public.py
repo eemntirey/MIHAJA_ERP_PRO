@@ -16,6 +16,8 @@ from app.services.commande_papi_service import (
     create_commande_papi_payment,
     ELECTRONIC_METHODS,
 )
+from app.config.settings import Config
+from app.services.email_service import send_email
 from app import db
 from app.security.rate_limit import rate_limit
 from datetime import datetime

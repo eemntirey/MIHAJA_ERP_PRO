@@ -300,7 +300,7 @@ test('la persistance des paramètres de plans est câblée de bout en bout', () 
     'utf8',
   );
   const migration = fs.readFileSync(
-    path.join(__dirname, '..', '..', 'web', 'backend', 'migrations', 'versions', 'bb2c3d4e5f6_persist_plan_config.py'),
+    path.join(__dirname, '..', '..', 'web', 'backend', 'migrations', 'versions', 'bb2c3d4e5f6a_persist_plan_config.py'),
     'utf8',
   );
   const plans = fs.readFileSync(

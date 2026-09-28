@@ -2,9 +2,9 @@ name: Backend Tests (pytest)
 
 on:
   push:
-    branches: [V0, main, master]
+    branches: [V0, V0.01, main, master]
   pull_request:
-    branches: [V0, main, master]
+    branches: [V0, V0.01, main, master]
 
 jobs:
   test:
