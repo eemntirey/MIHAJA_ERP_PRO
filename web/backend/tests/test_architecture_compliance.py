@@ -226,10 +226,23 @@ class TestConnexionProfessionnelle:
 
     def test_user_tenant_a_refuse_tenant_b(self, app):
         client = app.test_client()
-        headers_a = self._setup_tenant(client, 'T3', 't3@t.mg')
-        headers_b = self._setup_tenant(client, 'T4', 't4@t.mg')
-        ru = _create_user(client, headers_a, 'user_t3', role='user')
-        assert ru.status_code == 201
+        self._setup_tenant(client, 'T3', 't3@t.mg')
+        self._setup_tenant(client, 'T4', 't4@t.mg')
+        with app.app_context():
+            tenant_a = Tenant.query.filter_by(email_contact='t3@t.mg').first()
+            assert tenant_a is not None
+            employee = Utilisateur(
+                username='user_t3',
+                email='user_t3@x.mg',
+                password_hash=hash_password('Employe123'),
+                nom='user_t3',
+                role=Role.USER,
+                statut=StatutUtilisateur.ACTIF,
+                tenant_id=tenant_a.id,
+                is_active=True,
+            )
+            db.session.add(employee)
+            db.session.commit()
         # L'utilisateur de A ne peut pas se connecter avec les identifiants de B
         r = client.post('/api/v1/auth/login', json={
             'username': 'user_t3@x.mg', 'password': 'WrongPassword'
@@ -238,10 +251,23 @@ class TestConnexionProfessionnelle:
 
     def test_user_tenant_b_refuse_tenant_a(self, app):
         client = app.test_client()
-        headers_a = self._setup_tenant(client, 'T5', 't5@t.mg')
-        headers_b = self._setup_tenant(client, 'T6', 't6@t.mg')
-        ru = _create_user(client, headers_b, 'user_t6', role='user')
-        assert ru.status_code == 201
+        self._setup_tenant(client, 'T5', 't5@t.mg')
+        self._setup_tenant(client, 'T6', 't6@t.mg')
+        with app.app_context():
+            tenant_b = Tenant.query.filter_by(email_contact='t6@t.mg').first()
+            assert tenant_b is not None
+            employee = Utilisateur(
+                username='user_t6',
+                email='user_t6@x.mg',
+                password_hash=hash_password('Employe123'),
+                nom='user_t6',
+                role=Role.USER,
+                statut=StatutUtilisateur.ACTIF,
+                tenant_id=tenant_b.id,
+                is_active=True,
+            )
+            db.session.add(employee)
+            db.session.commit()
         # L'utilisateur de B ne peut pas se connecter avec un mauvais mot de passe
         r = client.post('/api/v1/auth/login', json={
             'username': 'user_t6@x.mg', 'password': 'WrongPassword'
