@@ -221,12 +221,16 @@ class Test1_2AdminPrincipal:
         rh = client.get('/api/v1/abonnements/mon-historique', headers=headers)
         abo_id = rh.get_json()['abonnements'][0]['id']
         # Le principal passe
-        r = client.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=headers)
+        r = client.post(
+            f'/api/v1/abonnements/{abo_id}/renouveler',
+            headers=headers,
+            json={'plan': 'pro'},
+        )
         assert r.status_code == 200, r.get_json()
         # L'autre ADMIN est refuse
         with app.app_context():
             token = create_access_token(
-                identity=other_id,
+                identity=str(other_id),
                 additional_claims={
                     'role': 'admin',
                     'tenant_id': tenant_id,
