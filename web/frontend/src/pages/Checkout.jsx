@@ -207,8 +207,8 @@ const Checkout = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
-      <PublicHeader />
+      <div className="page-container public-checkout-page">
+        <PublicHeader />
         <div className="loading-screen">
           <div className="spinner-large"></div>
           <p>Chargement...</p>
@@ -219,7 +219,8 @@ const Checkout = () => {
 
   if (cart.length === 0 && !orderRef) {
     return (
-      <div className="page-container">
+      <div className="page-container public-checkout-page">
+        <PublicHeader />
         <div className="alert error">
           <p>Panier vide</p>
           <Link to="/" className="btn-primary">Retour à l'accueil</Link>
@@ -229,7 +230,8 @@ const Checkout = () => {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container public-checkout-page">
+      <PublicHeader />
       <div className="public-card" style={{ marginBottom: '18px' }}>
         <div className="public-card__header">
           <div>
@@ -337,7 +339,7 @@ const Checkout = () => {
                   border: '1px solid var(--color-border)',
                   borderRadius: '10px',
                   cursor: 'pointer',
-                  background: paymentMode === 'delivery' ? 'rgba(212,175,55,0.05)' : 'transparent',
+                  background: paymentMode === 'delivery' ? 'var(--mihaja-gold-soft)' : 'transparent',
                 }}
               >
                 <input
@@ -349,7 +351,7 @@ const Checkout = () => {
                 />
                 <span>
                   Paiement à la livraison
-                  <small style={{ display: 'block', color: '#6b7280' }}>
+                  <small style={{ display: 'block', color: 'var(--color-text-secondary)' }}>
                     Vous payez le vendeur à la réception des produits.
                   </small>
                 </span>
@@ -366,7 +368,7 @@ const Checkout = () => {
                     border: '1px solid var(--color-border)',
                     borderRadius: '10px',
                     cursor: 'pointer',
-                    background: paymentMode === 'online' ? 'rgba(212,175,55,0.05)' : 'transparent',
+                    background: paymentMode === 'online' ? 'var(--mihaja-gold-soft)' : 'transparent',
                   }}
                 >
                   <input
