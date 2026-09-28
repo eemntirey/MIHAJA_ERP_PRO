@@ -201,8 +201,8 @@ def create_app():
 
     # Cookies JWT — HttpOnly empêche l'accès JS (XSS), SameSite=Strict bloque
     # les requêtes cross-origin, Secure n'est activé qu'en production.
-    app.config['JWT_ACCESS_COOKIE'] = 'access_token_cookie'
-    app.config['JWT_REFRESH_COOKIE'] = 'refresh_token_cookie'
+    app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
+    app.config['JWT_REFRESH_COOKIE_NAME'] = 'refresh_token_cookie'
     app.config['JWT_COOKIE_SECURE'] = _is_prod
     app.config['JWT_COOKIE_HTTPONLY'] = True
     # Le frontend web et l'API sont sur des origines différentes (ex.\n    # erp.sekoliko.com -> mihaja-erp-pro.onrender.com). Les cookies JWT\n    # doivent donc être autorisés sur les requêtes XHR/fetch cross-site.\n    # En production, None est obligatoire pour cette topologie et Secure est\n    # déjà activé ci-dessus. En développement, Lax reste le comportement sûr\n    # par défaut. Une valeur explicite peut être fournie par l'environnement.\n    jwt_cookie_samesite = os.getenv(\n        'JWT_COOKIE_SAMESITE',\n        'None' if _is_prod else 'Lax',\n    ).strip().capitalize()\n    if jwt_cookie_samesite not in ('Strict', 'Lax', 'None'):\n        raise ValueError(\n            "JWT_COOKIE_SAMESITE doit être Strict, Lax ou None."\n        )\n    app.config['JWT_COOKIE_SAMESITE'] = jwt_cookie_samesite
@@ -798,59 +798,3 @@ def create_app():
 
     # Auto-seed des rôles/permissions système si la table est vide.
     # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
-    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
-    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
-    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
-    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
-    try:
-        with app.app_context():
-            missing_tables, inspection_error = _inspect_database_schema()
-            if inspection_error is not None or missing_tables:
-                _log_database_schema_problem(missing_tables, inspection_error)
-            else:
-                from app.models.role_permission import RoleModel, Permission
-                roles_empty = db.session.query(RoleModel.id).first() is None
-                perms_empty = db.session.query(Permission.id).first() is None
-                if roles_empty or perms_empty:
-                    from scripts.seed_roles import seed_roles
-                    seed_roles(app)
-                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
-                else:
-                    # Convergence : la matrice peut gagner de nouveaux codes
-                    # (ex. `user.delete`) sans que la table `permissions` soit
-                    # vide. On complète alors UNIQUEMENT les lignes manquantes
-                    # (idempotent, aucune donnée existante n'est supprimée) afin
-                    # que presets et rôles personnalisés exposent bien le CRUD
-                    # complet des modules souscrits par le tenant.
-                    from scripts.seed_roles import missing_permission_codes, seed_roles
-                    missing_codes = missing_permission_codes()
-                    if missing_codes:
-                        seed_roles(app)
-                        logger.info(
-                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
-                            len(missing_codes), ", ".join(missing_codes[:10]),
-                        )
-    except Exception:
-        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
-
-    # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
-
-    # P2 : en-têtes de sécurité (Helmet-like) sans dépendance externe.
-    @app.after_request
-    def _security_headers(response):
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-        response.headers['Content-Security-Policy'] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
-            "object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
-        )
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Permissions-Policy'] = (
-            'geolocation=(), microphone=(), camera=(), payment=(), usb=(), '
-            'magnetometer=(), gyroscope=()'
-        )
-        return response
-
-    return app
