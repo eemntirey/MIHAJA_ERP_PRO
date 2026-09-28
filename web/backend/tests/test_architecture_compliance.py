@@ -115,7 +115,7 @@ class TestCreationTenant:
 class TestRenouvellement:
 
     def _principal_and_abonnement(self, client, name, email):
-        r = _register_company(client, name, email)
+        r = _register_company(client, name, email, plan='starter')
         headers = _auth(client, email)
         # L'abonnement initial est EN_ATTENTE (non encore payÃƒÂ©) : on le rÃƒÂ©cupÃƒÂ¨re
         # via l'historique plutÃƒÂ´t que via /mon-abonnement (qui ne renvoie que l'actif).
