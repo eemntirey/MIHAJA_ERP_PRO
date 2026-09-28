@@ -57,16 +57,38 @@ export default function Documents() {
         return () => ta.removeEventListener('input', handleInput);
     }, [stretchActive]);
 
-    if (loading && modeles.length === 0 && documents.length === 0) {
-        return (
-            <div className="page-container">
-                <div className="loading-screen">
-                    <div className="spinner-large"></div>
-                    <p>Chargement des documents...</p>
-                </div>
-            </div>
-        );
-    }
+    const filteredDocuments = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return documents.filter((doc) => {
+            const haystack = [
+                doc.reference,
+                doc.modele_nom,
+                doc.type_document,
+                doc.entite_type,
+                doc.entite_id,
+            ].filter(Boolean).join(' ').toLowerCase();
+            const matchesSearch = !query || haystack.includes(query);
+            const matchesType = typeFilter === 'all' || doc.type_document === typeFilter;
+            const matchesSource = sourceFilter === 'all' || doc.entite_type === sourceFilter;
+            return matchesSearch && matchesType && matchesSource;
+        });
+    }, [documents, searchQuery, typeFilter, sourceFilter]);
+
+    const documentStats = useMemo(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        return {
+            total: documents.length,
+            factures: documents.filter(d => d.type_document === 'facture').length,
+            devis: documents.filter(d => d.type_document === 'devis').length,
+            today: documents.filter(d => String(d.date_generation || '').slice(0, 10) === today).length,
+        };
+    }, [documents]);
+
+    const resetDocumentFilters = () => {
+        setSearchQuery('');
+        setTypeFilter('all');
+        setSourceFilter('all');
+    };
 
     const handleSubmitModele = async (e) => {
         e.preventDefault();
@@ -181,38 +203,16 @@ export default function Documents() {
             toast.error(err.response?.data?.message || "Erreur lors de l'impression");
         }
     };
-    const filteredDocuments = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-        return documents.filter((doc) => {
-            const haystack = [
-                doc.reference,
-                doc.modele_nom,
-                doc.type_document,
-                doc.entite_type,
-                doc.entite_id,
-            ].filter(Boolean).join(' ').toLowerCase();
-            const matchesSearch = !query || haystack.includes(query);
-            const matchesType = typeFilter === 'all' || doc.type_document === typeFilter;
-            const matchesSource = sourceFilter === 'all' || doc.entite_type === sourceFilter;
-            return matchesSearch && matchesType && matchesSource;
-        });
-    }, [documents, searchQuery, typeFilter, sourceFilter]);
-
-    const documentStats = useMemo(() => {
-        const today = new Date().toISOString().slice(0, 10);
-        return {
-            total: documents.length,
-            factures: documents.filter(d => d.type_document === 'facture').length,
-            devis: documents.filter(d => d.type_document === 'devis').length,
-            today: documents.filter(d => String(d.date_generation || '').slice(0, 10) === today).length,
-        };
-    }, [documents]);
-
-    const resetDocumentFilters = () => {
-        setSearchQuery('');
-        setTypeFilter('all');
-        setSourceFilter('all');
-    };
+    if (loading && modeles.length === 0 && documents.length === 0) {
+        return (
+            <div className="page-container">
+                <div className="loading-screen">
+                    <div className="spinner-large"></div>
+                    <p>Chargement des documents...</p>
+                </div>
+            </div>
+        );
+    }
 
     const typeLabels = {
         facture: 'Facture',
