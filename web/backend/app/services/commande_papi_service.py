@@ -102,12 +102,16 @@ def _build_payload(
             f"Mode de paiement invalide: {payment_method}"
         )
 
-    callback_base = Config.PAPI_CALLBACK_URL or ''
-    # URLs de retour : on s'appuie sur la route frontend /order-tracking/<ref>
-    frontend_base = (Config.PAPI_CALLBACK_URL or '').rstrip('/')
+    # Les URL de retour Papi sont des URL frontend. Le webhook reste
+    # séparé dans PAPI_CALLBACK_URL et ne doit jamais servir de base de redirection.
+    frontend_base = (
+        getattr(Config, 'PUBLIC_SITE_URL', None)
+        or getattr(Config, 'FRONTEND_URL', None)
+        or ''
+    ).rstrip('/')
     success_url = (
-        f"{Config.PAPI_CALLBACK_URL}/../order-tracking/{commande.reference}"
-        if Config.PAPI_CALLBACK_URL
+        f"{frontend_base}/order-tracking/{commande.reference}"
+        if frontend_base
         else ''
     )
     failure_url = success_url
