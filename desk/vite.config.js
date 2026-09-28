@@ -24,6 +24,7 @@ export default defineConfig({
       '@desk-shared': deskSharedDir,
       '@': path.resolve(__dirname, 'src'),
       'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
+      'socket.io-client': path.resolve(__dirname, 'node_modules/socket.io-client'),
     },
   },
   server: {
