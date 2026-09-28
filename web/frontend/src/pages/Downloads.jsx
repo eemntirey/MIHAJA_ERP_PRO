@@ -31,7 +31,7 @@ const Downloads = () => (
     <Seo
       title="Télécharger MIHAJA ERP PRO | Desktop et Mobile"
       description="Téléchargez les applications officielles MIHAJA ERP PRO pour ordinateur et mobile."
-      canonical="https://erp.sekoliko.com/telechargements"
+      canonical={`${typeof window !== 'undefined' ? window.location.origin : ''} /telechargements`.replace(' ', '')}
     />
     <div className="downloads-page">
       <PublicHeader />
