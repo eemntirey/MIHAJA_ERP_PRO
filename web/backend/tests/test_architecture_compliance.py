@@ -361,10 +361,9 @@ class TestQuotaParTenant:
 
     def test_quota_independant(self, app):
         client = app.test_client()
-        ra = _register_company(client, 'Quota A', 'qa@a.mg')
-        rb = _register_company(client, 'Quota B', 'qb@b.mg')
-        ha = _auth(client, 'qa@a.mg')
-        hb = _auth(client, 'qb@b.mg')
+        helper = TestConnexionProfessionnelle()
+        ha = helper._setup_tenant(client, 'Quota A', 'qa@a.mg', plan='starter')
+        hb = helper._setup_tenant(client, 'Quota B', 'qb@b.mg', plan='starter')
 
         # Tenant A : 1 admin + 2 employÃƒÂ©s = 3 (limite Starter). Le 4e est refusÃƒÂ©.
         assert _create_user(client, ha, 'a_emp1').status_code == 201
