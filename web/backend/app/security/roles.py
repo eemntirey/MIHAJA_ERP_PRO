@@ -97,6 +97,15 @@ def has_permission(user_id, permission):
     if not user:
         return False
     
+    # L'ADMIN est le propriétaire du tenant et conserve les permissions
+    # structurelles de sa matrice système, même lorsqu'un rôle personnalisé
+    # est associé au compte.
+    if normalize_role(user.role) == Role.ADMIN:
+        user_permissions = PERMISSIONS.get(Role.ADMIN.value, [])
+        if '*' in user_permissions:
+            return True
+        return permission in user_permissions
+
     if user.custom_role_id and user.custom_role and user.custom_role.permissions:
         user_permissions = [p.code for p in user.custom_role.permissions]
         if '*' in user_permissions:
