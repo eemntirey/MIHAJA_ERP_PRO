@@ -20,8 +20,6 @@ class PlatformConfig(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.Integer, db.ForeignKey('utilisateurs.id'), nullable=True)
-    # Overrides persistants des paramètres de plans (prix/durée uniquement).
-    plans_json = db.Column(db.JSON, nullable=True)
 
     def to_dict(self):
         return {
