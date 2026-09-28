@@ -156,6 +156,21 @@ def _login(client, email, password='Companie123', device_id='device-audit'):
 def _auth(client, email, password='Companie123', device_id='device-audit'):
     r = _login(client, email, password, device_id=device_id)
     assert r.status_code == 200, r.get_json()
+
+    # Ces tests exercent les endpoints par Bearer explicite. On retire les
+    # cookies JWT déposés par /login pour éviter qu'un cookie d'un tenant
+    # précédent ne prenne le dessus sur le header Authorization.
+    for cookie_name in (
+        'access_token_cookie',
+        'refresh_token_cookie',
+        'csrf_access_token',
+        'csrf_refresh_token',
+    ):
+        try:
+            client.delete_cookie(cookie_name)
+        except Exception:
+            pass
+
     return {'Authorization': 'Bearer ' + r.get_json()['access_token']}
 
 
