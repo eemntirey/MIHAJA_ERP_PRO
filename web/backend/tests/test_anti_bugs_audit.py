@@ -255,7 +255,7 @@ class Test1_2AdminPrincipal:
         # L'autre ADMIN est refuse
         with app.app_context():
             token = create_access_token(
-                identity=other_id,
+                identity=str(other_id),
                 additional_claims={
                     'role': 'admin',
                     'tenant_id': tenant_id,
