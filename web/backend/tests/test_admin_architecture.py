@@ -510,7 +510,9 @@ class TestSubscriptionAdminPrincipal:
                 'nom': 'New Tenant',
                 'slug': 'new-tenant',
                 'domaine': 'new.local',
-                'plan': 'starter',
+                # Le backend applique volontairement le plan d'essai gratuit à toute nouvelle entreprise.
+            # Le champ est fourni ici pour verrouiller la non-activation implicite d'un plan payant.
+            'plan': 'starter',
                 'admin_email': 'newadmin@new.mg',
                 'admin_password': 'NewAdmin123!',
                 'admin_nom': 'New',
@@ -518,7 +520,7 @@ class TestSubscriptionAdminPrincipal:
             })
             assert r2.status_code == 201, r2.get_json()
             data = r2.get_json()
-            assert data['tenant']['plan'] == 'starter'
+            assert data['tenant']['plan'] == 'gratuit'
             assert data['admin']['email'] == 'newadmin@new.mg'
             assert data['admin']['role'] == 'admin'
             assert data['tenant']['admin_principal_id'] == data['admin']['id']
