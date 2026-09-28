@@ -20,7 +20,7 @@ const Cart = () => {
 
   if (cart.length === 0) {
     return (
-      <div className="page-container">
+      <div className="page-container public-cart-page">
         <PublicHeader />
         <div className="page-header">
           <div>
