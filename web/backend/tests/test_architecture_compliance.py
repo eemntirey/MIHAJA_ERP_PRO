@@ -177,6 +177,16 @@ class TestConnexionProfessionnelle:
 
     def _setup_tenant(self, client, name, email, plan='starter'):
         r = _register_company(client, name, email, plan=plan)
+        assert r.status_code == 201, r.get_json()
+        # L'inscription produit reste en essai Gratuit par défaut. Les tests
+        # ci-dessous vérifient ensuite des comportements propres à Starter/Pro/
+        # Enterprise : on sélectionne donc explicitement le plan côté fixture,
+        # sans modifier la règle de production.
+        with client.application.app_context():
+            tenant = Tenant.query.filter_by(email_contact=email).first()
+            assert tenant is not None
+            tenant.plan = plan
+            db.session.commit()
         headers = _auth(client, email)
         return headers
 
