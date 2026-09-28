@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+import json
 from typing import Optional
 
 from flask import current_app
@@ -258,6 +259,10 @@ def create_commande_papi_payment(
             f"Paiement commande vitrine {commande.reference} "
             f"via Papi (marchand {tenant.nom})"
         ),
+        payment_metadata=json.dumps({
+            'notification_token': notification_token,
+            'merchant_payment_reference': external_reference,
+        }),
     )
     db.session.add(paiement)
     try:
