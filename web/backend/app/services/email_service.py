@@ -90,7 +90,12 @@ def send_email(subject, html_body, recipient, *, config=None, reply_to=None):
         return {'success': True, 'delivered': True, 'recipient': recipient}
     except Exception as exc:
         logger.exception('Echec envoi email a %s', recipient)
-        return {'success': False, 'delivered': False, 'message': str(exc), 'recipient': recipient}
+        return {
+            'success': False,
+            'delivered': False,
+            'message': "Impossible d'envoyer l'email. Vérifiez la configuration SMTP.",
+            'recipient': recipient,
+        }
 
 
 def _tenant_label(tenant):
