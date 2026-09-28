@@ -22,7 +22,7 @@ const HOME_SEO_DATA = {
     {
       '@type': 'WebSite',
       name: 'MIHAJA ERP PRO',
-      url: 'https://erp.sekoliko.com/',
+      url: `${PUBLIC_ORIGIN}/`,
       inLanguage: 'fr',
     },
   ],
