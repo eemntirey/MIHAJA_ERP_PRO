@@ -76,7 +76,7 @@ const ProductDetail = () => {
     `Découvrez ${product.nom} sur MIHAJA ERP PRO.`;
   const productImage = product.image_url || product.image || product.photo || undefined;
   const publicBaseUrl = window.location.origin;
-  const productCanonicalUrl = `${publicBaseUrl}/produit/${id}`;
+  const productCanonicalUrl = `${publicBaseUrl}/produits/${id}`;
   const productStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
