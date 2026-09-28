@@ -81,9 +81,14 @@ class ClientListResource(Resource):
     @ns.expect(client_model)
     def post(self):
         """Crée un nouveau client"""
-        data = request.get_json()
-        if not data:
-            return {'message': 'Données JSON requises'}, 400
+        if not request.is_json:
+            return {
+                'message': 'Content-Type application/json requis',
+                'code': 415,
+            }, 415
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
+            return {'message': 'Données JSON requises', 'code': 400}, 400
         
         # Le code est optionnel côté API : ClientService le génère automatiquement
         # lorsqu'il est absent, conformément au formulaire utilisateur.
