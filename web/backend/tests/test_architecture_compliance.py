@@ -141,11 +141,26 @@ class TestRenouvellement:
         headers = _auth(client, 'tb@b.mg')
         rh = client.get('/api/v1/abonnements/mon-historique', headers=headers)
         abo_id = rh.get_json()['abonnements'][0]['id']
-        # L'admin principal crÃƒÂ©e un employÃƒÂ©
-        ru = _create_user(client, headers, 'employe_b')
-        assert ru.status_code == 201, ru.get_json()
-        emp_email = ru.get_json()['email']
-        # L'employÃƒÂ© se connecte avec email + mot de passe (connexion professionnelle).
+        # Ce test porte sur le contrôle RBAC du renouvellement, pas sur les
+        # quotas de création d'utilisateurs. L'inscription démarre volontairement
+        # en Gratuit ; créer l'employé directement évite que le quota masque le 403.
+        with app.app_context():
+            tenant = Tenant.query.filter_by(email_contact='tb@b.mg').first()
+            assert tenant is not None
+            employee = Utilisateur(
+                username='employe_b',
+                email='employe_b@x.mg',
+                password_hash=hash_password('Employe123'),
+                nom='employe_b',
+                role=Role.USER,
+                statut=StatutUtilisateur.ACTIF,
+                tenant_id=tenant.id,
+                is_active=True,
+            )
+            db.session.add(employee)
+            db.session.commit()
+            emp_email = employee.email
+        # L'employé se connecte avec email + mot de passe (connexion professionnelle).
         rl = client.post('/api/v1/auth/login', json={
             'username': emp_email, 'password': 'Employe123'
         })
