@@ -3,16 +3,16 @@
 @import './tokens.css';
 
 :root {
-  --color-text:            var(--color-text);
-  --color-text-muted:      var(--color-text-muted);
+  --color-text:            var(--color-text-primary);
+  --color-text-muted:      var(--color-text-secondary);
   --color-accent:          var(--color-primary);
   --color-accent-hover:    var(--color-primary-hover);
   --color-accent-soft:     var(--color-primary-soft);
   --color-accent-border:   var(--color-primary);
   --color-accent-ring:     var(--color-primary-ring);
 
-  --color-onyx:            var(--color-onyx);
-  --color-onyx-soft:       var(--color-onyx-soft);
+  --color-onyx:            var(--color-text-primary);
+  --color-onyx-soft:       var(--color-neutral-800);
   --color-paper:           var(--color-background);
   --color-line:            var(--color-border);
   --color-line-strong:     var(--color-border-strong);
@@ -22,8 +22,8 @@
   --color-gold:            var(--color-primary);
   --color-gold-dark:       var(--color-primary-hover);
 
-  --font-heading:          var(--font-heading);
-  --font-body:             var(--font-body);
+  --font-heading:          var(--font-family-heading);
+  --font-body:             var(--font-family-body);
 
   --text-xs:   var(--text-caption);
   --text-sm:   var(--text-body-small);
