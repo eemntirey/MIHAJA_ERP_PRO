@@ -812,9 +812,13 @@ class Test17InscriptionsMultiples:
             assert len(tenants) == 5
             admins_principaux = {t.admin_principal_id for t in tenants}
             assert len(admins_principaux) == 5
+            # Chaque fixture payante conserve l'abonnement Gratuit désactivé
+            # dans l'historique : 2 lignes par tenant, mais une seule active.
             abos = Abonnement.query.all()
-            assert len(abos) == 5
-            assert {a.tenant_id for a in abos} == {t.id for t in tenants}
+            assert len(abos) == 10
+            actifs = [a for a in abos if a.is_active]
+            assert len(actifs) == 5
+            assert {a.tenant_id for a in actifs} == {t.id for t in tenants}
         _record('22 inscriptions multiples', 'PASS')
 
 
