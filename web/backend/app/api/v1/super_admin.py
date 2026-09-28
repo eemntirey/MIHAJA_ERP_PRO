@@ -1883,8 +1883,8 @@ def _backup_tenant_data(tenant_id):
 
     Le fichier est écrit dans BACKUP_DIR (config) ; il permet une
     consultation ou une restauration manuelle après le soft-delete.
-    Aucune exception n'est remontée : l'échec de sauvegarde est journalisé
-    mais ne bloque pas la suppression.
+    Toute erreur d'export bloque volontairement le soft-delete appelant :
+    on ne désactive jamais un tenant sans snapshot vérifié.
     """
     import os
     import logging
@@ -1908,8 +1908,12 @@ def _backup_tenant_data(tenant_id):
         try:
             rows = model.query.filter_by(tenant_id=tenant_id).all()
             snapshot['models'][model.__tablename__] = [r.to_dict() for r in rows]
-        except Exception:
-            continue
+        except Exception as exc:
+            logging.getLogger(__name__).exception(
+                'Échec export modèle %s pour le tenant %s: %s',
+                model.__tablename__, tenant_id, exc,
+            )
+            return None
 
     backup_dir = os.path.join(os.getcwd(), os.getenv('BACKUP_DIR', 'backups'))
     os.makedirs(backup_dir, exist_ok=True)
@@ -1917,6 +1921,10 @@ def _backup_tenant_data(tenant_id):
     try:
         with open(path, 'w', encoding='utf-8') as f:
             _json.dump(snapshot, f, ensure_ascii=False, default=str)
+        # Vérification minimale de durabilité logique : le fichier doit
+        # exister et contenir au moins l'identité du tenant exporté.
+        if not os.path.isfile(path) or os.path.getsize(path) <= 0:
+            raise OSError('Snapshot tenant vide ou absent après écriture')
         logger = logging.getLogger(__name__)
         logger.info('Backup tenant %s écrit: %s', tenant_id, path)
         return path
@@ -2063,6 +2071,13 @@ class SuperAdminUserDetail(Resource):
                 tenant_nom = tenant.nom if tenant else "inconnu"
                 if tenant and tenant.is_active:
                     backup_path = _backup_tenant_data(tenant_id)
+                    if not backup_path:
+                        return {
+                            'message': (
+                                'Suppression bloquée : la sauvegarde préalable '
+                                'du tenant a échoué.'
+                            )
+                        }, 503
                     _tenant_soft_delete(tenant)
                     message = (
                         f"Admin {user_username} désactivé, tenant {tenant_nom} "
