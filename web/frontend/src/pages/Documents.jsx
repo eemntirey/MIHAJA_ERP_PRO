@@ -526,7 +526,7 @@ export default function Documents() {
                         </div>
                         <div className="modal-form pdf-preview-container">
                             <iframe
-                                src={getPdfUrl(previewDoc)}
+                                src={previewPdfUrl || undefined}
                                 title={`Prévisualisation ${previewDoc.reference}`}
                                 className="pdf-iframe"
                             />
