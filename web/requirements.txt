@@ -17,7 +17,7 @@ alembic==1.12.1
 # Sécurité
 PyJWT==2.13.0
 bcrypt==4.1.1
-cryptography==46.0.6
+cryptography==48.0.1
 python-dotenv==1.2.2
 
 # Validation et sérialisation
@@ -55,13 +55,13 @@ prometheus-flask-exporter==0.22.4
 sentry-sdk==1.45.1
 
 # Tests
-pytest==7.4.2
+pytest==9.0.3
 pytest-cov==4.1.0
 factory-boy==3.3.0
 Faker==19.13.0
 
 # Qualité de code
-black==23.10.1
+black==26.3.1
 flake8==6.1.0
 mypy==1.6.0
 isort==5.12.0
