@@ -23,15 +23,15 @@
   --landing-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Futuristic catalog accents */
-  --fut-accent: #00f0ff;
-  --fut-accent-dark: #00b8d4;
-  --fut-accent-glow: rgba(0, 240, 255, 0.25);
+  --fut-accent: var(--mihaja-gold);
+  --fut-accent-dark: var(--mihaja-gold-light);
+  --fut-accent-glow: rgba(212, 175, 55, 0.25);
   --fut-surface: #0b0f19;
   --fut-surface-card: #111827;
   --fut-text: #e5e7eb;
   --fut-text-muted: #9ca3af;
-  --fut-border: rgba(0, 240, 255, 0.18);
-  --fut-border-hover: rgba(0, 240, 255, 0.55);
+  --fut-border: rgba(212, 175, 55, 0.18);
+  --fut-border-hover: rgba(212, 175, 55, 0.55);
   --fut-radius: 14px;
   --fut-radius-sm: 10px;
 }
@@ -711,8 +711,8 @@
 }
 
 .landing-badge.info {
-  background: rgba(66, 153, 225, 0.10);
-  color: #2b6cb0;
+  background: rgba(212, 175, 55, 0.10);
+  color: var(--color-primary-hover);
 }
 
 /* Résultat suivi */
@@ -958,15 +958,15 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(1000px 100px at 0% -20%, rgba(0, 240, 255, 0.07), transparent 55%),
-              radial-gradient(700px 100px at 100% 120%, rgba(0, 240, 255, 0.05), transparent 55%);
+  background: radial-gradient(1000px 100px at 0% -20%, rgba(212, 175, 55, 0.07), transparent 55%),
+              radial-gradient(700px 100px at 100% 120%, rgba(212, 175, 55, 0.05), transparent 55%);
   pointer-events: none;
 }
 
 .landing-product-card:hover {
   transform: translateY(-2px);
   border-color: var(--fut-border-hover);
-  box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.07), 0 12px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.07), 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 .landing-product-visual {
@@ -974,7 +974,7 @@
   height: 72px;
   flex-shrink: 0;
   border-radius: var(--fut-radius-sm);
-  background: linear-gradient(180deg, rgba(0, 240, 255, 0.04), rgba(0, 0, 0, 0.25));
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), rgba(0, 0, 0, 0.25));
   border: 1px solid rgba(255, 255, 255, 0.06);
   display: grid;
   place-items: center;
@@ -1013,9 +1013,9 @@
   align-items: center;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(0, 240, 255, 0.10);
+  background: rgba(212, 175, 55, 0.10);
   color: var(--fut-accent);
-  border: 1px solid rgba(0, 240, 255, 0.18);
+  border: 1px solid rgba(212, 175, 55, 0.18);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -1105,13 +1105,13 @@
 }
 
 .landing-btn-fut {
-  background: rgba(0, 240, 255, 0.10);
+  background: rgba(212, 175, 55, 0.10);
   color: var(--fut-accent);
-  border-color: rgba(0, 240, 255, 0.25);
+  border-color: rgba(212, 175, 55, 0.25);
 }
 
 .landing-btn-fut:hover {
-  background: rgba(0, 240, 255, 0.18);
+  background: rgba(212, 175, 55, 0.18);
   border-color: var(--fut-border-hover);
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
@@ -1139,7 +1139,7 @@
   height: 72px;
   flex-shrink: 0;
   border-radius: var(--fut-radius-sm);
-  background: linear-gradient(90deg, rgba(0, 240, 255, 0.06) 25%, rgba(0, 240, 255, 0.12) 50%, rgba(0, 240, 255, 0.06) 75%);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.06) 25%, rgba(212, 175, 55, 0.12) 50%, rgba(212, 175, 55, 0.06) 75%);
   background-size: 200% 100%;
   animation: landingSkeletonPulse 1.4s infinite;
 }
@@ -1147,7 +1147,7 @@
 .landing-skeleton-line {
   height: 9px;
   border-radius: 3px;
-  background: linear-gradient(90deg, rgba(0, 240, 255, 0.06) 25%, rgba(0, 240, 255, 0.12) 50%, rgba(0, 240, 255, 0.06) 75%);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.06) 25%, rgba(212, 175, 55, 0.12) 50%, rgba(212, 175, 55, 0.06) 75%);
   background-size: 200% 100%;
   animation: landingSkeletonPulse 1.4s infinite;
 }
