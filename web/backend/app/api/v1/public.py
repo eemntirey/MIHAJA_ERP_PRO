@@ -557,9 +557,17 @@ class PublicCommandeTracking(Resource):
         # d'une référence publique. Seules les données de suivi sont exposées.
         items = []
         for item in commande.items_list:
+            quantity = item.get('quantite', 1)
+            unit_price = item.get('prix_unitaire_ht', 0)
             items.append({
                 'produit_id': item.get('produit_id'),
-                'quantite': item.get('quantite', 1),
+                'nom': item.get('nom'),
+                'reference': item.get('reference'),
+                'quantite': quantity,
+                # Le snapshot de commande est la source de vérité :
+                # le catalogue peut changer après l'achat.
+                'prix_unitaire': unit_price,
+                'total': item.get('total_ht', float(unit_price or 0) * quantity),
             })
 
         return {
