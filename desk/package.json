@@ -71,5 +71,8 @@
       "target": "AppImage",
       "icon": "public/icon.png"
     }
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
