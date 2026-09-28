@@ -8,13 +8,15 @@ import { useCart } from '../contexts/CartContext';
 import Seo from '../components/Seo';
 import './Pages.css';
 
+const PUBLIC_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+
 const HOME_SEO_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@type': 'Organization',
       name: 'MIHAJA ERP PRO',
-      url: 'https://erp.sekoliko.com/',
+      url: `${PUBLIC_ORIGIN}/`,
       description: 'ERP SaaS pour les entreprises à Madagascar.',
     },
     {
@@ -239,7 +241,7 @@ const Home = () => {
       <Seo
         title="MIHAJA ERP PRO | ERP SaaS pour les entreprises à Madagascar"
         description="MIHAJA ERP PRO est un ERP SaaS pour gérer stocks, ventes, achats, factures, clients et livraisons pour les entreprises à Madagascar."
-        canonical="https://erp.sekoliko.com/"
+        canonical={`${PUBLIC_ORIGIN}/`}
         structuredData={HOME_SEO_DATA}
       />
       <div className="home-page">
