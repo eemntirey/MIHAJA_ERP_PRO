@@ -741,26 +741,30 @@ def create_app():
             return
 
         try:
-            from flask_jwt_extended import verify_jwt_in_request, get_jwt
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt, get_jwt_identity
             verify_jwt_in_request(optional=True)
             claims = get_jwt()
             if claims:
                 tenant_id = claims.get('tenant_id')
-                if tenant_id:
+                user_id = get_jwt_identity()
+                if tenant_id and user_id:
+                    # Le JWT est une source de claims, pas une autorité de
+                    # rattachement tenant. On vérifie d'abord que l'utilisateur
+                    # appartient réellement au tenant annoncé avant d'activer
+                    # le filtre ORM global.
                     from app.models.tenant import Tenant
-                    tenant = db.session.get(Tenant, tenant_id)
-                    if tenant:
-                        g.current_tenant = tenant
-                        # INDISPENSABLE : get_current_tenant_id() est utilisé
-                        # pour l'INSERT (desk.py, etc.). Sans cette ligne, les
-                        # écritures partaient avec tenant_id = NULL pendant que
-                        # le listener SQLAlchemy filtrait les SELECT sur
-                        # tenant.id — d'où ObjectDeletedError au refresh
-                        # post-commit et doublons à chaque sauvegarde desk.
-                        g.current_tenant_id = tenant.id
-                        return
-        except Exception:
+                    from app.models.utilisateur import Utilisateur
+                    utilisateur = db.session.get(Utilisateur, user_id)
+                    if utilisateur and utilisateur.tenant_id == int(tenant_id):
+                        tenant = db.session.get(Tenant, int(tenant_id))
+                        if tenant:
+                            g.current_tenant = tenant
+                            g.current_tenant_id = tenant.id
+                            return
+        except (TypeError, ValueError):
             pass
+        except Exception:
+            logger.debug("Impossible de pre-resoudre le tenant depuis le JWT", exc_info=True)
 
         try:
             tenant = resolve_tenant_from_header()
