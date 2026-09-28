@@ -86,7 +86,7 @@ def app():
         db.drop_all()
 
 
-def _register_company(client, name, email, plan='starter', password='Companie123'):
+def _register_company(client, name, email, plan='starter', password='Companie123', prepare_plan=True):
     response = client.post('/api/v1/auth/register', json={
         'profile_type': 'company',
         'nom_entreprise': name,
@@ -101,7 +101,7 @@ def _register_company(client, name, email, plan='starter', password='Companie123
     # Pour les tests de quotas/permissions d'un plan payant, on prépare ensuite
     # explicitement l'abonnement demandé dans la base de test. Cela ne modifie
     # pas le contrat réel de /register.
-    if response.status_code == 201 and str(plan).strip().lower() != 'gratuit':
+    if response.status_code == 201 and prepare_plan and str(plan).strip().lower() != 'gratuit':
         from app.models.abonnement import Abonnement, StatutAbonnement
         from app.models.tenant import Tenant, StatutTenant
         from app.security.plans import (
@@ -325,7 +325,7 @@ class Test2AbonnementLieAuTenant:
     def test_abonnement_a_son_tenant_id(self, app):
         client = app.test_client()
         for name, email in [('A', 'a@a.mg'), ('B', 'b@b.mg'), ('C', 'c@c.mg')]:
-            _register_company(client, name, email, plan=('pro' if name != 'C' else 'starter'))
+            _register_company(client, name, email, plan=('pro' if name != 'C' else 'starter'), prepare_plan=False)
         with app.app_context():
             for slug, expected_plan in [('a', 'gratuit'), ('b', 'gratuit'), ('c', 'gratuit')]:
                 tenant = Tenant.query.filter_by(slug=slug).first()
