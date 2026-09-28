@@ -19,16 +19,6 @@ from app.models.vente import Vente
 from app.models.facture import Facture
 
 
-@pytest.fixture
-def app(monkeypatch):
-    monkeypatch.setenv('DATABASE_URL', test_database_url())
-    app = create_app()
-    app.config['TESTING'] = True
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
 
 @pytest.fixture
 def tenant(app):
@@ -262,10 +252,7 @@ def test_ai_endpoints_invalid_period_returns_message(client, app):
         )
 
     headers = {'Authorization': f'Bearer {token}', 'X-Tenant-Slug': tenant.slug}
-    # Le token est signé par cette instance Flask locale ; utiliser son
-    # propre client évite de comparer avec l'instance globale du conftest.
-    local_client = app.test_client()
-    r = local_client.get('/api/v1/ai/previsions?periods=0', headers=headers)
+    r = client.get('/api/v1/ai/previsions?periods=0', headers=headers)
     assert r.status_code == 400
     payload = r.get_json()
     assert 'message' in payload
