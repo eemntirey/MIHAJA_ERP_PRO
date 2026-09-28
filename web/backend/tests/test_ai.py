@@ -248,7 +248,7 @@ def test_ai_endpoints_invalid_period_returns_message(client, app):
         db.session.add(user)
         db.session.commit()
         token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={'role': 'admin', 'tenant_id': tenant.id},
         )
 
