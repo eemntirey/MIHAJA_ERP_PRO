@@ -24,8 +24,8 @@ from app.models.facture import Facture
 def tenant(app):
     tenant = Tenant(
         nom='Test Tenant',
-        slug='test-tenant',
-        domaine='test.local',
+        slug=f'test-tenant-{uuid.uuid4().hex[:8]}',
+        domaine=f'test-{uuid.uuid4().hex[:8]}.local',
         statut=StatutTenant.ACTIF,
         plan='pro'
     )
@@ -39,8 +39,8 @@ def tenant_b(app):
     """Second tenant : sert de cible pour les tests d'isolement A -> B."""
     tenant = Tenant(
         nom='Tenant B',
-        slug='test-tenant-b',
-        domaine='b.test.local',
+        slug=f'test-tenant-b-{uuid.uuid4().hex[:8]}',
+        domaine=f'b-{uuid.uuid4().hex[:8]}.test.local',
         statut=StatutTenant.ACTIF,
         plan='pro'
     )
