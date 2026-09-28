@@ -238,7 +238,11 @@ class Test1_2AdminPrincipal:
                 },
             )
         h2 = {'Authorization': 'Bearer ' + token}
-        r = client.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=h2)
+        # Client distinct : le premier test de renouvellement a pu déposer des
+        # cookies JWT dans le client partagé. On veut tester uniquement le JWT
+        # de l'autre administrateur, sans héritage de session navigateur.
+        client_other = app.test_client()
+        r = client_other.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=h2)
         assert r.status_code == 403
         _record('1.2 admin principal = identite', 'PASS')
 
