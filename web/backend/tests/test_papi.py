@@ -59,7 +59,7 @@ def auth_headers(app):
 
         from flask_jwt_extended import create_access_token
         token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={
                 'username': user.username,
                 'email': user.email,
@@ -118,6 +118,7 @@ def _papi_response(payment_link='https://pay.papi.mg/payment/abc123', notificati
             'paymentLink': payment_link,
             'clientName': 'Test Tenant',
             'paymentReference': ref,
+            'merchantPaymentReference': ref,
             'description': 'Abonnement starter - Test Tenant',
             'successUrl': f'http://localhost:5000/api/v1/papi/payment-result?status=success&reference={ref}',
             'failureUrl': f'http://localhost:5000/api/v1/papi/payment-result?status=failure&reference={ref}',
