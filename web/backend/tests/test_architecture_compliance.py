@@ -1,4 +1,4 @@
-﻿from tests._db_utils import test_database_url
+from tests._db_utils import test_database_url
 """Tests de conformitÃƒÂ© de l'architecture SUPER ADMIN =| TENANT == ADMIN =| USER.
 
 VÃƒÂ©rifie notamment :
@@ -188,13 +188,31 @@ class TestConnexionProfessionnelle:
 
     def test_user_tenant_a_connexion_ok(self, app):
         client = app.test_client()
-        headers = self._setup_tenant(client, 'T2', 't2@t.mg')
-        ru = _create_user(client, headers, 'user_t2', role='user')
-        assert ru.status_code == 201
+        self._setup_tenant(client, 'T2', 't2@t.mg')
+
+        # Le tenant démarre en Gratuit : la création d'employés est volontairement
+        # bloquée par le quota métier. Ce test valide uniquement la connexion
+        # professionnelle d'un utilisateur déjà rattaché au tenant.
+        with app.app_context():
+            tenant = Tenant.query.filter_by(email_contact='t2@t.mg').first()
+            assert tenant is not None
+            employee = Utilisateur(
+                username='user_t2',
+                email='user_t2@x.mg',
+                password_hash=hash_password('Employe123'),
+                nom='user_t2',
+                role=Role.USER,
+                statut=StatutUtilisateur.ACTIF,
+                tenant_id=tenant.id,
+                is_active=True,
+            )
+            db.session.add(employee)
+            db.session.commit()
+
         r = client.post('/api/v1/auth/login', json={
             'username': 'user_t2@x.mg', 'password': 'Employe123'
         })
-        assert r.status_code == 200
+        assert r.status_code == 200, r.get_json()
 
     def test_user_tenant_a_refuse_tenant_b(self, app):
         client = app.test_client()
