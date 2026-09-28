@@ -1,6 +1,7 @@
 
 import hashlib
 import hmac
+import json
 import logging
 import time
 from datetime import datetime, timedelta
@@ -160,7 +161,12 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
         logger.error('Papi webhook invalid status: %s', payment_status)
         raise PapiInvalidStatusError(f"Statut de paiement invalide: {payment_status}")
 
-    event_id = f"papi-{payment_reference}-{notification_token}"
+    # Papi distingue la référence marchande de la référence de paiement :
+    # merchantPaymentReference correspond à notre external_reference ;
+    # paymentReference est l'UUID de la tentative côté Papi.
+    merchant_ref = merchant_reference or payment_reference
+    event_ref = payment_reference or merchant_ref
+    event_id = f"papi-{merchant_ref}-{event_ref}-{notification_token}"
     existing_event = PaymentEvent.query.filter_by(event_id=event_id).first()
     if existing_event and existing_event.processed:
         logger.info('Papi webhook already processed: event_id=%s', event_id)
@@ -169,22 +175,37 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
             'event_id': event_id,
         }
 
+    # Priorité à la référence marchande officielle. Le fallback sur
+    # paymentReference conserve la compatibilité avec les callbacks legacy
+    # émis avant l'alignement Papi actuel.
     paiement = Paiement.query.filter_by(
-        external_reference=payment_reference,
+        external_reference=merchant_ref,
         is_active=True,
     ).first()
+    if not paiement and merchant_ref != payment_reference:
+        paiement = Paiement.query.filter_by(
+            external_reference=payment_reference,
+            is_active=True,
+        ).first()
 
     if not paiement:
         logger.error('Papi webhook for unknown payment reference: %s', payment_reference)
         raise PapiWebhookError('Paiement introuvable')
 
     stored_notification_token = getattr(paiement, 'notification_token', None)
-    # NB : le modèle Paiement ne déclare pas de colonne notification_token.
-    # On utilise getattr() pour éviter une AttributeError qui ferait échouer
-    # tout webhook réel en production. Si un token a été posé sur l'instance
-    # (ex: stocké par une version antérieure / environnement de test), la
-    # comparaison de sécurité reste appliquée.
-    if stored_notification_token and stored_notification_token != notification_token:
+    try:
+        metadata = json.loads(paiement.payment_metadata or '{}')
+    except (TypeError, ValueError):
+        metadata = {}
+    stored_notification_token = stored_notification_token or metadata.get('notification_token')
+    stored_merchant_reference = metadata.get('merchant_payment_reference')
+    if stored_merchant_reference and stored_merchant_reference != merchant_ref:
+        logger.error('Papi merchant reference mismatch for paiement_id=%s', paiement.id)
+        raise PapiWebhookError('Référence marchande invalide')
+    if not stored_notification_token:
+        logger.error('Papi webhook token absent for paiement_id=%s', paiement.id)
+        raise PapiWebhookError('Token de notification non enregistré')
+    if stored_notification_token != notification_token:
         logger.error(
             'Papi webhook token mismatch: stored=%s received=%s',
             stored_notification_token,
