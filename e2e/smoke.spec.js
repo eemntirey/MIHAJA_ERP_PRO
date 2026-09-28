@@ -125,6 +125,24 @@ async function mockApi(page) {
       });
     }
 
+    if (url.includes('/auth/me')) {
+      return json({
+        user: {
+          id: 1,
+          role: 'admin',
+          tenant_id: 'tenant-test',
+          prenom: 'Test',
+          nom: 'Admin',
+          permissions: ['*'],
+        },
+        tenant: {
+          id: 'tenant-test',
+          nom: 'Tenant Test',
+          plan: 'pro',
+        },
+      });
+    }
+
     if (url.includes('/abonnements/mon-abonnement')) {
       return json({
         abonnement: {

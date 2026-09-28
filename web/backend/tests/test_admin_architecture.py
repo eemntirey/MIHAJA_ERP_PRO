@@ -6,6 +6,7 @@ from app import create_app, db
 from app.models.tenant import Tenant, StatutTenant
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur, StatutAdmin
 from app.models.abonnement import Abonnement, StatutAbonnement
+from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.models.admin_device import AdminDevice, StatutDevice
 from app.models.audit_log import AuditLog, TypeActionAudit
 from app.security.auth import hash_password
@@ -40,6 +41,19 @@ def _make_admin_tenant(name, slug):
         statut=StatutAbonnement.ACTIF,
     )
     db.session.add(abonnement)
+    db.session.flush()
+
+    # Le endpoint /payer confirme un paiement ABONNEMENT déjà créé.
+    # La fixture représente donc une demande de paiement en attente.
+    paiement = Paiement(
+        tenant_id=tenant.id,
+        subscription_id=abonnement.id,
+        montant=100.0,
+        devise='MGA',
+        statut=StatutPaiement.EN_ATTENTE,
+        type=TypePaiement.ABONNEMENT,
+    )
+    db.session.add(paiement)
 
     admin = Utilisateur(
         username=f'admin_{slug}',
