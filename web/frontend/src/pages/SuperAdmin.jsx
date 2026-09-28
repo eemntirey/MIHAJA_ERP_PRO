@@ -1598,6 +1598,7 @@ const SuperAdmin = () => {
                     <option value="inactif">Inactif</option>
                   </select>
                 </div>
+              </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Annuler</button>
                 <button type="submit" className="btn-primary">Enregistrer</button>
