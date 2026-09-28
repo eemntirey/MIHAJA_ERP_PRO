@@ -54,7 +54,8 @@ class Config:
 
     # Securite / reset
     PASSWORD_RESET_TTL_MINUTES = int(os.getenv('PASSWORD_RESET_TTL_MINUTES', '30'))
-    FRONTEND_RESET_URL = os.getenv('FRONTEND_RESET_URL', 'http://localhost:3000')
+    FRONTEND_URL = os.getenv('FRONTEND_URL') or os.getenv('PUBLIC_SITE_URL') or 'http://localhost:3000'
+    FRONTEND_RESET_URL = os.getenv('FRONTEND_RESET_URL', FRONTEND_URL)
 
     # Upload
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
@@ -84,7 +85,7 @@ class Config:
     DEFAULT_COUNTRY = 'Madagascar'
 
     # Papi Payment Gateway
-    PAPI_API_URL = os.getenv('PAPI_API_URL', 'https://app.papi.mg/dashboard/api/payment-links')
+    PAPI_API_URL = os.getenv('PAPI_API_URL', 'https://app.papi.mg/engine/api/payment-links')
     PAPI_API_KEY = os.getenv('PAPI_API_KEY')
     PAPI_ENVIRONMENT = os.getenv('PAPI_ENVIRONMENT', 'sandbox')
     PAPI_WEBHOOK_SECRET = os.getenv('PAPI_WEBHOOK_SECRET')
