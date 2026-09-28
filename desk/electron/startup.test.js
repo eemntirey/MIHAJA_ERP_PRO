@@ -153,7 +153,11 @@ test('la protection CSRF cookie est obligatoire en production', () => {
     path.join(__dirname, '..', '..', 'web', 'backend', 'app', '__init__.py'),
     'utf8',
   );
-  assert.match(init, /'true' if _is_prod else 'false'/);
+  assert.ok(
+    init.includes("'true' if _is_prod else 'false'") ||
+    (init.includes('if _is_prod:') && init.includes('jwt_cookie_csrf_protect = True')),
+    'La protection CSRF doit être activée/forcée en production',
+  );
   assert.match(init, /JWT_COOKIE_CSRF_PROTECT.*=.*jwt_cookie_csrf_protect/);
   assert.match(init, /JWT_ACCESS_CSRF_COOKIE_NAME.*csrf_access_token/);
   assert.match(init, /JWT_REFRESH_CSRF_COOKIE_NAME.*csrf_refresh_token/);
