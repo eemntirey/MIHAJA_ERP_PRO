@@ -327,6 +327,7 @@ function App() {
                 <Route path="/order-tracking/:ref" element={<OrderTracking />} />
 
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/produits" element={<Catalogue />} />
                 <Route path="/produits/:id" element={<ProductDetail />} />
 
                 <Route path="/catalogue" element={<Catalogue />} />
