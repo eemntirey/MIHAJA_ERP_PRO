@@ -8,7 +8,7 @@ from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur
 from app import db
 from app.security.roles import is_super_admin
 from app.security.plans import check_tenant_limit
-from app.security.auth import hash_password, StatutAdmin, verify_password
+from app.security.auth import hash_password, StatutAdmin, verify_password, _validate_password
 from app.security.tenant import tenant_required, get_current_tenant_id
 from app.websockets.socket_events import broadcast_to_tenant
 from datetime import datetime, timedelta
