@@ -304,36 +304,6 @@ def days_since_expiration(abonnement):
     return max(0, delta.days)
 
 
-def _get_persisted_plan_overrides():
-    """Charge les overrides prix/duree depuis PlatformConfig sans casser le fallback.
-
-    Les valeurs par défaut restent dans PLAN_CONFIG. Les overrides sont lus
-    depuis la base pour survivre aux redémarrages et rester identiques entre
-    workers/processus.
-    """
-    try:
-        from app.models.platform_config import PlatformConfig
-        cfg = PlatformConfig.get_config()
-        raw = cfg.plans_json if isinstance(cfg.plans_json, dict) else {}
-        return raw
-    except Exception:
-        return {}
-
-
-def _merged_plan_config(plan):
-    base = dict(PLAN_CONFIG.get(plan, PLAN_CONFIG[DEFAULT_PLAN]))
-    override = _get_persisted_plan_overrides().get(plan)
-    if isinstance(override, dict):
-        if 'prix' in override:
-            base['prix'] = override['prix']
-        if 'duree_jours' in override:
-            base['duree_jours'] = override['duree_jours']
-    return base
-
-
-def get_editable_plan_codes():
-    return tuple(PLAN_CONFIG.keys())
-
 def get_plan_config(plan):
     """Retourne la configuration effective (défaut + surcharge persistée)."""
     code = plan or DEFAULT_PLAN
