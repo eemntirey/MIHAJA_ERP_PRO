@@ -14,20 +14,47 @@ const OrderTracking = () => {
   const [notifLoading, setNotifLoading] = useState(false);
 
   useEffect(() => {
-    const fetchTracking = async () => {
+    let cancelled = false;
+
+    const fetchTrackingAndNotifications = async () => {
       try {
         setLoading(true);
         const response = await publicCatalogueService.getCommandeTracking(ref);
-        setTracking(response.data);
+        if (!cancelled) {
+          setTracking(response.data);
+        }
+
+        try {
+          const notificationResponse = await publicCatalogueService.getNotifications(ref);
+          if (!cancelled) {
+            setNotifications(
+              notificationResponse.data?.notifications
+                || notificationResponse.data
+                || []
+            );
+          }
+        } catch (notificationError) {
+          // Le détail de commande reste affiché même si le canal de
+          // notifications est temporairement indisponible.
+          console.warn('Notifications indisponibles:', notificationError);
+        }
       } catch (err) {
-        console.error('Error fetching tracking:', err);
-        const msg = err.response?.data?.message || 'Commande introuvable';
-        toast.error(msg);
+        if (!cancelled) {
+          console.error('Error fetching tracking:', err);
+          const msg = err.response?.data?.message || 'Commande introuvable';
+          toast.error(msg);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
-    fetchTracking();
+
+    fetchTrackingAndNotifications();
+    return () => {
+      cancelled = true;
+    };
   }, [ref]);
 
   const fetchNotifications = async () => {
