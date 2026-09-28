@@ -319,3 +319,60 @@ test('les documents utilisent un namespace RBAC dédié avec compatibilité lega
   );
   assert.match(matrix, /"document\.view"/);
   assert.match(matrix, /"document\.create"/);
+  assert.match(matrix, /"document\.update"/);
+  assert.match(matrix, /"document\.delete"/);
+  assert.match(documents, /permission_required\(\['document\.view', 'quote\.view'\]\)/);
+  assert.match(documents, /permission_required\(\['document\.create', 'quote\.create'\]\)/);
+  assert.match(documents, /permission_required\(\['document\.delete', 'quote\.delete'\]\)/);
+});
+
+test('les imports runtime critiques auth et vitrine sont présents', () => {
+  const tenant = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'tenant.py'),
+    'utf8',
+  );
+  const pub = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'public.py'),
+    'utf8',
+  );
+  assert.match(tenant, /from datetime import datetime/);
+  assert.match(pub, /^import re$/m);
+});
+
+test('les imports critiques stock et entrepôts sont présents', () => {
+  const stocks = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'stocks.py'),
+    'utf8',
+  );
+  const entrepots = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'entrepots.py'),
+    'utf8',
+  );
+  assert.match(stocks, /from flask import request, current_app/);
+  assert.match(entrepots, /from flask import request/);
+});
+
+test('la persistance des paramètres de plans est câblée de bout en bout', () => {
+  const model = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'models', 'platform_config.py'),
+    'utf8',
+  );
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'migrations', 'versions', 'bb2c3d4e5f6a_persist_plan_config.py'),
+    'utf8',
+  );
+  const plans = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'plans.py'),
+    'utf8',
+  );
+  const admin = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'super_admin.py'),
+    'utf8',
+  );
+  assert.match(model, /plans_json\s*=\s*db\.Column\(db\.JSON/);
+  assert.match(migration, /add_column\(sa\.Column\('plans_json'/);
+  assert.match(plans, /def _persist_plan_override\(/);
+  assert.match(plans, /def get_plan_config\(/);
+  assert.match(admin, /_persist_plan_override\(/);
+  assert.match(admin, /get_plan_config\(/);
+});
