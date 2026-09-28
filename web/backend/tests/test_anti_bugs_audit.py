@@ -263,7 +263,11 @@ class Test1_2AdminPrincipal:
                 },
             )
         h2 = {'Authorization': 'Bearer ' + token}
-        r = client.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=h2)
+        # Session distincte : le client principal conserve son cookie JWT.
+        # Un second utilisateur doit être testé sans ce cookie pour que le
+        # header Bearer représente réellement son identité.
+        other_client = app.test_client()
+        r = other_client.post(f'/api/v1/abonnements/{abo_id}/renouveler', headers=h2)
         assert r.status_code == 403
         _record('1.2 admin principal = identite', 'PASS')
 
