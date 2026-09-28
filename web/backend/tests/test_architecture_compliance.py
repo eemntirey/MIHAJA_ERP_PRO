@@ -186,6 +186,25 @@ class TestConnexionProfessionnelle:
             tenant = Tenant.query.filter_by(email_contact=email).first()
             assert tenant is not None
             tenant.plan = plan
+
+            # Le guard de quotas utilise en priorité l'abonnement ACTIF.
+            # La fixture doit donc refléter le plan demandé dans cet abonnement
+            # aussi, sinon les tests restent artificiellement sur les limites
+            # du plan Gratuit créé lors de l'inscription.
+            abonnement = (
+                Abonnement.query
+                .filter_by(tenant_id=tenant.id)
+                .order_by(Abonnement.created_at.desc())
+                .first()
+            )
+            assert abonnement is not None
+            abonnement.plan = plan
+            abonnement.statut = StatutAbonnement.ACTIF
+            abonnement.date_debut = datetime.utcnow()
+            abonnement.date_fin = datetime.utcnow() + timedelta(days=30)
+            from app.security.plans import apply_plan_to_abonnement
+            apply_plan_to_abonnement(abonnement, plan)
+
             db.session.commit()
         headers = _auth(client, email)
         return headers
