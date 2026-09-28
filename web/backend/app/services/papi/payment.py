@@ -1,5 +1,6 @@
 
 import uuid
+import json
 import logging
 from datetime import datetime
 
@@ -191,6 +192,10 @@ def create_subscription_payment(
         external_reference=external_reference,
         reference=external_reference,
         notes=f"Paiement abonnement {subscription.plan} via Papi",
+        payment_metadata=json.dumps({
+            'notification_token': notification_token,
+            'merchant_payment_reference': external_reference,
+        }),
     )
 
     db.session.add(paiement)
