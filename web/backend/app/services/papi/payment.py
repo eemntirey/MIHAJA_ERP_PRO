@@ -38,13 +38,20 @@ def _build_papi_payload(
     if provider not in ('MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY', 'BRED'):
         raise PapiValidationError(f"Mode de paiement invalide: {payment_method}")
 
+    frontend_base = (
+        getattr(Config, 'FRONTEND_URL', None)
+        or getattr(Config, 'PUBLIC_SITE_URL', None)
+        or ''
+    ).rstrip('/')
     success_url = (
-        f"{Config.PAPI_CALLBACK_URL}/../payment-result?"
-        f"status=success&reference={reference}"
+        f"{frontend_base}/subscription?payment_status=success&reference={reference}"
+        if frontend_base
+        else ''
     )
     failure_url = (
-        f"{Config.PAPI_CALLBACK_URL}/../payment-result?"
-        f"status=failure&reference={reference}"
+        f"{frontend_base}/subscription?payment_status=failure&reference={reference}"
+        if frontend_base
+        else ''
     )
 
     payload = {
