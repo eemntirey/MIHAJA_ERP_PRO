@@ -214,6 +214,32 @@ test('la matrice RBAC definit toutes les permissions utilisees par les roles', (
   }
 });
 
+test('le bypass du filtre tenant reste limité aux modules système autorisés', () => {
+  const appRoot = path.join(__dirname, '..', '..', 'web', 'backend', 'app');
+  const allowed = new Set([
+    path.join('api', 'v1', 'permissions.py'),
+    path.join('api', 'v1', 'roles.py'),
+    path.join('api', 'v1', 'abonnements.py'),
+    path.join('security', 'tenant.py'),
+  ].map((value) => path.normalize(value)));
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(fullPath);
+      else if (entry.isFile() && entry.name.endsWith('.py')) {
+        const source = fs.readFileSync(fullPath, 'utf8');
+        if (source.includes('_skip_tenant_filter')) {
+          const relative = path.normalize(path.relative(appRoot, fullPath));
+          if (!allowed.has(relative)) offenders.push(relative);
+        }
+      }
+    }
+  };
+  walk(appRoot);
+  assert.deepEqual(offenders, [], 'Nouveau bypass tenant non autorisé: ' + offenders.join(', '));
+});
+
 test('les filtres de dates comptables renvoient un 400 au lieu dun 500', () => {
   const compta = fs.readFileSync(
     path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'comptabilite.py'),
@@ -266,6 +292,24 @@ test('la création tenant Super Admin envoie les champs requis par le backend', 
   assert.match(page, /admin_email: formData\.admin_email \|\| formData\.email/);
   assert.match(page, /admin_password: formData\.admin_password/);
   assert.match(page, /plan: formData\.plan/);
+});
+
+test('les documents utilisent un namespace RBAC dédié avec compatibilité legacy', () => {
+  const matrix = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'security', 'permission_matrix.py'),
+    'utf8',
+  );
+  const documents = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'documents.py'),
+    'utf8',
+  );
+  assert.match(matrix, /"document\\.view"/);
+  assert.match(matrix, /"document\\.create"/);
+  assert.match(matrix, /"document\\.update"/);
+  assert.match(matrix, /"document\\.delete"/);
+  assert.match(documents, /permission_required\\(\\['document\\.view', 'quote\\.view'\\]\\)/);
+  assert.match(documents, /permission_required\\(\\['document\\.create', 'quote\\.create'\\]\\)/);
+  assert.match(documents, /permission_required\\(\\['document\\.delete', 'quote\\.delete'\\]\\)/);
 });
 
 test('les imports runtime critiques auth et vitrine sont présents', () => {

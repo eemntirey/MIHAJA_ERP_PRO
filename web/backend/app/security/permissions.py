@@ -18,6 +18,7 @@ _PERMISSION_TO_PLAN_MODULE = {
     'payment': 'paiements',
     'stock': 'stocks',
     'quote': 'documents',
+    'document': 'documents',
     'purchase_order': 'achats',
     'delivery': 'livraison',
     'compte': 'comptabilite',

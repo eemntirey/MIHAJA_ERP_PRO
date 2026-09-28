@@ -19,7 +19,7 @@ ns_documents = Namespace('documents', description='Gestion des documents generes
 
 @ns_modeles.route('/')
 class ModeleList(Resource):
-    @permission_required('quote.view')
+    @permission_required(['document.view', 'quote.view'])
     @tenant_required_readonly
     def get(self):
         page = request.args.get('page', 1, type=int)
@@ -31,7 +31,7 @@ class ModeleList(Resource):
         modeles, total = ModeleDocumentService.get_all(page=page, per_page=per_page, filters=filters if search else None)
         return {'modeles': [m.to_dict() for m in modeles], 'total': total, 'page': page, 'per_page': per_page}, 200
 
-    @permission_required('quote.create')
+    @permission_required(['document.create', 'quote.create'])
     @tenant_required_readonly
     def post(self):
         data = request.get_json()
@@ -51,7 +51,7 @@ class ModeleList(Resource):
 
 @ns_modeles.route('/<int:id>')
 class ModeleResource(Resource):
-    @permission_required('quote.view')
+    @permission_required(['document.view', 'quote.view'])
     @tenant_required_readonly
     def get(self, id):
         modele = ModeleDocumentService.get_by_id(id)
@@ -59,7 +59,7 @@ class ModeleResource(Resource):
             return {'message': 'Modele non trouve'}, 404
         return modele.to_dict(), 200
 
-    @permission_required('quote.create')
+    @permission_required(['document.create', 'quote.create'])
     @tenant_required_readonly
     def put(self, id):
         data = request.get_json()
@@ -77,7 +77,7 @@ class ModeleResource(Resource):
             db.session.rollback()
             return {'message': 'Erreur lors de la modification du modèle de document'}, 500
 
-    @permission_required('quote.delete')
+    @permission_required(['document.delete', 'quote.delete'])
     @tenant_required_readonly
     def delete(self, id):
         success = ModeleDocumentService.delete(id)
@@ -87,7 +87,7 @@ class ModeleResource(Resource):
 
 @ns_documents.route('/')
 class DocumentList(Resource):
-    @permission_required('quote.view')
+    @permission_required(['document.view', 'quote.view'])
     @tenant_required_readonly
     def get(self):
         page = request.args.get('page', 1, type=int)
@@ -99,7 +99,7 @@ class DocumentList(Resource):
         documents, total = DocumentGenereService.get_all(page=page, per_page=per_page, filters=filters if search else None)
         return {'documents': [d.to_dict() for d in documents], 'total': total, 'page': page, 'per_page': per_page}, 200
 
-    @permission_required('quote.create')
+    @permission_required(['document.create', 'quote.create'])
     @tenant_required_readonly
     def post(self):
         data = request.get_json()
@@ -119,7 +119,7 @@ class DocumentList(Resource):
 
 @ns_documents.route('/<int:id>')
 class DocumentResource(Resource):
-    @permission_required('quote.view')
+    @permission_required(['document.view', 'quote.view'])
     @tenant_required_readonly
     def get(self, id):
         document = DocumentGenereService.get_by_id(id)
@@ -127,7 +127,7 @@ class DocumentResource(Resource):
             return {'message': 'Document non trouve'}, 404
         return document.to_dict(), 200
 
-    @permission_required('quote.delete')
+    @permission_required(['document.delete', 'quote.delete'])
     @tenant_required_readonly
     def delete(self, id):
         success = DocumentGenereService.delete(id)
@@ -137,7 +137,7 @@ class DocumentResource(Resource):
 
 @ns_documents.route('/<int:id>/pdf')
 class DocumentPdfResource(Resource):
-    @permission_required('quote.view')
+    @permission_required(['document.view', 'quote.view'])
     @tenant_required_readonly
     def get(self, id):
         document = DocumentGenereService.get_by_id(id)
@@ -158,7 +158,7 @@ class DocumentPdfResource(Resource):
 
 @ns_documents.route('/generer')
 class GenererDocument(Resource):
-    @permission_required('quote.create')
+    @permission_required(['document.create', 'quote.create'])
     @tenant_required_readonly
     def post(self):
         from app.models.tenant import Tenant

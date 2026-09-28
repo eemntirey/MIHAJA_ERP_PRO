@@ -141,7 +141,7 @@ export const NAV_ITEMS = [
     icon: 'ti-file-description',
     group: 'Gestion',
     module: 'documents',
-    permissions: ['quote.view', 'quote.create', 'invoice.view'],
+    permissions: ['document.view', 'document.create', 'document.delete', 'quote.view', 'quote.create', 'invoice.view'],
   },
   {
     path: '/ai',

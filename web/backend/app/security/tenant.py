@@ -29,7 +29,8 @@ def register_tenant_filter_event():
         if not orm_execute_state.is_select:
             return
         
-        # Skip if execution options indicate no tenant filtering
+        # Internal-only escape hatch. Startup contract tests enforce an allowlist
+        # of the few system modules that may use this execution option.
         if orm_execute_state.execution_options.get('_skip_tenant_filter'):
             logger.warning(
                 "Tenant filter bypassed via _skip_tenant_filter on query: %s",
