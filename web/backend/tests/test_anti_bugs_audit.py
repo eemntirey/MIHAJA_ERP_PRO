@@ -175,6 +175,20 @@ def _auth(client, email, password='Companie123', device_id='device-audit'):
 
 
 def _create_user(client, headers, username, role='user', password='Employe123'):
+    # Le test utilise un Bearer explicite pour représenter le créateur. Sans
+    # isolation, un cookie JWT déposé par un login précédent prend la priorité
+    # sur le header et peut faire exécuter la requête sous un autre utilisateur.
+    for cookie_name in (
+        'access_token_cookie',
+        'refresh_token_cookie',
+        'csrf_access_token',
+        'csrf_refresh_token',
+    ):
+        try:
+            client.delete_cookie(cookie_name)
+        except Exception:
+            pass
+
     return client.post('/api/v1/users', headers=headers, json={
         'username': username,
         'email': f'{username}@x.mg',
