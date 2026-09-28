@@ -254,7 +254,7 @@ def test_ai_endpoints_invalid_period_returns_message(client, app):
 
     headers = {'Authorization': f'Bearer {token}', 'X-Tenant-Slug': tenant.slug}
     r = client.get('/api/v1/ai/previsions?periods=0', headers=headers)
-    assert r.status_code == 400
+    assert r.status_code == 400, r.get_json()
     payload = r.get_json()
     assert 'message' in payload
 
