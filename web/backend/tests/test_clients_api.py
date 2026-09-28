@@ -104,9 +104,12 @@ class TestClientAPI:
                 },
                 headers=auth_headers
             )
-        assert response.status_code == 400
+        assert response.status_code == 201
         data = response.get_json()
-        assert 'code' in data['message'].lower()
+        # Le code technique est généré côté serveur lorsque le formulaire
+        # ne le fournit pas.
+        assert data['code'].startswith('CLI-')
+        assert 4 <= len(data['code']) <= 20
 
     def test_create_client_no_json(self, app, auth_headers):
         with app.app_context():
