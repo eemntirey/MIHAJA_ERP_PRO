@@ -55,7 +55,7 @@ _ALL = _EXTENDED + ['comptabilite', 'livraison', 'ia', 'achats']
 # LOGIQUE DES PLANS :
 # - max_utilisateurs = nombre total d'employés que le tenant peut créer
 #   (le premier utilisateur est l'admin qui est aussi un employé)
-# - Gratuit : 3 employés (admin + 2 employés), modules étendus
+# - Gratuit : 1 utilisateur (admin seul), modules étendus
 # - Pro : 7 employés (admin + 6 employés), modules presque complets
 # - Enterprise : employés illimités, tous modules
 PLAN_CONFIG = {
