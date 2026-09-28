@@ -5,6 +5,7 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from app import db
 from app.models.paiement import Paiement, StatutPaiement
@@ -219,15 +220,22 @@ def process_papi_webhook(payload: dict, headers=None, raw_body=None) -> dict:
             logger.error('Papi webhook for inactive tenant: tenant_id=%s', paiement.tenant_id)
             raise PapiWebhookError('Tenant inactif ou bloque')
 
-    if amount is not None and float(amount) != float(paiement.montant or 0):
-        logger.error(
-            'Papi webhook amount mismatch: expected=%s received=%s',
-            paiement.montant,
-            amount,
-        )
-        raise PapiWebhookError('Montant de paiement invalide')
+    if amount is not None:
+        try:
+            received_amount = Decimal(str(amount)).quantize(Decimal('0.01'))
+            expected_amount = Decimal(str(paiement.montant or 0)).quantize(Decimal('0.01'))
+        except Exception:
+            logger.error('Papi webhook amount is not numeric: %r', amount)
+            raise PapiWebhookError('Montant de paiement invalide')
+        if received_amount != expected_amount:
+            logger.error(
+                'Papi webhook amount mismatch: expected=%s received=%s',
+                expected_amount,
+                received_amount,
+            )
+            raise PapiWebhookError('Montant de paiement invalide')
 
-    if currency != (paiement.devise or 'MGA'):
+    if str(currency or '').upper() != str(paiement.devise or 'MGA').upper():
         logger.error(
             'Papi webhook currency mismatch: expected=%s received=%s',
             paiement.devise,
