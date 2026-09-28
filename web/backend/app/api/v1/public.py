@@ -668,12 +668,42 @@ class PublicCommandePapiStatus(Resource):
         if not commande:
             return {'message': 'Commande introuvable'}, 404
 
-        from app.models.paiement import Paiement
+        from app.models.paiement import Paiement, StatutPaiement
         paiement = Paiement.query.filter_by(
             commande_client_id=commande.id,
             provider='papi',
             is_active=True,
         ).order_by(Paiement.created_at.desc()).first()
+
+        # Repli de lecture Papi si le webhook n'est pas encore arrivé.
+        # Cette lecture est informative : elle ne modifie jamais la base.
+        papi_status = None
+        if paiement and paiement.external_reference and paiement.statut not in (
+            StatutPaiement.SUCCESS,
+            StatutPaiement.CONFIRME,
+            StatutPaiement.FAILED,
+            StatutPaiement.CANCELLED,
+            StatutPaiement.EXPIRED,
+        ):
+            try:
+                from app.services.tenant_papi_service import get_papi_client_for_tenant
+                tenant = db.session.get(Tenant, commande.tenant_id) if commande.tenant_id else None
+                papi_client = get_papi_client_for_tenant(tenant) if tenant else None
+                if papi_client:
+                    gateway = papi_client.get_payment_link_status(paiement.external_reference)
+                    if (
+                        gateway.get('merchantPaymentReference') == paiement.external_reference
+                        and str(gateway.get('currency') or 'MGA').upper()
+                        == str(paiement.devise or 'MGA').upper()
+                        and gateway.get('paymentStatus') in ('SUCCESS', 'PENDING', 'FAILED')
+                    ):
+                        papi_status = gateway.get('paymentStatus')
+            except Exception as exc:
+                current_app.logger.info(
+                    'Papi status readback indisponible pour commande=%s: %s',
+                    commande.reference,
+                    exc,
+                )
 
         data = {
             'reference': commande.reference,
@@ -693,6 +723,7 @@ class PublicCommandePapiStatus(Resource):
                 if paiement and getattr(paiement, 'updated_at', None)
                 else None
             ),
+            'papi_payment_status': papi_status,
         }
         return data, 200
 
