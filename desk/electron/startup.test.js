@@ -303,13 +303,13 @@ test('les documents utilisent un namespace RBAC dédié avec compatibilité lega
     path.join(__dirname, '..', '..', 'web', 'backend', 'app', 'api', 'v1', 'documents.py'),
     'utf8',
   );
-  assert.match(matrix, /"document\\.view"/);
-  assert.match(matrix, /"document\\.create"/);
-  assert.match(matrix, /"document\\.update"/);
-  assert.match(matrix, /"document\\.delete"/);
-  assert.match(documents, /permission_required\\(\\['document\\.view', 'quote\\.view'\\]\\)/);
-  assert.match(documents, /permission_required\\(\\['document\\.create', 'quote\\.create'\\]\\)/);
-  assert.match(documents, /permission_required\\(\\['document\\.delete', 'quote\\.delete'\\]\\)/);
+  assert.match(matrix, /"document\.view"/);
+  assert.match(matrix, /"document\.create"/);
+  assert.match(matrix, /"document\.update"/);
+  assert.match(matrix, /"document\.delete"/);
+  assert.match(documents, /permission_required\(\['document\.view', 'quote\.view'\]\)/);
+  assert.match(documents, /permission_required\(\['document\.create', 'quote\.create'\]\)/);
+  assert.match(documents, /permission_required\(\['document\.delete', 'quote\.delete'\]\)/);
 });
 
 test('les imports runtime critiques auth et vitrine sont présents', () => {
