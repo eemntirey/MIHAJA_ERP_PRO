@@ -4,6 +4,7 @@ import path from 'path';
 
 const sharedDir = path.resolve(__dirname, '../shared');
 const deskSharedDir = path.resolve(__dirname, 'shared');
+const deskNodeModules = path.resolve(__dirname, 'node_modules');
 
 export default defineConfig({
   base: './',
@@ -23,7 +24,11 @@ export default defineConfig({
       '@shared': sharedDir,
       '@desk-shared': deskSharedDir,
       '@': path.resolve(__dirname, 'src'),
-      'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
+      'react': path.join(deskNodeModules, 'react'),
+      'react-dom': path.join(deskNodeModules, 'react-dom'),
+      'axios': path.join(deskNodeModules, 'axios'),
+      'react-toastify': path.join(deskNodeModules, 'react-toastify'),
+      'socket.io-client': path.join(deskNodeModules, 'socket.io-client'),
     },
   },
   server: {
