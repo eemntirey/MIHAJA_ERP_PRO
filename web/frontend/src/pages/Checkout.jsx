@@ -207,7 +207,7 @@ const Checkout = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
+      <div className="page-container checkout-page">
       <PublicHeader />
         <div className="loading-screen">
           <div className="spinner-large"></div>
@@ -219,7 +219,8 @@ const Checkout = () => {
 
   if (cart.length === 0 && !orderRef) {
     return (
-      <div className="page-container">
+      <div className="page-container checkout-page">
+        <PublicHeader />
         <div className="alert error">
           <p>Panier vide</p>
           <Link to="/" className="btn-primary">Retour à l'accueil</Link>
@@ -229,7 +230,8 @@ const Checkout = () => {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container checkout-page">
+      <PublicHeader />
       <div className="public-card" style={{ marginBottom: '18px' }}>
         <div className="public-card__header">
           <div>
