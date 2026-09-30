@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { publicCatalogueService } from '../../services/api';
+import { useCart } from '../../contexts/CartContext';
+import { toast } from 'react-toastify';
 import '../../styles/landing.css';
 
 const SKELETON_COUNT = 8;
@@ -14,6 +16,7 @@ const Catalog = () => {
   const [produits, setProduits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { addItem } = useCart();
 
   const fetchCatalogue = async () => {
     setLoading(true);
@@ -77,6 +80,7 @@ const Catalog = () => {
                 const category = produit.categorie_nom || produit.categorie || 'Général';
                 const seller = produit.tenant_nom || produit.vendeur || 'Vendeur';
                 const price = Number(produit.prix_vente_ht || produit.prix || 0);
+                const stock = Number(produit.quantite_stock ?? produit.stock ?? 0);
                 const formatMGA = (value) => Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
                 const image = getImage(produit);
 
