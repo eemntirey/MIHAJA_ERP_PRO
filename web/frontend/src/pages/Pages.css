@@ -5575,3 +5575,46 @@
     font-size: 16px !important;
   }
 }
+
+/* Command history — explicit detail action */
+.orders-list__body {
+  flex: 1;
+}
+
+.orders-list__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.orders-list__actions .btn-secondary {
+  min-height: 36px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.orders-list__actions .btn-secondary:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .orders-list__item {
+    flex-wrap: wrap;
+  }
+
+  .orders-list__actions {
+    width: 100%;
+    margin-left: 46px;
+    padding-left: 0;
+    justify-content: flex-start;
+  }
+
+  .orders-list__actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
