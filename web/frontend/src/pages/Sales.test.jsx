@@ -48,6 +48,52 @@ describe('SaleModal — B1 produit_id des lignes', () => {
     await waitFor(() => expect(produitSelect.value).toBe('7'));
   });
 
+  it('utilise les lignes_vente du détail API pour modifier une vente', async () => {
+    saleService.update.mockResolvedValue({ data: { id: 42 } });
+
+    const initialData = {
+      id: 42,
+      client_id: 3,
+      date: '2026-09-30T00:00:00',
+      statut: 'en_attente',
+      mode_paiement: 'especes',
+      type_vente: 'detail',
+      remarque: '',
+      lignes_vente: [
+        { produit_id: 7, quantite: 2, prix_unitaire: 12000, taux_tva: 20 },
+      ],
+    };
+
+    const { container } = render(
+      <SaleModal
+        products={products}
+        clients={clients}
+        onClose={jest.fn()}
+        onSuccess={jest.fn()}
+        isEdit
+        initialData={initialData}
+      />
+    );
+
+    fireEvent.click(container.querySelector('button[type="submit"]'));
+
+    await waitFor(() => {
+      expect(saleService.update).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({
+          lignes: [
+            {
+              produit_id: 7,
+              quantite: 2,
+              prix_unitaire: 12000,
+              taux_tva: 20,
+            },
+          ],
+        })
+      );
+    });
+  });
+
   it('dérive le prix unitaire du produit sélectionné (validation shouldValidate passe)', async () => {
     const { container } = render(
       <SaleModal products={products} clients={clients} onClose={jest.fn()} onSuccess={jest.fn()} />
