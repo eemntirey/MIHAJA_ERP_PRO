@@ -619,3 +619,176 @@ label[for="reference"] {
         justify-content: center;
     }
 }
+
+/* ==========================================================================
+   Generator form — normalize native controls used by Documents.jsx
+   ========================================================================== */
+
+.documents-page .card > h3 {
+    margin: 0 0 var(--space-5);
+    font-family: var(--font-heading);
+    font-size: var(--text-h3);
+    font-weight: var(--weight-extrabold);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-normal);
+    color: var(--color-onyx);
+}
+
+.documents-page .card form.form-grid {
+    align-items: start;
+}
+
+.documents-page .card form.form-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+.documents-page .card form.form-grid .form-group {
+    min-width: 0;
+}
+
+.documents-page .card form.form-grid .form-group > label,
+.documents-page .card form.form-grid > label:not(.filter-checkbox) {
+    display: block;
+    margin-bottom: var(--space-1);
+    color: var(--color-onyx);
+    font-size: var(--text-body-small);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-normal);
+}
+
+.documents-page .card form.form-grid .form-group > input:not([type="file"]):not([type="checkbox"]),
+.documents-page .card form.form-grid .form-group > select,
+.documents-page .card form.form-grid .form-group > textarea,
+.documents-page .card form.form-grid > input:not([type="file"]):not([type="checkbox"]),
+.documents-page .card form.form-grid > select,
+.documents-page .card form.form-grid > textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-onyx);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: 1.4;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background-color var(--transition-fast);
+}
+
+.documents-page .card form.form-grid .form-group > textarea,
+.documents-page .card form.form-grid > textarea {
+    min-height: 96px;
+    padding: var(--space-3);
+    resize: vertical;
+}
+
+.documents-page .card form.form-grid .form-group > input:not([type="file"]):not([type="checkbox"]):hover,
+.documents-page .card form.form-grid .form-group > select:hover,
+.documents-page .card form.form-grid .form-group > textarea:hover,
+.documents-page .card form.form-grid > input:not([type="file"]):not([type="checkbox"]):hover,
+.documents-page .card form.form-grid > select:hover,
+.documents-page .card form.form-grid > textarea:hover {
+    border-color: var(--color-border);
+}
+
+.documents-page .card form.form-grid .form-group > input:not([type="file"]):not([type="checkbox"]):focus,
+.documents-page .card form.form-grid .form-group > select:focus,
+.documents-page .card form.form-grid .form-group > textarea:focus,
+.documents-page .card form.form-grid > input:not([type="file"]):not([type="checkbox"]):focus,
+.documents-page .card form.form-grid > select:focus,
+.documents-page .card form.form-grid > textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.documents-page .card form.form-grid .form-group > input::placeholder,
+.documents-page .card form.form-grid .form-group > textarea::placeholder,
+.documents-page .card form.form-grid > input::placeholder,
+.documents-page .card form.form-grid > textarea::placeholder {
+    color: var(--color-text-muted);
+}
+
+.documents-page .card form.form-grid .form-group > select,
+.documents-page .card form.form-grid > select {
+    appearance: auto;
+    cursor: pointer;
+}
+
+.documents-page .card form.form-grid .form-group > small,
+.documents-page .card form.form-grid > small {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--color-text-tertiary);
+    font-size: var(--text-caption);
+    line-height: var(--leading-normal);
+}
+
+.documents-page .card form.form-grid > .btn-primary,
+.documents-page .card form.form-grid > button.btn-primary {
+    justify-self: start;
+    min-height: 44px;
+    padding-inline: var(--space-5);
+    box-shadow: var(--shadow-primary-sm);
+}
+
+.documents-page .documents-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: var(--space-6) 0 var(--space-3);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+}
+
+.documents-page .documents-toolbar h4 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: var(--text-h4);
+    font-weight: var(--weight-extrabold);
+    color: var(--color-onyx);
+}
+
+.documents-page .documents-count {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: var(--color-background);
+    color: var(--color-text-secondary);
+}
+
+.documents-page .table-container {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: auto;
+    background: var(--color-surface);
+}
+
+.documents-page .data-table {
+    background: var(--color-surface);
+}
+
+@media (max-width: 768px) {
+    .documents-page .card form.form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .documents-page .card form.form-grid .full-width {
+        grid-column: 1;
+    }
+
+    .documents-page .documents-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
