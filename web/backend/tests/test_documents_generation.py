@@ -119,6 +119,52 @@ def test_contexte_facture_reprend_reference_facture(app, jeu_vente):
         assert donnees['reference'] == f"FAC-{jeu_vente['vente'].reference}"
 
 
+def test_pdf_formats_facture_a4_a5_80mm(app, monkeypatch, tmp_path):
+    """Les trois formats d'impression produisent les bonnes dimensions PDF."""
+    monkeypatch.setattr('app.config.settings.Config.UPLOAD_FOLDER', str(tmp_path))
+
+    donnees = {
+        'client_nom': 'Client Test',
+        'total_ht': 10000,
+        'taux_tva': 20,
+        'total_ttc': 12000,
+        'items': [
+            {
+                'produit_nom': 'Produit test',
+                'quantite': 1,
+                'prix_unitaire': 10000,
+                'taux_tva': 20,
+                'total_ht': 10000,
+            }
+        ],
+    }
+
+    import re
+    from pathlib import Path
+
+    dimensions = {}
+    for page_format in ('a4', 'a5', 'thermal_80'):
+        path = generate_document_pdf(
+            filename=f'facture_{page_format}.pdf',
+            type_document='facture',
+            reference=f'FAC-{page_format}',
+            donnees=donnees,
+            tenant={'nom': 'MIHAJA'},
+            page_format=page_format,
+        )
+        raw = Path(path).read_bytes()
+        match = re.search(rb'/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)', raw)
+        assert match, f'MediaBox absente pour {page_format}'
+        dimensions[page_format] = (float(match.group(1)), float(match.group(2)))
+
+    assert dimensions['a4'][0] == pytest.approx(595.28, abs=0.1)
+    assert dimensions['a4'][1] == pytest.approx(841.89, abs=0.1)
+    assert dimensions['a5'][0] == pytest.approx(419.53, abs=0.1)
+    assert dimensions['a5'][1] == pytest.approx(595.28, abs=0.1)
+    assert dimensions['thermal_80'][0] == pytest.approx(226.77, abs=0.1)
+    assert dimensions['thermal_80'][1] > 400.0
+
+
 def test_vente_introuvable_leve_erreur(app, jeu_vente):
     with app.app_context():
         with pytest.raises(ValueError):
