@@ -102,14 +102,29 @@ const Catalog = () => {
                       <h3 className="landing-product-name">{produit.nom || produit.name || 'Produit'}</h3>
 
                       <div className="landing-product-meta">
-                        <div className="landing-product-price">{formatMGA(price)} Ar</div>
+                        <div>
+                          <div className="landing-product-price">{formatMGA(price)} Ar</div>
+                          <div className="landing-product-unit">{stock > 0 ? `Stock : ${stock}` : 'Rupture de stock'}</div>
+                        </div>
                         <div className="landing-product-seller" title={seller}>{seller}</div>
                       </div>
 
                       <div className="landing-product-actions">
-                        <Link to={`/produits/${produit.id || produit._id}`} className="landing-btn landing-btn-fut" style={{ width: '100%' }}>
-                          Voir
+                        <Link to={`/produits/${produit.id || produit._id}`} className="landing-btn landing-btn-secondary">
+                          Détails
                         </Link>
+                        <button
+                          type="button"
+                          className="landing-btn landing-btn-primary"
+                          disabled={stock <= 0}
+                          onClick={() => {
+                            addItem(produit, 1);
+                            toast.success(`${produit.nom || produit.name || 'Produit'} ajouté au panier`);
+                          }}
+                        >
+                          <i className="ti ti-shopping-cart-plus" aria-hidden="true" />
+                          Ajouter
+                        </button>
                       </div>
                     </div>
                   </article>
