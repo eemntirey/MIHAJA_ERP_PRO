@@ -6087,3 +6087,64 @@
 .downloads-card__button:focus-visible {
   outline-color: rgba(200,168,78,.38);
 }
+
+
+/* Vitrine: keep the futuristic treatment within the MIHAJA black/gold brand. */
+.vit-hero {
+  background:
+    radial-gradient(650px 420px at 85% 5%, rgba(200,168,78,.18), transparent 60%),
+    radial-gradient(520px 360px at 10% 95%, rgba(200,168,78,.10), transparent 62%),
+    linear-gradient(145deg, #0b0c0d 0%, #151719 58%, #0b0c0d 100%);
+}
+
+.vit-hero__orb--2 {
+  background: radial-gradient(circle, #c8a84e 0%, transparent 70%);
+}
+
+.vit-hero__orb--3 {
+  display: none;
+}
+
+.vit-product-card {
+  border-color: rgba(11,12,13,.09);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(11,12,13,.06);
+}
+
+.vit-product-card__image {
+  height: 210px;
+  background: #f4f1e9;
+}
+
+.vit-product-card__price {
+  color: #8c7020;
+}
+
+.vit-product-card__actions .vit-btn--outline {
+  border-color: rgba(11,12,13,.12);
+  color: #151719;
+  background: #fff;
+}
+
+.vit-product-card__actions .vit-btn--primary {
+  background: linear-gradient(135deg, #c8a84e, #b48c2a);
+  color: #fff;
+  border: 1px solid #b48c2a;
+}
+
+.vit-product-card__actions .vit-btn--primary:disabled {
+  background: #ece9df;
+  border-color: #ddd8ca;
+  color: #8b8b84;
+}
+
+.vit-product-card__actions .vit-btn {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+
+@media (max-width: 560px) {
+  .vit-product-card__image {
+    height: 220px;
+  }
+}
