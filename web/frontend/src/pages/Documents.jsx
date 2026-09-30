@@ -15,7 +15,7 @@ export default function Documents() {
     const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
 
     const [modeleForm, setModeleForm] = useState({ nom: '', type_document: 'facture', contenu_modele: '', est_defaut: false, logo_url: '', mention_legales: '', conditions_generales: '' });
-    const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '' });
+    const [docForm, setDocForm] = useState({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', page_format: 'a4' });
 
     const [editingId, setEditingId] = useState(null);
     const contenuRef = useRef(null);
@@ -113,11 +113,12 @@ export default function Documents() {
                 reference: docForm.reference.trim() || null,
                 entite_type: docForm.entite_type,
                 entite_id: Number(docForm.entite_id),
+                page_format: docForm.page_format,
                 donnees: {},
             };
             const response = await documentService.generer(data);
             toast.success('Document généré avec succès');
-            setDocForm({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '' });
+            setDocForm({ modele_id: '', type_document: 'facture', reference: '', entite_type: 'vente', entite_id: '', page_format: 'a4' });
             if (response.data) {
                 setDocuments(prev => [response.data, ...prev]);
             } else {
@@ -412,6 +413,21 @@ export default function Documents() {
                         <div className="form-group">
                             <label>Référence</label>
                             <input id="reference" name="reference" placeholder="Reprise automatiquement" value={docForm.reference} onChange={event => setDocForm({...docForm, reference: event.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Format d'impression</label>
+                            <select
+                                value={docForm.page_format}
+                                onChange={event => setDocForm({...docForm, page_format: event.target.value})}
+                                aria-label="Format d'impression"
+                            >
+                                <option value="a4">A4 — 210 × 297 mm</option>
+                                <option value="a5">A5 — 148 × 210 mm</option>
+                                <option value="thermal_80">Ticket thermique — 80 mm</option>
+                            </select>
+                            <small className="text-muted">
+                                A4 pour une facture standard, A5 pour un format compact, 80 mm pour une imprimante de caisse.
+                            </small>
                         </div>
                         <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? <span className="btn-spinner" /> : 'Générer le PDF'}</button>
                         </form>
