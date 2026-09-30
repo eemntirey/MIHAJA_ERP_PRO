@@ -533,10 +533,39 @@ class PublicCommandeTracking(Resource):
             if hasattr(commande.statut, 'value')
             else commande.statut
         )
+        # Détail public strictement nécessaire au suivi :
+        # aucune adresse, email, téléphone ou note personnelle n'est exposée.
+        items = []
+        for item in commande.items_list:
+            produit = None
+            try:
+                produit_id = item.get('produit_id')
+                if produit_id:
+                    produit_query = Produit.query.filter_by(id=produit_id)
+                    if commande.tenant_id:
+                        produit_query = produit_query.filter_by(tenant_id=commande.tenant_id)
+                    produit = produit_query.first()
+            except Exception:
+                produit = None
+
+            quantite = item.get('quantite', 1) or 1
+            prix_unitaire = float(produit.prix_vente_ht) if produit else float(item.get('prix_unitaire') or item.get('prix') or 0)
+            items.append({
+                'produit_id': item.get('produit_id'),
+                'produit_nom': produit.nom if produit else item.get('produit_nom'),
+                'quantite': quantite,
+                'prix_unitaire': prix_unitaire,
+                'total': round(prix_unitaire * float(quantite), 2),
+            })
+
         return {
             'reference': commande.reference,
             'statut': statut_value,
+            'total_ht': float(commande.total_ht),
+            'total_ttc': float(commande.total_ttc),
+            'created_at': commande.created_at.isoformat() if commande.created_at else None,
             'updated_at': commande.updated_at.isoformat() if commande.updated_at else None,
+            'items': items,
         }, 200
 
 
