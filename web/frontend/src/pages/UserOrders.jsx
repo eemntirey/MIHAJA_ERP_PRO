@@ -182,10 +182,29 @@ const UserOrders = () => {
                     />
                   </span>
                   <div className="orders-list__body">
-                    <p className="orders-list__primary">{notif.message || notif}</p>
+                    <p className="orders-list__primary">
+                      <Link
+                        to={`/order-tracking/${encodeURIComponent(trackingRef.trim())}`}
+                        className="orders-list__notification-link"
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`Voir le détail de la commande ${trackingRef.trim()}`}
+                      >
+                        {notif.message || notif}
+                      </Link>
+                    </p>
                     {notif.date && (
                       <p className="orders-list__secondary">{formatDate(notif.date)}</p>
                     )}
+                  </div>
+                  <div className="orders-list__actions">
+                    <Link
+                      to={`/order-tracking/${encodeURIComponent(trackingRef.trim())}`}
+                      className="btn-secondary btn-sm"
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Voir le détail de la commande ${trackingRef.trim()}`}
+                    >
+                      Voir le détail
+                    </Link>
                   </div>
                 </li>
               );
