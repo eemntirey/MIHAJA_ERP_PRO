@@ -5650,3 +5650,20 @@
   pointer-events: auto !important;
 }
 
+.orders-list__item--tracking-clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.orders-list__item--tracking-clickable:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.08);
+  transform: translateY(-1px);
+}
+
+.orders-list__item--tracking-clickable:focus-visible {
+  outline: none !important;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
