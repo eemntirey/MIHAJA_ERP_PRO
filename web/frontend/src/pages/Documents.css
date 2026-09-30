@@ -792,3 +792,86 @@ label[for="reference"] {
     }
 }
 
+/* ==========================================================================
+   Focus + native controls hardening
+   The global :focus-visible rule is intentionally overridden only here so
+   Documents uses the same MIHAJA field treatment without browser outlines.
+   ========================================================================== */
+
+.documents-page .card form.form-grid input:not([type="checkbox"]):not([type="file"]),
+.documents-page .card form.form-grid select,
+.documents-page .card form.form-grid textarea,
+.documents-page .documents-filters input,
+.documents-page .documents-filters select {
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.documents-page .card form.form-grid input:not([type="checkbox"]):not([type="file"]):focus,
+.documents-page .card form.form-grid input:not([type="checkbox"]):not([type="file"]):focus-visible,
+.documents-page .card form.form-grid select:focus,
+.documents-page .card form.form-grid select:focus-visible,
+.documents-page .card form.form-grid textarea:focus,
+.documents-page .card form.form-grid textarea:focus-visible,
+.documents-page .documents-filters input:focus,
+.documents-page .documents-filters input:focus-visible,
+.documents-page .documents-filters select:focus,
+.documents-page .documents-filters select:focus-visible {
+    outline: none !important;
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 3px var(--color-primary-ring) !important;
+}
+
+.documents-page .card form.form-grid select,
+.documents-page .documents-filters select {
+    cursor: pointer;
+    padding-right: 42px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--color-text-secondary) 50%),
+        linear-gradient(135deg, var(--color-text-secondary) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 19px, calc(100% - 12px) 19px;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.documents-page .card form.form-grid select:hover,
+.documents-page .documents-filters select:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-background);
+}
+
+.documents-page .card form.form-grid input:not([type="checkbox"]):not([type="file"]):read-only {
+    background: var(--color-background);
+    color: var(--color-text-secondary);
+}
+
+.documents-page .card form.form-grid input:not([type="checkbox"]):not([type="file"]):disabled,
+.documents-page .card form.form-grid select:disabled,
+.documents-page .card form.form-grid textarea:disabled {
+    background: var(--color-background);
+    border-color: var(--color-border);
+}
+
+.documents-page .documents-generator-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.documents-page .documents-generator-form > .full-width {
+    grid-column: 1 / -1;
+}
+
+.documents-page .documents-generator-form > .btn-primary {
+    margin-top: var(--space-1);
+}
+
+@media (max-width: 768px) {
+    .documents-page .documents-generator-form {
+        grid-template-columns: 1fr;
+    }
+
+    .documents-page .documents-generator-form > .full-width {
+        grid-column: 1;
+    }
+}
+
