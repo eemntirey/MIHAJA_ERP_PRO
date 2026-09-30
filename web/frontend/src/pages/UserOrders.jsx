@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { publicCatalogueService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +38,7 @@ const formatDate = (value) => {
 
 const UserOrders = () => {
   const { isAuthenticated, user, loading } = useAuth();
+  const navigate = useNavigate();
   const [commandes, setCommandes] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
@@ -207,7 +208,19 @@ const UserOrders = () => {
             {commandes.map((cmd) => {
               const meta = getStatutMeta(cmd.statut);
               return (
-                <li className="orders-list__item" key={cmd.id}>
+                <li
+                  className="orders-list__item orders-list__item--clickable"
+                  key={cmd.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate('/order-tracking/' + encodeURIComponent(cmd.reference))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate('/order-tracking/' + encodeURIComponent(cmd.reference));
+                    }
+                  }}
+                >
                   <span
                     className={`orders-list__status orders-list__status--${meta.kind}`}
                     aria-hidden="true"
