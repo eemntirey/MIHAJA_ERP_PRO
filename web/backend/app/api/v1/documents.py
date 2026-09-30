@@ -172,6 +172,7 @@ class GenererDocument(Resource):
             entite_type = data.get('entite_type')
             entite_id = data.get('entite_id')
             donnees = data.get('donnees', {}) or {}
+            page_format = data.get('page_format', data.get('format', 'a4'))
 
             # Génération automatique des données document depuis l'entité
             # (vente/facture) quand aucun JSON brut n'est fourni : la vente
@@ -218,7 +219,8 @@ class GenererDocument(Resource):
 
             safe_type = secure_filename(str(type_document or ''))
             safe_reference = secure_filename(str(reference or ''))
-            filename = f"{safe_type}_{safe_reference}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+            safe_format = secure_filename(str(page_format or 'a4'))
+            filename = f"{safe_type}_{safe_reference}_{safe_format}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
             pdf_path = generate_document_pdf(
                 filename=filename,
                 type_document=type_document,
@@ -226,6 +228,7 @@ class GenererDocument(Resource):
                 donnees=donnees_pdf_safe(donnees),
                 tenant=tenant,
                 modele=modele_dict,
+                page_format=page_format,
             )
 
             document = DocumentGenereService.create({
