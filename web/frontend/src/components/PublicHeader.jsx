@@ -29,7 +29,11 @@ const PublicHeader = ({ compact = false }) => {
       <Link to="/catalogue" className="public-nav-link" onClick={closeMenu}>Catalogue</Link>
       <Link to="/telechargements" className="public-nav-link" onClick={closeMenu}>Téléchargements</Link>
       <Link to="/contact" className="public-nav-link" onClick={closeMenu}>Contact</Link>
-      <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
+      <Link to="/cart" className="public-nav-link btn-cart-link" onClick={closeMenu} aria-label="Mon panier">
+        <i className="ti ti-shopping-cart" aria-hidden="true" />
+        Panier{totalItems > 0 ? <span className="cart-badge">{totalItems}</span> : null}
+      </Link>
+      <Link to="/login" className="public-nav-link btn-nav-login" onClick={closeMenu}>Connexion</Link>
       </nav>
   </header>
   );
