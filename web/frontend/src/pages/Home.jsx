@@ -101,6 +101,7 @@ const Home = () => {
   const [trackingRef, setTrackingRef] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserCartouche, setShowUserCartouche] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameForm, setNameForm] = useState({ prenom: '', nom: '' });
   const userMenuRef = useRef(null);
@@ -249,9 +250,20 @@ const Home = () => {
           <span className="brand-icon" aria-hidden="true">M</span>
           <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
         </Link>
-        <nav className="public-nav">
-          <Link to="/catalogue" className="public-nav-link">Catalogue</Link>
-          <a href="#telechargements" className="public-nav-link">Téléchargements</a>
+        <button
+          type="button"
+          className="public-nav-toggle"
+          aria-label={showMobileNav ? 'Fermer le menu' : 'Ouvrir le menu'}
+          aria-expanded={showMobileNav}
+          aria-controls="mihaja-home-public-nav"
+          onClick={() => setShowMobileNav((open) => !open)}
+        >
+          <i className={showMobileNav ? 'ti ti-x' : 'ti ti-menu-2'} aria-hidden="true" />
+        </button>
+        <nav id="mihaja-home-public-nav" className={`public-nav${showMobileNav ? ' is-open' : ''}`}>
+
+          <Link to="/catalogue" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Catalogue</Link>
+          <a href="#telechargements" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Téléchargements</a>
           {isAuthenticated ? (
             <>
               {isUser && (
@@ -394,10 +406,10 @@ const Home = () => {
                 </div>
               )}
                {!isUser && (
-                 <Link to="/dashboard" className="public-nav-link">Tableau de bord</Link>
+                 <Link to="/dashboard" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Tableau de bord</Link>
                )}
-               {isUser && (
-                 <Link to="/cart" className="public-nav-link btn-cart-link" aria-label="Mon panier">
+               <Link to="/cart" className="public-nav-link btn-cart-link" aria-label="Mon panier" onClick={() => setShowMobileNav(false)}>
+
                    Panier
                    {totalItems > 0 && (
                      <span className="cart-badge">{totalItems}</span>
@@ -407,8 +419,8 @@ const Home = () => {
              </>
            ) : (
             <>
-              <Link to="/login" className="public-nav-link btn-nav-login">Connexion</Link>
-              <Link to="/register" className="public-nav-link btn-nav-register">S'inscrire</Link>
+              <Link to="/login" className="public-nav-link btn-nav-login" onClick={() => setShowMobileNav(false)}>Connexion</Link>
+              <Link to="/register" className="public-nav-link btn-nav-register" onClick={() => setShowMobileNav(false)}>S'inscrire</Link>
             </>
           )}
         </nav>
