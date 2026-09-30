@@ -112,7 +112,52 @@ const Cart = () => {
         </table>
       </div>
 
-      <div className="card" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="cart-mobile-list" aria-label="Articles du panier sur mobile">
+        {cart.map((item, idx) => {
+          const key = item.id || item.reference || item._id || `cart-mobile-item-${idx}`;
+          const price = Number(item.prix_vente_ht || item.prix || 0);
+          const qty = item.quantite;
+          const stock = Number(item.quantite_stock ?? item.stock ?? 0);
+          return (
+            <article className="cart-mobile-item" key={key}>
+              <div className="cart-mobile-item__top">
+                <div>
+                  <strong>{item.nom}</strong>
+                  <span>Réf. {item.reference || '—'}</span>
+                  <span>{item.tenant_nom || 'Vendeur'}</span>
+                </div>
+                <button
+                  type="button"
+                  className="cart-mobile-item__remove"
+                  onClick={() => removeItem(item)}
+                  aria-label={`Retirer ${item.nom}`}
+                >
+                  <i className="ti ti-trash" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="cart-mobile-item__bottom">
+                <label>
+                  <span>Quantité</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={stock || undefined}
+                    value={qty}
+                    onChange={(e) => updateQuantity(item, Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    aria-label={`Quantité de ${item.nom}`}
+                  />
+                </label>
+                <div>
+                  <span>Prix</span>
+                  <strong>{formatMGA(price * qty)} Ar</strong>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="card cart-desktop-summary" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="stat-label">Total du panier</div>
           <div className="stat-value">{formatMGA(totalPrice)} Ar</div>
