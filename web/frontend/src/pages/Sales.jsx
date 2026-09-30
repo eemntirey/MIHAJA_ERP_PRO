@@ -126,6 +126,7 @@ export const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = fals
     lignes: [{ produit_id: '', quantite: 1, prix_unitaire: 0, taux_tva: 20 }],
   };
 
+  const initialLines = initialData?.lignes || initialData?.lignes_vente || [];
   const editValues = initialData ? {
     client_id: initialData.client_id || null,
     client_passager: false,
@@ -134,7 +135,7 @@ export const SaleModal = ({ products, clients, onClose, onSuccess, isEdit = fals
     mode_paiement: initialData.mode_paiement || 'especes',
     type_vente: initialData.type_vente || 'detail',
     remarque: initialData.remarque || '',
-    lignes: initialData.lignes?.map(l => ({
+    lignes: initialLines.map(l => ({
       produit_id: l.produit_id ?? '',
       quantite: l.quantite || 1,
       prix_unitaire: l.prix_unitaire || 0,
@@ -564,9 +565,22 @@ const Sales = () => {
     setViewAvoir(avoir);
   };
 
-  const handleEditSale = (sale) => {
-    setEditingSale(sale);
-    setShowEditModal(true);
+  const handleEditSale = async (sale) => {
+    try {
+      setSaleActionLoading(true);
+      const res = await saleService.getById(sale.id);
+      const detail = res?.data || sale;
+      const lignes = detail.lignes || detail.lignes_vente || sale.lignes || sale.lignes_vente || [];
+      setEditingSale({ ...sale, ...detail, lignes });
+      setShowEditModal(true);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Erreur lors du chargement de la vente';
+      if (err.response?.status !== 403) {
+        toast.error(msg);
+      }
+    } finally {
+      setSaleActionLoading(false);
+    }
   };
 
   const handleDeleteAvoir = async (id) => {
