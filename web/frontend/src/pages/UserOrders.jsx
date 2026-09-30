@@ -147,7 +147,26 @@ const UserOrders = () => {
             {notifications.map((notif, idx) => {
               const type = getNotifKind(notif);
               return (
-                <li className="orders-list__item" key={`track-${idx}`}>
+                <li
+                  className="orders-list__item orders-list__item--tracking-clickable"
+                  key={`track-${idx}`}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (trackingRef.trim()) {
+                      navigate('/order-tracking/' + encodeURIComponent(trackingRef.trim()));
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      if (trackingRef.trim()) {
+                        navigate('/order-tracking/' + encodeURIComponent(trackingRef.trim()));
+                      }
+                    }
+                  }}
+                  aria-label={trackingRef.trim() ? `Voir le détail de la commande ${trackingRef.trim()}` : 'Voir le détail de la commande'}
+                >
                   <span
                     className={`orders-list__status orders-list__status--${type}`}
                     aria-hidden="true"
