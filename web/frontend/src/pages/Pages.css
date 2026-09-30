@@ -5681,3 +5681,409 @@
   color: var(--color-primary-text);
   text-decoration: underline;
 }
+
+
+/* ======================================================
+   MIHAJA PUBLIC STANDARD — V0.01 HARDENED
+   Unified commerce/public layer. Scoped to public surfaces.
+   ====================================================== */
+.home-page,
+.public-page {
+  --public-bg: #f7f5ef;
+  --public-surface: #ffffff;
+  --public-ink: #151719;
+  --public-muted: #70746f;
+  --public-gold: #c8a84e;
+  --public-gold-dark: #8c7020;
+  --public-border: rgba(11, 12, 13, 0.09);
+  --public-shadow: 0 14px 40px rgba(11, 12, 13, 0.08);
+}
+
+.home-page .public-header,
+.page-container .public-header,
+.downloads-page .public-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  min-height: 68px;
+  padding: 12px clamp(16px, 4vw, 48px);
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid var(--public-border);
+  box-shadow: 0 4px 18px rgba(11,12,13,.04);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.public-header .brand {
+  min-width: 0;
+}
+
+.public-header .brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--public-ink);
+  border: 1px solid var(--public-gold);
+  color: var(--public-gold-light, #ead9a0);
+}
+
+.public-header .brand-name {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.public-header .brand-name small {
+  margin-top: 3px;
+  font-size: 9px;
+  color: var(--public-muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-nav-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--public-border);
+  border-radius: 12px;
+  background: var(--public-surface);
+  color: var(--public-ink);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.public-nav {
+  min-width: 0;
+}
+
+.public-nav-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  color: var(--public-ink);
+}
+
+.public-nav-link:hover {
+  border-color: rgba(200,168,78,.45);
+  color: var(--public-gold-dark);
+  background: rgba(200,168,78,.06);
+}
+
+.btn-cart-link .cart-badge {
+  margin-left: 2px;
+}
+
+@media (max-width: 820px) {
+  .home-page .public-header,
+  .page-container .public-header,
+  .downloads-page .public-header {
+    position: sticky;
+    padding: 10px 16px;
+  }
+
+  .public-nav-toggle {
+    display: inline-flex;
+  }
+
+  .public-nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 12px;
+    right: 12px;
+    z-index: 1001;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px;
+    background: rgba(255,255,255,.98);
+    border: 1px solid var(--public-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 45px rgba(11,12,13,.14);
+  }
+
+  .public-nav.is-open {
+    display: flex;
+  }
+
+  .public-nav-link {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+
+  .home-content {
+    padding: 0;
+    max-width: none;
+  }
+
+  .vit-hero {
+    padding: 64px 20px 48px;
+  }
+
+  .vit-hero__title {
+    font-size: clamp(30px, 8vw, 42px);
+  }
+
+  .vit-hero__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vit-hero__actions .vit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vit-hero__orb--3 {
+    display: none;
+  }
+
+  .home-page .vit-stats {
+    margin: -14px 16px 0;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .vit-features,
+  .vit-how,
+  .vit-register-cta,
+  .vit-testimonials,
+  .vit-catalogue,
+  .vit-downloads {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .home-products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .vit-product-card__image {
+    height: 190px;
+  }
+
+  .vit-product-card__body {
+    padding: 16px;
+  }
+
+  .vit-product-card__actions {
+    flex-direction: column;
+  }
+
+  .vit-product-card__actions .vit-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .public-product-header {
+    margin-top: 16px;
+  }
+
+  .public-product-detail {
+    padding: 16px !important;
+  }
+
+  .public-product-visual,
+  .public-product-visual img {
+    min-height: min(72vw, 360px);
+  }
+
+  .public-product-price {
+    font-size: clamp(26px, 7vw, 34px);
+  }
+
+  .public-product-buy .btn-primary,
+  .public-product-buy .btn-secondary {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .downloads-main {
+    padding: 52px 16px;
+  }
+
+  .downloads-card__button {
+    min-height: 48px;
+  }
+
+  .checkout-page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .checkout-page .public-card {
+    padding: 18px;
+  }
+
+  .checkout-page .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .home-page .vit-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .home-products-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vit-product-card__image {
+    height: 220px;
+  }
+
+  .vit-product-card__name {
+    font-size: 17px;
+  }
+
+  .vit-product-card__price {
+    font-size: 22px;
+  }
+
+  .landing-section-title,
+  .vit-section-title {
+    font-size: 28px;
+  }
+
+  .public-product-visual,
+  .public-product-visual img {
+    min-height: 260px;
+  }
+}
+
+/* Mobile cart: replace the desktop table by readable touch cards. */
+.cart-mobile-list {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .cart-table-wrap {
+    display: none;
+  }
+
+  .cart-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cart-mobile-item {
+    padding: 16px;
+    border: 1px solid var(--public-border);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: var(--public-shadow);
+  }
+
+  .cart-mobile-item__top,
+  .cart-mobile-item__bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .cart-mobile-item__top > div:first-child {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cart-mobile-item__top strong {
+    font-size: 15px;
+    line-height: 1.35;
+    color: var(--public-ink);
+    overflow-wrap: anywhere;
+  }
+
+  .cart-mobile-item__top span {
+    font-size: 12px;
+    color: var(--public-muted);
+  }
+
+  .cart-mobile-item__remove {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border: 1px solid rgba(185,110,85,.18);
+    border-radius: 10px;
+    background: #fff7f4;
+    color: #9b4f3c;
+    cursor: pointer;
+  }
+
+  .cart-mobile-item__bottom {
+    align-items: flex-end;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--public-border);
+  }
+
+  .cart-mobile-item__bottom label,
+  .cart-mobile-item__bottom > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .cart-mobile-item__bottom span {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--public-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .cart-mobile-item__bottom input {
+    width: 88px;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--public-border);
+    border-radius: 10px;
+    text-align: center;
+    font: inherit;
+    background: #fff;
+  }
+
+  .cart-mobile-item__bottom strong {
+    font-size: 18px;
+    color: var(--public-gold-dark);
+  }
+
+  .cart-desktop-summary {
+    margin-top: 16px !important;
+  }
+}
+
+/* Commerce palette normalization: no cyan/blue on public product surfaces. */
+.landing-root,
+.downloads-page {
+  background: var(--public-bg, #f7f5ef);
+}
+
+.downloads-card--mobile {
+  border-top-color: var(--public-gold, #c8a84e);
+}
+
+.downloads-card--mobile .downloads-card__icon {
+  background: rgba(200,168,78,.12);
+  color: var(--public-gold-dark, #8c7020);
+}
+
+.downloads-card--mobile .downloads-card__button {
+  background: linear-gradient(135deg, #c8a84e, #b48c2a);
+}
+
+.downloads-card__button:focus-visible {
+  outline-color: rgba(200,168,78,.38);
+}
