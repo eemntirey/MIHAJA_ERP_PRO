@@ -199,12 +199,18 @@ class VenteResource(Resource):
             LigneVente.query.filter_by(
                 vente_id=id, is_active=True, tenant_id=vente.tenant_id
             ).update({'is_active': False}, synchronize_session=False)
-            Facture.query.filter_by(
+            factures = Facture.query.filter_by(
                 vente_id=id, is_active=True, tenant_id=vente.tenant_id
-            ).update({'is_active': False}, synchronize_session=False)
-            Paiement.query.filter_by(
-                vente_id=id, is_active=True, tenant_id=vente.tenant_id
-            ).update({'is_active': False}, synchronize_session=False)
+            ).all()
+            facture_ids = [facture.id for facture in factures]
+            for facture in factures:
+                facture.is_active = False
+            if facture_ids:
+                Paiement.query.filter(
+                    Paiement.facture_id.in_(facture_ids),
+                    Paiement.is_active.is_(True),
+                    Paiement.tenant_id == vente.tenant_id,
+                ).update({'is_active': False}, synchronize_session=False)
             db.session.commit()
             return {'message': 'Vente supprimee'}, 200
         except ValueError as e:
