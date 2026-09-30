@@ -5667,3 +5667,17 @@
   box-shadow: 0 0 0 3px var(--color-primary-ring);
 }
 
+
+.orders-list__notification-link {
+  position: relative;
+  z-index: 3;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.orders-list__notification-link:hover {
+  color: var(--color-primary-text);
+  text-decoration: underline;
+}
