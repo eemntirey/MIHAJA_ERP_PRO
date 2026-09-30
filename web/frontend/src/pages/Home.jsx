@@ -415,7 +415,6 @@ const Home = () => {
                      <span className="cart-badge">{totalItems}</span>
                    )}
                  </Link>
-               )}
              </>
            ) : (
             <>
