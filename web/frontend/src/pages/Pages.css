@@ -5618,3 +5618,35 @@
   }
 }
 
+.orders-list__item--clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.orders-list__item--clickable:focus-visible {
+  outline: none !important;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.orders-list__item--clickable .orders-list__primary a {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  color: var(--color-primary-text);
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto !important;
+}
+
+.orders-list__item--clickable .orders-list__primary a:hover {
+  text-decoration: underline;
+}
+
+.orders-list__item--clickable .orders-list__actions,
+.orders-list__item--clickable .orders-list__actions a {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+}
+
