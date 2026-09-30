@@ -228,6 +228,15 @@ const UserOrders = () => {
                       {cmd.created_at ? ` · ${formatDate(cmd.created_at)}` : ''}
                     </p>
                   </div>
+                  <div className="orders-list__actions">
+                    <Link
+                      to={`/order-tracking/${encodeURIComponent(cmd.reference)}`}
+                      className="btn-secondary btn-sm"
+                      aria-label={`Voir le détail de la commande ${cmd.reference}`}
+                    >
+                      Voir le détail
+                    </Link>
+                  </div>
                 </li>
               );
             })}
