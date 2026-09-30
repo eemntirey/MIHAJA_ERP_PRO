@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import '../pages/Pages.css';
 
 const PublicHeader = ({ compact = false }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { totalItems } = useCart();
+  const { user, isAuthenticated } = useAuth();
   const closeMenu = () => setMobileOpen(false);
 
   return (
@@ -33,7 +35,21 @@ const PublicHeader = ({ compact = false }) => {
         <i className="ti ti-shopping-cart" aria-hidden="true" />
         Panier{totalItems > 0 ? <span className="cart-badge">{totalItems}</span> : null}
       </Link>
-      <Link to="/login" className="public-nav-link btn-nav-login" onClick={closeMenu}>Connexion</Link>
+      {isAuthenticated ? (
+        <Link
+          to={user?.role && String(user.role).toLowerCase() !== 'user' ? '/dashboard' : '/mes-commandes'}
+          className="public-nav-link btn-nav-login"
+          onClick={closeMenu}
+        >
+          <i className="ti ti-user" aria-hidden="true" />
+          Mon compte
+        </Link>
+      ) : (
+        <>
+          <Link to="/login" className="public-nav-link btn-nav-login" onClick={closeMenu}>Connexion</Link>
+          <Link to="/register" className="public-nav-link btn-nav-register" onClick={closeMenu}>S'inscrire</Link>
+        </>
+      )}
       </nav>
   </header>
   );
