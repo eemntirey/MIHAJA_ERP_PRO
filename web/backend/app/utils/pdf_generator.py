@@ -2,9 +2,9 @@ import os
 import io
 import html
 from werkzeug.utils import secure_filename
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, A5
 from reportlab.lib import colors
-from reportlab.lib.units import cm
+from reportlab.lib.units import cm, mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
@@ -21,6 +21,58 @@ LINE = colors.HexColor('#e6e6e1')
 BEIGE = colors.HexColor('#f7f7f5')
 WHITE = colors.white
 
+PAGE_FORMAT_ALIASES = {
+    'a4': 'a4',
+    'a5': 'a5',
+    '80mm': 'thermal_80',
+    '80_mm': 'thermal_80',
+    'thermal': 'thermal_80',
+    'thermal_80': 'thermal_80',
+}
+
+def normalize_page_format(value):
+    """Normalise le format papier sans casser les appels historiques."""
+    key = str(value or 'a4').strip().lower().replace('-', '_').replace(' ', '_')
+    normalized = PAGE_FORMAT_ALIASES.get(key)
+    if not normalized:
+        raise ValueError("Format d'impression invalide. Valeurs acceptées : a4, a5, thermal_80")
+    return normalized
+
+
+def get_page_format(value, item_count=0):
+    """Retourne pagesize, marges et mode compact pour le format demandé."""
+    page_format = normalize_page_format(value)
+    if page_format == 'a5':
+        return {
+            'name': page_format,
+            'pagesize': A5,
+            'margin': 1.1 * cm,
+            'top_margin': 1.8 * cm,
+            'bottom_margin': 1.5 * cm,
+            'compact': True,
+        }
+    if page_format == 'thermal_80':
+        # Largeur standard 80 mm. La hauteur est adaptée au contenu pour éviter
+        # un ticket inutilement long tout en laissant ReportLab paginer si besoin.
+        height_mm = max(150, min(500, 88 + max(int(item_count or 0), 0) * 17))
+        return {
+            'name': page_format,
+            'pagesize': (80 * mm, height_mm * mm),
+            'margin': 4 * mm,
+            'top_margin': 5 * mm,
+            'bottom_margin': 5 * mm,
+            'compact': True,
+            'thermal': True,
+        }
+    return {
+        'name': 'a4',
+        'pagesize': A4,
+        'margin': 2 * cm,
+        'top_margin': 3.6 * cm,
+        'bottom_margin': 3.6 * cm,
+        'compact': False,
+    }
+
 
 def _get_upload_folder():
     return Config.UPLOAD_FOLDER
@@ -33,16 +85,17 @@ def _escape_pdf_text(value):
     return html.escape(text)
 
 
-def _build_styles():
+def _build_styles(compact=False):
     base = getSampleStyleSheet()
+    scale = 0.78 if compact else 1.0
 
     styles = {}
 
     styles['tenant_name'] = ParagraphStyle(
         'tenant_name',
         parent=base['Heading1'],
-        fontSize=20,
-        leading=24,
+        fontSize=20 * scale,
+        leading=24 * scale,
         textColor=ONYX,
         fontName='Helvetica-Bold',
         spaceAfter=2,
@@ -50,16 +103,16 @@ def _build_styles():
     styles['tenant_info'] = ParagraphStyle(
         'tenant_info',
         parent=base['Normal'],
-        fontSize=9,
-        leading=13,
+        fontSize=9 * scale,
+        leading=13 * scale,
         textColor=MUTED,
         fontName='Helvetica',
     )
     styles['doc_title'] = ParagraphStyle(
         'doc_title',
         parent=base['Heading1'],
-        fontSize=22,
-        leading=26,
+        fontSize=22 * scale,
+        leading=26 * scale,
         textColor=ONYX,
         fontName='Helvetica-Bold',
         alignment=TA_CENTER,
@@ -68,8 +121,8 @@ def _build_styles():
     styles['doc_ref'] = ParagraphStyle(
         'doc_ref',
         parent=base['Normal'],
-        fontSize=10,
-        leading=14,
+        fontSize=10 * scale,
+        leading=14 * scale,
         textColor=MUTED,
         fontName='Helvetica',
         alignment=TA_CENTER,
@@ -78,8 +131,8 @@ def _build_styles():
     styles['section_label'] = ParagraphStyle(
         'section_label',
         parent=base['Normal'],
-        fontSize=9,
-        leading=12,
+        fontSize=9 * scale,
+        leading=12 * scale,
         textColor=ONYX,
         fontName='Helvetica-Bold',
         spaceAfter=4,
@@ -89,16 +142,16 @@ def _build_styles():
     styles['normal'] = ParagraphStyle(
         'normal',
         parent=base['Normal'],
-        fontSize=10,
-        leading=14,
+        fontSize=10 * scale,
+        leading=14 * scale,
         textColor=ONYX,
         fontName='Helvetica',
     )
     styles['normal_right'] = ParagraphStyle(
         'normal_right',
         parent=base['Normal'],
-        fontSize=10,
-        leading=14,
+        fontSize=10 * scale,
+        leading=14 * scale,
         textColor=ONYX,
         fontName='Helvetica',
         alignment=TA_RIGHT,
@@ -106,15 +159,15 @@ def _build_styles():
     styles['small'] = ParagraphStyle(
         'small',
         parent=base['Normal'],
-        fontSize=8,
-        leading=11,
+        fontSize=8 * scale,
+        leading=11 * scale,
         textColor=MUTED,
         fontName='Helvetica',
     )
     styles['footer'] = ParagraphStyle(
         'footer',
         parent=base['Normal'],
-        fontSize=8,
+        fontSize=8 * scale,
         leading=10,
         textColor=MUTED,
         fontName='Helvetica',
@@ -123,8 +176,8 @@ def _build_styles():
     styles['total'] = ParagraphStyle(
         'total',
         parent=base['Normal'],
-        fontSize=11,
-        leading=15,
+        fontSize=11 * scale,
+        leading=15 * scale,
         textColor=ONYX,
         fontName='Helvetica-Bold',
         alignment=TA_RIGHT,
@@ -132,8 +185,8 @@ def _build_styles():
     styles['table_header'] = ParagraphStyle(
         'table_header',
         parent=base['Normal'],
-        fontSize=9,
-        leading=12,
+        fontSize=9 * scale,
+        leading=12 * scale,
         textColor=WHITE,
         fontName='Helvetica-Bold',
         alignment=TA_CENTER,
@@ -141,8 +194,8 @@ def _build_styles():
     styles['table_cell'] = ParagraphStyle(
         'table_cell',
         parent=base['Normal'],
-        fontSize=9,
-        leading=12,
+        fontSize=9 * scale,
+        leading=12 * scale,
         textColor=ONYX,
         fontName='Helvetica',
         alignment=TA_LEFT,
@@ -150,8 +203,8 @@ def _build_styles():
     styles['table_cell_right'] = ParagraphStyle(
         'table_cell_right',
         parent=base['Normal'],
-        fontSize=9,
-        leading=12,
+        fontSize=9 * scale,
+        leading=12 * scale,
         textColor=ONYX,
         fontName='Helvetica',
         alignment=TA_RIGHT,
@@ -159,8 +212,8 @@ def _build_styles():
     styles['table_cell_center'] = ParagraphStyle(
         'table_cell_center',
         parent=base['Normal'],
-        fontSize=9,
-        leading=12,
+        fontSize=9 * scale,
+        leading=12 * scale,
         textColor=ONYX,
         fontName='Helvetica',
         alignment=TA_CENTER,
@@ -168,29 +221,28 @@ def _build_styles():
     return styles
 
 
-def _add_header_footer(canvas_obj, doc, tenant, doc_title, doc_ref, page_count=1):
+def _add_header_footer(canvas_obj, doc, tenant, doc_title, doc_ref, page_count=1, page_size=A4, margin=2 * cm, thermal=False):
     canvas_obj.saveState()
     try:
-        width, height = A4
-        margin = 2 * cm
+        width, height = page_size
 
         canvas_obj.setStrokeColor(LINE)
-        canvas_obj.setLineWidth(0.5)
-        canvas_obj.line(margin, height - margin + 0.4 * cm, width - margin, height - margin + 0.4 * cm)
+        canvas_obj.setLineWidth(0.4 if thermal else 0.5)
+        canvas_obj.line(margin, height - margin + (2 * mm if thermal else 0.4 * cm), width - margin, height - margin + (2 * mm if thermal else 0.4 * cm))
 
         canvas_obj.setFont('Helvetica', 7)
         canvas_obj.setFillColor(MUTED)
-        canvas_obj.drawRightString(width - margin, 1.2 * cm, f'Page {doc.page} / {page_count}')
+        canvas_obj.drawRightString(width - margin, 5 * mm if thermal else 1.2 * cm, f'Page {doc.page} / {page_count}')
 
         if tenant:
-            canvas_obj.setFont('Helvetica', 7)
+            canvas_obj.setFont('Helvetica', 5.5 if thermal else 7)
             canvas_obj.setFillColor(MUTED)
             footer_text = f"{tenant.get('nom', '')} | {tenant.get('adresse', '')}, {tenant.get('ville', '')} | {tenant.get('telephone', '')} | {tenant.get('email_contact', '')}"
-            canvas_obj.drawString(margin, 1.2 * cm, footer_text[:120])
+            canvas_obj.drawString(margin, 5 * mm if thermal else 1.2 * cm, footer_text[:120 if not thermal else 42])
 
         canvas_obj.setStrokeColor(LINE)
-        canvas_obj.setLineWidth(0.5)
-        canvas_obj.line(margin, margin - 0.3 * cm, width - margin, margin - 0.3 * cm)
+        canvas_obj.setLineWidth(0.4 if thermal else 0.5)
+        canvas_obj.line(margin, margin - (1 * mm if thermal else 0.3 * cm), width - margin, margin - (1 * mm if thermal else 0.3 * cm))
     except Exception:
         pass
     canvas_obj.restoreState()
@@ -265,7 +317,7 @@ def _build_table_row(styles, item):
     ]
 
 
-def generate_document_pdf(filename, type_document, reference, donnees, tenant, modele=None):
+def generate_document_pdf(filename, type_document, reference, donnees, tenant, modele=None, page_format='a4'):
     folder = _get_upload_folder()
     folder_abs = os.path.abspath(folder)
     os.makedirs(folder_abs, exist_ok=True)
@@ -275,18 +327,24 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
     if not filepath.startswith(folder_abs + os.sep) and filepath != folder_abs:
         raise ValueError("Chemin PDF non valide : tentative de path-traversal.")
 
-    styles = _build_styles()
-    width, height = A4
-    margin = 2 * cm
+    # Le nombre de lignes est connu avant la mise en page et permet de
+    # dimensionner proprement un ticket 80 mm.
+    raw_items = donnees.get('items', donnees.get('lignes', [])) if isinstance(donnees, dict) else []
+    if not raw_items and isinstance(donnees, list):
+        raw_items = donnees
+    layout = get_page_format(page_format, len(raw_items) if isinstance(raw_items, list) else 0)
+    styles = _build_styles(compact=layout.get('compact', False))
+    width, height = layout['pagesize']
+    margin = layout['margin']
     content_width = width - 2 * margin
 
     doc = SimpleDocTemplate(
         filepath,
-        pagesize=A4,
+        pagesize=layout['pagesize'],
         leftMargin=margin,
         rightMargin=margin,
-        topMargin=margin + 1.6 * cm,
-        bottomMargin=margin + 1.6 * cm,
+        topMargin=layout['top_margin'],
+        bottomMargin=layout['bottom_margin'],
     )
 
     from datetime import datetime
@@ -357,11 +415,44 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
         story.append(Paragraph('DÉTAIL', styles['section_label']))
         story.append(Spacer(1, 0.1 * cm))
 
-        table_data = [_build_table_header(styles)]
-        for item in items:
-            table_data.append(_build_table_row(styles, item))
-
-        table = Table(table_data, colWidths=[content_width * 0.38, content_width * 0.12, content_width * 0.18, content_width * 0.12, content_width * 0.20], repeatRows=1)
+        if layout.get('thermal'):
+            table_data = [[
+                Paragraph('Désignation', styles['table_header']),
+                Paragraph('Qté', styles['table_header']),
+                Paragraph('Total', styles['table_header']),
+            ]]
+            for item in items:
+                nom = _escape_pdf_text(item.get('produit_nom', item.get('designation', item.get('description', ''))))
+                qty = _escape_pdf_text(str(item.get('quantite', item.get('qte', ''))))
+                total = _escape_pdf_text(f"{float(item.get('total_ht', item.get('total', 0))):.2f}")
+                prix = float(item.get('prix_unitaire', item.get('prix_ht', 0)) or 0)
+                tva = item.get('taux_tva', item.get('tva', 0))
+                detail = f"{nom}<br/><font size=6>{prix:.2f} HT · TVA {tva}%</font>"
+                table_data.append([
+                    Paragraph(detail, styles['table_cell']),
+                    Paragraph(qty, styles['table_cell_center']),
+                    Paragraph(total, styles['table_cell_right']),
+                ])
+            table = Table(
+                table_data,
+                colWidths=[content_width * 0.58, content_width * 0.14, content_width * 0.28],
+                repeatRows=1,
+            )
+        else:
+            table_data = [_build_table_header(styles)]
+            for item in items:
+                table_data.append(_build_table_row(styles, item))
+            table = Table(
+                table_data,
+                colWidths=[
+                    content_width * 0.38,
+                    content_width * 0.12,
+                    content_width * 0.18,
+                    content_width * 0.12,
+                    content_width * 0.20,
+                ],
+                repeatRows=1,
+            )
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), ONYX),
             ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
@@ -425,7 +516,17 @@ def generate_document_pdf(filename, type_document, reference, donnees, tenant, m
     def _on_page(canvas_obj, doc_obj):
         nonlocal page_count
         page_count = max(page_count, doc_obj.page)
-        _add_header_footer(canvas_obj, doc_obj, tenant, title, reference, page_count)
+        _add_header_footer(
+            canvas_obj,
+            doc_obj,
+            tenant,
+            title,
+            reference,
+            page_count,
+            page_size=layout['pagesize'],
+            margin=margin,
+            thermal=layout.get('thermal', False),
+        )
 
     doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
     return filepath
@@ -474,7 +575,10 @@ def generate_invoice_pdf(filename, invoice_data):
     donnees = invoice_data.get('donnees', invoice_data)
     tenant = invoice_data.get('tenant', {})
     modele = invoice_data.get('modele', {})
-    return generate_document_pdf(filename, type_document, reference, donnees, tenant, modele)
+    page_format = invoice_data.get('page_format', invoice_data.get('format', 'a4'))
+    return generate_document_pdf(
+        filename, type_document, reference, donnees, tenant, modele, page_format=page_format
+    )
 
 
 def generate_quote_pdf(filename, quote_data):
@@ -483,4 +587,5 @@ def generate_quote_pdf(filename, quote_data):
     donnees = quote_data.get('donnees', quote_data)
     tenant = quote_data.get('tenant', {})
     modele = quote_data.get('modele', {})
-    return generate_document_pdf(filename, type_document, reference, donnees, tenant, modele)
+    page_format = quote_data.get('page_format', quote_data.get('format', 'a4'))
+    return generate_document_pdf(filename, type_document, reference, donnees, tenant, modele, page_format=page_format)
