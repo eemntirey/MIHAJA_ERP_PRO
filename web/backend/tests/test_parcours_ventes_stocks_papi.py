@@ -395,6 +395,75 @@ class TestParcoursVente:
             assert response.status_code == 200
 
 
+    def test_suppression_vente_restaure_stock_et_soft_delete_facture_paiement(self, app, client, tenant_admin):
+        headers = tenant_admin['headers']
+        suffix = uuid.uuid4().hex[:6]
+
+        with app.app_context():
+            produit = _create_produit(client, headers, suffix, quantite_stock=10)
+            client_final = _create_client(client, headers, suffix)
+
+            response = client.post(
+                '/api/v1/ventes/',
+                json={
+                    'client_id': client_final['id'],
+                    'mode_paiement': 'especes',
+                    'lignes': [
+                        {
+                            'produit_id': produit['id'],
+                            'quantite': 3,
+                            'prix_unitaire': 40000.0,
+                            'taux_tva': 20.0,
+                        }
+                    ],
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201, response.get_json()
+            vente = response.get_json()
+
+            response = client.post(
+                f"/api/v1/factures/from-vente/{vente['id']}",
+                headers=headers,
+            )
+            assert response.status_code == 201, response.get_json()
+            facture = response.get_json()
+
+            response = client.post(
+                '/api/v1/paiements/',
+                json={
+                    'facture_id': facture['id'],
+                    'montant': float(vente['total_ttc']),
+                    'mode_paiement': 'especes',
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201, response.get_json()
+            paiement = response.get_json()
+
+            response = client.delete(
+                f"/api/v1/ventes/{vente['id']}",
+                headers=headers,
+            )
+            assert response.status_code == 200, response.get_json()
+
+            response = client.get(f"/api/v1/produits/{produit['id']}", headers=headers)
+            assert response.status_code == 200
+            assert Decimal(str(response.get_json()['quantite_stock'])) == Decimal('10.00')
+
+            with app.app_context():
+                from app.models.facture import Facture
+                facture_db = db.session.get(Facture, facture['id'])
+                paiement_db = db.session.get(Paiement, paiement['id'])
+                assert facture_db is not None
+                assert facture_db.is_active is False
+                assert paiement_db is not None
+                assert paiement_db.is_active is False
+
+            response = client.get(f"/api/v1/ventes/{vente['id']}", headers=headers)
+            assert response.status_code == 404
+
+
 class TestPapiConfiguration:
     """Configuration Papi marchand + vitrine du tenant."""
 
