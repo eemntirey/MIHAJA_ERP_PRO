@@ -324,6 +324,7 @@ const RAW_PUBLIC_API_URL =
 export const publicApi = axios.create({
     baseURL: resolveAbsoluteApiUrl(RAW_PUBLIC_API_URL) || '',
     timeout: API_TIMEOUT_MS,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -437,8 +438,12 @@ export const publicCatalogueService = {
         return publicApi.get('/public/mes-commandes', config);
     },
 
-    getCommandeTracking: (ref) =>
-        publicApi.get(`/public/commandes/tracking/${ref}`),
+    getCommandeTracking: (ref) => {
+        const token = tokenStore.getAccessToken();
+        return publicApi.get(`/public/commandes/tracking/${encodeURIComponent(ref)}`, {
+            ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        });
+    },
 
     getNotifications: (ref) =>
         publicApi.get('/public/notifications', { params: ref ? { ref } : undefined }),
