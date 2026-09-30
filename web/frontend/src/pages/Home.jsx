@@ -261,9 +261,10 @@ const Home = () => {
           <i className={showMobileNav ? 'ti ti-x' : 'ti ti-menu-2'} aria-hidden="true" />
         </button>
         <nav id="mihaja-home-public-nav" className={`public-nav${showMobileNav ? ' is-open' : ''}`}>
-
+          <Link to="/" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Accueil</Link>
           <Link to="/catalogue" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Catalogue</Link>
           <a href="#telechargements" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Téléchargements</a>
+          <Link to="/contact" className="public-nav-link" onClick={() => setShowMobileNav(false)}>Contact</Link>
           {isAuthenticated ? (
             <>
               {isUser && (
@@ -849,28 +850,22 @@ const Home = () => {
                           <i className="ti ti-eye" aria-hidden="true" />
                           Détails
                         </Link>
-                        {isUser && (
-                          <button
-                            type="button"
-                            className="vit-btn vit-btn--primary vit-btn--sm"
-                            onClick={() => {
-                              addItem(product, 1);
-                              toast.success(`${product.nom} ajouté au panier`);
-                            }}
-                          >
-                            <i className="ti ti-shopping-cart-plus" aria-hidden="true" />
-                            Ajouter
-                          </button>
-                        )}
-                        {!isAuthenticated && (
-                          <Link
-                            to={`/produits/${product.id}`}
-                            className="vit-btn vit-btn--primary vit-btn--sm"
-                          >
-                            <i className="ti ti-shopping-cart" aria-hidden="true" />
-                            Voir le produit
-                          </Link>
-                        )}
+                        <button
+                          type="button"
+                          className="vit-btn vit-btn--primary vit-btn--sm"
+                          onClick={() => {
+                            if (Number(product.quantite_stock ?? product.stock ?? 0) <= 0) {
+                              toast.info('Produit actuellement indisponible');
+                              return;
+                            }
+                            addItem(product, 1);
+                            toast.success(`${product.nom} ajouté au panier`);
+                          }}
+                          disabled={Number(product.quantite_stock ?? product.stock ?? 0) <= 0}
+                        >
+                          <i className="ti ti-shopping-cart-plus" aria-hidden="true" />
+                          {Number(product.quantite_stock ?? product.stock ?? 0) > 0 ? 'Ajouter au panier' : 'Rupture'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -890,7 +885,7 @@ const Home = () => {
               <div className="vit-footer__brand">
                 <Link to="/" className="brand">
                   <span className="brand-icon">EP</span>
-                  <span className="brand-name">ERP Pro</span>
+                  <span className="brand-name"><strong>MIHAJA</strong><small>ERP PRO</small></span>
                 </Link>
                 <p className="vit-footer__tagline">
                   La solution de gestion intégrée pour les entreprises malgaches.
