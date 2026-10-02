@@ -6,9 +6,9 @@ useDefault = true
 [[allowlists]]
 description = "Exemples, CI de test et artefacts d outillage non secrets"
 paths = [
-  '''^\.env\.example$''',
-  '''^\.gitignore$''',
-  '''^\.github/workflows/.*\.yml$''',
-  '''^docs/''',
-  '''^\.refact/''',
+  '''(^|/).env.example$''',
+  '''(^|/)\.gitignore$''',
+  '''(^|/)\.github/workflows/.*\.yml$''',
+  '''(^|/)docs/''',
+  '''(^|/)\.refact/''',
 ]
