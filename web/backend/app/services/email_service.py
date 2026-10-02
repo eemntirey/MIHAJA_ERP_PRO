@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 # app/services/email_service.py
-# Service d'envoi d'emails (SMTP) pour les flux metier : bienvenue avec mot de
-# passe temporaire, reset de mot de passe, changement de mot de passe, envoi
-# de facture, confirmation de paiement, alerte stock.
-#
-# Activation : MAIL_ENABLED=true + MAIL_HOST/MAIL_PORT/MAIL_USERNAME/MAIL_PASSWORD.
-# Desactive par defaut (MAIL_ENABLED=false) : aucun envoi SMTP accidentel, le
-# resultat est alors {'delivered': False, ...} sans exception.
+# Service d'envoi d'emails transactionnels pour les flux metier : bienvenue,
+# reset de mot de passe, changement de mot de passe, facture, paiement, stock.
+# Le provider est selectionne via MAIL_PROVIDER. Brevo utilise uniquement son
+# API HTTPS ; SMTP reste disponible pour compatibilite explicite (MAIL_PROVIDER=smtp).
 
 import html
 import logging
 import smtplib
+
+import requests
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -49,26 +48,45 @@ def _build_smtp_config(config=None):
     }
 
 
-def send_email(subject, html_body, recipient, *, config=None, reply_to=None):
-    """Envoie un email HTML via SMTP. Retourne un dict descriptif (jamais
-    d'exception) : {'delivered': True} si envoye, '' delivered False'' si
-    desactive / non configure / echec."""
-    if not recipient:
-        logger.warning('EMAIL: destinataire manquant, envoi ignore')
-        return {'success': False, 'delivered': False, 'message': 'Destinataire manquant'}
+def _build_brevo_config(config=None):
+    """Construit la configuration Brevo sans jamais exposer la cle API."""
+    if config:
+        return {
+            'api_key': config.get('api_key') or getattr(Config, 'BREVO_API_KEY', None),
+            'api_url': config.get('api_url') or getattr(
+                Config, 'BREVO_API_URL', 'https://api.brevo.com/v3/smtp/email'
+            ),
+            'from': config.get('from') or getattr(
+                Config, 'BREVO_SENDER_EMAIL', None
+            ) or getattr(Config, 'MAIL_FROM', None),
+            'from_name': config.get('from_name') or getattr(
+                Config, 'BREVO_SENDER_NAME', None
+            ) or getattr(Config, 'MAIL_FROM_NAME', _APP_NAME),
+            'timeout': int(config.get('timeout') or getattr(Config, 'MAIL_TIMEOUT', 10)),
+        }
+    return {
+        'api_key': getattr(Config, 'BREVO_API_KEY', None),
+        'api_url': getattr(Config, 'BREVO_API_URL', 'https://api.brevo.com/v3/smtp/email'),
+        'from': getattr(Config, 'BREVO_SENDER_EMAIL', None) or getattr(Config, 'MAIL_FROM', None),
+        'from_name': getattr(Config, 'BREVO_SENDER_NAME', None) or getattr(Config, 'MAIL_FROM_NAME', _APP_NAME),
+        'timeout': int(getattr(Config, 'MAIL_TIMEOUT', 10)),
+    }
 
-    if not getattr(Config, 'MAIL_ENABLED', False):
-        logger.info('EMAIL desactive (MAIL_ENABLED=false) : %s <- %s', recipient, subject)
-        return {'success': True, 'delivered': False, 'message': 'SMTP desactive (MAIL_ENABLED=false)'}
 
+def _send_smtp(subject, html_body, recipient, *, config=None, reply_to=None):
+    """Transport SMTP historique, conserve uniquement pour compatibilite explicite."""
     conf = _build_smtp_config(config)
     host = conf['host']
     if not host:
-        logger.info('EMAIL: SMTP non configure (MAIL_HOST absent) pour %s', recipient)
-        return {'success': True, 'delivered': False, 'message': 'SMTP non configure (MAIL_HOST)'}
+        logger.warning('EMAIL provider=smtp error_type=configuration')
+        return {
+            'success': False,
+            'delivered': False,
+            'message': 'SMTP non configure (MAIL_HOST)',
+            'error_type': 'configuration',
+        }
 
     msg_from = formataddr((conf['from_name'], conf['from'])) if conf['from'] else 'erp@localhost'
-
     msg = MIMEMultipart('alternative')
     msg['From'] = msg_from
     msg['To'] = recipient
@@ -86,13 +104,152 @@ def send_email(subject, html_body, recipient, *, config=None, reply_to=None):
             if conf.get('user'):
                 server.login(conf['user'], conf['password'] or '')
             server.send_message(msg)
-        logger.info('EMAIL envoye : %s -> %s', subject, recipient)
+        logger.info('EMAIL provider=smtp status=sent')
         return {'success': True, 'delivered': True, 'recipient': recipient}
     except Exception as exc:
-        logger.exception('Echec envoi email a %s', recipient)
-        return {'success': False, 'delivered': False, 'message': str(exc), 'recipient': recipient}
+        logger.error('EMAIL provider=smtp error_type=%s', type(exc).__name__)
+        return {
+            'success': False,
+            'delivered': False,
+            'message': str(exc),
+            'error_type': type(exc).__name__,
+            'recipient': recipient,
+        }
 
 
+def _send_brevo(subject, html_body, recipient, *, config=None, reply_to=None):
+    """Envoie un email via l'API transactionnelle HTTPS Brevo."""
+    conf = _build_brevo_config(config)
+    if not conf['api_key'] or not conf['from']:
+        logger.warning('EMAIL provider=brevo error_type=configuration')
+        return {
+            'success': False,
+            'delivered': False,
+            'message': 'Brevo non configure (BREVO_API_KEY/BREVO_SENDER_EMAIL)',
+            'error_type': 'configuration',
+        }
+
+    payload = {
+        'sender': {'name': conf['from_name'], 'email': conf['from']},
+        'to': [{'email': recipient}],
+        'subject': subject,
+        'htmlContent': html_body,
+    }
+    if reply_to:
+        safe_reply_to = reply_to.replace('\r', ' ').replace('\n', ' ').strip()
+        if safe_reply_to:
+            payload['replyTo'] = {'email': safe_reply_to}
+
+    headers = {
+        'api-key': conf['api_key'],
+        'accept': 'application/json',
+        'content-type': 'application/json',
+    }
+
+    try:
+        response = requests.post(
+            conf['api_url'],
+            headers=headers,
+            json=payload,
+            timeout=conf['timeout'],
+        )
+        status_code = int(response.status_code)
+        if 200 <= status_code < 300:
+            try:
+                data = response.json()
+            except ValueError:
+                data = {}
+            result = {
+                'success': True,
+                'delivered': True,
+                'recipient': recipient,
+                'status_code': status_code,
+            }
+            if isinstance(data, dict) and data.get('messageId'):
+                result['message_id'] = data['messageId']
+            logger.info('EMAIL provider=brevo status=%s', status_code)
+            return result
+
+        logger.error(
+            'EMAIL provider=brevo status=%s error_type=provider_http',
+            status_code,
+        )
+        return {
+            'success': False,
+            'delivered': False,
+            'message': f'Brevo HTTP {status_code}',
+            'status_code': status_code,
+            'error_type': 'provider_http',
+            'recipient': recipient,
+        }
+    except requests.Timeout as exc:
+        logger.error('EMAIL provider=brevo error_type=timeout')
+        return {
+            'success': False,
+            'delivered': False,
+            'message': str(exc),
+            'error_type': 'timeout',
+            'recipient': recipient,
+        }
+    except requests.RequestException as exc:
+        logger.error('EMAIL provider=brevo error_type=%s', type(exc).__name__)
+        return {
+            'success': False,
+            'delivered': False,
+            'message': str(exc),
+            'error_type': type(exc).__name__,
+            'recipient': recipient,
+        }
+    except Exception as exc:
+        logger.error('EMAIL provider=brevo error_type=%s', type(exc).__name__)
+        return {
+            'success': False,
+            'delivered': False,
+            'message': str(exc),
+            'error_type': type(exc).__name__,
+            'recipient': recipient,
+        }
+
+
+def send_email(subject, html_body, recipient, *, config=None, reply_to=None):
+    """Envoie un email transactionnel via le provider configure.
+
+    Le service ne leve pas d'exception vers les appelants. delivered est vrai
+    uniquement lorsque le transport confirme l'acceptation du message.
+    """
+    if not recipient:
+        logger.warning('EMAIL error_type=missing_recipient')
+        return {
+            'success': False,
+            'delivered': False,
+            'message': 'Destinataire manquant',
+            'error_type': 'missing_recipient',
+        }
+
+    if not getattr(Config, 'MAIL_ENABLED', False):
+        logger.info('EMAIL disabled')
+        return {
+            'success': True,
+            'delivered': False,
+            'message': 'Service email desactive',
+            'error_type': 'disabled',
+        }
+
+    provider = str(getattr(Config, 'MAIL_PROVIDER', 'smtp') or 'smtp').strip().lower()
+    if provider == 'brevo':
+        return _send_brevo(subject, html_body, recipient, config=config, reply_to=reply_to)
+    if provider == 'smtp':
+        return _send_smtp(subject, html_body, recipient, config=config, reply_to=reply_to)
+
+    logger.error('EMAIL provider=%s error_type=unsupported_provider', provider)
+    return {
+        'success': False,
+        'delivered': False,
+        'message': 'Provider email non supporte',
+        'error_type': 'unsupported_provider',
+        'provider': provider,
+        'recipient': recipient,
+    }
 def _tenant_label(tenant):
     if not tenant:
         return _APP_NAME
