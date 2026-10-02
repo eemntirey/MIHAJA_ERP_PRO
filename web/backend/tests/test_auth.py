@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from app import create_app
+from app.config.settings import Config
 
 
 @pytest.fixture
@@ -85,4 +86,44 @@ def test_refresh_missing_header_returns_401(app):
     assert response.status_code == 401
     assert response.get_json() == {
         'message': 'En-t\u00eate Authorization manquant ou invalide'
+    }
+
+
+def test_forgot_password_accepts_brevo_configuration_in_production(app, monkeypatch):
+    monkeypatch.setenv('FLASK_ENV', 'production')
+    Config.MAIL_ENABLED = True
+    Config.MAIL_PROVIDER = 'brevo'
+    Config.BREVO_API_KEY = 'brevo-test-secret'
+    Config.BREVO_SENDER_EMAIL = 'sender@example.com'
+
+    with patch('app.api.v1.auth.Utilisateur.query.filter_by') as filter_by:
+        filter_by.return_value.first.return_value = None
+        response = app.test_client().post(
+            '/api/v1/auth/forgot-password',
+            json={'email': 'unknown@example.com'},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'message': 'Si un compte existe avec cet email, la demande a été traitée.'
+    }
+
+
+def test_forgot_password_rejects_missing_brevo_configuration_in_production(app, monkeypatch):
+    monkeypatch.setenv('FLASK_ENV', 'production')
+    Config.MAIL_ENABLED = True
+    Config.MAIL_PROVIDER = 'brevo'
+    Config.BREVO_API_KEY = None
+    Config.BREVO_SENDER_EMAIL = 'sender@example.com'
+
+    with patch('app.api.v1.auth.Utilisateur.query.filter_by') as filter_by:
+        response = app.test_client().post(
+            '/api/v1/auth/forgot-password',
+            json={'email': 'unknown@example.com'},
+        )
+
+    assert response.status_code == 501
+    assert filter_by.call_count == 0
+    assert response.get_json() == {
+        'message': "La réinitialisation par email n'est pas disponible. Contactez un administrateur."
     }
