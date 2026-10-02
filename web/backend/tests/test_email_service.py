@@ -425,6 +425,7 @@ class TestBrevoProvider:
         assert result['delivered'] is False
         assert result['status_code'] == 401
         assert result['error_type'] == 'provider_http'
+        assert result['provider_code'] == 'unauthorized'
         assert result['message'] == 'Brevo HTTP 401'
 
     def test_brevo_timeout_is_bounded_and_safe(self, caplog):
@@ -440,6 +441,7 @@ class TestBrevoProvider:
         assert result['success'] is False
         assert result['delivered'] is False
         assert result['error_type'] == 'timeout'
+        assert result['message'] == 'Brevo indisponible (timeout)'
         assert 'brevo-test-secret' not in caplog.text
 
     def test_brevo_configuration_missing(self):
