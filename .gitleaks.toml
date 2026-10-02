@@ -4,10 +4,11 @@ title = "MIHAJA_ERP_PRO Gitleaks Config"
 useDefault = true
 
 [[allowlists]]
-description = "Exemples et documentation non secrets"
+description = "Exemples, CI de test et artefacts d outillage non secrets"
 paths = [
-  ".env.example",
-  ".gitignore",
-  ".github/workflows/*.yml",
-  "docs/",
+  '''^\.env\.example$''',
+  '''^\.gitignore$''',
+  '''^\.github/workflows/.*\.yml$''',
+  '''^docs/''',
+  '''^\.refact/''',
 ]
