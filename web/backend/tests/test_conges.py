@@ -59,6 +59,11 @@ def _make_employe(tenant, matricule='EMP-1'):
                 salaire_base=1000, conges_credit_annuel=30)
     db.session.add(e)
     db.session.commit()
+    # Le helper est utilisé hors du contexte de session dans plusieurs tests.
+    # Rafraîchir puis détacher l'instance conserve ses attributs scalaires
+    # (notamment id) accessibles sans lazy-load sur une session fermée.
+    db.session.refresh(e)
+    db.session.expunge(e)
     return e
 
 
