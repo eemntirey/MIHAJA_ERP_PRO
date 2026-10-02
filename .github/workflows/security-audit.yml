@@ -35,9 +35,28 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit
         working-directory: web/frontend
-      - name: Audit runtime dependencies
-        run: npm audit --omit=dev --audit-level=high
+      - name: Prepare runtime-only manifest
         working-directory: web/frontend
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const dir = process.env.RUNNER_TEMP + '/mihaja-web-runtime';
+          fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(
+            dir + '/package.json',
+            JSON.stringify({
+              name: 'mihaja-erp-web-runtime-audit',
+              version: pkg.version,
+              private: true,
+              dependencies: pkg.dependencies
+            }, null, 2) + '\n'
+          );
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit --prefix "$RUNNER_TEMP/mihaja-web-runtime"
+      - name: Audit runtime dependencies
+        run: npm audit --audit-level=high
+        working-directory: ${{ runner.temp }}/mihaja-web-runtime
       - name: Audit build toolchain (informational)
         run: npm audit --audit-level=high || true
         working-directory: web/frontend
@@ -55,9 +74,28 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit
         working-directory: desk
-      - name: Audit application dependencies
-        run: npm audit --omit=dev --audit-level=high
+      - name: Prepare runtime-only manifest
         working-directory: desk
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const dir = process.env.RUNNER_TEMP + '/mihaja-desk-runtime';
+          fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(
+            dir + '/package.json',
+            JSON.stringify({
+              name: 'mihaja-erp-desk-runtime-audit',
+              version: pkg.version,
+              private: true,
+              dependencies: pkg.dependencies
+            }, null, 2) + '\n'
+          );
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit --prefix "$RUNNER_TEMP/mihaja-desk-runtime"
+      - name: Audit runtime dependencies
+        run: npm audit --audit-level=high
+        working-directory: ${{ runner.temp }}/mihaja-desk-runtime
       - name: Audit Electron/build toolchain (informational)
         run: npm audit --audit-level=high || true
         working-directory: desk
