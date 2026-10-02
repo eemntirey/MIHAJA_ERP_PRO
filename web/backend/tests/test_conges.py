@@ -70,10 +70,11 @@ def test_create_conge_calcule_nb_jours(app):
 
     with app.app_context():
         e = _make_employe(tenant)
+        employe_id = e.id
 
-    # Vendredi 01 -> mardi 05 (1+4+5 = 3 jours ouvrÃ©s, lundi entre)
+    # Vendredi 01 -> mardi 05 (1+4+5 = 3 jours ouvrés, lundi entre)
     r = client.post('/api/v1/conges', headers=headers, json={
-        'employe_id': e.id,
+        'employe_id': employe_id,
         'type_conge': 'maladie',
         'date_debut': '2026-05-08',
         'date_fin': '2026-05-12',
