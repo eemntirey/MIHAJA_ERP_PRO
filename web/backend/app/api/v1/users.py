@@ -138,6 +138,25 @@ class UserList(Resource):
         if err:
             return err, status
         data = request.get_json() or {}
+
+        # Garde de quota finale apres resolution du tenant : max_utilisateurs
+        # represente le nombre total d'utilisateurs actifs du tenant, admin
+        # principal inclus. Le decorateur reste en place comme premiere defense.
+        tenant_id_for_quota = get_current_tenant_id()
+        if tenant_id_for_quota is not None and not _is_global_admin():
+            tenant_for_quota = db.session.get(Tenant, tenant_id_for_quota)
+            limits_for_quota = _get_limits(tenant_for_quota) if tenant_for_quota else {}
+            user_limit = limits_for_quota.get('max_utilisateurs')
+            if not is_unlimited(user_limit):
+                active_user_count = Utilisateur.query.filter_by(
+                    tenant_id=tenant_id_for_quota,
+                    is_active=True,
+                ).count()
+                if active_user_count >= user_limit:
+                    return {
+                        'message': 'Limite d\'utilisateurs atteinte pour votre abonnement actuel.'
+                    }, 403
+
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
