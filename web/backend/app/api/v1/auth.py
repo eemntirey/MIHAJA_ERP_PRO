@@ -615,12 +615,23 @@ class AuthForgotPassword(Resource):
         if not email:
             return {'message': 'Email requis'}, 400
 
-        # M6 : en production, exiger un SMTP réellement configuré. Sans lui,
-        # un token de reset serait créé mais jamais délivré. On coupe net avec
-        # un 501 explicite pour tout le monde (même message, pas d'énumération).
+        # En production, vérifier que le provider d'email est réellement
+        # configuré avant de créer un token qui ne pourrait pas être délivré.
+        # Le contrôle reste générique afin de ne pas permettre l'énumération.
         if os.getenv('FLASK_ENV', '').lower() == 'production':
-            from app.config.settings import Config
-            mail_ready = bool(getattr(Config, 'MAIL_ENABLED', False)) and bool(getattr(Config, 'MAIL_HOST', None))
+            provider = str(getattr(Config, 'MAIL_PROVIDER', 'smtp') or 'smtp').strip().lower()
+            mail_enabled = bool(getattr(Config, 'MAIL_ENABLED', False))
+            if provider == 'brevo':
+                mail_ready = (
+                    mail_enabled
+                    and bool(getattr(Config, 'BREVO_API_KEY', None))
+                    and bool(getattr(Config, 'BREVO_SENDER_EMAIL', None))
+                )
+            elif provider == 'smtp':
+                mail_ready = mail_enabled and bool(getattr(Config, 'MAIL_HOST', None))
+            else:
+                mail_ready = False
+
             if not mail_ready:
                 return {
                     'message': 'La réinitialisation par email n\'est pas disponible. Contactez un administrateur.'
@@ -664,11 +675,26 @@ class AuthForgotPassword(Resource):
                 tenant = db.session.get(Tenant, user.tenant_id) if user.tenant_id else None
                 # Le service reconstruit lui-même le lien à partir de APP_URL
                 # et du raw_token ; on lui passe donc le token brut.
-                send_password_reset_email(user, tenant, raw_token, expires_in_minutes=ttl_minutes, app_url=app_url)
-            except Exception:
-                current_app.logger.exception(
-                    'Erreur lors de l\'envoi du mail de reset pour %s', user.email
+                delivery_result = send_password_reset_email(
+                    user,
+                    tenant,
+                    raw_token,
+                    expires_in_minutes=ttl_minutes,
+                    app_url=app_url,
                 )
+                if not delivery_result.get('delivered'):
+                    current_app.logger.error(
+                        'Password reset email delivery failed: provider=%s error_type=%s status=%s',
+                        str(getattr(Config, 'MAIL_PROVIDER', 'smtp') or 'smtp').strip().lower(),
+                        delivery_result.get('error_type', 'unknown'),
+                        delivery_result.get('status_code'),
+                    )
+            except Exception as exc:
+                current_app.logger.error(
+                    'Password reset email delivery exception: type=%s',
+                    type(exc).__name__,
+                )
+
 
             # Audit log — sans enregistrer le token brut
             try:
@@ -689,7 +715,7 @@ class AuthForgotPassword(Resource):
             )
 
         return {
-            'message': 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.'
+            'message': 'Si un compte existe avec cet email, la demande a été traitée.'
         }, 200
 
 
