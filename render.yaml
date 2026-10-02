@@ -34,6 +34,20 @@ services:
         sync: false
       - key: MAIL_CONTACT_RECIPIENT
         sync: false
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: MAIL_PROVIDER
+        value: "brevo"
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: "MIHAJA ERP"
+      - key: BREVO_API_URL
+        value: https://api.brevo.com/v3/smtp/email
+      - key: MAIL_TIMEOUT
+        value: "10"
       - key: JWT_COOKIE_CSRF_PROTECT
         value: "true"
       - key: REDIS_URL
