@@ -65,14 +65,14 @@ def parse_papi_reference(reference: str) -> Optional[dict]:
     m = CMD_REFERENCE_RE.match(reference)
     if m:
         return {
-            'kind': 'commande',
+            'kind': 'cmd',
             'tenant_id': int(m.group(1)),
             'entity_id': int(m.group(2)),
         }
     m = SUB_REFERENCE_RE.match(reference)
     if m:
         return {
-            'kind': 'abonnement',
+            'kind': 'sub',
             'tenant_id': int(m.group(1)),
             'entity_id': int(m.group(2)),
         }
