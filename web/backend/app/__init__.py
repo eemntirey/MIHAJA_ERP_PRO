@@ -197,6 +197,10 @@ def create_app():
     app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
+    # Compatibilité avec les identités JWT historiques stockées sous forme d'entier.
+    # PyJWT récent valide par défaut le type de `sub`; la signature et les autres
+    # contrôles JWT restent inchangés.
+    app.config['JWT_VERIFY_SUB'] = False
 
     # Cookies JWT — HttpOnly empêche l'accès JS (XSS), SameSite=Strict bloque
     # les requêtes cross-origin, Secure n'est activé qu'en production.
