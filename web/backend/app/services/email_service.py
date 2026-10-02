@@ -170,11 +170,20 @@ def _send_brevo(subject, html_body, recipient, *, config=None, reply_to=None):
             logger.info('EMAIL provider=brevo status=%s', status_code)
             return result
 
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+        provider_code = data.get('code') if isinstance(data, dict) else None
+        if not isinstance(provider_code, str) or len(provider_code) > 100:
+            provider_code = None
+
         logger.error(
-            'EMAIL provider=brevo status=%s error_type=provider_http',
+            'EMAIL provider=brevo status=%s error_type=provider_http code=%s',
             status_code,
+            provider_code,
         )
-        return {
+        result = {
             'success': False,
             'delivered': False,
             'message': f'Brevo HTTP {status_code}',
@@ -182,12 +191,15 @@ def _send_brevo(subject, html_body, recipient, *, config=None, reply_to=None):
             'error_type': 'provider_http',
             'recipient': recipient,
         }
-    except requests.Timeout as exc:
+        if provider_code:
+            result['provider_code'] = provider_code
+        return result
+    except requests.Timeout:
         logger.error('EMAIL provider=brevo error_type=timeout')
         return {
             'success': False,
             'delivered': False,
-            'message': str(exc),
+            'message': 'Brevo indisponible (timeout)',
             'error_type': 'timeout',
             'recipient': recipient,
         }
@@ -196,7 +208,7 @@ def _send_brevo(subject, html_body, recipient, *, config=None, reply_to=None):
         return {
             'success': False,
             'delivered': False,
-            'message': str(exc),
+            'message': 'Brevo indisponible',
             'error_type': type(exc).__name__,
             'recipient': recipient,
         }
@@ -205,7 +217,7 @@ def _send_brevo(subject, html_body, recipient, *, config=None, reply_to=None):
         return {
             'success': False,
             'delivered': False,
-            'message': str(exc),
+            'message': 'Erreur inattendue du provider Brevo',
             'error_type': type(exc).__name__,
             'recipient': recipient,
         }
