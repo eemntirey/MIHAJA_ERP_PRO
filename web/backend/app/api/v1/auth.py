@@ -22,7 +22,7 @@ from app.security.auth import (
 from app.models.utilisateur import Utilisateur, Role, StatutUtilisateur, StatutAdmin
 from app.models.tenant import Tenant, StatutTenant
 from app.security.roles import is_super_admin
-from app.security.plans import check_tenant_limit
+from app.security.plans import check_tenant_limit, PLAN_CONFIG
 from app.services.abonnement_service import AbonnementService
 from app.services.modele_seed_service import seed_modeles_systeme
 from app.utils.audit import log_audit
@@ -229,7 +229,12 @@ class AuthRegister(Resource):
             # Règle métier : toute nouvelle entreprise/grossiste démarre toujours
             # sur le plan gratuit (30 jours inclus). Le passage aux plans payants
             # (Pro, Entreprise) nécessite un paiement validé via la page Abonnement.
-            plan = 'gratuit'
+            requested_plan = (data.get('plan') or 'gratuit').strip().lower()
+
+            if requested_plan not in PLAN_CONFIG:
+                return {'message': 'Plan invalide'}, 400
+
+            plan = requested_plan
 
             if not nom_entreprise:
                 return {'message': 'Le nom de l\'entreprise est requis'}, 400
