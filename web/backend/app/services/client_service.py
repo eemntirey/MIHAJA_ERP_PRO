@@ -112,7 +112,7 @@ class ClientService(BaseService):
             }
             for row in query.group_by(Vente.client_id).all()
         }
-@classmethod
+    @classmethod
     def create(cls, data: Dict[str, Any]) -> Client:
         """Crée un nouveau client"""
         if 'code' not in data or not data['code']:
