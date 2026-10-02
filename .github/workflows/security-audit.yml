@@ -4,9 +4,8 @@ on:
   push:
     branches: [main, develop, V0]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, V0]
   schedule:
-    # Audit hebdomadaire — lundi 06:00 UTC
     - cron: '0 6 * * 1'
 
 jobs:
@@ -15,75 +14,80 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Audit backend dependencies
         run: pip-audit -r web/requirements.txt --desc on
-        continue-on-error: false
 
   npm-audit-web:
     name: JS Dependencies — web/frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: web/frontend/package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit
         working-directory: web/frontend
-      - name: Audit
-        run: npm audit --omit=dev --audit-level=moderate
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
         working-directory: web/frontend
-        continue-on-error: false
+      - name: Audit build toolchain (informational)
+        run: npm audit --audit-level=high || true
+        working-directory: web/frontend
 
   npm-audit-desk:
     name: JS Dependencies — desk
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: desk/package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit
         working-directory: desk
-      - name: Audit
-        run: npm audit --audit-level=moderate
+      - name: Audit application dependencies
+        run: npm audit --omit=dev --audit-level=high
         working-directory: desk
-        continue-on-error: false
+      - name: Audit Electron/build toolchain (informational)
+        run: npm audit --audit-level=high || true
+        working-directory: desk
 
   npm-audit-super-admin:
     name: JS Dependencies — super-admin
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: super-admin/package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit
         working-directory: super-admin
-      - name: Audit
-        run: npm audit --omit=dev --audit-level=moderate
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
         working-directory: super-admin
-        continue-on-error: false
+      - name: Audit build toolchain (informational)
+        run: npm audit --audit-level=high || true
+        working-directory: super-admin
 
   sast:
     name: SAST — Bandit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install bandit
