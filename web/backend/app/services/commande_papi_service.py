@@ -155,7 +155,7 @@ def create_commande_papi_payment(
 
     if not tenant.has_papi_configured():
         raise CommandePapiError(
-            "Ce vendeur n'a pas configuré son compte Papi marchand. "
+            "Ce vendeur n'a pas configuré son compte PAPI marchand. "
             "Veuillez choisir un autre mode de paiement."
         )
 
