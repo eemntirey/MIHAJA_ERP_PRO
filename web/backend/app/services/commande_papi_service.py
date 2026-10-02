@@ -161,7 +161,7 @@ def create_commande_papi_payment(
 
     if not tenant.vitrine_enabled:
         raise CommandePapiError(
-            "Le paiement en ligne n'est pas disponible pour ce vendeur."
+            "Le paiement en ligne n'est pas disponible pour cette vitrine."
         )
 
     try:
