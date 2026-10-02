@@ -6,7 +6,28 @@
   "directories": {
     "doc": "docs"
   },
-  "scripts": {},
+  "scripts": {
+    "install:web": "npm --prefix web/frontend ci",
+    "install:desk": "npm --prefix desk ci",
+    "install:admin": "npm --prefix super-admin ci",
+    "install:all": "npm run install:web && npm run install:desk && npm run install:admin",
+    "dev:web": "npm --prefix web/frontend start",
+    "dev:desk": "npm --prefix desk run electron:dev",
+    "dev:admin": "npm --prefix super-admin run dev",
+    "build:web": "npm --prefix web/frontend run build",
+    "build:desk": "npm --prefix desk run build",
+    "build:admin": "npm --prefix super-admin run build",
+    "build:all": "npm run build:web && npm run build:desk && npm run build:admin",
+    "test:web": "npm --prefix web/frontend test -- --watchAll=false",
+    "test:desk": "npm --prefix desk run test:startup",
+    "test:backend": "python -m pytest web/backend/tests -x --tb=short -q",
+    "test:e2e": "npx playwright test",
+    "test:all": "npm run test:backend && npm run test:desk && npm run test:e2e",
+    "audit:web": "npm --prefix web/frontend audit --audit-level=moderate",
+    "audit:desk": "npm --prefix desk audit --audit-level=moderate",
+    "audit:admin": "npm --prefix super-admin audit --audit-level=moderate",
+    "audit:all": "npm run audit:web && npm run audit:desk && npm run audit:admin"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eemntirey/MIHAJA_ERP_PRO.git"
