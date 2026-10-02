@@ -21,7 +21,7 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Audit backend dependencies
-        run: pip-audit -r web/backend/requirements.txt --desc on
+        run: pip-audit -r web/requirements.txt --desc on
         continue-on-error: false
 
   npm-audit-web:

@@ -748,14 +748,18 @@ def create_app():
             )
             g.current_tenant = None
 
-    # Auto-seed des rôles/permissions système si la table est vide.
-    # Idempotent : ne s'exécute que si `roles` est vide, ne modifie jamais
-    # les données existantes. Évite l'écran "Aucun rôle trouvé" après un
-    # reset de base (cf. incident 2026-09-07 : Postgres erp seedée manuellement).
-    # Le schéma est inspecté AVANT toute requête : une base non migrée produit
-    # un diagnostic en français au lieu d'une traceback SQLAlchemy illisible.
-    try:
-        with app.app_context():
+    # Auto-seed des rôles/permissions système uniquement en dev/test ou
+    # sur opt-in explicite. En production, le bootstrap/migration est la seule
+    # voie d'initialisation du schéma et des rôles.
+    _auto_seed_enabled = (
+        os.getenv('AUTO_SEED_DATA', '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        or app.debug
+        or app.config.get('TESTING')
+        or os.getenv('FLASK_ENV', '').strip().lower() in {'development', 'testing'}
+    )
+    if _auto_seed_enabled:
+        try:
+            with app.app_context():
             missing_tables, inspection_error = _inspect_database_schema()
             if inspection_error is not None or missing_tables:
                 _log_database_schema_problem(missing_tables, inspection_error)
@@ -782,8 +786,8 @@ def create_app():
                             "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
                             len(missing_codes), ", ".join(missing_codes[:10]),
                         )
-    except Exception:
-        logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
+        except Exception:
+            logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 
     # NOTE: le seeding complet (_seed_initial_data) reste declenchable via CLI.
 

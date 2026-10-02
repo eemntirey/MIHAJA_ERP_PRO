@@ -22,6 +22,9 @@ export default defineConfig({
       '@shared': sharedDir,
       '@desk-shared': deskSharedDir,
       '@': path.resolve(__dirname, 'src'),
+      // shared/services/api.js est hors du root desk : force la résolution
+      // d'Axios vers la dépendance installée dans desk/node_modules.
+      'axios': path.resolve(__dirname, 'node_modules/axios'),
       'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
     },
   },
