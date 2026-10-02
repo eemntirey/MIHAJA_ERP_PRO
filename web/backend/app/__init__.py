@@ -760,32 +760,32 @@ def create_app():
     if _auto_seed_enabled:
         try:
             with app.app_context():
-            missing_tables, inspection_error = _inspect_database_schema()
-            if inspection_error is not None or missing_tables:
-                _log_database_schema_problem(missing_tables, inspection_error)
-            else:
-                from app.models.role_permission import RoleModel, Permission
-                roles_empty = db.session.query(RoleModel.id).first() is None
-                perms_empty = db.session.query(Permission.id).first() is None
-                if roles_empty or perms_empty:
-                    from scripts.seed_roles import seed_roles
-                    seed_roles(app)
-                    logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                missing_tables, inspection_error = _inspect_database_schema()
+                if inspection_error is not None or missing_tables:
+                    _log_database_schema_problem(missing_tables, inspection_error)
                 else:
-                    # Convergence : la matrice peut gagner de nouveaux codes
-                    # (ex. `user.delete`) sans que la table `permissions` soit
-                    # vide. On complète alors UNIQUEMENT les lignes manquantes
-                    # (idempotent, aucune donnée existante n'est supprimée) afin
-                    # que presets et rôles personnalisés exposent bien le CRUD
-                    # complet des modules souscrits par le tenant.
-                    from scripts.seed_roles import missing_permission_codes, seed_roles
-                    missing_codes = missing_permission_codes()
-                    if missing_codes:
+                    from app.models.role_permission import RoleModel, Permission
+                    roles_empty = db.session.query(RoleModel.id).first() is None
+                    perms_empty = db.session.query(Permission.id).first() is None
+                    if roles_empty or perms_empty:
+                        from scripts.seed_roles import seed_roles
                         seed_roles(app)
-                        logger.info(
-                            "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
-                            len(missing_codes), ", ".join(missing_codes[:10]),
-                        )
+                        logger.info("Auto-seed rôles/permissions effectué (base vide).")
+                    else:
+                        # Convergence : la matrice peut gagner de nouveaux codes
+                        # (ex. `user.delete`) sans que la table `permissions` soit
+                        # vide. On complète alors UNIQUEMENT les lignes manquantes
+                        # (idempotent, aucune donnée existante n'est supprimée) afin
+                        # que presets et rôles personnalisés exposent bien le CRUD
+                        # complet des modules souscrits par le tenant.
+                        from scripts.seed_roles import missing_permission_codes, seed_roles
+                        missing_codes = missing_permission_codes()
+                        if missing_codes:
+                            seed_roles(app)
+                            logger.info(
+                                "Auto-seed rôles/permissions : %s code(s) manquant(s) ajouté(s) (%s).",
+                                len(missing_codes), ", ".join(missing_codes[:10]),
+                            )
         except Exception:
             logger.warning("Auto-seed rôles/permissions a échoué", exc_info=True)
 
