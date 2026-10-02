@@ -36,21 +36,28 @@ class Config:
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
 
-    # Email
+    # Email transactionnel
+    # Le provider historique SMTP reste disponible pour compatibilite explicite.
+    # En production Render Free, utiliser MAIL_PROVIDER=brevo et l'API HTTPS Brevo.
+    MAIL_PROVIDER = os.getenv('MAIL_PROVIDER', 'smtp').strip().lower()
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_HOST = os.getenv('MAIL_HOST') or MAIL_SERVER
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-    # Interrupteur global du service d'emails. Desactive par defaut : aucun
-    # envoi SMTP sans opt-in explicite (MAIL_ENABLED=true) — protege les tests
-    # et les environnements de dev contre les envois accidentels.
     MAIL_ENABLED = os.getenv('MAIL_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
     MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME or 'no-reply@mihaja-erp.local')
     MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
     MAIL_CONTACT_RECIPIENT = os.getenv('MAIL_CONTACT_RECIPIENT') or MAIL_USERNAME
-    MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '30'))
+    # Timeout HTTP Brevo et timeout SMTP historique. La valeur est volontairement
+    # configurable et doit rester courte en production pour ne pas bloquer une requete.
+    MAIL_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '10'))
+
+    BREVO_API_KEY = os.getenv('BREVO_API_KEY')
+    BREVO_API_URL = os.getenv('BREVO_API_URL', 'https://api.brevo.com/v3/smtp/email')
+    BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL') or os.getenv('MAIL_FROM') or MAIL_USERNAME
+    BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME') or os.getenv('MAIL_FROM_NAME', 'MIHAJA ERP')
 
     # Securite / reset
     PASSWORD_RESET_TTL_MINUTES = int(os.getenv('PASSWORD_RESET_TTL_MINUTES', '30'))
