@@ -194,7 +194,7 @@ def create_app():
 
     # A1 FIX : web utilise des cookies HttpOnly (XSS-safe), Electron continue
     # avec les headers Authorization (secureStore chiffré côté desktop).
-    app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
+    app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
     # Compatibilité avec les identités JWT historiques stockées sous forme d'entier.
