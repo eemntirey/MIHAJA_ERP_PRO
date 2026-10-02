@@ -15,6 +15,7 @@ from flask_jwt_extended import (
 from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from app import db
+from app.config.settings import Config
 from app.security.auth import (
     authenticate_user, hash_password, _validate_password, verify_password,
     invalidate_user_tokens, require_password_changed,
