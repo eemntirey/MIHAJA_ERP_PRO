@@ -81,7 +81,7 @@ class ClientListResource(Resource):
     @ns.expect(client_model)
     def post(self):
         """Crée un nouveau client"""
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return {'message': 'Données JSON requises'}, 400
         
