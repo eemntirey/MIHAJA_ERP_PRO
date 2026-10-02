@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [V0, main, master]
 
+concurrency:
+  group: backend-tests-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
