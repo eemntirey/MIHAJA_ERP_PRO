@@ -25,6 +25,8 @@ export default defineConfig({
       // shared/services/api.js est hors du root desk : force la résolution
       // d'Axios vers la dépendance installée dans desk/node_modules.
       'axios': path.resolve(__dirname, 'node_modules/axios'),
+      'socket.io-client': path.resolve(__dirname, 'node_modules/socket.io-client'),
+      // Même traitement pour Socket.IO, importé depuis shared/websockets.
       'react-toastify': path.resolve(__dirname, 'node_modules/react-toastify'),
     },
   },
