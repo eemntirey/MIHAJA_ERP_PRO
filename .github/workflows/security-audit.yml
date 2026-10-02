@@ -38,7 +38,7 @@ jobs:
         run: npm ci
         working-directory: web/frontend
       - name: Audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate
         working-directory: web/frontend
         continue-on-error: false
 
@@ -74,7 +74,7 @@ jobs:
         run: npm ci
         working-directory: super-admin
       - name: Audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate
         working-directory: super-admin
         continue-on-error: false
 

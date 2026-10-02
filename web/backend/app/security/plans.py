@@ -61,11 +61,11 @@ _ALL = _EXTENDED + ['comptabilite', 'livraison', 'ia', 'achats']
 PLAN_CONFIG = {
     'gratuit': {
         'label': 'Gratuit',
-        'max_utilisateurs': 3,
+        'max_utilisateurs': 1,
         'max_produits': 50,
         'max_clients': 100,
         'max_admins': 1,
-        'max_employees': 2,
+        'max_employees': 0,
         'max_interns': 0,
         'max_tenants': -1,
         'modules': _EXTENDED,
