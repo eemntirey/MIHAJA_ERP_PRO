@@ -178,20 +178,33 @@ const TenantDetail = () => {
       toast.error('Sélectionnez un plan');
       return;
     }
+
     try {
-      const selectedPlanConfig = plans.find((plan) => plan.code === selectedPlan);
-      const duration = Number(selectedPlanConfig?.duree_jours);
-      await superAdminTenantService.changeSubscription(
+      // Le backend reste la source de vérité pour la durée/prix du plan.
+      // Ne pas envoyer une durée issue d'un ancien chargement de l'UI.
+      const response = await superAdminTenantService.changeSubscription(
         tenant.id,
         selectedPlan,
-        Number.isFinite(duration) ? duration : undefined,
       );
-      toast.success('Abonnement modifié');
+      const data = response?.data || response;
+
+      if (!data?.tenant || data.tenant.plan !== selectedPlan) {
+        throw new Error("Le serveur n'a pas confirmé le nouveau plan");
+      }
+
+      // Applique immédiatement la réponse serveur puis recharge l'historique.
+      setTenant(data.tenant);
       setShowChangeModal(false);
-      fetchTenant();
-      fetchSubscriptions();
-    } catch {
-      toast.error("Échec du changement d'abonnement");
+      setSelectedPlan(selectedPlan);
+      await fetchSubscriptions();
+
+      toast.success(`Abonnement changé vers ${data.tenant.plan}`);
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Échec du changement d'abonnement";
+      toast.error(message);
     }
   };
 
@@ -233,7 +246,15 @@ const TenantDetail = () => {
           ) : (
             <button onClick={handleSuspend} className="btn-danger">Suspendre</button>
           )}
-          <button onClick={() => setShowChangeModal(true)} className="btn-primary">Modifier abonnement</button>
+          <button
+            onClick={() => {
+              setSelectedPlan(tenant.plan || '');
+              setShowChangeModal(true);
+            }}
+            className="btn-primary"
+          >
+            Modifier abonnement
+          </button>
           <button onClick={() => setShowExtendModal(true)} className="btn-secondary">Prolonger</button>
           <button onClick={handleDelete} className="btn-danger" style={{ backgroundColor: '#dc2626' }}>Supprimer</button>
         </div>
