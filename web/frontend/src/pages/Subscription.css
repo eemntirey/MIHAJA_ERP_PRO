@@ -602,4 +602,292 @@
   color: #111111;
 }
 
+/* ==================== SUBSCRIPTION BASE LAYOUT ==================== */
 
+/*
+ * Subscription.jsx uses the shared page/modal markup classes, but must remain
+ * visually self-contained: Pages.css is not imported by this lazy page.
+ * Keep these primitives scoped to the subscription screen to avoid global
+ * collisions with legacy page styles.
+ */
+
+.subscription-page {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding);
+  box-sizing: border-box;
+  color: var(--color-text);
+}
+
+.subscription-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.subscription-page .page-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: var(--weight-extrabold);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+}
+
+.subscription-page .page-header p {
+  margin: var(--space-1) 0 0;
+  max-width: 60ch;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
+
+/* Loading */
+.subscription-page .loading-screen {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  color: var(--color-text-secondary);
+}
+
+.subscription-page .spinner-large {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: subscription-spin 0.8s linear infinite;
+}
+
+@keyframes subscription-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Full-width utility used by the payment history card */
+.subscription-page .full-width {
+  width: 100%;
+}
+
+/* Generic modal primitives used by Payment / Renewal / Offline dialogs */
+.subscription-page .modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(17, 17, 17, 0.45);
+  animation: subscription-fade-in 0.2s ease;
+}
+
+.subscription-page .modal {
+  width: min(100%, 640px);
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  animation: subscription-scale-in 0.18s var(--ease-out);
+}
+
+.subscription-page .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subscription-page .modal-header h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+}
+
+.subscription-page .modal-body {
+  padding: var(--space-6);
+  background: var(--color-surface-elevated);
+}
+
+.subscription-page .modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface-elevated);
+  border-top: 1px solid var(--color-border);
+}
+
+.subscription-page .btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.subscription-page .btn-close:hover:not(:disabled) {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.subscription-page .modal--offline {
+  max-width: 640px;
+}
+
+.subscription-page .offline-bulletin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.subscription-page .offline-bulletin__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.subscription-page .offline-bulletin__row > span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+}
+
+.subscription-page .offline-bulletin__row > strong {
+  color: var(--color-text);
+  text-align: right;
+}
+
+.subscription-page .offline-bulletin__ref {
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.04em;
+}
+
+.subscription-page .offline-bulletin__instructions,
+.subscription-page .offline-bulletin__note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-relaxed);
+}
+
+.subscription-page .offline-bulletin__note {
+  padding: var(--space-3);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.subscription-page .offline-bulletin__note strong {
+  color: inherit;
+}
+
+@keyframes subscription-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes subscription-scale-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .subscription-page {
+    padding: var(--page-padding-sm);
+  }
+
+  .subscription-page .page-header {
+    align-items: flex-start;
+  }
+
+  .subscription-page .modal-overlay {
+    padding: var(--space-3);
+  }
+
+  .subscription-page .modal-header,
+  .subscription-page .modal-body,
+  .subscription-page .modal-footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .subscription-page .modal-footer {
+    justify-content: stretch;
+  }
+
+  .subscription-page .modal-footer .btn-primary,
+  .subscription-page .modal-footer .btn-secondary {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-page {
+    padding: var(--space-4);
+  }
+
+  .subscription-page .page-header h1 {
+    font-size: 28px;
+  }
+
+  .subscription-page .page-header p {
+    font-size: var(--text-body-sm);
+  }
+
+  .subscription-page .offline-bulletin__row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .subscription-page .offline-bulletin__row > strong {
+    text-align: left;
+  }
+}
