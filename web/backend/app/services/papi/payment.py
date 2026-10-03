@@ -115,6 +115,35 @@ def create_subscription_payment(
     if not subscription.is_active or subscription.statut != StatutAbonnement.EN_ATTENTE:
         raise ValueError("Cet abonnement n'est pas en attente de paiement")
 
+    # Idempotence métier : une demande d'abonnement ne doit avoir qu'un seul
+    # paiement électronique encore en cours. Le contrôle doit intervenir
+    # AVANT l'appel à Papi ; le faire après créerait plusieurs liens Papi avec
+    # des références UUID différentes lors d'un double-clic/refresh.
+    existing_payment = Paiement.query.filter(
+        Paiement.tenant_id == tenant_id,
+        Paiement.subscription_id == subscription.id,
+        Paiement.type == TypePaiement.ABONNEMENT,
+        Paiement.is_active == True,
+        Paiement.provider == ProviderPaiement.PAPI.value,
+        Paiement.statut.in_([
+            StatutPaiement.EN_ATTENTE,
+            StatutPaiement.PROCESSING,
+        ]),
+        Paiement.external_payment_id.isnot(None),
+        Paiement.external_payment_id != '',
+    ).order_by(Paiement.created_at.desc()).first()
+    if existing_payment:
+        logger.info(
+            "Idempotent Papi payment found before gateway call: "
+            "subscription_id=%s paiement_id=%s",
+            subscription.id,
+            existing_payment.id,
+        )
+        return {
+            'payment_link': existing_payment.external_payment_id,
+            'payment': existing_payment.to_dict(),
+            'subscription': subscription.to_dict(),
+        }
 
     user_id = None
     try:
