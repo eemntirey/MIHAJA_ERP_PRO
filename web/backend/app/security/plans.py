@@ -221,6 +221,10 @@ EXPIRATION_PENALTY_CONFIG = {
         'expiration_penalty_percent': 0.20,
         'expiration_grace_days': 3,
     },
+    'starter': {
+        'expiration_penalty_percent': 0.20,
+        'expiration_grace_days': 3,
+    },
     'pro': {
         'expiration_penalty_percent': 0.25,
         'expiration_grace_days': 3,

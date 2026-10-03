@@ -12,6 +12,7 @@ const Payments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     facture_id: '',
     client_id: '',
@@ -106,6 +107,15 @@ const Payments = () => {
       toast.error('Le montant doit être supérieur à 0');
       return;
     }
+    const facture = factures.find(f => f.id === Number(formData.facture_id));
+    const paid = facture?.paiements?.reduce((sum, p) => sum + (Number(p.montant) || 0), 0) || 0;
+    const remaining = Math.max(0, Number(facture?.total_ttc || 0) - paid);
+    if (remaining > 0 && formData.montant > remaining) {
+      toast.error(`Le montant ne peut pas dépasser le reste à payer (${remaining.toLocaleString('fr-FR')} Ar).`);
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await paiementService.create(formData);
       toast.success('Paiement enregistré avec succès');
@@ -115,6 +125,8 @@ const Payments = () => {
       console.error('Error creating payment:', err);
       const msg = err.response?.data?.message || 'Échec de l’enregistrement du paiement';
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -131,8 +143,9 @@ const Payments = () => {
     }
   };
 
-  const totalAmount = payments.reduce((sum, payment) => sum + (payment.montant || 0), 0);
-  const averageAmount = payments.length ? totalAmount / payments.length : 0;
+  const confirmedPayments = payments.filter(payment => String(payment.statut || '').toLowerCase() === 'confirme');
+  const totalAmount = confirmedPayments.reduce((sum, payment) => sum + (Number(payment.montant) || 0), 0);
+  const averageAmount = confirmedPayments.length ? totalAmount / confirmedPayments.length : 0;
 
     const getModeLabel = (mode) => {
     return PAYMENT_METHOD_LABELS[mode] || mode;
@@ -308,6 +321,7 @@ const Payments = () => {
                     onChange={handleChange}
                     step="0.01"
                     min="0"
+                    max={(() => { const f = factures.find(x => x.id === Number(formData.facture_id)); const paid = f?.paiements?.reduce((sum, p) => sum + (Number(p.montant) || 0), 0) || 0; return f ? Math.max(0, Number(f.total_ttc || 0) - paid) : undefined; })()}
                     required
                   />
                 </div>
@@ -361,8 +375,8 @@ const Payments = () => {
                 <button type="button" onClick={closeModal} className="btn-secondary">
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary">
-                  Enregistrer
+                <button type="submit" className="btn-primary" disabled={submitting}>
+                  {submitting ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
             </form>
