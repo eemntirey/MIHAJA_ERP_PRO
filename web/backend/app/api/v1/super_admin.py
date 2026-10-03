@@ -830,31 +830,36 @@ class ChangeSubscription(Resource):
         )
 
         if abonnement:
-            abonnement.plan = new_plan
-            abonnement.montant = get_plan_price(new_plan)
-            abonnement.date_debut = now
-            abonnement.date_fin = new_date_fin
-            abonnement.statut = StatutAbonnement.ACTIF
-            apply_plan_to_abonnement(abonnement, new_plan)
-            db.session.add(abonnement)
-        else:
-            # Aucun abonnement conservé : créer l'abonnement administrativement
-            # sans passer par le flux de paiement client. Le super-admin demande
-            # ici un changement immédiat de plan déjà décidé.
-            abonnement = Abonnement(
-                tenant_id=tenant_id,
-                montant=get_plan_price(new_plan),
-                devise='MGA',
-                date_debut=now,
-                date_fin=new_date_fin,
-                statut=StatutAbonnement.ACTIF,
-                plan=new_plan,
-                methode_paiement='manuel',
-                notes='Modification directe par Super Admin',
-            )
-            apply_plan_to_abonnement(abonnement, new_plan)
+            # Ne jamais modifier en place l'abonnement historique Pro.
+            # Le modifier ferait perdre l'historique du plan et rattacherait
+            # les anciens paiements au nouveau plan. Un changement direct
+            # accordé par le Super Admin crée donc un nouvel abonnement actif
+            # et clôture l'ancien abonnement.
+            old_subscription_id = abonnement.id
+            abonnement.statut = StatutAbonnement.EXPIRE
+            abonnement.is_active = False
             db.session.add(abonnement)
             db.session.flush()
+
+        # Création d'un nouvel abonnement administratif immédiat. Aucun paiement
+        # client n'est créé : le Super Admin a explicitement accordé le nouveau plan.
+        abonnement = Abonnement(
+            tenant_id=tenant_id,
+            montant=get_plan_price(new_plan),
+            devise='MGA',
+            date_debut=now,
+            date_fin=new_date_fin,
+            statut=StatutAbonnement.ACTIF,
+            plan=new_plan,
+            methode_paiement='manuel',
+            notes=(
+                f'Modification directe par Super Admin'
+                + (f' - remplacement abonnement {old_subscription_id}' if 'old_subscription_id' in locals() else '')
+            ),
+        )
+        apply_plan_to_abonnement(abonnement, new_plan)
+        db.session.add(abonnement)
+        db.session.flush()
 
         # La source d'autorité du plan reste Tenant.plan et doit être alignée
         # avec les limites/modules recopiés dans Abonnement. Une modification
