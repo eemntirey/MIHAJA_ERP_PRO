@@ -53,7 +53,7 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CORS_ORIGINS
-        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend-796e-qdh1.onrender.com,https://mihaja-erp-frontend-796e.onrender.com,https://mihaja-erp-super-admin.onrender.com
+        value: https://erp.sekoliko.com,https://api.sekoliko.com,https://mihaja-erp-frontend-796e-qdh1.onrender.com,https://mihaja-erp-frontend-796e.onrender.com,https://mihaja-erp-super-admin-796e.onrender.com
       - key: DESKTOP_ELECTRON_CORS
         value: "true"
       - key: JWT_COOKIE_SAMESITE
@@ -122,6 +122,8 @@ services:
         value: "false"
       - key: VITE_API_URL
         value: /api/v1
+      - key: VITE_SOCKET_URL
+        value: https://mihaja-erp-pro.onrender.com
 
 # La base PostgreSQL est gérée séparément dans Render.
 # Ne pas déclarer une seconde base gratuite dans ce Blueprint.
