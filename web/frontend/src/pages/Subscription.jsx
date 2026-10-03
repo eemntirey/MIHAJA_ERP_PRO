@@ -575,24 +575,30 @@ const Subscription = () => {
               <h2>Payer par voie électronique</h2>
               <button onClick={() => setShowPaymentModal(false)} className="btn-close">×</button>
             </div>
-            <div className="modal-body">
+
+            <div className="modal-body payment-modal__body">
               {subscription && (
-                <div style={{ marginBottom: '20px', padding: '12px', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <p><strong>Plan:</strong> {subscription.plan}</p>
-                  <p>
-                    <strong>Montant:</strong>{' '}
-                    {pricing && pricing.penalty_active && pricing.prix_base > 0 ? (
-                      <span>
-                        <span className="subscription-price-strike">
-                          {Number(pricing.prix_base).toLocaleString('fr-FR')} Ar
+                <div className="payment-modal__summary">
+                  <p className="payment-modal__summary-row">
+                    <span>Plan</span>
+                    <strong>{subscription.plan}</strong>
+                  </p>
+                  <p className="payment-modal__summary-row">
+                    <span>Montant</span>
+                    <strong>
+                      {pricing && pricing.penalty_active && pricing.prix_base > 0 ? (
+                        <span>
+                          <span className="subscription-price-strike">
+                            {Number(pricing.prix_base).toLocaleString('fr-FR')} Ar
+                          </span>
+                          <span className="subscription-price-final">
+                            {Number(pricing.prix_final).toLocaleString('fr-FR')} Ar
+                          </span>
                         </span>
-                        <span className="subscription-price-final">
-                          {Number(pricing.prix_final).toLocaleString('fr-FR')} Ar
-                        </span>
-                      </span>
-                    ) : (
-                      <span>{Number(subscription.montant).toLocaleString('fr-FR')} Ar</span>
-                    )}
+                      ) : (
+                        <span>{Number(subscription.montant).toLocaleString('fr-FR')} Ar</span>
+                      )}
+                    </strong>
                   </p>
                   {pricing && pricing.penalty_active && (
                     <div className="subscription-penalty">
@@ -606,28 +612,26 @@ const Subscription = () => {
                   )}
                 </div>
               )}
-              <div className="form-group">
-                <label>Mode de paiement *</label>
+              <div className="form-group payment-modal__field">
+                <label className="payment-modal__label">Mode de paiement *</label>
                 <div className="payment-methods-grid">
-                  {PAYMENT_METHODS.map((method) => (
-                    <div
-                      key={method.id}
-                      onClick={() => setSelectedPaymentMethod(method.value)}
-                      style={{
-                        padding: '12px',
-                        border: `2px solid ${selectedPaymentMethod === method.value ? '#3b82f6' : '#e5e7eb'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        background: selectedPaymentMethod === method.value ? '#eff6ff' : '#fff',
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>{method.nom}</div>
-                    </div>
-                  ))}
+                  {PAYMENT_METHODS.map((method) => {
+                    const isSelected = selectedPaymentMethod === method.value;
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setSelectedPaymentMethod(method.value)}
+                        className={'payment-method-option' + (isSelected ? ' payment-method-option--selected' : '')}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="payment-method-option__name">{method.nom}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>
+              <p className="payment-modal__hint">
                 Vous serez redirigé vers la page de paiement sécurisée de Papi.
               </p>
             </div>
