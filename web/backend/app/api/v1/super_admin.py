@@ -508,9 +508,23 @@ class SuperAdminTenantDetail(Resource):
             Facture.is_active == True,
         ).scalar() or 0
 
+        # L'abonnement affiché comme « actuel » doit être réellement actif.
+        # Une demande en attente plus récente ne doit jamais remplacer
+        # l'abonnement effectivement utilisé par le tenant.
+        now = datetime.utcnow()
         abonnement_actuel = Abonnement.query.filter(
             Abonnement.tenant_id == tenant.id,
+            Abonnement.is_active == True,
+            Abonnement.statut == StatutAbonnement.ACTIF,
+            Abonnement.date_fin > now,
         ).order_by(Abonnement.date_fin.desc()).first()
+
+        if abonnement_actuel is None:
+            abonnement_actuel = Abonnement.query.filter(
+                Abonnement.tenant_id == tenant.id,
+                Abonnement.is_active == True,
+                Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+            ).order_by(Abonnement.created_at.desc()).first()
 
         tenant_data['abonnement_actuel'] = abonnement_actuel.to_dict() if abonnement_actuel else None
 
@@ -762,8 +776,34 @@ class ChangeSubscription(Resource):
         # Une modification administrateur doit toujours cibler l'abonnement
         # effectivement utilisé par le tenant. Une ancienne version sélectionnait
         # le premier enregistrement `is_active=True`, ce qui pouvait choisir une
-        # demande `en_attente` au lieu de l'abonnement Pro réellement actif.
+        # demande `en_attente` au lieu de l'abonnement réellement actif.
         now = datetime.utcnow()
+
+        # Invalider proprement les anciennes demandes de changement/renouvellement.
+        # Sinon /mon-abonnement peut encore sélectionner une demande en attente,
+        # et un ancien paiement pourrait réactiver ultérieurement un plan annulé.
+        pending_subscriptions = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.EN_ATTENTE,
+            Abonnement.is_active == True,
+        ).all()
+        for pending in pending_subscriptions:
+            pending.statut = StatutAbonnement.ANNULE
+            pending.is_active = False
+            db.session.query(Paiement).filter(
+                Paiement.subscription_id == pending.id,
+                Paiement.is_active == True,
+                Paiement.statut.in_([
+                    StatutPaiement.EN_ATTENTE,
+                    StatutPaiement.PROCESSING,
+                ]),
+            ).update(
+                {'statut': StatutPaiement.CANCELLED, 'is_active': False},
+                synchronize_session=False,
+            )
+            db.session.add(pending)
+        if pending_subscriptions:
+            db.session.flush()
 
         active_subscription = Abonnement.query.filter(
             Abonnement.tenant_id == tenant_id,
@@ -817,9 +857,12 @@ class ChangeSubscription(Resource):
             db.session.flush()
 
         # La source d'autorité du plan reste Tenant.plan et doit être alignée
-        # avec les limites/modules recopiés dans Abonnement.
+        # avec les limites/modules recopiés dans Abonnement. Une modification
+        # directe par le Super Admin rend l'abonnement actif immédiatement.
         tenant.plan = new_plan
         tenant.date_abonnement = now
+        tenant.statut = StatutTenant.ACTIF
+        tenant.is_active = True
         db.session.add(tenant)
 
         db.session.commit()
