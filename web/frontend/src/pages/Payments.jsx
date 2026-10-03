@@ -110,7 +110,7 @@ const Payments = () => {
     const facture = factures.find(f => f.id === Number(formData.facture_id));
     const paid = facture?.paiements?.reduce((sum, p) => sum + (Number(p.montant) || 0), 0) || 0;
     const remaining = Math.max(0, Number(facture?.total_ttc || 0) - paid);
-    if (remaining > 0 && formData.montant > remaining) {
+    if (facture && formData.montant > remaining) {
       toast.error(`Le montant ne peut pas dépasser le reste à payer (${remaining.toLocaleString('fr-FR')} Ar).`);
       return;
     }
@@ -217,11 +217,11 @@ const Payments = () => {
         </div>
         <div className="stat-card">
           <div className="stat-value">{totalAmount.toFixed(2)} Ar</div>
-          <div className="stat-label">Montant total</div>
+          <div className="stat-label">Montant encaissé confirmé</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">{averageAmount.toFixed(2)} Ar</div>
-          <div className="stat-label">Montant moyen</div>
+          <div className="stat-label">Encaissement moyen confirmé</div>
         </div>
       </div>
 
