@@ -282,6 +282,7 @@ class AbonnementService:
         ancien_plan = abn_pro.plan if abn_pro else 'pro'
         if abn_pro:
             abn_pro.statut = StatutAbonnement.EXPIRE
+            abn_pro.is_active = False
             db.session.add(abn_pro)
         now = datetime.utcnow()
         from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
@@ -298,6 +299,7 @@ class AbonnementService:
         )
         apply_plan_to_abonnement(abn_target, target_plan)
         db.session.add(abn_target)
+        db.session.flush()
         tenant.plan = target_plan
         db.session.add(tenant)
         audit = SubscriptionAuditTrail(
@@ -326,6 +328,17 @@ class AbonnementService:
             raise ValueError("Tenant non trouvé")
         from app.security.plans import PLAN_CONFIG, get_plan_duration_days, is_unlimited, apply_plan_to_abonnement
         now = datetime.utcnow()
+        # Un tenant ne doit jamais avoir plusieurs abonnements actifs en
+        # parallèle lors d'une réactivation/attribution administrative.
+        actifs = Abonnement.query.filter(
+            Abonnement.tenant_id == tenant_id,
+            Abonnement.statut == StatutAbonnement.ACTIF,
+            Abonnement.is_active == True,
+        ).all()
+        for ancien in actifs:
+            ancien.statut = StatutAbonnement.EXPIRE
+            ancien.is_active = False
+            db.session.add(ancien)
         duree = get_plan_duration_days('pro')
         date_fin = now + timedelta(days=365 * 99) if is_unlimited(duree) else now + timedelta(days=duree)
         abn_pro = Abonnement(
@@ -339,6 +352,7 @@ class AbonnementService:
         )
         apply_plan_to_abonnement(abn_pro, 'pro')
         db.session.add(abn_pro)
+        db.session.flush()
         ancien_plan = tenant.plan if tenant else 'gratuit'
         tenant.plan = 'pro'
         db.session.add(tenant)
