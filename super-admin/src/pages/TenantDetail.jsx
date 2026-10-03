@@ -192,11 +192,32 @@ const TenantDetail = () => {
         throw new Error("Le serveur n'a pas confirmé le nouveau plan");
       }
 
-      // Applique immédiatement la réponse serveur puis recharge l'historique.
+      // Le changement est déjà persisté par le serveur. Ne pas lancer ici
+      // une seconde requête d'historique : un 401 transitoire sur cette
+      // requête secondaire pourrait faire déclencher l'intercepteur Axios
+      // et rediriger inutilement le Super Admin vers /login après un succès.
       setTenant(data.tenant);
       setShowChangeModal(false);
       setSelectedPlan(selectedPlan);
-      await fetchSubscriptions();
+
+      // Synchronise immédiatement le tableau avec la réponse serveur.
+      // L'ancien abonnement actif est clôturé par le backend, puis le nouvel
+      // abonnement administratif devient actif.
+      if (data.abonnement) {
+        setSubscriptions((prev) => [
+          {
+            ...data.abonnement,
+            statut: data.abonnement.statut || 'actif',
+          },
+          ...prev
+            .filter((sub) => sub.id !== data.abonnement.id)
+            .map((sub) =>
+              sub.statut === 'actif'
+                ? { ...sub, statut: 'expire' }
+                : sub
+            ),
+        ]);
+      }
 
       toast.success(`Abonnement changé vers ${data.tenant.plan}`);
     } catch (err) {
