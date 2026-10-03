@@ -14,6 +14,8 @@
 services:
   - type: web
     name: mihaja-erp-pro
+    repo: https://github.com/eemntirey/MIHAJA_ERP_PRO
+    branch: V0.01
     runtime: docker
     dockerContext: ./web
     dockerfilePath: ./web/backend/Dockerfile
@@ -69,6 +71,8 @@ services:
 
   - type: web
     name: mihaja-erp-frontend
+    repo: https://github.com/eemntirey/MIHAJA_ERP_PRO
+    branch: V0.01
     runtime: static
     buildCommand: cd web/frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: web/frontend/build
@@ -102,6 +106,8 @@ services:
 
   - type: web
     name: mihaja-erp-super-admin
+    repo: https://github.com/eemntirey/MIHAJA_ERP_PRO
+    branch: V0.01
     runtime: static
     buildCommand: cd super-admin && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: super-admin/build
