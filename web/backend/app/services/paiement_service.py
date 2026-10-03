@@ -6,6 +6,14 @@ from app.models.facture import Facture
 from app.security.tenant import get_current_tenant_id
 
 
+# Seuls les paiements effectivement encaissés doivent alimenter le solde
+# d'une facture. EN_ATTENTE / PROCESSING / FAILED restent hors du cumul.
+_CONFIRMED_PAYMENT_STATUSES = (
+    StatutPaiement.SUCCESS,
+    StatutPaiement.CONFIRME,
+)
+
+
 def _normalize_payment_data(data):
     """Translate frontend field names to model column names and fill defaults."""
     normalized = dict(data)
@@ -65,7 +73,7 @@ def _normalize_payment_data(data):
 
 
 def _recompute_facture_status(facture_id, commit=True):
-    """Recalcule le statut d'une facture en fonction du cumul des paiements actifs."""
+    """Recalcule le statut d'une facture selon les paiements encaissés confirmés."""
     if not facture_id:
         return
     facture = db.session.get(Facture, facture_id)
@@ -77,6 +85,7 @@ def _recompute_facture_status(facture_id, commit=True):
         Paiement.facture_id == facture_id,
         Paiement.tenant_id == facture.tenant_id,
         Paiement.is_active == True,
+        Paiement.statut.in_(_CONFIRMED_PAYMENT_STATUSES),
     ).scalar() or 0
     total_paye = float(total_paye or 0)
     total_ttc = float(facture.total_ttc or 0)
@@ -100,8 +109,9 @@ def process_payment(data):
     if tenant_id:
         normalized['tenant_id'] = tenant_id
 
-    # Validation anti-overpayment : la somme des paiements actifs ne doit pas
-    # depasser le montant TTC de la facture. On verrouille la ligne facture
+    # Validation anti-overpayment : seuls les paiements déjà confirmés sont
+    # déduits du reste à payer. Un paiement EN_ATTENTE/PROCESSING ne réserve
+    # pas artificiellement le montant de la facture. On verrouille la ligne facture
     # le temps de l'operation pour eviter les races (sur SQLite, le verrou
     # est ignore, mais la transaction reste atomique cote logique).
     facture_id = normalized.get('facture_id')
@@ -125,6 +135,7 @@ def process_payment(data):
             Paiement.facture_id == facture_id,
             Paiement.tenant_id == facture.tenant_id,
             Paiement.is_active == True,
+            Paiement.statut.in_(_CONFIRMED_PAYMENT_STATUSES),
         ).scalar() or 0
         total_paye_actuel = float(total_paye_actuel)
         total_ttc = float(facture.total_ttc or 0)
@@ -199,6 +210,7 @@ def update(id, data):
             Paiement.facture_id == facture_id,
             Paiement.tenant_id == facture.tenant_id,
             Paiement.is_active.is_(True),
+            Paiement.statut.in_(_CONFIRMED_PAYMENT_STATUSES),
             Paiement.id != paiement.id,
         ).scalar() or 0
         if float(deja_paye) + nouveau_montant > float(facture.total_ttc or 0) + 0.01:
