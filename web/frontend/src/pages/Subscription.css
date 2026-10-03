@@ -603,3 +603,324 @@
 }
 
 
+
+/* ==================== SUBSCRIPTION BASE / MODAL ==================== */
+
+.subscription-page {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding);
+  box-sizing: border-box;
+  color: var(--color-text);
+}
+
+.subscription-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.subscription-page .page-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: var(--weight-extrabold);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+}
+
+.subscription-page .page-header p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
+
+.subscription-page .loading-screen {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  color: var(--color-text-secondary);
+}
+
+.subscription-page .spinner-large {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: subscription-spin 0.8s linear infinite;
+}
+
+@keyframes subscription-spin {
+  to { transform: rotate(360deg); }
+}
+
+.subscription-page .full-width { width: 100%; }
+
+.subscription-page .modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(17, 17, 17, 0.5);
+}
+
+.subscription-page .modal {
+  width: min(100%, 640px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+}
+
+.subscription-page .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subscription-page .modal-header h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-bold);
+}
+
+.subscription-page .modal-body {
+  padding: var(--space-6);
+  background: var(--color-surface-elevated);
+}
+
+.subscription-page .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface-elevated);
+  border-top: 1px solid var(--color-border);
+}
+
+.subscription-page .btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.subscription-page .btn-close:hover:not(:disabled) {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* ==================== ELECTRONIC PAYMENT MODAL ==================== */
+
+.payment-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.payment-modal__summary {
+  padding: var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.payment-modal__summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 6px 0;
+}
+
+.payment-modal__summary-row + .payment-modal__summary-row {
+  border-top: 1px dashed var(--color-border-subtle);
+}
+
+.payment-modal__summary-row span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+}
+
+.payment-modal__summary-row strong {
+  color: var(--color-text);
+  text-align: right;
+}
+
+.payment-modal__field { margin: 0; }
+
+.payment-modal__label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 0;
+}
+
+.payment-method-option {
+  appearance: none;
+  width: 100%;
+  min-height: 72px;
+  padding: 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: none;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.payment-method-option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: translateY(-1px);
+}
+
+.payment-method-option:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.payment-method-option--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 2px var(--color-primary-border);
+}
+
+.payment-method-option__name {
+  color: inherit;
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+.payment-modal__hint {
+  margin: 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.main-layout[data-theme='dark'] .payment-modal__summary,
+.main-layout[data-theme='dark'] .subscription-page .modal {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .subscription-page .modal-header,
+.main-layout[data-theme='dark'] .subscription-page .modal-body,
+.main-layout[data-theme='dark'] .subscription-page .modal-footer {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.main-layout[data-theme='dark'] .payment-method-option {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.main-layout[data-theme='dark'] .payment-method-option:hover,
+.main-layout[data-theme='dark'] .payment-method-option--selected {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: #60a5fa;
+}
+
+@media (max-width: 768px) {
+  .subscription-page { padding: var(--page-padding-sm); }
+
+  .subscription-page .modal-overlay { padding: var(--space-3); }
+
+  .subscription-page .modal-header,
+  .subscription-page .modal-body,
+  .subscription-page .modal-footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .subscription-page .modal-footer {
+    justify-content: stretch;
+  }
+
+  .subscription-page .modal-footer .btn-primary,
+  .subscription-page .modal-footer .btn-secondary {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-page { padding: var(--space-4); }
+
+  .payment-modal__summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .payment-modal__summary-row strong { text-align: left; }
+
+  .payment-methods-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-page .modal-header h2 {
+    font-size: 18px;
+  }
+}
