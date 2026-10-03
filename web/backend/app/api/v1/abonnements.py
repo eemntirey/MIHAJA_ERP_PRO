@@ -294,6 +294,14 @@ class PayerAbonnement(Resource):
         if not paiement:
             return {'message': 'Aucun paiement en attente pour cet abonnement'}, 400
 
+        # Un abonnement déjà actif/annulé/expiré ne doit jamais être
+        # revalidé par un ancien lien de paiement. Cela pourrait ressusciter
+        # un ancien plan après une modification administrative.
+        if abonnement.statut != StatutAbonnement.EN_ATTENTE or not abonnement.is_active:
+            return {
+                'message': 'Cet abonnement n\'est plus payable car son état a changé.'
+            }, 409
+
         if paiement:
             paiement.statut = StatutPaiement.CONFIRME
             paiement.date_paiement = datetime.utcnow()
