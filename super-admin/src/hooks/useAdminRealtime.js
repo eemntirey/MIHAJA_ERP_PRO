@@ -30,8 +30,10 @@ export const useAdminRealtime = () => {
     }
 
     const s = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
-      upgrade: true,
+      // Sur Render, le polling fonctionne mais l'upgrade WebSocket peut
+      // retourner 502. Le temps réel reste disponible sans cet upgrade.
+      transports: ['polling'],
+      upgrade: false,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,
