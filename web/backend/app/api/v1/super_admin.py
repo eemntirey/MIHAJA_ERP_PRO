@@ -759,23 +759,68 @@ class ChangeSubscription(Resource):
         old_plan = tenant.plan
         tenant.plan = new_plan
 
-        abonnement = Abonnement.query.filter(
+        # Une modification administrateur doit toujours cibler l'abonnement
+        # effectivement utilisé par le tenant. Une ancienne version sélectionnait
+        # le premier enregistrement `is_active=True`, ce qui pouvait choisir une
+        # demande `en_attente` au lieu de l'abonnement Pro réellement actif.
+        now = datetime.utcnow()
+
+        active_subscription = Abonnement.query.filter(
             Abonnement.tenant_id == tenant_id,
             Abonnement.is_active == True,
+            Abonnement.statut == StatutAbonnement.ACTIF,
+            Abonnement.date_fin > now,
         ).order_by(Abonnement.date_fin.desc()).first()
 
+        # Fallback contrôlé : si le tenant n'a plus d'abonnement actif (base
+        # partiellement migrée, essai terminé, ancien abonnement expiré), on
+        # réutilise le dernier abonnement conservé au lieu de modifier
+        # uniquement Tenant.plan et de laisser l'accès incohérent.
+        abonnement = active_subscription
+        if abonnement is None:
+            abonnement = Abonnement.query.filter(
+                Abonnement.tenant_id == tenant_id,
+                Abonnement.is_active == True,
+            ).order_by(Abonnement.date_fin.desc(), Abonnement.created_at.desc()).first()
+
+        new_date_fin = (
+            now + timedelta(days=365 * 99)
+            if is_unlimited(days)
+            else now + timedelta(days=days)
+        )
+
         if abonnement:
-            now = datetime.utcnow()
             abonnement.plan = new_plan
             abonnement.montant = get_plan_price(new_plan)
             abonnement.date_debut = now
-            abonnement.date_fin = (
-                now + timedelta(days=365 * 99)
-                if is_unlimited(days)
-                else now + timedelta(days=days)
-            )
+            abonnement.date_fin = new_date_fin
             abonnement.statut = StatutAbonnement.ACTIF
             apply_plan_to_abonnement(abonnement, new_plan)
+            db.session.add(abonnement)
+        else:
+            # Aucun abonnement conservé : créer l'abonnement administrativement
+            # sans passer par le flux de paiement client. Le super-admin demande
+            # ici un changement immédiat de plan déjà décidé.
+            abonnement = Abonnement(
+                tenant_id=tenant_id,
+                montant=get_plan_price(new_plan),
+                devise='MGA',
+                date_debut=now,
+                date_fin=new_date_fin,
+                statut=StatutAbonnement.ACTIF,
+                plan=new_plan,
+                methode_paiement='manuel',
+                notes='Modification directe par Super Admin',
+            )
+            apply_plan_to_abonnement(abonnement, new_plan)
+            db.session.add(abonnement)
+            db.session.flush()
+
+        # La source d'autorité du plan reste Tenant.plan et doit être alignée
+        # avec les limites/modules recopiés dans Abonnement.
+        tenant.plan = new_plan
+        tenant.date_abonnement = now
+        db.session.add(tenant)
 
         db.session.commit()
 
