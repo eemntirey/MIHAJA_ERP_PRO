@@ -357,6 +357,7 @@ def create_app():
         'https://erp.sekoliko.com',
         'https://mihaja-erp-frontend-796e-qdh1.onrender.com',
         'https://mihaja-erp-frontend-796e.onrender.com',
+        'https://mihaja-erp-super-admin-796e.onrender.com',
     ]
     CORS_ORIGINS = list(dict.fromkeys(
         CORS_ORIGINS + _dynamic_extra + _DEPLOYED_FRONTEND_ORIGINS
