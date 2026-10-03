@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { useSuperAdminAuth } from '../contexts/SuperAdminAuthContext';
 
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
@@ -8,41 +9,50 @@ const SOCKET_URL =
     : (typeof window !== 'undefined' ? window.location.origin : ''));
 
 let socket = null;
-const listeners = new Set();
 
-const getSocket = () => {
-  if (!socket) {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('super_admin_access_token') : null;
-    socket = io(SOCKET_URL, {
+export const useAdminRealtime = () => {
+  const { isAuthenticated } = useSuperAdminAuth();
+
+  useEffect(() => {
+    const token =
+      isAuthenticated && typeof window !== 'undefined'
+        ? localStorage.getItem('super_admin_access_token')
+        : null;
+
+    // Ne jamais lancer une connexion Socket.IO anonyme depuis /login :
+    // cela provoquait une boucle de 400 avant que l'access token soit disponible.
+    if (!isAuthenticated || !token) {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+      return undefined;
+    }
+
+    const s = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
-        upgrade: true,
+      upgrade: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,
       reconnectionDelayMax: 10000,
-      auth: token ? { token } : undefined,
+      withCredentials: true,
+      auth: { token },
     });
 
-    socket.on('connect', () => {
-      console.log('[Socket] Super-admin connectÃ©:', socket.id);
+    socket = s;
+
+    s.on('connect', () => {
+      console.log('[Socket] Super-admin connecté:', s.id);
     });
 
-    socket.on('disconnect', () => {
-      console.log('[Socket] Super-admin dÃ©connectÃ©');
+    s.on('disconnect', () => {
+      console.log('[Socket] Super-admin déconnecté');
     });
 
-    socket.on('connect_error', (err) => {
+    s.on('connect_error', (err) => {
       console.warn('[Socket] Erreur connexion super-admin:', err.message);
     });
-  }
-  return socket;
-};
-
-export const useAdminRealtime = () => {
-  const subscribedRef = useRef(false);
-
-  useEffect(() => {
-    const s = getSocket();
 
     const handleUserUpdated = (data) => {
       window.dispatchEvent(
@@ -72,23 +82,21 @@ export const useAdminRealtime = () => {
     s.on('tenant:updated', handleTenantUpdated);
     s.on('subscription:updated', handleSubscriptionUpdated);
     s.on('plan:updated', handlePlanUpdated);
-    listeners.add(handleUserUpdated);
-    listeners.add(handleTenantUpdated);
-    listeners.add(handleSubscriptionUpdated);
-    listeners.add(handlePlanUpdated);
-    subscribedRef.current = true;
 
     return () => {
       s.off('user:updated', handleUserUpdated);
       s.off('tenant:updated', handleTenantUpdated);
       s.off('subscription:updated', handleSubscriptionUpdated);
       s.off('plan:updated', handlePlanUpdated);
-      listeners.delete(handleUserUpdated);
-      listeners.delete(handleTenantUpdated);
-      listeners.delete(handleSubscriptionUpdated);
-      listeners.delete(handlePlanUpdated);
+      s.disconnect();
+
+      if (socket === s) {
+        socket = null;
+      }
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  return null;
 };
 
 export default useAdminRealtime;
