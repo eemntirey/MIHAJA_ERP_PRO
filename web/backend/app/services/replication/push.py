@@ -12,6 +12,7 @@ from app.models.sync_replica import (
 )
 from app.services.replication import (
     REPLICATION_TIMEOUT,
+    refresh_service_token,
     auth_headers,
     device_id,
     record_online_state,

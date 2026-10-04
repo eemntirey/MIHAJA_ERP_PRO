@@ -7,7 +7,7 @@ from app.models.abonnement import Abonnement, StatutAbonnement
 from app.models.paiement import Paiement, StatutPaiement, TypePaiement
 from app.services.abonnement_service import AbonnementService
 from app import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.security.roles import is_super_admin, is_admin
 from app.websockets.socket_events import broadcast_to_tenant
 
