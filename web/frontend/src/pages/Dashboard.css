@@ -1414,3 +1414,22 @@
 .main-layout[data-theme='dark'] .dashboard-revenue-hero__trend {
   color: rgba(255, 255, 255, 0.72);
 }
+
+/* FIX RESPONSIVE DARK MODE: REVENUE HERO SURFACE */
+@media (max-width: 1100px) {
+  .main-layout[data-theme='dark'] .dashboard-revenue-hero,
+  .main-layout[data-theme='dark'] .dashboard-revenue-hero--empty {
+    background: var(--color-onyx);
+    border-color: var(--color-border);
+    color: var(--color-white);
+  }
+
+  .main-layout[data-theme='dark'] .dashboard-revenue-hero h2,
+  .main-layout[data-theme='dark'] .dashboard-revenue-hero__amount {
+    color: var(--color-white);
+  }
+
+  .main-layout[data-theme='dark'] .dashboard-revenue-hero__trend {
+    color: rgba(255, 255, 255, 0.72);
+  }
+}
